@@ -8,14 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #f1f5f9; /* slate-100 */
-            --text-color: #1e293b; /* slate-800 */
-            --card-bg: rgba(255, 255, 255, 0.9);
-            --card-border: rgba(226, 232, 240, 0.8);
-            --nav-bg: rgba(255, 255, 255, 0.7);
-            --nav-border: rgba(226, 232, 240, 0.9);
-            --subtle-text: #475569; /* slate-600 */
-            --active-color: #4f46e5; /* indigo-600 */
+            --bg-color: #f1f5f9; --text-color: #1e293b; --card-bg: rgba(255, 255, 255, 0.9);
+            --card-border: rgba(226, 232, 240, 0.8); --nav-bg: rgba(255, 255, 255, 0.7);
+            --nav-border: rgba(226, 232, 240, 0.9); --subtle-text: #475569; --active-color: #4f46e5;
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-color); }
         .glass-nav { background: var(--nav-bg); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-color: var(--nav-border) !important; }
@@ -24,188 +19,51 @@
         .nav-link.active svg { color: var(--active-color); }
         .page-content { display: none; animation: fadeIn 0.5s ease forwards; }
         .page-content.active { display: block; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .main-activity-card {
-            border-radius: 1.5rem; padding: 1.25rem; cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            color: white; position: relative; overflow: hidden;
-            display: flex; flex-direction: column; justify-content: space-between;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .main-activity-card { border-radius: 1.5rem; padding: 1.25rem; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
         .main-activity-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        .main-activity-card .icon-bg {
-            position: absolute; bottom: -1rem; right: -1rem; font-size: 5rem;
-            opacity: 0.2; transform: rotate(-15deg); transition: transform 0.3s ease;
-        }
+        .main-activity-card .icon-bg { position: absolute; bottom: -1rem; right: -1rem; font-size: 5rem; opacity: 0.2; transform: rotate(-15deg); transition: transform 0.3s ease; }
         .main-activity-card:hover .icon-bg { transform: rotate(-5deg) scale(1.1); }
-        #presensi-modal, #stats-detail-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: var(--bg-color); z-index: 50;
-            transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            display: flex; flex-direction: column;
-        }
+        #presensi-modal, #stats-detail-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-color); z-index: 50; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); display: flex; flex-direction: column; }
         #presensi-modal.show, #stats-detail-modal.show { transform: translateY(0); }
-        .status-btn {
-            padding: 0.5rem 1rem; border-radius: 9999px;
-            font-weight: 600; font-size: 0.875rem;
-            border: 2px solid transparent; transition: all 0.2s ease;
-            white-space: nowrap;
-        }
+        .status-btn { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; font-size: 0.875rem; border: 2px solid transparent; transition: all 0.2s ease; white-space: nowrap; }
         .status-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .status-btn.selected { transform: scale(1.05); box-shadow: 0 0 0 2px currentColor; }
-        .bg-hadir, .bg-lengkap, .bg-tepat-waktu { background-color: #dcfce7; color: #166534; }
+        .bg-hadir, .bg-lengkap, .bg-tepat-waktu, .bg-rapi, .bg-tidak-puasa { background-color: #dcfce7; color: #166534; }
         .bg-sakit { background-color: #fef9c3; color: #854d0e; }
         .bg-izin { background-color: #e0f2fe; color: #0c4a6e; }
-        .bg-alpa, .bg-tidak-lengkap, .bg-tidak-sesuai, .bg-tidak-kembali { background-color: #fee2e2; color: #991b1b; }
+        .bg-alpa, .bg-tidak-lengkap, .bg-tidak-sesuai, .bg-tidak-kembali, .bg-tidak-rapi { background-color: #fee2e2; color: #991b1b; }
         .bg-terlambat { background-color: #ffedd5; color: #9a3412; }
-        .sub-activity-tab {
-            padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600;
-            cursor: pointer; transition: all 0.2s ease;
-            background-color: var(--card-bg); border: 1px solid var(--card-border);
-            color: var(--subtle-text); white-space: nowrap;
-        }
+        .bg-senin-kamis, .bg-yaumul-bidh, .bg-dawud, .bg-lainnya { background-color: #e0e7ff; color: #3730a3; }
+        .sub-activity-tab { padding: 0.5rem 1rem; border-radius: 9999px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; background-color: var(--card-bg); border: 1px solid var(--card-border); color: var(--subtle-text); white-space: nowrap; }
         .sub-activity-tab.active { background-color: var(--active-color); color: white; }
-        #toast {
-            position: fixed; bottom: -100px; left: 50%;
-            transform: translateX(-50%);
-            background-color: #2d3748; color: white;
-            padding: 1rem 1.5rem; border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: bottom 0.5s ease-in-out;
-            z-index: 100;
-        }
+        #toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #2d3748; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: bottom 0.5s ease-in-out; z-index: 100; }
         #toast.show { bottom: 20px; }
-        .loader {
-            border: 4px solid #f3f3f3; border-top: 4px solid var(--active-color);
-            border-radius: 50%; width: 40px; height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .loader-container {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(241, 245, 249, 0.8);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 45;
-        }
-        .confirmation-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 1000;
-            opacity: 0; visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-        .confirmation-modal-overlay.show {
-            opacity: 1; visibility: visible;
-        }
-        .confirmation-modal-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            text-align: center;
-            max-width: 90%;
-            width: 400px;
-            transform: translateY(-20px);
-            transition: transform 0.3s ease;
-        }
-        .confirmation-modal-overlay.show .confirmation-modal-content {
-            transform: translateY(0);
-        }
-        .chart-bar {
-            background-color: #4f46e5; /* indigo-600 */
-            height: 100%;
-            transition: height 0.5s ease-out;
-            border-radius: 0.25rem;
-        }
-        .chart-label {
-            font-size: 0.75rem;
-            color: #64748b; /* slate-500 */
-            margin-top: 0.25rem;
-            text-align: center;
-        }
-        .animate-gradient-shift {
-            background-size: 200% 200%;
-            animation: gradientShift 10s ease infinite alternate;
-        }
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
-        }
-
-        /* Class Color Icons - Calmer Tones */
-        .class-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 9999px; /* Full rounded */
-            font-size: 0.75rem; /* text-xs */
-            font-weight: bold;
-            color: white;
-            flex-shrink: 0;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* subtle shadow */
-        }
-        .bg-class-2A { background-color: #fca5a5; color: #b91c1c; } /* red-300, red-800 */
-        .bg-class-2B { background-color: #fcd34d; color: #92400e; } /* amber-300, amber-800 */
-        .bg-class-2C, .bg-class-2D { background-color: #86efac; color: #166534; } /* green-300, green-800 */
-        .bg-class-2G, .bg-class-2H { background-color: #93c5fd; color: #1e40af; } /* blue-300, blue-800 */
-
-        /* Agenda Card Specifics */
-        .agenda-card-item {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            cursor: default; /* Not clickable as a whole */
-        }
-        .agenda-card-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        /* Smaller clock font size */
-        #live-clock {
-            font-size: 3.5rem; /* Adjusted from 5rem */
-        }
-        @media (min-width: 768px) { /* md breakpoint */
-            #live-clock {
-                font-size: 4.5rem; /* Slightly larger on desktop */
-            }
-        }
-
-        /* Rekap Semua Tabs */
-        .rekap-tab-button {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            color: var(--subtle-text);
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            transition: all 0.2s ease;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .rekap-tab-button.active {
-            background-color: var(--active-color);
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-        .rekap-tab-button:hover:not(.active) {
-            background-color: var(--bg-color);
-            transform: translateY(-1px);
-        }
-        .rekap-tab-content {
-            display: none;
-            animation: fadeIn 0.5s ease forwards;
-        }
-        .rekap-tab-content.active {
-            display: block;
-        }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--active-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(241, 245, 249, 0.8); display: flex; align-items: center; justify-content: center; z-index: 45; }
+        .confirmation-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .confirmation-modal-overlay.show { opacity: 1; visibility: visible; }
+        .confirmation-modal-content { background-color: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); text-align: center; max-width: 90%; width: 400px; transform: translateY(-20px); transition: transform 0.3s ease; }
+        .confirmation-modal-overlay.show .confirmation-modal-content { transform: translateY(0); }
+        .chart-bar { background-color: #4f46e5; height: 100%; transition: height 0.5s ease-out; border-radius: 0.25rem; }
+        .chart-label { font-size: 0.75rem; color: #64748b; margin-top: 0.25rem; text-align: center; }
+        .animate-gradient-shift { background-size: 200% 200%; animation: gradientShift 10s ease infinite alternate; }
+        @keyframes gradientShift { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+        .class-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; color: white; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .bg-class-2A { background-color: #fca5a5; color: #b91c1c; }
+        .bg-class-2B { background-color: #fcd34d; color: #92400e; }
+        .bg-class-2C, .bg-class-2D { background-color: #86efac; color: #166534; }
+        .bg-class-2G, .bg-class-2H { background-color: #93c5fd; color: #1e40af; }
+        .agenda-card-item { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: default; }
+        .agenda-card-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        #live-clock { font-size: 2.25rem; line-height: 1; }
+        @media (min-width: 768px) { #live-clock { font-size: 2.5rem; } }
+        .rekap-tab-button { padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 600; color: var(--subtle-text); background-color: var(--card-bg); border: 1px solid var(--card-border); transition: all 0.2s ease; cursor: pointer; white-space: nowrap; }
+        .rekap-tab-button.active { background-color: var(--active-color); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .rekap-tab-button:hover:not(.active) { background-color: var(--bg-color); transform: translateY(-1px); }
+        .rekap-tab-content { display: none; animation: fadeIn 0.5s ease forwards; }
+        .rekap-tab-content.active { display: block; }
     </style>
 </head>
 <body class="text-slate-800">
@@ -219,9 +77,7 @@
             <div class="flex sm:flex-col sm:py-4 sm:px-3 h-full">
                 <div class="hidden sm:flex items-center gap-3 p-3 mb-4">
                     <div class="bg-indigo-600 p-2 rounded-lg text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                     </div>
                     <span class="font-bold text-lg">Presensi Pro</span>
                 </div>
@@ -255,31 +111,28 @@
             
             <div id="page-beranda" class="page-content active p-4 sm:p-6 lg:p-8">
                 <div class="max-w-7xl mx-auto space-y-8">
-
-                    <!-- Live Clock and Date Section -->
-                    <div class="p-6 rounded-2xl glass-card shadow-md">
-                        <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            Waktu Saat Ini
-                        </h3>
-                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div class="text-left">
-                                <p id="live-clock" class="text-5xl font-extrabold tracking-wider text-slate-900">00:00:00</p>
-                                <p id="gregorian-date" class="mt-1 text-slate-600 text-lg">-</p>
-                                <p id="hijri-date" class="mt-1 text-slate-500 text-md"></p>
+                    <!-- Waktu & Cuaca Section -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Kartu Waktu -->
+                        <div class="p-6 rounded-2xl glass-card shadow-md flex items-center gap-4 relative overflow-hidden">
+                            <div class="absolute -left-4 -bottom-4 text-indigo-500/10">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-32 w-32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </div>
-                            <!-- Weather Forecast Section (Simulated) -->
-                            <div class="flex-1 min-w-0 md:text-right">
-                                <h4 class="font-semibold text-slate-700 mb-2">Cuaca (Wirobrajan, Yogyakarta)</h4>
-                                <div id="weather-info" class="text-md text-slate-600">
-                                    <p><span class="font-bold">Cerah</span>, 28°C</p>
-                                    <p class="text-sm text-slate-500">Diperbarui: Sekarang (Simulasi)</p>
-                                </div>
+                            <div class="bg-indigo-100 text-indigo-600 p-4 rounded-xl flex-shrink-0 z-10">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </div>
+                            <div class="z-10">
+                                <p id="live-clock" class="font-extrabold tracking-wider text-slate-900">00:00:00</p>
+                                <p id="gregorian-date" class="mt-1 text-slate-600 text-sm md:text-base">-</p>
+                                <p id="hijri-date" class="mt-1 text-slate-500 text-xs md:text-sm"></p>
+                            </div>
+                        </div>
+                        <!-- Kartu Cuaca -->
+                        <div id="weather-card" class="p-6 rounded-2xl glass-card shadow-md flex items-center gap-4 relative overflow-hidden">
+                            <!-- Weather content will be injected by JS -->
                         </div>
                     </div>
 
-                    <!-- Welcome/Hero Section -->
                     <div class="p-8 rounded-2xl bg-indigo-600 text-white shadow-lg relative overflow-hidden animate-gradient-shift">
                         <div class="absolute inset-0 bg-gradient-to-br from-indigo-700 to-indigo-500 opacity-90 rounded-2xl"></div>
                         <div class="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
@@ -291,7 +144,6 @@
                         </div>
                     </div>
 
-                    <!-- Call to Action Section -->
                     <div class="p-6 rounded-2xl glass-card shadow-md flex flex-col items-center justify-center">
                         <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -299,79 +151,54 @@
                         </h3>
                         <p class="text-md text-slate-600 mb-6 text-center">Siap untuk mencatat presensi hari ini?</p>
                         <div class="flex flex-wrap justify-center gap-3">
-                            <button data-page="page-input" class="nav-link bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-colors shadow-md transform hover:scale-105">
-                                Input Presensi
-                            </button>
-                            <button class="quick-access-btn bg-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-600 transition-colors shadow-md" data-main-id="shubuh">
-                                Shubuh
-                            </button>
-                            <button class="quick-access-btn bg-sky-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-sky-600 transition-colors shadow-md" data-main-id="ashar">
-                                Ashar
-                            </button>
-                            <button class="quick-access-btn bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-colors shadow-md" data-main-id="sekolah">
-                                Sekolah
-                            </button>
-                            <button class="quick-access-btn bg-teal-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-600 transition-colors shadow-md" data-main-id="kebersihan">
-                                Kebersihan
-                            </button>
+                            <button data-page="page-input" class="nav-link bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-colors shadow-md transform hover:scale-105">Input Presensi</button>
+                            <button class="quick-access-btn bg-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-600 transition-colors shadow-md" data-main-id="shubuh">Shubuh</button>
+                            <button class="quick-access-btn bg-sky-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-sky-600 transition-colors shadow-md" data-main-id="ashar">Ashar</button>
+                            <button class="quick-access-btn bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-colors shadow-md" data-main-id="sekolah">Sekolah</button>
+                            <button class="quick-access-btn bg-teal-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-600 transition-colors shadow-md" data-main-id="kebersihan">Kebersihan</button>
                         </div>
                     </div>
 
-                    <!-- Agenda Mendatang Section -->
                     <div class="p-6 rounded-2xl glass-card shadow-md">
                         <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             Agenda Mendatang (Sesi Ini)
                         </h3>
-                        <div id="agenda-list" class="space-y-2 text-sm text-slate-600">
-                            <p class="text-slate-500">Tidak ada agenda. Edit di kode.</p>
-                        </div>
+                        <div id="agenda-list" class="space-y-2 text-sm text-slate-600"></div>
                     </div>
 
-                    <!-- General Statistics Section -->
                     <div class="p-6 rounded-2xl glass-card shadow-md">
                         <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
                             Statistik Umum Sesi Ini
                         </h3>
-                        <div id="statistik-umum-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            <!-- Stats will be dynamically inserted here -->
-                        </div>
+                        <div id="statistik-umum-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
                     </div>
 
-                    <!-- Rankings Sections -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div class="p-6 rounded-2xl glass-card shadow-md">
                             <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.119A3 3 0 0115 3.704V6h1.296a3 3 0 012.585 1.951L22 13h-1.28c-.287 0-.555.109-.757.301l-1.547 1.547a1.5 1.5 0 00-.439 1.096v.004c0 .483-.242.924-.634 1.196L16.2 19.46a3.5 3.5 0 00-.776 2.025c-.09.65.045 1.3.388 1.838a.75.75 0 01-1.332.868c-.46-.7-.57-1.57-.32-2.348a2.5 2.5 0 01.692-1.205l1.096-1.096a.75.75 0 00.22-.53v-.004c0-.26-.105-.51-.293-.707l-1.547-1.547a.75.75 0 00-.757-.301H12.5V3.704a3 3 0 01-3.951-1.585z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 21h-2a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l1.143-1.143c.471-.471 1.23-.471 1.702 0L15 8v11M9 19H6a2 2 0 01-2-2V9a2 2 0 012-2h3m6 12h3a2 2 0 002-2V9a2 2 0 00-2-2h-3M9 19l3 3m0 0l3-3m-3 3V9" /></svg>
                                 Peringkat Kehadiran Terbaik (Sesi Ini)
                             </h3>
-                            <div id="peringkat-presensi" class="space-y-3">
-                                <!-- Rankings will be inserted here -->
-                            </div>
+                            <div id="peringkat-presensi" class="space-y-3"></div>
                         </div>
                         <div class="p-6 rounded-2xl glass-card shadow-md">
                             <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                 Peringkat Pelanggaran Terbanyak (Sesi Ini)
                             </h3>
-                            <div id="peringkat-absensi" class="space-y-3">
-                                <!-- Rankings will be inserted here -->
-                            </div>
+                            <div id="peringkat-absensi" class="space-y-3"></div>
                         </div>
                     </div>
 
-                    <!-- Attendance Chart for Last 7 Days -->
                     <div class="p-6 rounded-2xl glass-card shadow-md">
                         <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M18 14V6M6 14v-4" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9a2 2 0 002-2V7a2 2 0 00-2-2H3a2 2 0 00-2 2v10a2 2 0 002 2h4" /></svg>
                             Grafik Kehadiran 7 Hari Terakhir
                         </h3>
-                        <div id="attendance-chart" class="h-48 flex items-end justify-around gap-2 p-2">
-                            <!-- Chart bars will be dynamically inserted here -->
-                        </div>
+                        <div id="attendance-chart" class="h-48 flex items-end justify-around gap-2 p-2"></div>
                     </div>
-
                 </div>
             </div>
             
@@ -395,9 +222,7 @@
                             </div>
                         </div>
                     </header>
-                    <div id="main-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <!-- Main activity cards will be dynamically inserted here -->
-                    </div>
+                    <div id="main-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
                 </div>
             </div>
 
@@ -413,9 +238,7 @@
                     <div class="mb-6">
                         <input type="search" id="search-riwayat" placeholder="Cari nama santri atau kegiatan..." class="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
                     </div>
-                    <div id="riwayat-container" class="space-y-3">
-                        <!-- Riwayat items will be inserted here -->
-                    </div>
+                    <div id="riwayat-container" class="space-y-3"></div>
                 </div>
             </div>
             
@@ -453,9 +276,7 @@
                         <button class="rekap-tab-button" data-rekap-filter="2CD">Kelas 2C/D</button>
                         <button class="rekap-tab-button" data-rekap-filter="2GH">Kelas 2G/H</button>
                     </div>
-                    <div id="rekap-semua-container" class="p-4 rounded-2xl glass-card overflow-x-auto shadow-md">
-                        <!-- Rekap table will be inserted here -->
-                    </div>
+                    <div id="rekap-semua-container" class="p-4 rounded-2xl glass-card overflow-x-auto shadow-md"></div>
                 </div>
             </div>
         </main>
@@ -468,9 +289,7 @@
                 <h2 id="modal-kegiatan-title" class="text-xl font-bold text-slate-900"></h2>
                 <p id="modal-kegiatan-subtitle" class="text-sm text-slate-500"></p>
             </div>
-            <div id="sub-activity-tabs" class="mt-4 flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 custom-scrollbar">
-                <!-- Sub-activity tabs will be inserted here -->
-            </div>
+            <div id="sub-activity-tabs" class="mt-4 flex gap-2 overflow-x-auto pb-2 -mx-4 px-4"></div>
             <button id="close-modal-btn" class="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 text-slate-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -478,9 +297,7 @@
         <div class="p-4 flex-shrink-0 sticky top-[125px] sm:top-[109px] bg-white/80 backdrop-blur-sm z-10 border-b border-slate-200">
             <input type="search" id="search-santri-modal" placeholder="Cari nama santri..." class="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
         </div>
-        <div id="modal-santri-list" class="flex-grow overflow-y-auto p-4 space-y-2">
-            <!-- Santri list with status buttons will be inserted here -->
-        </div>
+        <div id="modal-santri-list" class="flex-grow overflow-y-auto p-4 space-y-2"></div>
         <footer class="p-4 border-t border-slate-200 flex-shrink-0 sticky bottom-0 bg-white/80 backdrop-blur-sm">
             <button id="simpan-presensi-btn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">Simpan Perubahan</button>
         </footer>
@@ -496,9 +313,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
         </header>
-        <div id="stats-detail-list" class="flex-grow overflow-y-auto p-4 space-y-2">
-            <!-- List of santri for the statistic will be here -->
-        </div>
+        <div id="stats-detail-list" class="flex-grow overflow-y-auto p-4 space-y-2"></div>
     </div>
 
     <div id="toast"></div>
@@ -517,16 +332,11 @@
     <script type="module">
         const CONFIG = {
             mainActivities: [
-                { id: 'shubuh', title: 'Sholat Shubuh', color: 'bg-blue-500', icon: '☀️' },
-                { id: 'ashar', title: 'Sholat Ashar', color: 'bg-sky-500', icon: '🌤️' },
-                { id: 'maghrib', title: 'Sholat Maghrib', color: 'bg-purple-500', icon: '🌇' },
-                { id: 'isya', title: 'Sholat Isya', color: 'bg-indigo-500', icon: '🌙' },
-                { id: 'sunnah', title: 'Kegiatan Sunnah', color: 'bg-violet-500', icon: '🙏' },
-                { id: 'quran', title: 'Al-Quran', color: 'bg-emerald-500', icon: '📜' },
-                { id: 'sekolah', title: 'Kegiatan Sekolah', color: 'bg-green-500', icon: '🏫' },
-                { id: 'ketepatan', title: 'Ketepatan Waktu', color: 'bg-orange-500', icon: '⏱️' },
-                { id: 'kebersihan', title: 'Kebersihan', color: 'bg-teal-500', icon: '🧹' },
-                { id: 'ekskul', title: 'Kegiatan Ekskul', color: 'bg-rose-500', icon: '🤸' },
+                { id: 'shubuh', title: 'Sholat Shubuh', color: 'bg-blue-500', icon: '☀️' }, { id: 'ashar', title: 'Sholat Ashar', color: 'bg-sky-500', icon: '🌤️' },
+                { id: 'maghrib', title: 'Sholat Maghrib', color: 'bg-purple-500', icon: '🌇' }, { id: 'isya', title: 'Sholat Isya', color: 'bg-indigo-500', icon: '🌙' },
+                { id: 'sunnah', title: 'Kegiatan Sunnah', color: 'bg-violet-500', icon: '🙏' }, { id: 'quran', title: 'Al-Quran', color: 'bg-emerald-500', icon: '📜' },
+                { id: 'sekolah', title: 'Kegiatan Sekolah', color: 'bg-green-500', icon: '🏫' }, { id: 'ketepatan', title: 'Ketepatan Waktu', color: 'bg-orange-500', icon: '⏱️' },
+                { id: 'kebersihan', title: 'Kebersihan', color: 'bg-teal-500', icon: '🧹' }, { id: 'ekskul', title: 'Kegiatan Ekskul', color: 'bg-rose-500', icon: '🤸' },
             ],
             subActivities: [
                 { id: 'shubuh_wajib', mainId: 'shubuh', kategori: 'Ibadah', wajib: true, judul: 'Shubuh', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Terlambat'] },
@@ -544,8 +354,11 @@
                 { id: 'seragam_sholat_isya', mainId: 'isya', kategori: 'Kedisiplinan', wajib: true, judul: 'Seragam', opsi: ['Lengkap', 'Tidak Lengkap', 'Tidak Sesuai'] },
                 { id: 'tahajjud', mainId: 'sunnah', kategori: 'Ibadah', wajib: false, judul: 'Tahajjud', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
                 { id: 'dhuha', mainId: 'sunnah', kategori: 'Ibadah', wajib: false, judul: 'Dhuha', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
+                { id: 'syuruq', mainId: 'sunnah', kategori: 'Ibadah', wajib: false, judul: 'Syuruq', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
                 { id: 'puasa_sunnah', mainId: 'sunnah', kategori: 'Ibadah', wajib: false, judul: 'Puasa Sunnah', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
                 { id: 'alkahfi', mainId: 'quran', kategori: 'Ibadah', wajib: false, judul: 'Al-Kahfi', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'], day: 5 },
+                { id: 'tilawah_mandiri', mainId: 'quran', kategori: 'Ibadah', wajib: true, judul: 'Tilawah Mandiri', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
+                { id: 'tadarrus_berjamaah', mainId: 'quran', kategori: 'Ibadah', wajib: true, judul: 'Tadarrus', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
                 { id: 'berangkat_sekolah', mainId: 'sekolah', kategori: 'Kedisiplinan', wajib: true, judul: 'Berangkat', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Terlambat'] },
                 { id: 'seragam_sekolah', mainId: 'sekolah', kategori: 'Kedisiplinan', wajib: true, judul: 'Seragam', opsi: ['Lengkap', 'Tidak Lengkap', 'Tidak Sesuai'] },
                 { id: 'pasca_perpulangan', mainId: 'ketepatan', kategori: 'Kedisiplinan', wajib: true, judul: 'Pasca Pulang', opsi: ['Tepat Waktu', 'Terlambat', 'Tidak Kembali', 'Izin'] },
@@ -553,6 +366,7 @@
                 { id: 'tidur_tepat_waktu', mainId: 'ketepatan', kategori: 'Kedisiplinan', wajib: true, judul: 'Tidur Tepat Waktu', opsi: ['Tepat Waktu', 'Terlambat', 'Izin', 'Sakit'] },
                 { id: 'piket_harian', mainId: 'kebersihan', kategori: 'Kedisiplinan', wajib: true, judul: 'Piket Harian', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
                 { id: 'piket_asrama', mainId: 'kebersihan', kategori: 'Kedisiplinan', wajib: true, judul: 'Piket Asrama', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
+                { id: 'kerapian_rambut', mainId: 'kebersihan', kategori: 'Kedisiplinan', wajib: true, judul: 'Kerapian Rambut', opsi: ['Rapi', 'Tidak Rapi'] },
                 { id: 'kerja_bakti', mainId: 'kebersihan', kategori: 'Kedisiplinan', wajib: true, judul: 'Kerja Bakti', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa', 'Terlambat'], day: 0 },
                 { id: 'ekskul_tapak_suci', mainId: 'ekskul', kategori: 'Ekskul', wajib: false, judul: 'Tapak Suci', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
                 { id: 'ekskul_hizbul_wathan', mainId: 'ekskul', kategori: 'Ekskul', wajib: false, judul: 'Hizbul Wathan', opsi: ['Hadir', 'Izin', 'Sakit', 'Alpa'] },
@@ -560,202 +374,101 @@
             daftarSantri: [
                 { id: 'santri1', nama: 'Adelio Daffa Syahrizha', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri2', nama: 'Ahmad Ahsanur Rizqi', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri3', nama: 'Arkana El Sabilly', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri4', nama: "Athaya Auza'I Mubarak", kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri5', nama: 'Dama Arza Evannova', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri6', nama: 'Danar Nizam Daniswara', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri7', nama: 'Devgan Jadid Sahlvatico', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri8', nama: 'Fariq Imtiyas Aufaa Kamil', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri9', nama: 'Firaas Izzulhaq', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri10', nama: 'Gilang Omar Fardad', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri11', nama: 'Jaladri Arif Wirasena', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri12', nama: 'Kemal Mubarak Siregar', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri13', nama: 'Khairil Nizam', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri14', nama: 'Mirza Nasyath Ahza Attaillah', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri15', nama: 'Muhammad Farros Linggar Cahyono', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri16', nama: 'Muhammad Fathir Alfalah', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri17', nama: 'Narendra Wibawa', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri18', nama: 'Naufal Zhafran Purnama', kelas: '2A', program: 'Unggulan', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri19', nama: 'Alano Faaiq Alfeno', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri20', nama: 'Arfandhika Fakhrul Islam', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri21', nama: 'Aydin Rafif', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri22', nama: 'Danish Alzahid Dinasti', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri23', nama: 'Ghani Arif Witjaksono', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri24', nama: 'Haidarrafid Satriaa Ardhani', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri25', nama: 'Iqbal Zulfikar Al Hanif', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri26', nama: 'Jangky Dausat', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri27', nama: 'Kumara Banyu Argani', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri28', nama: 'M. Dede Afkar', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri29', nama: 'Mekha Ilham Lutfianto', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri30', nama: 'Muhammad Aiman Naim', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri31', nama: 'Muhammad Karel Ashiddiq', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri32', nama: 'Naufal Fahmi Darsono', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri33', nama: 'Nazhif Fahreza Zuhairy', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri34', nama: 'Rais Abqari Ash Shidqi', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri35', nama: 'William Ramadhan Al Ghazali', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri36', nama: 'Zia El Ibrahim Aqeela Putra Wijaya', kelas: '2B', program: 'Unggulan', musyrif: 'Abdullah' }, { id: 'santri37', nama: "Ahmad Arkan Sya'Bani", kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri38', nama: 'Ahmad Darwis', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri39', nama: 'Ahmad Ghozi El Muntazhor', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri40', nama: "Aldan 'Izzul Islam", kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri41', nama: 'Fawwaz Elfareza Zuhri', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri42', nama: 'M. Fathan Alfarisi Harahap', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri43', nama: 'Muhammad Ahsani Taqwim', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri44', nama: 'Muhammad Ayyub Al Fatih', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri45', nama: 'Muhammad Gibran Rafassya', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri46', nama: 'Narendra Gerrardi Kusumah', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri47', nama: "Rijal Abdul'aziz", kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri48', nama: 'Rizki Chandra Dewantara', kelas: '2A', program: 'Tahfizh', musyrif: 'Andi Aqillah Fadia Haswat' }, { id: 'santri49', nama: 'Ahmad Miqdad', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri50', nama: 'Dzaky Salman Al Farisi', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri51', nama: 'Muhammad Alvi Mumtaz Brillian Hafizh', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri52', nama: 'Muhammad Mahdi Hafidz', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri53', nama: 'Muhammad Naufal Rasyid Arafi', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri54', nama: 'Nahsif Ilman Hazim Purwono', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri55', nama: 'Nawwaf Bahy Rafif', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri56', nama: 'Nizar Adhyatma Aryanda', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri57', nama: 'Rafa Agitananda Az Zayyan', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri58', nama: "Rafa Faeyza Fa'Iz", kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri59', nama: 'Rizqi Satria Putra Surya', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri60', nama: 'Umar Ubaidillah Tsaqif', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri61', nama: 'Wildan Faiz Mahendra', kelas: '2B', program: 'Tahfizh', musyrif: 'Abdullah' }, { id: 'santri62', nama: 'Faiq Fauzil Adhim', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri63', nama: 'Fairuz Azzam Mahfuzh', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri64', nama: 'Muhammad Arkhan Attaqi', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri65', nama: 'Muhammad Daffa Naufal Alaika', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri66', nama: 'Muzakki Fairuzzaman', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri67', nama: 'Neymar Tsaqif Hikmatyar', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri68', nama: 'Rifqi Maliki', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri69', nama: "Yasykur Slamer'Abqariy", kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri70', nama: 'Zhafran Dhiaurrahman Hakim', kelas: '2C', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri71', nama: 'Achmad Adi Darwis Elfaza', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri72', nama: 'Galang Afkar Artyanto', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri73', nama: 'Gilang Asytar Artyanto', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri74', nama: 'Muhammad Alif Al-Fatih', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri75', nama: 'Muhammad Faiz Ibnu Zakaria', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri76', nama: 'Muhammad Mahdi Hanafi', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri77', nama: 'Muhammad Muhdi Hafidz', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri78', nama: 'Rizqi Ahmad Altaf Zafar', kelas: '2D', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri79', nama: 'Dzaky Anthony Akbar', kelas: '2G', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri80', nama: 'Muwafaqi Amru Ahmad', kelas: '2G', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri81', nama: 'Abdul Ghani Irfan Rafif', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri82', nama: 'Abid Fadhil Abiyah', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri83', nama: "Ahmad Dahlan Asy'Ari", kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri84', nama: 'Athallah Azmi Ghaisan Muhammad', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri85', nama: 'Azmi Zulfadli Syafiq', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri86', nama: 'Azri Labibul Khawarizmi', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri87', nama: 'Dzar Al Ghifari', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri88', nama: 'Fatihan Al Ghifari', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri89', nama: 'Hisyam Nabil Pasha', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri90', nama: 'Ibadillah Kaiazmi Mubarak', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri91', nama: 'Kashvi Jabbar Azana', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri92', nama: 'Khawarizmi Fakhrulhaq', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri93', nama: 'Muh. Naufal Alif', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri94', nama: 'Muhammad Aghna Ilman Rafa', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri95', nama: 'Royyan Abdurrahman Ibtisam', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' }, { id: 'santri96', nama: 'Sakhi Arkan Elfariza', kelas: '2H', program: 'Tahfizh', musyrif: 'Muhammad Zhafir Setiaji' },
             ],
-            negativeStatus: ['Alpa', 'Terlambat', 'Tidak Lengkap', 'Tidak Sesuai', 'Tidak Kembali'],
+            negativeStatus: ['Alpa', 'Terlambat', 'Tidak Lengkap', 'Tidak Sesuai', 'Tidak Kembali', 'Tidak Rapi'],
             agendas: [
-                { date: '2025-08-15', title: 'Rapat Pengurus Asrama' },
-                { date: '2025-08-17', title: 'Lomba Kemerdekaan' },
-                { date: '2025-08-20', title: 'Kajian Rutin Ba\'da Isya' },
-                { date: '2025-08-25', title: 'Ujian Tengah Semester' },
+                { date: '2025-08-15', title: 'Rapat Pengurus Asrama' }, { date: '2025-08-17', title: 'Lomba Kemerdekaan' },
+                { date: '2025-08-20', title: 'Kajian Rutin Ba\'da Isya' }, { date: '2025-08-25', title: 'Ujian Tengah Semester' },
                 { date: '2025-09-01', title: 'Libur Nasional' },
             ],
             classColors: {
-                '2A': { text: '2A', bgClass: 'bg-class-2A' },
-                '2B': { text: '2B', bgClass: 'bg-class-2B' },
-                '2C': { text: '2C', bgClass: 'bg-class-2C' },
-                '2D': { text: '2D', bgClass: 'bg-class-2D' },
-                '2G': { text: '2G', bgClass: 'bg-class-2G' },
-                '2H': { text: '2H', bgClass: 'bg-class-2H' },
+                '2A': { text: '2A', bgClass: 'bg-class-2A' }, '2B': { text: '2B', bgClass: 'bg-class-2B' },
+                '2C': { text: '2C', bgClass: 'bg-class-2C' }, '2D': { text: '2D', bgClass: 'bg-class-2D' },
+                '2G': { text: '2G', bgClass: 'bg-class-2G' }, '2H': { text: '2H', bgClass: 'bg-class-2H' },
             }
         };
 
         const DOMElements = {
-            appLoader: document.getElementById('app-loader'),
-            contentLoader: document.getElementById('content-loader'),
-            toast: document.getElementById('toast'),
-            mainNav: document.getElementById('main-nav'),
-            pages: document.querySelectorAll('.page-content'),
-            liveClock: document.getElementById('live-clock'),
-            gregorianDate: document.getElementById('gregorian-date'),
-            hijriDate: document.getElementById('hijri-date'),
-            agendaList: document.getElementById('agenda-list'),
-            heroWelcomeMessage: document.getElementById('hero-welcome-message'),
-            statistikUmumContainer: document.getElementById('statistik-umum-container'),
-            peringkatPresensi: document.getElementById('peringkat-presensi'),
-            peringkatAbsensi: document.getElementById('peringkat-absensi'),
-            datePicker: document.getElementById('date-picker'),
-            prevDayBtn: document.getElementById('prev-day-btn'),
-            nextDayBtn: document.getElementById('next-day-btn'),
-            mainCardsContainer: document.getElementById('main-cards-container'),
-            presensiModal: document.getElementById('presensi-modal'),
-            modalTitle: document.getElementById('modal-kegiatan-title'),
-            modalSubtitle: document.getElementById('modal-kegiatan-subtitle'),
-            subActivityTabs: document.getElementById('sub-activity-tabs'),
-            closeModalBtn: document.getElementById('close-modal-btn'),
-            searchSantriModal: document.getElementById('search-santri-modal'),
-            modalSantriList: document.getElementById('modal-santri-list'),
-            simpanPresensiBtn: document.getElementById('simpan-presensi-btn'),
-            searchRiwayat: document.getElementById('search-riwayat'),
-            riwayatContainer: document.getElementById('riwayat-container'),
-            selectSantriRekap: document.getElementById('select-santri-rekap'),
-            rekapIndividuContainer: document.getElementById('rekap-individu-container'),
-            rekapSemuaTabs: document.getElementById('rekap-semua-tabs'), // NEW
-            rekapSemuaContainer: document.getElementById('rekap-semua-container'),
-            confirmationModalOverlay: document.getElementById('confirmation-modal-overlay'),
-            confirmationModalTitle: document.getElementById('confirmation-modal-title'),
-            confirmationModalMessage: document.getElementById('confirmation-modal-message'),
-            confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
-            confirmOkBtn: document.getElementById('confirm-ok-btn'),
-            statsDetailModal: document.getElementById('stats-detail-modal'),
-            statsDetailTitle: document.getElementById('stats-detail-title'),
-            statsDetailList: document.getElementById('stats-detail-list'),
-            closeStatsDetailModalBtn: document.getElementById('close-stats-detail-modal-btn'),
+            appLoader: document.getElementById('app-loader'), contentLoader: document.getElementById('content-loader'),
+            toast: document.getElementById('toast'), mainNav: document.getElementById('main-nav'),
+            pages: document.querySelectorAll('.page-content'), liveClock: document.getElementById('live-clock'),
+            gregorianDate: document.getElementById('gregorian-date'), hijriDate: document.getElementById('hijri-date'),
+            agendaList: document.getElementById('agenda-list'), heroWelcomeMessage: document.getElementById('hero-welcome-message'),
+            statistikUmumContainer: document.getElementById('statistik-umum-container'), peringkatPresensi: document.getElementById('peringkat-presensi'),
+            peringkatAbsensi: document.getElementById('peringkat-absensi'), datePicker: document.getElementById('date-picker'),
+            prevDayBtn: document.getElementById('prev-day-btn'), nextDayBtn: document.getElementById('next-day-btn'),
+            mainCardsContainer: document.getElementById('main-cards-container'), presensiModal: document.getElementById('presensi-modal'),
+            modalTitle: document.getElementById('modal-kegiatan-title'), modalSubtitle: document.getElementById('modal-kegiatan-subtitle'),
+            subActivityTabs: document.getElementById('sub-activity-tabs'), closeModalBtn: document.getElementById('close-modal-btn'),
+            searchSantriModal: document.getElementById('search-santri-modal'), modalSantriList: document.getElementById('modal-santri-list'),
+            simpanPresensiBtn: document.getElementById('simpan-presensi-btn'), searchRiwayat: document.getElementById('search-riwayat'),
+            riwayatContainer: document.getElementById('riwayat-container'), selectSantriRekap: document.getElementById('select-santri-rekap'),
+            rekapIndividuContainer: document.getElementById('rekap-individu-container'), rekapSemuaTabs: document.getElementById('rekap-semua-tabs'),
+            rekapSemuaContainer: document.getElementById('rekap-semua-container'), confirmationModalOverlay: document.getElementById('confirmation-modal-overlay'),
+            confirmationModalTitle: document.getElementById('confirmation-modal-title'), confirmationModalMessage: document.getElementById('confirmation-modal-message'),
+            confirmCancelBtn: document.getElementById('confirm-cancel-btn'), confirmOkBtn: document.getElementById('confirm-ok-btn'),
+            statsDetailModal: document.getElementById('stats-detail-modal'), statsDetailTitle: document.getElementById('stats-detail-title'),
+            statsDetailList: document.getElementById('stats-detail-list'), closeStatsDetailModalBtn: document.getElementById('close-stats-detail-modal-btn'),
             attendanceChart: document.getElementById('attendance-chart'),
+            weatherCard: document.getElementById('weather-card'),
         };
 
         const AppState = {
-            activePage: 'page-beranda',
-            activeDate: new Date(),
-            presensiCache: {},
-            modal: { mainId: null, subId: null, changes: {} },
-            clockInterval: null,
-            activeRekapFilter: 'all', // NEW: Default filter for Rekap Semua
+            activePage: 'page-beranda', activeDate: new Date(), presensiCache: {},
+            modal: { mainId: null, subId: null, changes: {} }, clockInterval: null, activeRekapFilter: 'all',
         };
 
         const Utils = {
             getFormattedDate: (date) => date.toISOString().split('T')[0],
-
             toggleLoader: (show, type = 'content') => {
                 const loader = type === 'app' ? DOMElements.appLoader : DOMElements.contentLoader;
                 loader.classList.toggle('hidden', !show);
             },
-
             showToast: (message) => {
                 DOMElements.toast.textContent = message;
                 DOMElements.toast.classList.add('show');
                 setTimeout(() => DOMElements.toast.classList.remove('show'), 3000);
             },
-
             showConfirmation: (message, title = 'Konfirmasi') => {
                 return new Promise((resolve) => {
                     DOMElements.confirmationModalTitle.textContent = title;
                     DOMElements.confirmationModalMessage.textContent = message;
                     DOMElements.confirmationModalOverlay.classList.add('show');
-
-                    const handleConfirm = () => {
+                    const close = (value) => {
                         DOMElements.confirmationModalOverlay.classList.remove('show');
-                        DOMElements.confirmOkBtn.removeEventListener('click', handleConfirm);
-                        DOMElements.confirmCancelBtn.removeEventListener('click', handleCancel);
-                        resolve(true);
+                        resolve(value);
                     };
-
-                    const handleCancel = () => {
-                        DOMElements.confirmationModalOverlay.classList.remove('show');
-                        DOMElements.confirmOkBtn.removeEventListener('click', handleConfirm);
-                        DOMElements.confirmCancelBtn.removeEventListener('click', handleCancel);
-                        resolve(false);
-                    };
-
-                    DOMElements.confirmOkBtn.addEventListener('click', handleConfirm);
-                    DOMElements.confirmCancelBtn.addEventListener('click', handleCancel);
+                    DOMElements.confirmOkBtn.addEventListener('click', () => close(true), { once: true });
+                    DOMElements.confirmCancelBtn.addEventListener('click', () => close(false), { once: true });
                 });
             },
-
-            // Improved Hijri Date Conversion (approximation)
             getHijriDate: (gregorianDate) => {
-                const GREGORIAN_EPOCH = 1721425.5; // Julian day number of 0001-01-01 Gregorian
-                const HIJRI_EPOCH = 1948439.5; // Julian day number of 1 Muharram, 1 AH (approx)
-
-                const jd = gregorianDate.getTime() / 86400000 + 2440587.5; // Convert Gregorian date to Julian day number
-
-                if (jd < HIJRI_EPOCH) {
-                    return "Tanggal Hijriah (Tidak Tersedia)";
+                try {
+                    return new Intl.DateTimeFormat('id-ID-u-ca-islamic', {day: 'numeric', month: 'long', year: 'numeric'}).format(gregorianDate);
+                } catch (e) {
+                    return "Tanggal Hijriah tidak tersedia";
                 }
-
-                let h = jd - HIJRI_EPOCH;
-                let N = Math.floor(h / 354.367056); // Approximate number of Hijri years
-                let h_rem = h % 354.367056;
-
-                let h_year = N + 1; // Start with the approximate year
-                let h_month = 1;
-                let h_day = 1;
-
-                // Iterate through months to find the correct month and day
-                const daysInHijriMonth = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29]; // Common lengths
-                
-                // Adjust for leap years (simplified 30-year cycle: 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29)
-                const isLeapHijriYear = (year) => (year * 11 + 14) % 30 < 11; // A common rule for leap years
-
-                let currentDaysInYear = 0;
-                for (let i = 0; i < 12; i++) {
-                    let daysInCurrentMonth = daysInHijriMonth[i];
-                    if (i === 11 && isLeapHijriYear(h_year)) { // Dzulhijjah in a leap year has 30 days
-                        daysInCurrentMonth = 30;
-                    }
-
-                    if (h_rem - currentDaysInYear < daysInCurrentMonth) {
-                        h_month = i + 1;
-                        h_day = Math.floor(h_rem - currentDaysInYear) + 1;
-                        break;
-                    }
-                    currentDaysInYear += daysInCurrentMonth;
-                }
-
-                const hijriMonthsNames = [
-                    "Muharram", "Safar", "Rabi'ul Awal", "Rabi'ul Akhir", "Jumadil Awal",
-                    "Jumadil Akhir", "Rajab", "Sya'ban", "Ramadhan", "Syawal",
-                    "Dzulqa'dah", "Dzulhijjah"
-                ];
-
-                return `${h_day} ${hijriMonthsNames[h_month - 1]} ${h_year} H`;
             }
         };
 
         const DataService = {
             getOrInitializeDailyData(dateStr) {
                 if (!AppState.presensiCache[dateStr]) {
-                    const initialData = {};
-                    CONFIG.subActivities.forEach(sub => {
-                        const initialSummary = {};
-                        CONFIG.daftarSantri.forEach(() => {
-                            initialSummary[sub.opsi[0]] = (initialSummary[sub.opsi[0]] || 0) + 1;
-                        });
-                        initialData[sub.id] = { details: {}, summary: initialSummary };
-                    });
-                    AppState.presensiCache[dateStr] = initialData;
+                    AppState.presensiCache[dateStr] = CONFIG.subActivities.reduce((acc, sub) => {
+                        acc[sub.id] = { details: {}, summary: { [sub.opsi[0]]: CONFIG.daftarSantri.length } };
+                        return acc;
+                    }, {});
                 }
                 return AppState.presensiCache[dateStr];
             },
-
             savePresensi(dateStr, mainId, changes) {
                 const currentData = this.getOrInitializeDailyData(dateStr);
-                
-                Object.keys(changes).forEach(subId => {
-                    const subChanges = changes[subId];
+                Object.entries(changes).forEach(([subId, subChanges]) => {
                     const subInfo = CONFIG.subActivities.find(s => s.id === subId);
-                    const defaultStatus = subInfo.opsi[0];
-
-                    currentData[subId] = currentData[subId] || { details: {}, summary: {} };
-                    currentData[subId].details = currentData[subId].details || {};
-
                     Object.entries(subChanges).forEach(([santriId, newStatus]) => {
-                        if (newStatus === defaultStatus) {
-                            delete currentData[subId].details[santriId];
-                        } else {
-                            currentData[subId].details[santriId] = newStatus;
-                        }
+                        if (newStatus === subInfo.opsi[0]) delete currentData[subId].details[santriId];
+                        else currentData[subId].details[santriId] = newStatus;
                     });
                 });
-                
                 CONFIG.subActivities.filter(s => s.mainId === mainId).forEach(sub => {
                     const newSummary = {};
                     CONFIG.daftarSantri.forEach(santri => {
@@ -764,131 +477,94 @@
                     });
                     currentData[sub.id].summary = newSummary;
                 });
-
                 Utils.showToast("Perubahan berhasil disimpan (hanya sesi ini)!");
             },
-
-            fetchAllSessionData() {
-                return { ...AppState.presensiCache };
-            },
-
+            fetchAllSessionData: () => ({ ...AppState.presensiCache }),
             deleteRiwayatItem(dateStr, subId, santriId) {
                 const dailyData = AppState.presensiCache[dateStr];
-                if (dailyData?.[subId]?.details) {
-                    delete dailyData[subId].details[santriId];
-
-                    const subInfo = CONFIG.subActivities.find(s => s.id === subId);
-                    const newSummary = {};
-                    CONFIG.daftarSantri.forEach(santri => {
-                        const status = dailyData[subId]?.details?.[santri.id] || subInfo.opsi[0];
-                        newSummary[status] = (newSummary[status] || 0) + 1;
-                    });
-                    dailyData[subId].summary = newSummary;
-                    Utils.showToast("Riwayat berhasil dihapus (hanya sesi ini)!");
-                }
+                if (!dailyData?.[subId]?.details) return;
+                delete dailyData[subId].details[santriId];
+                const subInfo = CONFIG.subActivities.find(s => s.id === subId);
+                const newSummary = {};
+                CONFIG.daftarSantri.forEach(santri => {
+                    const status = dailyData[subId]?.details?.[santri.id] || subInfo.opsi[0];
+                    newSummary[status] = (newSummary[status] || 0) + 1;
+                });
+                dailyData[subId].summary = newSummary;
+                Utils.showToast("Riwayat berhasil dihapus (hanya sesi ini)!");
             }
         };
 
         const StatisticsService = {
             calculateSessionStats(sessionData) {
-                const santriStats = {};
-                CONFIG.daftarSantri.forEach(s => {
-                    santriStats[s.id] = { violations: 0, totalMandatory: 0, Sakit: 0, Izin: 0, Alpa: 0, Terlambat: 0, 'Tidak Lengkap': 0, 'Tidak Sesuai': 0, 'Tidak Kembali': 0 };
-                });
+                const santriStats = CONFIG.daftarSantri.reduce((acc, s) => {
+                    acc[s.id] = { violations: 0, totalMandatory: 0, Sakit: 0, Izin: 0, Alpa: 0, Terlambat: 0, 'Tidak Lengkap': 0, 'Tidak Sesuai': 0, 'Tidak Kembali': 0, 'Tidak Rapi': 0 };
+                    return acc;
+                }, {});
 
-                let totalOverallMandatory = 0;
                 let totalOverallViolations = 0;
-                let totalSakit = 0;
-                let totalIzin = 0;
-                let totalAlpa = 0;
                 let activeDaysCount = 0;
+                const overallTotals = { Sakit: 0, Izin: 0, Alpa: 0 };
 
                 Object.entries(sessionData).forEach(([dateStr, dayData]) => {
                     const date = new Date(dateStr + "T00:00:00");
                     let hasExceptions = false;
-
                     const mandatoryForDay = CONFIG.subActivities.filter(s => s.wajib && (!s.hasOwnProperty('day') || s.day === date.getDay()));
                     
                     CONFIG.daftarSantri.forEach(santri => {
                         santriStats[santri.id].totalMandatory += mandatoryForDay.length;
-                        totalOverallMandatory += mandatoryForDay.length;
-
                         mandatoryForDay.forEach(sub => {
                             const status = dayData[sub.id]?.details?.[santri.id];
                             if (status) {
                                 hasExceptions = true;
-                                if (santriStats[santri.id].hasOwnProperty(status)) {
-                                    santriStats[santri.id][status]++;
-                                    if (CONFIG.negativeStatus.includes(status)) {
-                                        santriStats[santri.id].violations++;
-                                        totalOverallViolations++;
-                                    }
+                                if (santriStats[santri.id].hasOwnProperty(status)) santriStats[santri.id][status]++;
+                                if (overallTotals.hasOwnProperty(status)) overallTotals[status]++;
+                                if (CONFIG.negativeStatus.includes(status)) {
+                                    santriStats[santri.id].violations++;
+                                    totalOverallViolations++;
                                 }
-
-                                if (status === 'Sakit') totalSakit++;
-                                if (status === 'Izin') totalIzin++;
-                                if (status === 'Alpa') totalAlpa++;
                             }
                         });
                     });
-                    if (hasExceptions || Object.keys(dayData).length > 0) {
-                        activeDaysCount++;
-                    }
+                    if (hasExceptions || Object.values(dayData).some(d => Object.keys(d.details).length > 0)) activeDaysCount++;
                 });
 
+                const totalOverallMandatory = CONFIG.daftarSantri.reduce((sum, s) => sum + santriStats[s.id].totalMandatory, 0);
                 const overallAttendancePercentage = totalOverallMandatory > 0 ? ((totalOverallMandatory - totalOverallViolations) / totalOverallMandatory) * 100 : 100;
 
-                return { 
-                    santriStats, 
-                    overallAttendancePercentage: overallAttendancePercentage.toFixed(1),
-                    totalSakit,
-                    totalIzin,
-                    totalAlpa,
-                    activeDaysCount
-                };
+                return { santriStats, overallAttendancePercentage: overallAttendancePercentage.toFixed(1), ...overallTotals, activeDaysCount };
             },
-
             getRankings(santriStats) {
                 const rankings = CONFIG.daftarSantri.map(santri => {
                     const stats = santriStats[santri.id];
                     const attendance = stats.totalMandatory > 0 ? ((stats.totalMandatory - stats.violations) / stats.totalMandatory) * 100 : 100;
                     return { ...santri, attendance: attendance.toFixed(1), violations: stats.violations };
                 });
-                const sortedPresensi = [...rankings].sort((a, b) => parseFloat(b.attendance) - parseFloat(a.attendance));
-                const sortedAbsensi = [...rankings].sort((a, b) => b.violations - a.violations);
-                return { sortedPresensi, sortedAbsensi };
+                return {
+                    sortedPresensi: [...rankings].sort((a, b) => parseFloat(b.attendance) - parseFloat(a.attendance)),
+                    sortedAbsensi: [...rankings].sort((a, b) => b.violations - a.violations)
+                };
             },
-
             getAttendanceForLastNDays(numDays) {
-                const dailyPercentages = [];
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-
-                for (let i = numDays - 1; i >= 0; i--) {
+                return Array.from({ length: numDays }).map((_, i) => {
                     const date = new Date(today);
-                    date.setDate(today.getDate() - i);
+                    date.setDate(today.getDate() - (numDays - 1 - i));
                     const dateStr = Utils.getFormattedDate(date);
                     const dayData = DataService.getOrInitializeDailyData(dateStr);
 
-                    let totalMandatoryForDay = 0;
-                    let totalViolationsForDay = 0;
-
                     const mandatoryActivities = CONFIG.subActivities.filter(s => s.wajib && (!s.hasOwnProperty('day') || s.day === date.getDay()));
+                    const totalMandatoryForDay = mandatoryActivities.length * CONFIG.daftarSantri.length;
                     
-                    CONFIG.daftarSantri.forEach(santri => {
-                        totalMandatoryForDay += mandatoryActivities.length;
-                        mandatoryActivities.forEach(sub => {
-                            const status = dayData[sub.id]?.details?.[santri.id];
-                            if (status && CONFIG.negativeStatus.includes(status)) {
-                                totalViolationsForDay++;
-                            }
-                        });
-                    });
-
+                    const totalViolationsForDay = mandatoryActivities.reduce((violationCount, sub) => {
+                        const details = dayData[sub.id]?.details || {};
+                        return violationCount + Object.values(details).filter(status => CONFIG.negativeStatus.includes(status)).length;
+                    }, 0);
+                    
                     const percentage = totalMandatoryForDay > 0 ? ((totalMandatoryForDay - totalViolationsForDay) / totalMandatoryForDay) * 100 : 100;
-                    dailyPercentages.push({ date: date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), percentage: parseFloat(percentage.toFixed(1)) });
-                }
-                return dailyPercentages;
+                    return { date: date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), percentage: parseFloat(percentage.toFixed(1)) };
+                });
             }
         };
 
@@ -896,64 +572,81 @@
             switchPage(pageId) {
                 AppState.activePage = pageId;
                 DOMElements.pages.forEach(p => p.classList.toggle('active', p.id === pageId));
-                DOMElements.mainNav.querySelectorAll('.nav-link').forEach(l => {
-                    l.classList.toggle('active', l.dataset.page === pageId);
-                });
+                DOMElements.mainNav.querySelectorAll('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.page === pageId));
                 PageController.loadPage(pageId);
             },
-
             async renderBeranda() {
                 Utils.toggleLoader(true);
                 this.updateClock();
                 if (AppState.clockInterval) clearInterval(AppState.clockInterval);
                 AppState.clockInterval = setInterval(() => this.updateClock(), 1000);
+                this.renderWeather();
 
                 const sessionData = DataService.fetchAllSessionData();
-                const { santriStats, overallAttendancePercentage, totalSakit, totalIzin, totalAlpa, activeDaysCount } = StatisticsService.calculateSessionStats(sessionData);
-                const { sortedPresensi, sortedAbsensi } = StatisticsService.getRankings(santriStats);
+                const stats = StatisticsService.calculateSessionStats(sessionData);
+                const { sortedPresensi, sortedAbsensi } = StatisticsService.getRankings(stats.santriStats);
                 
-                DOMElements.hijriDate.textContent = Utils.getHijriDate(new Date());
-
-                const currentHour = new Date().getHours();
-                let welcomeMessage = "Selamat Datang!";
-                if (currentHour >= 5 && currentHour < 11) {
-                    welcomeMessage = "Selamat Pagi!";
-                } else if (currentHour >= 11 && currentHour < 15) {
-                    welcomeMessage = "Selamat Siang!";
-                } else if (currentHour >= 15 && currentHour < 18) {
-                    welcomeMessage = "Selamat Sore!";
-                } else if (currentHour >= 18 || currentHour < 5) {
-                    welcomeMessage = "Selamat Malam!";
-                }
-                DOMElements.heroWelcomeMessage.textContent = welcomeMessage;
-
+                DOMElements.heroWelcomeMessage.textContent = this.getWelcomeMessage();
+                this.renderAgenda();
+                this.renderRankings(DOMElements.peringkatPresensi, sortedPresensi, 'attendance', '%');
+                this.renderRankings(DOMElements.peringkatAbsensi, sortedAbsensi, 'violations', ' kali');
+                this.renderGeneralStats(stats);
+                this.renderAttendanceChart();
+                Utils.toggleLoader(false);
+            },
+            renderWeather() {
+                const weatherConditions = [
+                    { desc: 'Cerah', temp: '28°C', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>', bg: 'bg-amber-100' },
+                    { desc: 'Berawan', temp: '26°C', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>', bg: 'bg-slate-200' },
+                    { desc: 'Hujan Ringan', temp: '24°C', icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 19v1m4-1v1m4-1v1" /></svg>`, bg: 'bg-blue-100' }
+                ];
+                const randomWeather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+                
+                DOMElements.weatherCard.innerHTML = `
+                    <div class="absolute -right-3 -top-3 text-sky-500/10">
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-28 w-28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                    </div>
+                    <div class="${randomWeather.bg} p-3 rounded-xl flex-shrink-0 z-10">
+                        ${randomWeather.icon}
+                    </div>
+                    <div class="z-10">
+                        <p class="font-bold text-slate-800 text-lg">${randomWeather.desc}, ${randomWeather.temp}</p>
+                        <p class="text-sm text-slate-500">Wirobrajan, Yogyakarta</p>
+                        <p class="text-xs text-slate-400 mt-1">Diperbarui: Sekarang (Simulasi)</p>
+                    </div>`;
+            },
+            getWelcomeMessage() {
+                const hour = new Date().getHours();
+                if (hour >= 5 && hour < 11) return "Selamat Pagi!";
+                if (hour >= 11 && hour < 15) return "Selamat Siang!";
+                if (hour >= 15 && hour < 18) return "Selamat Sore!";
+                return "Selamat Malam!";
+            },
+            renderAgenda() {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const upcomingAgendas = CONFIG.agendas
-                    .filter(agenda => new Date(agenda.date + 'T00:00:00') >= today)
-                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                    .filter(a => new Date(a.date + 'T00:00:00') >= today)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date))
                     .slice(0, 3);
 
                 if (upcomingAgendas.length > 0) {
                     DOMElements.agendaList.innerHTML = upcomingAgendas.map(agenda => `
                         <div class="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm agenda-card-item">
-                            <div class="bg-orange-100 p-2 rounded-full text-orange-600 flex-shrink-0">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            </div>
+                            <div class="bg-orange-100 p-2 rounded-full text-orange-600 flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
                             <div>
                                 <p class="font-semibold text-slate-800">${agenda.title}</p>
                                 <p class="text-sm text-slate-500">${new Date(agenda.date + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                             </div>
-                        </div>
-                    `).join('');
+                        </div>`).join('');
                 } else {
-                    DOMElements.agendaList.innerHTML = `<p class="text-slate-500 text-center py-4">Tidak ada agenda mendatang dalam sesi ini.</p>`;
+                    DOMElements.agendaList.innerHTML = `<p class="text-slate-500 text-center py-4">Tidak ada agenda mendatang.</p>`;
                 }
-
-                const renderList = (container, data, scoreKey, scoreLabel) => {
-                    container.innerHTML = data.slice(0, 5).map((santri, index) => {
-                        const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
-                        return `
+            },
+            renderRankings(container, data, scoreKey, scoreLabel) {
+                container.innerHTML = data.slice(0, 5).map((santri, index) => {
+                    const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
+                    return `
                         <div class="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-slate-200/50 transition-colors">
                             <div class="flex items-center gap-3">
                                 <span class="font-bold text-slate-400 w-5">${index + 1}.</span>
@@ -962,55 +655,32 @@
                             </div>
                             <span class="font-bold text-slate-600">${santri[scoreKey]}${scoreLabel}</span>
                         </div>`;
-                    }).join('');
-                };
-                renderList(DOMElements.peringkatPresensi, sortedPresensi, 'attendance', '%');
-                renderList(DOMElements.peringkatAbsensi, sortedAbsensi, 'violations', ' kali');
-
-                DOMElements.statistikUmumContainer.innerHTML = `
-                    <div class="p-4 rounded-xl glass-card text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow" data-statistic-type="Jumlah Santri">
-                        <p class="font-bold text-3xl text-indigo-600">${CONFIG.daftarSantri.length}</p>
-                        <p class="font-semibold mt-1 text-slate-700">Jumlah Santri</p>
-                    </div>
-                    <div class="p-4 rounded-xl glass-card text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow" data-statistic-type="Jumlah Hari Aktif">
-                        <p class="font-bold text-3xl text-blue-600">${activeDaysCount}</p>
-                        <p class="font-semibold mt-1 text-slate-700">Jumlah Hari Aktif</p>
-                    </div>
-                    <div class="p-4 rounded-xl glass-card text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow" data-statistic-type="Persentase Kehadiran">
-                        <p class="font-bold text-3xl text-green-600">${overallAttendancePercentage}%</p>
-                        <p class="font-semibold mt-1 text-slate-700">Persentase Kehadiran</p>
-                    </div>
-                    <div class="p-4 rounded-xl glass-card text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow" data-statistic-type="Izin" data-status-filter="Izin">
-                        <p class="font-bold text-3xl text-yellow-600">${totalIzin}</p>
-                        <p class="font-semibold mt-1 text-slate-700">Jumlah Izin Sesi Ini</p>
-                    </div>
-                    <div class="p-4 rounded-xl bg-yellow-100 text-yellow-800 text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow" data-statistic-type="Sakit" data-status-filter="Sakit">
-                        <p class="font-bold text-3xl">${totalSakit}</p>
-                        <p class="font-semibold mt-1">Jumlah Sakit Sesi Ini</p>
-                    </div>
-                    <div class="p-4 rounded-xl bg-red-100 text-red-800 text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow" data-statistic-type="Alpa" data-status-filter="Alpa">
-                        <p class="font-bold text-3xl">${totalAlpa}</p>
-                        <p class="font-semibold mt-1">Jumlah Alpa Sesi Ini</p>
-                    </div>
-                `;
-
-                this.renderAttendanceChart();
-                Utils.toggleLoader(false);
+                }).join('');
             },
-
+            renderGeneralStats(stats) {
+                const statItems = [
+                    { value: CONFIG.daftarSantri.length, label: 'Jumlah Santri', color: 'text-indigo-600', bg: 'glass-card' },
+                    { value: stats.activeDaysCount, label: 'Jumlah Hari Aktif', color: 'text-blue-600', bg: 'glass-card' },
+                    { value: `${stats.overallAttendancePercentage}%`, label: 'Persentase Kehadiran', color: 'text-green-600', bg: 'glass-card' },
+                    { value: stats.Izin, label: 'Jumlah Izin Sesi Ini', color: 'text-yellow-600', bg: 'glass-card', filter: 'Izin' },
+                    { value: stats.Sakit, label: 'Jumlah Sakit Sesi Ini', color: 'text-yellow-800', bg: 'bg-yellow-100', filter: 'Sakit' },
+                    { value: stats.Alpa, label: 'Jumlah Alpa Sesi Ini', color: 'text-red-800', bg: 'bg-red-100', filter: 'Alpa' },
+                ];
+                DOMElements.statistikUmumContainer.innerHTML = statItems.map(item => `
+                    <div class="p-4 rounded-xl text-center shadow-sm cursor-pointer hover:shadow-lg transition-shadow ${item.bg}" data-statistic-type="${item.label}" ${item.filter ? `data-status-filter="${item.filter}"` : ''}>
+                        <p class="font-bold text-3xl ${item.color}">${item.value}</p>
+                        <p class="font-semibold mt-1 ${item.bg === 'glass-card' ? 'text-slate-700' : ''}">${item.label}</p>
+                    </div>`).join('');
+            },
             renderMainCards(dateStr) {
                 const dataForDate = DataService.getOrInitializeDailyData(dateStr);
-                Utils.toggleLoader(true);
-
                 DOMElements.mainCardsContainer.innerHTML = CONFIG.mainActivities.map(main => {
                     const exceptionCount = CONFIG.subActivities
                         .filter(s => s.mainId === main.id)
                         .reduce((count, sub) => count + Object.keys(dataForDate[sub.id]?.details || {}).length, 0);
-                    
                     const summaryHtml = exceptionCount > 0 
                         ? `<span class="text-sm font-bold text-yellow-200">${exceptionCount} Pengecualian</span>`
                         : `<span class="text-sm font-semibold opacity-90">Semua Lengkap</span>`;
-
                     return `
                         <div class="main-activity-card ${main.color} shadow-lg" data-main-id="${main.id}" data-date="${dateStr}">
                             <div class="relative z-10"><h2 class="font-bold text-2xl">${main.title}</h2></div>
@@ -1018,100 +688,81 @@
                             <div class="icon-bg text-5xl">${main.icon}</div>
                         </div>`;
                 }).join('');
-                Utils.toggleLoader(false);
             },
-
-            renderModal(mainId = null, subId = null) {
-                AppState.modal.mainId = mainId || AppState.modal.mainId;
-                const mainInfo = CONFIG.mainActivities.find(m => m.id === AppState.modal.mainId);
-                const subs = CONFIG.subActivities.filter(s => s.mainId === AppState.modal.mainId);
-                
-                AppState.modal.subId = subId || subs[0]?.id || null; 
-
+            renderModal(mainId, subId = null) {
+                AppState.modal.mainId = mainId;
+                const mainInfo = CONFIG.mainActivities.find(m => m.id === mainId);
+                const subs = CONFIG.subActivities.filter(s => s.mainId === mainId);
+                AppState.modal.subId = subId || subs[0]?.id;
                 DOMElements.modalTitle.textContent = mainInfo?.title || 'Kegiatan';
                 DOMElements.modalSubtitle.textContent = `Pilih sub-kegiatan di bawah`;
-                DOMElements.subActivityTabs.innerHTML = subs.map((sub) => `
+                DOMElements.subActivityTabs.innerHTML = subs.map(sub => `
                     <button class="sub-activity-tab ${AppState.modal.subId === sub.id ? 'active' : ''}" data-sub-id="${sub.id}">${sub.judul}</button>
                 `).join('');
-                
                 this.renderModalSantriList();
                 DOMElements.presensiModal.classList.add('show');
             },
-
             renderModalSantriList(filterQuery = '') {
                 const subInfo = CONFIG.subActivities.find(k => k.id === AppState.modal.subId);
                 if (!subInfo) {
-                    DOMElements.modalSantriList.innerHTML = `<div class="text-center py-10 text-slate-500">Tidak ada sub-kegiatan ditemukan.</div>`;
+                    DOMElements.modalSantriList.innerHTML = `<div class="text-center py-10 text-slate-500">Pilih sub-kegiatan.</div>`;
                     return;
                 }
                 const dateStr = Utils.getFormattedDate(AppState.activeDate);
                 const currentData = AppState.presensiCache[dateStr]?.[subInfo.id]?.details || {};
                 const defaultStatus = subInfo.opsi[0];
-                
                 const filteredSantri = CONFIG.daftarSantri.filter(s => s.nama.toLowerCase().includes(filterQuery.toLowerCase()));
                 
                 DOMElements.modalSantriList.innerHTML = filteredSantri.map(santri => {
                     const currentStatus = AppState.modal.changes[subInfo.id]?.[santri.id] ?? currentData[santri.id] ?? defaultStatus;
                     const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
+                    
+                    const abbreviations = { 'Hadir': 'H', 'Izin': 'I', 'Sakit': 'S', 'Alpa': 'A', 'Terlambat': 'T' };
+                    const activitiesToAbbreviate = ['shubuh_wajib', 'dzikir_pagi', 'talim_shubuh', 'ashar_wajib', 'dzikir_petang', 'maghrib_wajib', 'talim_maghrib', 'isya_wajib', 'halaqah_isya', 'tahajjud', 'dhuha', 'syuruq', 'alkahfi', 'tilawah_mandiri', 'tadarrus_berjamaah', 'berangkat_sekolah', 'piket_harian', 'piket_asrama', 'kerja_bakti', 'ekskul_tapak_suci', 'ekskul_hizbul_wathan', 'puasa_sunnah'];
 
                     const statusButtons = subInfo.opsi.map(opt => {
-                        const statusClass = `bg-${opt.toLowerCase().replace(/ /g, '-')}`;
-                        return `
-                            <button class="status-btn ${statusClass} ${currentStatus === opt ? 'selected' : ''}" data-status="${opt}" title="${opt}">
-                                ${opt}
-                            </button>`;
+                        const statusClass = `bg-${opt.toLowerCase().replace(/\//g, '-').replace(/ /g, '-')}`;
+                        let buttonText = opt;
+                        if (activitiesToAbbreviate.includes(subInfo.id) && abbreviations[opt]) {
+                            buttonText = abbreviations[opt];
+                        }
+                        return `<button class="status-btn ${statusClass} ${currentStatus === opt ? 'selected' : ''}" data-status="${opt}" title="${opt}">${buttonText}</button>`;
                     }).join('');
 
                     return `
-                        <div class="santri-row flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" data-santri-id="${santri.id}">
-                            <p class="font-medium text-slate-800 mb-2 sm:mb-0 flex items-center gap-2">
-                                ${santri.nama}
-                                <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span>
-                            </p>
-                            <div class="flex items-center gap-2 flex-wrap justify-end">
-                                ${statusButtons}
-                            </div>
+                        <div class="santri-row flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg hover:bg-slate-100 transition-colors" data-santri-id="${santri.id}">
+                            <p class="font-medium text-slate-800 mb-2 sm:mb-0 flex items-center gap-2">${santri.nama} <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span></p>
+                            <div class="flex items-center gap-2 flex-wrap justify-end">${statusButtons}</div>
                         </div>`;
                 }).join('');
             },
-
             async renderRiwayat() {
                 Utils.toggleLoader(true);
                 const sessionData = DataService.fetchAllSessionData();
-                let exceptions = [];
-
-                Object.entries(sessionData).forEach(([dateStr, dayData]) => {
-                    Object.entries(dayData).forEach(([subId, data]) => {
+                const exceptions = Object.entries(sessionData).flatMap(([dateStr, dayData]) =>
+                    Object.entries(dayData).flatMap(([subId, data]) => {
                         const subInfo = CONFIG.subActivities.find(s => s.id === subId);
-                        if (!subInfo) return;
-                        
-                        Object.entries(data.details || {}).forEach(([santriId, status]) => {
+                        return Object.entries(data.details || {}).map(([santriId, status]) => {
                             const santri = CONFIG.daftarSantri.find(s => s.id === santriId);
-                            if (santri) {
-                                exceptions.push({ date: dateStr, santriId, santriName: santri.nama, santriKelas: santri.kelas, subId, activity: subInfo.judul, status });
-                            }
+                            return { date: dateStr, santri, subInfo, status };
                         });
-                    });
-                });
-                exceptions.sort((a, b) => b.date.localeCompare(a.date));
+                    })
+                ).filter(ex => ex.santri && ex.subInfo).sort((a, b) => b.date.localeCompare(a.date));
 
                 if (exceptions.length === 0) {
-                    DOMElements.riwayatContainer.innerHTML = `<div class="text-center py-10 text-slate-500">Tidak ada riwayat pengecualian dalam sesi ini.</div>`;
+                    DOMElements.riwayatContainer.innerHTML = `<div class="text-center py-10 text-slate-500">Tidak ada riwayat pengecualian.</div>`;
                 } else {
                     DOMElements.riwayatContainer.innerHTML = exceptions.map(ex => {
-                        const classInfo = CONFIG.classColors[ex.santriKelas] || { text: '?', bgClass: 'bg-gray-400' };
+                        const classInfo = CONFIG.classColors[ex.santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
                         return `
-                        <div class="riwayat-item bg-white p-3 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm shadow-sm hover:shadow-md transition-shadow" data-search-term="${ex.santriName.toLowerCase()} ${ex.activity.toLowerCase()}">
+                        <div class="riwayat-item bg-white p-3 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm shadow-sm hover:shadow-md transition-shadow" data-search-term="${ex.santri.nama.toLowerCase()} ${ex.subInfo.judul.toLowerCase()}">
                             <div>
-                                <p class="font-bold text-slate-900 flex items-center gap-2">
-                                    ${ex.santriName}
-                                    <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span>
-                                </p>
-                                <p class="text-slate-600">${ex.activity} - <span class="font-semibold text-indigo-600">${ex.status}</span></p>
+                                <p class="font-bold text-slate-900 flex items-center gap-2">${ex.santri.nama} <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span></p>
+                                <p class="text-slate-600">${ex.subInfo.judul} - <span class="font-semibold text-indigo-600">${ex.status}</span></p>
                             </div>
                             <div class="flex items-center gap-2 mt-2 sm:mt-0">
                                 <p class="text-slate-500 text-xs">${new Date(ex.date+'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                                <button class="delete-riwayat-btn p-1 text-red-500 hover:bg-red-100 rounded-full transition-colors" data-date="${ex.date}" data-sub-id="${ex.subId}" data-santri-id="${ex.santriId}">
+                                <button class="delete-riwayat-btn p-1 text-red-500 hover:bg-red-100 rounded-full transition-colors" data-date="${ex.date}" data-sub-id="${ex.subInfo.id}" data-santri-id="${ex.santri.id}">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
@@ -1120,51 +771,29 @@
                 }
                 Utils.toggleLoader(false);
             },
-
             renderRekapIndividuSelect() {
                 DOMElements.selectSantriRekap.innerHTML = `<option value="">Pilih Santri...</option>` + CONFIG.daftarSantri.map(s => `<option value="${s.id}">${s.nama} (${s.kelas})</option>`).join('');
                 DOMElements.rekapIndividuContainer.innerHTML = `<div class="text-slate-500">Pilih santri untuk melihat rekap</div>`;
             },
-
-            async renderRekapSemua(filter = AppState.activeRekapFilter) { // Added filter parameter
+            async renderRekapSemua(filter = AppState.activeRekapFilter) {
                 Utils.toggleLoader(true);
-                AppState.activeRekapFilter = filter; // Update active filter state
+                AppState.activeRekapFilter = filter;
+                DOMElements.rekapSemuaTabs.querySelectorAll('.rekap-tab-button').forEach(b => b.classList.toggle('active', b.dataset.rekapFilter === filter));
 
-                // Update active tab button
-                DOMElements.rekapSemuaTabs.querySelectorAll('.rekap-tab-button').forEach(button => {
-                    button.classList.toggle('active', button.dataset.rekapFilter === filter);
-                });
-
-                const sessionData = DataService.fetchAllSessionData();
-                const { santriStats } = StatisticsService.calculateSessionStats(sessionData);
-
-                let filteredSantri = CONFIG.daftarSantri;
-                if (filter !== 'all') {
-                    if (filter === '2CD') {
-                        filteredSantri = CONFIG.daftarSantri.filter(s => s.kelas === '2C' || s.kelas === '2D');
-                    } else if (filter === '2GH') {
-                        filteredSantri = CONFIG.daftarSantri.filter(s => s.kelas === '2G' || s.kelas === '2H');
-                    } else {
-                        filteredSantri = CONFIG.daftarSantri.filter(s => s.kelas === filter);
-                    }
-                }
-
+                const { santriStats } = StatisticsService.calculateSessionStats(DataService.fetchAllSessionData());
+                const classFilters = { '2CD': ['2C', '2D'], '2GH': ['2G', '2H'] };
+                const filteredSantri = filter === 'all' ? CONFIG.daftarSantri : CONFIG.daftarSantri.filter(s => (classFilters[filter] || [filter]).includes(s.kelas));
+                
                 const tableRows = filteredSantri.map(santri => {
                     const stats = santriStats[santri.id];
                     const attendance = stats.totalMandatory > 0 ? (((stats.totalMandatory - stats.violations) / stats.totalMandatory) * 100).toFixed(1) : 100;
                     const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
-
                     return `
                         <tr class="text-sm border-b border-slate-100 last:border-b-0">
-                            <td class="px-4 py-3 whitespace-nowrap font-medium text-slate-900 flex items-center gap-2">
-                                ${santri.nama}
-                                <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span>
-                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap font-medium text-slate-900 flex items-center gap-2">${santri.nama} <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span></td>
                             <td class="px-4 py-3 whitespace-nowrap text-green-600 font-semibold text-center">${attendance}%</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center">${stats.Sakit}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center">${stats.Izin}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center">${stats.Alpa}</td>
-                            <td class="px-4 py-3 whitespace-nowrap text-center">${stats.Terlambat}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-center">${stats.Sakit}</td><td class="px-4 py-3 whitespace-nowrap text-center">${stats.Izin}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-center">${stats.Alpa}</td><td class="px-4 py-3 whitespace-nowrap text-center">${stats.Terlambat}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-center">${stats['Tidak Lengkap'] + stats['Tidak Sesuai']}</td>
                         </tr>`;
                 }).join('');
@@ -1172,23 +801,20 @@
                 DOMElements.rekapSemuaContainer.innerHTML = `
                     <div class="overflow-x-auto rounded-xl border border-slate-200">
                         <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50/50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nama</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Hadir %</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Sakit</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Izin</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Alpa</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Terlambat</th>
-                                    <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Seragam (TL/TS)</th>
-                                </tr>
-                            </thead>
+                            <thead class="bg-slate-50/50"><tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nama</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Hadir %</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Sakit</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Izin</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Alpa</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Terlambat</th>
+                                <th class="px-4 py-3 whitespace-nowrap text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Seragam (TL/TS)</th>
+                            </tr></thead>
                             <tbody class="bg-white divide-y divide-slate-100">${tableRows}</tbody>
                         </table>
                     </div>`;
                 Utils.toggleLoader(false);
             },
-
             async displaySantriRekap(santriId) {
                 if (!santriId) {
                     DOMElements.rekapIndividuContainer.innerHTML = `<div class="text-slate-500">Pilih santri untuk melihat rekap</div>`;
@@ -1196,79 +822,57 @@
                 }
                 Utils.toggleLoader(true);
                 const santri = CONFIG.daftarSantri.find(s => s.id === santriId);
-                const sessionData = DataService.fetchAllSessionData();
-                const { santriStats } = StatisticsService.calculateSessionStats(sessionData);
+                const { santriStats } = StatisticsService.calculateSessionStats(DataService.fetchAllSessionData());
                 const stats = santriStats[santri.id];
                 const attendance = stats.totalMandatory > 0 ? (((stats.totalMandatory - stats.violations) / stats.totalMandatory) * 100).toFixed(1) : 100;
                 const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
-                
-                // Detailed Activity List for Individual Rekap
-                const santriActivitiesHtml = [];
-                Object.entries(sessionData).forEach(([dateStr, dayData]) => {
-                    Object.entries(dayData).forEach(([subId, data]) => {
-                        if (data.details && data.details[santri.id]) {
-                            const status = data.details[santri.id];
-                            const subInfo = CONFIG.subActivities.find(s => s.id === subId);
-                            const statusClass = `bg-${status.toLowerCase().replace(/ /g, '-')}`;
-                            santriActivitiesHtml.push(`
-                                <div class="flex items-center justify-between p-2 rounded-lg bg-white shadow-sm">
-                                    <p class="text-sm font-medium text-slate-800">${new Date(dateStr+'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short'})} - ${subInfo.judul}</p>
-                                    <span class="status-btn ${statusClass} text-xs">${status}</span>
-                                </div>
-                            `);
-                        }
-                    });
-                });
+
+                const santriActivitiesHtml = Object.entries(DataService.fetchAllSessionData()).flatMap(([dateStr, dayData]) =>
+                    Object.entries(dayData).map(([subId, data]) => {
+                        const status = data.details?.[santri.id];
+                        if (!status) return null;
+                        const subInfo = CONFIG.subActivities.find(s => s.id === subId);
+                        const statusClass = `bg-${status.toLowerCase().replace(/ /g, '-')}`;
+                        return `
+                        <div class="flex items-center justify-between p-2 rounded-lg bg-white shadow-sm">
+                            <p class="text-sm font-medium text-slate-800">${new Date(dateStr+'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short'})} - ${subInfo.judul}</p>
+                            <span class="status-btn ${statusClass} text-xs">${status}</span>
+                        </div>`;
+                    }).filter(Boolean)
+                ).join('');
+
+                const statCards = [
+                    { label: 'Kehadiran Wajib', value: `${attendance}%`, bg: 'bg-green-100', text: 'text-green-800' },
+                    { label: 'Alpa', value: stats.Alpa, bg: 'bg-red-100', text: 'text-red-800' },
+                    { label: 'Terlambat', value: stats.Terlambat, bg: 'bg-orange-100', text: 'text-orange-800' },
+                    { label: 'Sakit', value: stats.Sakit, bg: 'bg-yellow-100', text: 'text-yellow-800' },
+                    { label: 'Izin', value: stats.Izin, bg: 'bg-sky-100', text: 'text-sky-800' },
+                    { label: 'Pelanggaran Seragam', value: stats['Tidak Lengkap'] + stats['Tidak Sesuai'], bg: 'bg-red-100/50', text: 'text-red-700' },
+                ];
 
                 DOMElements.rekapIndividuContainer.innerHTML = `
                     <div>
-                        <h3 class="font-bold text-xl mb-6 text-slate-900 flex items-center gap-3">
-                            ${santri.nama}
-                            <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span>
-                        </h3>
+                        <h3 class="font-bold text-xl mb-6 text-slate-900 flex items-center gap-3">${santri.nama} <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span></h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                            <div class="p-4 rounded-xl bg-green-100 text-green-800 text-center shadow-sm">
-                                <p class="font-bold text-3xl">${attendance}%</p>
-                                <p class="font-semibold mt-1">Kehadiran Wajib</p>
-                            </div>
-                            <div class="p-4 rounded-xl bg-red-100 text-red-800 text-center shadow-sm">
-                                <p class="font-bold text-3xl">${stats.Alpa}</p>
-                                <p class="font-semibold mt-1">Alpa</p>
-                            </div>
-                            <div class="p-4 rounded-xl bg-orange-100 text-orange-800 text-center shadow-sm">
-                                <p class="font-bold text-3xl">${stats.Terlambat}</p>
-                                <p class="font-semibold mt-1">Terlambat</p>
-                            </div>
-                            <div class="p-4 rounded-xl bg-yellow-100 text-yellow-800 text-center shadow-sm">
-                                <p class="font-bold text-3xl">${stats.Sakit}</p>
-                                <p class="font-semibold mt-1">Sakit</p>
-                            </div>
-                            <div class="p-4 rounded-xl bg-sky-100 text-sky-800 text-center shadow-sm">
-                                <p class="font-bold text-3xl">${stats.Izin}</p>
-                                <p class="font-semibold mt-1">Izin</p>
-                            </div>
-                            <div class="p-4 rounded-xl bg-red-100/50 text-red-700 text-center shadow-sm">
-                                <p class="font-bold text-3xl">${stats['Tidak Lengkap'] + stats['Tidak Sesuai']}</p>
-                                <p class="font-semibold mt-1">Pelanggaran Seragam</p>
-                            </div>
+                            ${statCards.map(card => `
+                                <div class="p-4 rounded-xl text-center shadow-sm ${card.bg}">
+                                    <p class="font-bold text-3xl ${card.text}">${card.value}</p>
+                                    <p class="font-semibold mt-1 ${card.text}">${card.label}</p>
+                                </div>`).join('')}
                         </div>
-
                         <h4 class="font-bold text-lg mb-4 text-slate-800">Riwayat Aktivitas</h4>
                         <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
-                            ${santriActivitiesHtml.length > 0 ? santriActivitiesHtml.join('') : '<div class="text-center py-4 text-slate-500">Tidak ada riwayat aktivitas untuk santri ini.</div>'}
+                            ${santriActivitiesHtml.length > 0 ? santriActivitiesHtml : '<div class="text-center py-4 text-slate-500">Tidak ada riwayat.</div>'}
                         </div>
                     </div>`;
                 Utils.toggleLoader(false);
             },
-
             updateClock() {
                 const now = new Date();
-                const pad = (n) => String(n).padStart(2, '0');
-                DOMElements.liveClock.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+                DOMElements.liveClock.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
                 DOMElements.gregorianDate.textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 DOMElements.hijriDate.textContent = Utils.getHijriDate(now);
             },
-
             renderAttendanceChart() {
                 const last7DaysData = StatisticsService.getAttendanceForLastNDays(7);
                 DOMElements.attendanceChart.innerHTML = last7DaysData.map(day => `
@@ -1276,52 +880,31 @@
                         <div class="chart-bar w-8 bg-indigo-600" style="height: ${day.percentage}%;"></div>
                         <span class="chart-label">${day.date}</span>
                         <span class="chart-label font-semibold">${day.percentage}%</span>
-                    </div>
-                `).join('');
+                    </div>`).join('');
             },
-
             openStatsDetailModal(title, statusFilter) {
                 DOMElements.statsDetailTitle.textContent = title;
-                const sessionData = DataService.fetchAllSessionData();
-                const santriListHtml = [];
-
-                CONFIG.daftarSantri.forEach(santri => {
-                    let hasStatus = false;
-                    const datesWithStatus = [];
-
-                    Object.entries(sessionData).forEach(([dateStr, dayData]) => {
-                        Object.entries(dayData).forEach(([subId, data]) => {
-                            if (data.details && data.details[santri.id] === statusFilter) {
+                const santriListHtml = CONFIG.daftarSantri.map(santri => {
+                    const datesWithStatus = Object.entries(DataService.fetchAllSessionData()).flatMap(([dateStr, dayData]) => 
+                        Object.entries(dayData)
+                            .filter(([subId, data]) => data.details?.[santri.id] === statusFilter)
+                            .map(([subId, data]) => {
                                 const subInfo = CONFIG.subActivities.find(s => s.id === subId);
-                                datesWithStatus.push(`${new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short'})} (${subInfo.judul})`);
-                                hasStatus = true;
-                            }
-                        });
-                    });
-
-                    if (hasStatus) {
-                        const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
-                        santriListHtml.push(`
-                            <div class="p-3 bg-white rounded-lg shadow-sm flex items-center gap-2">
+                                return `${new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short'})} (${subInfo.judul})`;
+                            })
+                    );
+                    if (datesWithStatus.length === 0) return null;
+                    const classInfo = CONFIG.classColors[santri.kelas] || { text: '?', bgClass: 'bg-gray-400' };
+                    return `<div class="p-3 bg-white rounded-lg shadow-sm flex items-center gap-2">
                                 <p class="font-bold text-slate-900">${santri.nama}</p>
                                 <span class="class-icon ${classInfo.bgClass}">${classInfo.text}</span>
                                 <p class="text-sm text-slate-600 ml-auto">(${datesWithStatus.join(', ')})</p>
-                            </div>
-                        `);
-                    }
-                });
-
-                if (santriListHtml.length > 0) {
-                    DOMElements.statsDetailList.innerHTML = santriListHtml.join('');
-                } else {
-                    DOMElements.statsDetailList.innerHTML = `<div class="text-center py-10 text-slate-500">Tidak ada santri dengan status ${statusFilter} dalam sesi ini.</div>`;
-                }
+                            </div>`;
+                }).filter(Boolean).join('');
+                DOMElements.statsDetailList.innerHTML = santriListHtml || `<div class="text-center py-10 text-slate-500">Tidak ada data untuk ${statusFilter}.</div>`;
                 DOMElements.statsDetailModal.classList.add('show');
             },
-
-            closeStatsDetailModal() {
-                DOMElements.statsDetailModal.classList.remove('show');
-            }
+            closeStatsDetailModal: () => DOMElements.statsDetailModal.classList.remove('show')
         };
 
         const PageController = {
@@ -1336,7 +919,7 @@
                     },
                     'page-riwayat': () => RenderService.renderRiwayat(),
                     'page-rekap-individu': () => RenderService.renderRekapIndividuSelect(),
-                    'page-rekap-semua': () => RenderService.renderRekapSemua(AppState.activeRekapFilter), // Pass current filter
+                    'page-rekap-semua': () => RenderService.renderRekapSemua(AppState.activeRekapFilter),
                 };
                 pageLoadActions[pageId]?.();
             }
@@ -1345,201 +928,118 @@
         const EventHandlers = {
             init() {
                 document.body.addEventListener('click', this.handleDelegatedClicks.bind(this));
-                DOMElements.datePicker.addEventListener('change', this.handleDateChange.bind(this));
+                DOMElements.datePicker.addEventListener('change', () => this.handleDateChange());
                 DOMElements.searchSantriModal.addEventListener('input', (e) => RenderService.renderModalSantriList(e.target.value));
                 DOMElements.searchRiwayat.addEventListener('input', this.handleSearchRiwayat.bind(this));
                 DOMElements.selectSantriRekap.addEventListener('change', (e) => RenderService.displaySantriRekap(e.target.value));
                 DOMElements.closeStatsDetailModalBtn.addEventListener('click', RenderService.closeStatsDetailModal);
-                
-                // NEW: Event listener for Rekap Semua tabs
                 DOMElements.rekapSemuaTabs.addEventListener('click', (e) => {
                     const tabButton = e.target.closest('.rekap-tab-button');
-                    if (tabButton) {
-                        RenderService.renderRekapSemua(tabButton.dataset.rekapFilter);
-                    }
+                    if (tabButton) RenderService.renderRekapSemua(tabButton.dataset.rekapFilter);
                 });
             },
-
             handleDelegatedClicks(e) {
                 const target = e.target;
-                
-                const navLink = target.closest('.nav-link');
-                if (navLink) {
-                    e.preventDefault();
-                    RenderService.switchPage(navLink.dataset.page);
-                    return;
-                }
-
-                if (target.closest('#prev-day-btn')) {
-                    this.handleDateChange(-1);
-                    return;
-                }
-                if (target.closest('#next-day-btn')) {
-                    this.handleDateChange(1);
-                    return;
-                }
-
-                const mainCard = target.closest('.main-activity-card');
-                if (mainCard) {
-                    this.handleOpenModal(mainCard);
-                    return;
-                }
-
-                if (target.closest('#close-modal-btn')) {
-                    this.handleCloseModal();
-                    return;
-                }
-
-                const quickAccessBtn = target.closest('.quick-access-btn');
-                if (quickAccessBtn) {
-                    e.preventDefault();
-                    const mainId = quickAccessBtn.dataset.mainId;
-                    AppState.activeDate = new Date();
-                    DOMElements.datePicker.value = Utils.getFormattedDate(AppState.activeDate);
-                    RenderService.renderModal(mainId);
-                    return;
-                }
-
-                const subActivityTab = target.closest('.sub-activity-tab');
-                if (subActivityTab) {
-                    this.handleSubActivityTabClick(subActivityTab);
-                    return;
-                }
-
-                const statusBtn = target.closest('.status-btn');
-                if (statusBtn) {
-                    this.handleStatusButtonClick(statusBtn);
-                    return;
-                }
-
-                if (target.closest('#simpan-presensi-btn')) {
-                    this.handleSavePresensi();
-                    return;
-                }
-
-                const deleteRiwayatBtn = target.closest('.delete-riwayat-btn');
-                if (deleteRiwayatBtn) {
-                    this.handleDeleteRiwayat(deleteRiwayatBtn);
-                    return;
-                }
-
-                const statCard = target.closest('[data-statistic-type]');
-                if (statCard && statCard.dataset.statisticType !== 'Jumlah Santri' && statCard.dataset.statisticType !== 'Jumlah Hari Aktif' && statCard.dataset.statisticType !== 'Persentase Kehadiran') {
-                    const title = statCard.dataset.statisticType;
-                    const statusFilter = statCard.dataset.statusFilter;
-                    RenderService.openStatsDetailModal(title, statusFilter);
-                    return;
+                const actions = {
+                    '.nav-link': el => { e.preventDefault(); RenderService.switchPage(el.dataset.page); },
+                    '#prev-day-btn': () => this.handleDateChange(-1),
+                    '#next-day-btn': () => this.handleDateChange(1),
+                    '.main-activity-card': el => this.handleOpenModal(el),
+                    '#close-modal-btn': () => this.handleCloseModal(),
+                    '.quick-access-btn': el => {
+                        e.preventDefault();
+                        AppState.activeDate = new Date();
+                        DOMElements.datePicker.value = Utils.getFormattedDate(AppState.activeDate);
+                        RenderService.renderModal(el.dataset.mainId);
+                    },
+                    '.sub-activity-tab': el => this.handleSubActivityTabClick(el),
+                    '.status-btn': el => this.handleStatusButtonClick(el),
+                    '#simpan-presensi-btn': () => this.handleSavePresensi(),
+                    '.delete-riwayat-btn': el => this.handleDeleteRiwayat(el),
+                    '[data-status-filter]': el => RenderService.openStatsDetailModal(el.dataset.statisticType, el.dataset.statusFilter)
+                };
+                for (const selector in actions) {
+                    const element = target.closest(selector);
+                    if (element) {
+                        actions[selector](element);
+                        return;
+                    }
                 }
             },
-
             handleDateChange(change) {
-                if (typeof change === 'number') {
-                    AppState.activeDate.setDate(AppState.activeDate.getDate() + change);
-                } else {
-                    AppState.activeDate = new Date(DOMElements.datePicker.value + 'T00:00:00');
-                }
+                if (typeof change === 'number') AppState.activeDate.setDate(AppState.activeDate.getDate() + change);
+                else AppState.activeDate = new Date(DOMElements.datePicker.value + 'T00:00:00');
                 PageController.loadPage('page-input');
             },
-
             handleOpenModal(card) {
-                AppState.modal.mainId = card.dataset.mainId;
-                AppState.activeDate = new Date(card.dataset.date + 'T00:00:00');
                 AppState.modal.changes = {};
                 DOMElements.searchSantriModal.value = '';
-                RenderService.renderModal();
+                RenderService.renderModal(card.dataset.mainId);
             },
-
             handleCloseModal() {
                 DOMElements.presensiModal.classList.remove('show');
                 AppState.modal.changes = {};
-                DOMElements.searchSantriModal.value = '';
             },
-
             handleSubActivityTabClick(tab) {
                 if (tab.classList.contains('active')) return;
-
                 DOMElements.subActivityTabs.querySelector('.active')?.classList.remove('active');
                 tab.classList.add('active');
-
                 AppState.modal.subId = tab.dataset.subId;
                 RenderService.renderModalSantriList(DOMElements.searchSantriModal.value);
             },
-
             handleStatusButtonClick(btn) {
                 const row = btn.closest('.santri-row');
                 const santriId = row.dataset.santriId;
                 const newStatus = btn.dataset.status;
                 const subInfo = CONFIG.subActivities.find(k => k.id === AppState.modal.subId);
-                
-                AppState.modal.changes[AppState.modal.subId] = AppState.modal.changes[AppState.modal.subId] || {};
-                
                 const isSelected = btn.classList.contains('selected');
                 const finalStatus = isSelected ? subInfo.opsi[0] : newStatus;
                 
+                AppState.modal.changes[AppState.modal.subId] = AppState.modal.changes[AppState.modal.subId] || {};
                 AppState.modal.changes[AppState.modal.subId][santriId] = finalStatus;
                 
-                row.querySelectorAll('.status-btn').forEach(button => button.classList.remove('selected'));
-                if (!isSelected) {
-                    btn.classList.add('selected');
-                } else {
-                    row.querySelector(`.status-btn[data-status="${finalStatus}"]`)?.classList.add('selected');
+                row.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
+                if (finalStatus !== subInfo.opsi[0]) {
+                    row.querySelector(`.status-btn[data-status="${finalStatus}"]`).classList.add('selected');
                 }
             },
-
             async handleSavePresensi() {
-                Utils.toggleLoader(true, 'content');
-                try {
-                    DataService.savePresensi(Utils.getFormattedDate(AppState.activeDate), AppState.modal.mainId, AppState.modal.changes);
-                    this.handleCloseModal();
-                    RenderService.renderMainCards(Utils.getFormattedDate(AppState.activeDate)); 
-                    RenderService.renderBeranda();
-                } catch (error) {
-                    console.error("Gagal menyimpan perubahan:", error);
-                    Utils.showToast("Gagal menyimpan perubahan: " + error.message);
-                } finally {
-                    Utils.toggleLoader(false, 'content');
-                }
+                Utils.toggleLoader(true);
+                await new Promise(res => setTimeout(res, 100)); // Simulate async
+                DataService.savePresensi(Utils.getFormattedDate(AppState.activeDate), AppState.modal.mainId, AppState.modal.changes);
+                this.handleCloseModal();
+                RenderService.renderMainCards(Utils.getFormattedDate(AppState.activeDate));
+                if (AppState.activePage === 'page-beranda') RenderService.renderBeranda();
+                Utils.toggleLoader(false);
             },
-
             handleSearchRiwayat(e) {
                 const query = e.target.value.toLowerCase();
                 DOMElements.riwayatContainer.querySelectorAll('.riwayat-item').forEach(item => {
                     item.style.display = item.dataset.searchTerm.includes(query) ? 'flex' : 'none';
                 });
             },
-
             async handleDeleteRiwayat(btn) {
                 const { date, subId, santriId } = btn.dataset;
-                const santriName = btn.closest('.riwayat-item')?.querySelector('.font-bold')?.textContent || 'Unknown Santri';
-                const activityTextElement = btn.closest('.riwayat-item')?.querySelector('.text-slate-600');
-                const activityName = activityTextElement ? activityTextElement.textContent.split(' - ')[0].trim() : 'Unknown Activity';
-
-                const confirmed = await Utils.showConfirmation(`Anda yakin ingin menghapus riwayat ${activityName} untuk ${santriName} pada tanggal ${new Date(date+'T00:00:00').toLocaleDateString('id-ID')}?`, 'Konfirmasi Hapus Riwayat');
-                
+                const santriName = CONFIG.daftarSantri.find(s => s.id === santriId)?.nama || 'Santri';
+                const activityName = CONFIG.subActivities.find(s => s.id === subId)?.judul || 'Kegiatan';
+                const confirmed = await Utils.showConfirmation(`Hapus riwayat ${activityName} untuk ${santriName} pada ${new Date(date+'T00:00:00').toLocaleDateString('id-ID')}?`);
                 if (confirmed) {
                     Utils.toggleLoader(true);
-                    try {
-                        DataService.deleteRiwayatItem(date, subId, santriId);
-                        await RenderService.renderRiwayat();
-                        RenderService.renderBeranda();
-                    } catch (error) {
-                        console.error("Gagal menghapus riwayat item:", error);
-                        Utils.showToast("Gagal menghapus riwayat: " + error.message);
-                    } finally {
-                        Utils.toggleLoader(false);
-                    }
+                    DataService.deleteRiwayatItem(date, subId, santriId);
+                    await RenderService.renderRiwayat();
+                    if (AppState.activePage === 'page-beranda') RenderService.renderBeranda();
+                    Utils.toggleLoader(false);
                 }
             }
         };
 
         window.onload = async () => {
-            Utils.toggleLoader(true, 'app');
             try {
                 EventHandlers.init();
                 PageController.loadPage('page-beranda');
             } catch (error) {
                 console.error("Gagal memuat aplikasi:", error);
-                DOMElements.appLoader.innerHTML = `<p class="text-red-500 font-bold text-lg">⚠️ Gagal memuat aplikasi. Mohon coba lagi. (${error.message})</p>`;
+                DOMElements.appLoader.innerHTML = `<p class="text-red-500 font-bold text-lg">⚠️ Gagal memuat aplikasi.</p>`;
             } finally {
                 Utils.toggleLoader(false, 'app');
             }
