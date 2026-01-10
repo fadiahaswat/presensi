@@ -109,40 +109,63 @@ function handleClearData() {
     }
 }
 
-function exportToCSV() {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Tanggal,Slot,Nama Santri,Kamar,Kegiatan,Status,Catatan\n";
+function kirimLaporanWA() {
+    const dateKey = getTodayKey();
+    const dataHariIni = appState.attendanceData[dateKey];
 
-    const data = appState.attendanceData;
-    Object.keys(data).forEach(date => {
-        const slots = data[date];
-        Object.keys(slots).forEach(slotId => {
-            const santris = slots[slotId];
-            Object.keys(santris).forEach(santriId => {
-                const sData = santris[santriId];
-                const santri = DATA_SANTRI.find(s => s.id == santriId);
-                if(santri) {
-                        Object.keys(sData.status).forEach(actId => {
-                            const status = sData.status[actId];
-                            const slotName = SLOT_WAKTU[slotId].label;
-                            const actName = SLOT_WAKTU[slotId].activities.find(a => a.id === actId).label;
-                            const note = sData.note || "-";
-                            const row = `${date},${slotName},${santri.nama},${santri.kamar},${actName},${status},"${note}"`;
-                            csvContent += row + "\n";
-                        });
-                }
-            });
-        });
+    // Cek jika belum ada data sama sekali
+    if (!dataHariIni) {
+        alert("Belum ada data presensi hari ini untuk dilaporkan.");
+        return;
+    }
+
+    // Siapkan wadah untuk menampung daftar pelanggaran
+    let listAlpa = [];
+    let listSakit = [];
+    let totalHadir = 0;
+    let totalSantri = DATA_SANTRI.length;
+
+    // Loop (putar) semua data santri untuk dicek satu-satu
+    DATA_SANTRI.forEach(santri => {
+        let statusShalat = "Belum Absen";
+        
+        // Cek status di slot waktu saat ini (misal: Shubuh)
+        if (dataHariIni[appState.currentSlotId] && dataHariIni[appState.currentSlotId][santri.id]) {
+            statusShalat = dataHariIni[appState.currentSlotId][santri.id].status.shalat;
+        }
+
+        if (statusShalat === 'Hadir') {
+            totalHadir++;
+        } else if (statusShalat === 'Alpa') {
+            listAlpa.push(`- ${santri.nama} (${santri.kamar})`);
+        } else if (statusShalat === 'Sakit') {
+            listSakit.push(`- ${santri.nama}`);
+        }
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Laporan_Presensi_${getTodayKey()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Laporan berhasil diunduh!");
+    // Susun kata-kata laporan
+    // %0A adalah kode untuk "Enter" (Ganti Baris) di link WhatsApp
+    let teks = `*LAPORAN PRESENSI ASRAMA* %0A`;
+    teks += `📅 Tanggal: ${dateKey} %0A`;
+    teks += `🕌 Waktu: ${SLOT_WAKTU[appState.currentSlotId].label} %0A`;
+    teks += `--------------------------- %0A`;
+    teks += `✅ Hadir: ${totalHadir} %0A`;
+    teks += `🤒 Sakit: ${listSakit.length} %0A`;
+    teks += `❌ Alpa: ${listAlpa.length} %0A`;
+    teks += `--------------------------- %0A`;
+
+    if (listAlpa.length > 0) {
+        teks += `*DAFTAR ALPA:* %0A${listAlpa.join('%0A')} %0A %0A`;
+    }
+    
+    if (listSakit.length > 0) {
+        teks += `*DAFTAR SAKIT:* %0A${listSakit.join('%0A')} %0A`;
+    }
+
+    teks += `_Digenerate oleh MusyrifApp_`;
+
+    // Buka WhatsApp
+    window.open(`https://wa.me/?text=${teks}`, '_blank');
 }
 
 // --- 3. CORE LOGIC ---
