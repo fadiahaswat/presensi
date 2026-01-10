@@ -276,9 +276,24 @@ function autoDetectSlot() {
 }
 
 function handleLogin() {
-    document.getElementById('view-login').classList.add('hidden');
-    document.getElementById('view-main').classList.remove('hidden');
-    switchTab('home'); 
+    const inputField = document.getElementById('login-pin');
+    const inputPin = inputField.value;
+    
+    // Ambil PIN dari memori HP. Kalau tidak ada, pakai standar '1234'
+    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
+
+    if (inputPin === storedPin) {
+        document.getElementById('view-login').classList.add('hidden');
+        document.getElementById('view-main').classList.remove('hidden');
+        switchTab('home');
+        
+        // Kosongkan input biar aman kalau logout nanti
+        inputField.value = ''; 
+    } else {
+        alert("PIN SALAH! Silakan coba lagi.");
+        inputField.value = ''; // Reset input
+        inputField.focus();
+    }
 }
 
 function handleLogout() {
