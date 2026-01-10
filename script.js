@@ -48,35 +48,46 @@ let MASTER_SANTRI = [];
 let MASTER_KELAS = {};
 let FILTERED_SANTRI = []; // Santri hasil filter kelas
 
-// --- SLOT CONFIG (UPDATED) ---
+// --- SLOT CONFIG (UPDATED WITH TIME LOGIC) ---
 const SLOT_WAKTU = {
-    shubuh: { id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', activities: [
-        { id: 'shalat', label: 'Shalat Shubuh', type: 'mandator' },
-        { id: 'qabliyah', label: 'Qabliyah Shubuh', type: 'sunnah' },
-        { id: 'tahfizh', label: 'Tahfizh', type: 'mandator' },
-        { id: 'dzikir_pagi', label: 'Dzikir Pagi', type: 'sunnah' },
-        { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' },
-        { id: 'conversation', label: 'Conversation', type: 'mandator', showOnDays: [0] } // Khusus Ahad (0)
+    shubuh: { 
+        id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', 
+        startHour: 4, // Jam 4 Pagi
+        activities: [
+            { id: 'shalat', label: 'Shubuh', type: 'mandator' },
+            { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah' },
+            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator' },
+            { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah' },
+            { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' },
+            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [0] }
     ]},
-    ashar: { id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', activities: [
-        { id: 'shalat', label: 'Shalat Ashar', type: 'mandator' },
-        { id: 'dzikir_petang', label: 'Dzikir Petang', type: 'sunnah' }
+    ashar: { 
+        id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', 
+        startHour: 15, // Jam 15 (3 Sore)
+        activities: [
+            { id: 'shalat', label: 'Ashar', type: 'mandator' },
+            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah' }
     ]},
-    maghrib: { id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', activities: [
-        { id: 'shalat', label: 'Shalat Maghrib', type: 'mandator' },
-        { id: 'bakdiyah', label: 'Ba\'diyah Maghrib', type: 'sunnah' },
-        { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] }, // Khusus Kamis (4) & Jumat (5)
-        { id: 'conversation', label: 'Conversation', type: 'mandator', showOnDays: [3] }, // Khusus Rabu (3)
-        { id: 'vocabularies', label: 'Vocabularies', type: 'mandator', showOnDays: [1, 2] }, // Khusus Senin (1) & Selasa (2)
-        { id: 'puasa', label: 'Puasa Sunnah', type: 'sunnah' }
+    maghrib: { 
+        id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', 
+        startHour: 18, // Jam 18 (6 Sore)
+        activities: [
+            { id: 'shalat', label: 'Maghrib', type: 'mandator' },
+            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
+            { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] },
+            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [3] },
+            { id: 'vocabularies', label: 'Vocab', type: 'mandator', showOnDays: [1, 2] },
+            { id: 'puasa', label: 'Puasa', type: 'sunnah' }
     ]},
-    isya: { id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', activities: [
-        { id: 'shalat', label: 'Shalat Isya', type: 'mandator' },
-        { id: 'bakdiyah', label: 'Ba\'diyah Isya', type: 'sunnah' },
-        { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] } // Khusus Jumat (5)
+    isya: { 
+        id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', 
+        startHour: 19, // Jam 19 (7 Malam)
+        activities: [
+            { id: 'shalat', label: 'Isya', type: 'mandator' },
+            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
+            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] }
     ]}
 };
-
 const STATUS_UI = {
     'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
     'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
