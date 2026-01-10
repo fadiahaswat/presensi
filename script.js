@@ -8,6 +8,14 @@ const APP_CONFIG = {
     settingsKey: 'musyrif_settings'
 };
 
+// --- HELPER DATE ---
+// Fungsi untuk mendapatkan tanggal format YYYY-MM-DD sesuai waktu lokal HP (bukan UTC)
+window.getLocalDateStr = function() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().split('T')[0];
+};
+
 // Polyfill for CanvasRenderingContext2D.roundRect
 if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radii) {
