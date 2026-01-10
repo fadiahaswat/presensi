@@ -1,18 +1,15 @@
 // --- 1. DATA MASTER & CONFIG ---
-const DATA_SANTRI = [
+// Kita ubah agar data diambil dari penyimpanan lokal HP (LocalStorage)
+// Jika kosong, baru kita pakai data bawaan (default)
+let DATA_SANTRI = JSON.parse(localStorage.getItem('musyrif_data_santri')) || [
     { id: 1, nama: "Ahmad Fulan", kamar: "101", avatar: "AF" },
-    { id: 2, nama: "Budi Santoso", kamar: "101", avatar: "BS" },
-    { id: 3, nama: "Cecep Gorbachev", kamar: "102", avatar: "CG" },
-    { id: 4, nama: "Dedi Corbuzier", kamar: "102", avatar: "DC" },
-    { id: 5, nama: "Eko Patrio", kamar: "103", avatar: "EP" },
-    { id: 6, nama: "Fajar Sadboy", kamar: "103", avatar: "FS" },
-    { id: 7, nama: "Gilang Dirga", kamar: "104", avatar: "GD" },
-    { id: 8, nama: "Haji Bolot", kamar: "104", avatar: "HB" },
-    { id: 9, nama: "Iko Uwais", kamar: "105", avatar: "IU" },
-    { id: 10, nama: "Joko Anwar", kamar: "105", avatar: "JA" },
-    { id: 11, nama: "Kiki CJR", kamar: "106", avatar: "KC" },
-    { id: 12, nama: "Lesti Kejora", kamar: "106", avatar: "LK" }
+    { id: 2, nama: "Budi Santoso", kamar: "101", avatar: "BS" }
 ];
+
+// Fungsi untuk menyimpan perubahan data santri ke memori HP
+function saveSantriData() {
+    localStorage.setItem('musyrif_data_santri', JSON.stringify(DATA_SANTRI));
+}
 
 const SLOT_WAKTU = {
     shubuh: { id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', activities: [
