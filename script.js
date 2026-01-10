@@ -898,9 +898,16 @@ window.saveData = function() {
 };
 
 
-// ...existing code...
 window.updateQuickStats = function() {
-    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) return;
+    // Cek apakah ada kelas yang dipilih & ada santri
+    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) {
+        // Reset angka jadi 0 jika tidak ada data
+        ['stat-hadir', 'stat-sakit', 'stat-izin', 'stat-alpa'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.textContent = '0';
+        });
+        return;
+    }
     
     const dateKey = appState.date;
     const data = appState.attendanceData[dateKey];
@@ -908,11 +915,14 @@ window.updateQuickStats = function() {
     let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlpa = 0;
     
     if(data) {
+        // Loop semua slot (Shubuh, Ashar, dll)
         Object.values(SLOT_WAKTU).forEach(slot => {
             if(data[slot.id]) {
                 FILTERED_SANTRI.forEach(s => {
                     const id = String(s.nis || s.id);
+                    // Ambil status shalat wajib
                     const status = data[slot.id][id]?.status?.shalat;
+                    
                     if(status === 'Hadir') totalHadir++;
                     else if(status === 'Sakit') totalSakit++;
                     else if(status === 'Izin') totalIzin++;
@@ -922,11 +932,11 @@ window.updateQuickStats = function() {
         });
     }
     
-    // Animate numbers
-    window.animateValue('stat-hadir', 0, totalHadir, 500);
-    window.animateValue('stat-sakit', 0, totalSakit, 500);
-    window.animateValue('stat-izin', 0, totalIzin, 500);
-    window.animateValue('stat-alpa', 0, totalAlpa, 500);
+    // Update UI
+    window.animateValue('stat-hadir', parseInt(document.getElementById('stat-hadir').textContent), totalHadir, 500);
+    window.animateValue('stat-sakit', parseInt(document.getElementById('stat-sakit').textContent), totalSakit, 500);
+    window.animateValue('stat-izin', parseInt(document.getElementById('stat-izin').textContent), totalIzin, 500);
+    window.animateValue('stat-alpa', parseInt(document.getElementById('stat-alpa').textContent), totalAlpa, 500);
 };
 
 window.animateValue = function(id, start, end, duration) {
