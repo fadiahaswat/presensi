@@ -48,26 +48,32 @@ let MASTER_SANTRI = [];
 let MASTER_KELAS = {};
 let FILTERED_SANTRI = []; // Santri hasil filter kelas
 
-// --- SLOT CONFIG ---
+// --- SLOT CONFIG (UPDATED) ---
 const SLOT_WAKTU = {
     shubuh: { id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', activities: [
-        { id: 'shalat', label: 'Shalat', type: 'mandator' },
-        { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah' },
+        { id: 'shalat', label: 'Shalat Shubuh', type: 'mandator' },
+        { id: 'qabliyah', label: 'Qabliyah Shubuh', type: 'sunnah' },
         { id: 'tahfizh', label: 'Tahfizh', type: 'mandator' },
-        { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' }
+        { id: 'dzikir_pagi', label: 'Dzikir Pagi', type: 'sunnah' },
+        { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' },
+        { id: 'conversation', label: 'Conversation', type: 'mandator', showOnDays: [0] } // Khusus Ahad (0)
     ]},
     ashar: { id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', activities: [
-        { id: 'shalat', label: 'Shalat', type: 'mandator' },
-        { id: 'dzikir', label: 'Dzikir', type: 'sunnah' }
+        { id: 'shalat', label: 'Shalat Ashar', type: 'mandator' },
+        { id: 'dzikir_petang', label: 'Dzikir Petang', type: 'sunnah' }
     ]},
     maghrib: { id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', activities: [
-        { id: 'shalat', label: 'Shalat', type: 'mandator' },
-        { id: 'bakdiyah', label: 'Bakdiyah', type: 'sunnah' },
-        { id: 'tahsin', label: 'Tahsin', type: 'mandator' }
+        { id: 'shalat', label: 'Shalat Maghrib', type: 'mandator' },
+        { id: 'bakdiyah', label: 'Ba\'diyah Maghrib', type: 'sunnah' },
+        { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] }, // Khusus Kamis (4) & Jumat (5)
+        { id: 'conversation', label: 'Conversation', type: 'mandator', showOnDays: [3] }, // Khusus Rabu (3)
+        { id: 'vocabularies', label: 'Vocabularies', type: 'mandator', showOnDays: [1, 2] }, // Khusus Senin (1) & Selasa (2)
+        { id: 'puasa', label: 'Puasa Sunnah', type: 'sunnah' }
     ]},
     isya: { id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', activities: [
-        { id: 'shalat', label: 'Shalat', type: 'mandator' },
-        { id: 'bakdiyah', label: 'Bakdiyah', type: 'sunnah' }
+        { id: 'shalat', label: 'Shalat Isya', type: 'mandator' },
+        { id: 'bakdiyah', label: 'Ba\'diyah Isya', type: 'sunnah' },
+        { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] } // Khusus Jumat (5)
     ]}
 };
 
