@@ -85,6 +85,35 @@
                 border-radius: 4px 4px 0 0;
             }
         }
+        
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+        
+        .dark .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+        }
+        
+        @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+            .glass-card { background: white; border: 1px solid #e2e8f0; }
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.5s ease;
+        }
     </style>
 </head>
 <body class="text-slate-800 dark:text-slate-200 antialiased bg-slate-50 dark:bg-[#0f172a] h-screen flex flex-col overflow-hidden">
@@ -141,7 +170,10 @@
                     <h1 class="text-3xl font-black text-slate-800 dark:text-white leading-tight">Dashboard <br>Presensi</h1>
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest" id="dash-clock">--:--</p>
+                    <div class="flex items-baseline gap-1">
+                        <p class="text-2xl font-black text-slate-600 dark:text-slate-300" id="dash-clock">--:--</p>
+                        <p class="text-xs font-bold text-slate-400" id="dash-clock-sec">00</p>
+                    </div>
                     <span id="profile-role" class="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-500">Kelas --</span>
                 </div>
             </header>
@@ -201,7 +233,7 @@
                     </h3>
                     <span class="text-xs font-bold text-slate-400" id="dash-stats-text">0%</span>
                 </div>
-                <canvas id="weekly-chart" width="300" height="120" class="w-full"></canvas>
+                <canvas id="weekly-chart" width="300" height="140" class="w-full"></canvas>
             </div>
 
             <div id="dash-main-card" onclick="openAttendance()" class="cursor-pointer bg-slate-900 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden group">
@@ -231,13 +263,16 @@
             <div class="flex justify-between items-end">
                 <h2 class="text-2xl font-black text-slate-800 dark:text-white">Laporan</h2>
                 <div class="flex gap-2">
-                    <button onclick="viewRekapBulanan()" class="p-3 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/30">
+                    <button onclick="printReport()" class="p-3 bg-purple-500 text-white rounded-xl shadow-lg shadow-purple-500/30 no-print">
+                        <i data-lucide="printer" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="viewRekapBulanan()" class="p-3 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/30 no-print">
                         <i data-lucide="calendar" class="w-5 h-5"></i>
                     </button>
-                    <button onclick="kirimLaporanWA()" class="p-3 bg-green-500 text-white rounded-xl shadow-lg shadow-green-500/30">
+                    <button onclick="kirimLaporanWA()" class="p-3 bg-green-500 text-white rounded-xl shadow-lg shadow-green-500/30 no-print">
                         <i data-lucide="message-circle" class="w-5 h-5"></i>
                     </button>
-                    <button onclick="exportToExcel()" class="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/30">
+                    <button onclick="exportToExcel()" class="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/30 no-print">
                         <i data-lucide="download" class="w-5 h-5"></i>
                     </button>
                 </div>
@@ -246,37 +281,68 @@
         </div>
 
         <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-6">
-            <div class="glass-card p-6 rounded-[2.5rem] text-center">
-                <div class="w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full mx-auto mb-4 overflow-hidden border-4 border-white dark:border-slate-800 shadow-xl flex items-center justify-center text-white text-3xl font-black">
-                    <i data-lucide="user" class="w-12 h-12"></i>
+            <div class="glass-card p-6 rounded-[2.5rem] text-center relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
+                <div class="relative z-10">
+                    <div class="w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full mx-auto mb-4 overflow-hidden border-4 border-white dark:border-slate-800 shadow-xl flex items-center justify-center text-white text-3xl font-black">
+                        <i data-lucide="user" class="w-12 h-12"></i>
+                    </div>
+                    <h2 id="profile-name" class="text-2xl font-black text-slate-800 dark:text-white">Ustadz Musyrif</h2>
+                    <p class="text-sm text-slate-500 mb-4">Administrator</p>
+                    
+                    <!-- Profile Stats -->
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                            <div class="text-3xl font-black text-emerald-500" id="profile-avg-attendance">0%</div>
+                            <p class="text-xs font-bold text-slate-400 mt-1">Rata-rata Kehadiran</p>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                            <div class="text-3xl font-black text-blue-500" id="profile-days-count">0</div>
+                            <p class="text-xs font-bold text-slate-400 mt-1">Hari Aktif</p>
+                        </div>
+                    </div>
                 </div>
-                <h2 id="profile-name" class="text-2xl font-black text-slate-800 dark:text-white">Ustadz Musyrif</h2>
-                <p class="text-sm text-slate-500">Administrator</p>
             </div>
             
             <div class="space-y-3">
-                <button onclick="viewActivityLog()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">
+                <button onclick="backupData()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm hover:scale-[1.02] transition-all">
+                    <span class="flex items-center gap-3"><i data-lucide="download-cloud" class="text-purple-500"></i> Backup Data</span>
+                    <i data-lucide="chevron-right" class="text-slate-300"></i>
+                </button>
+                <button onclick="restoreData()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm hover:scale-[1.02] transition-all">
+                    <span class="flex items-center gap-3"><i data-lucide="upload-cloud" class="text-indigo-500"></i> Restore Data</span>
+                    <i data-lucide="chevron-right" class="text-slate-300"></i>
+                </button>
+                <button onclick="viewActivityLog()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm hover:scale-[1.02] transition-all">
                     <span class="flex items-center gap-3"><i data-lucide="activity" class="text-blue-500"></i> Riwayat Aktivitas</span>
                     <i data-lucide="chevron-right" class="text-slate-300"></i>
                 </button>
-                <button onclick="handleGantiPin()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">
+                
+                <div class="h-px bg-slate-200 dark:bg-slate-700 my-6"></div>
+                
+                <button onclick="handleGantiPin()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm hover:scale-[1.02] transition-all">
                     <span class="flex items-center gap-3"><i data-lucide="lock" class="text-emerald-500"></i> Ganti PIN</span>
                     <i data-lucide="chevron-right" class="text-slate-300"></i>
                 </button>
-                <button onclick="toggleDarkMode()" id="btn-dark-mode" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">
+                <button onclick="toggleDarkMode()" id="btn-dark-mode" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm hover:scale-[1.02] transition-all">
                     <span class="flex items-center gap-3"><i data-lucide="moon" class="text-indigo-500"></i> Mode Gelap</span>
                     <div id="dark-mode-toggle" class="w-12 h-6 bg-slate-300 dark:bg-emerald-500 rounded-full relative transition-colors">
-                        <div class="absolute top-1 left-1 dark:left-7 w-4 h-4 bg-white rounded-full transition-all"></div>
+                        <div class="absolute top-1 left-1 dark:left-7 w-4 h-4 bg-white rounded-full transition-all shadow-lg"></div>
                     </div>
                 </button>
-                <button id="btn-notifications" onclick="toggleNotifications()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">
+                <button id="btn-notifications" onclick="toggleNotifications()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm hover:scale-[1.02] transition-all">
                     <span class="flex items-center gap-3"><i data-lucide="bell" class="text-amber-500"></i> Notifikasi</span>
-                    <i data-lucide="chevron-right" class="text-slate-300"></i>
+                    <div class="w-12 h-6 bg-slate-300 rounded-full relative transition-colors">
+                        <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all shadow-lg"></div>
+                    </div>
                 </button>
-                <button onclick="handleClearData()" class="w-full p-4 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center font-bold gap-2 mt-8">
+                
+                <div class="h-px bg-slate-200 dark:bg-slate-700 my-6"></div>
+                
+                <button onclick="handleClearData()" class="w-full p-4 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center font-bold gap-2 mt-8 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all">
                     <i data-lucide="trash-2"></i> Reset Data Hari Ini
                 </button>
-                <button onclick="handleLogout()" class="w-full p-4 text-slate-400 font-bold text-xs uppercase tracking-widest">Keluar Aplikasi</button>
+                <button onclick="handleLogout()" class="w-full p-4 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 transition-colors">Keluar Aplikasi</button>
             </div>
         </div>
 
@@ -353,6 +419,21 @@
                 </button>
             </div>
             <div id="activity-list" class="flex-1 overflow-y-auto space-y-3 hide-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm -->
+    <div id="modal-confirm" class="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-6">
+        <div class="glass-card w-full max-w-sm rounded-[2rem] p-6 animate-[slideUp_0.3s_ease-out]">
+            <div class="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 mx-auto mb-4 flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-8 h-8 text-amber-600"></i>
+            </div>
+            <h3 id="confirm-title" class="text-xl font-black text-slate-800 dark:text-white text-center mb-2">Konfirmasi</h3>
+            <p id="confirm-message" class="text-sm text-slate-500 text-center mb-6">Apakah Anda yakin?</p>
+            <div class="flex gap-3">
+                <button id="confirm-no" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white font-bold transition-all active:scale-95">Batal</button>
+                <button id="confirm-yes" class="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold transition-all active:scale-95">Hapus</button>
+            </div>
         </div>
     </div>
 

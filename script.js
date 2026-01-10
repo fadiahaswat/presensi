@@ -773,3 +773,470 @@ window.saveData = function() {
 
 // Start
 window.onload = window.initApp;
+
+// ...existing code...
+window.updateQuickStats = function() {
+    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) return;
+    
+    const dateKey = appState.date;
+    const data = appState.attendanceData[dateKey];
+    
+    let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlpa = 0;
+    
+    if(data) {
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            if(data[slot.id]) {
+                FILTERED_SANTRI.forEach(s => {
+                    const id = String(s.nis || s.id);
+                    const status = data[slot.id][id]?.status?.shalat;
+                    if(status === 'Hadir') totalHadir++;
+                    else if(status === 'Sakit') totalSakit++;
+                    else if(status === 'Izin') totalIzin++;
+                    else if(status === 'Alpa') totalAlpa++;
+                });
+            }
+        });
+    }
+    
+    // Animate numbers
+    window.animateValue('stat-hadir', 0, totalHadir, 500);
+    window.animateValue('stat-sakit', 0, totalSakit, 500);
+    window.animateValue('stat-izin', 0, totalIzin, 500);
+    window.animateValue('stat-alpa', 0, totalAlpa, 500);
+};
+
+window.animateValue = function(id, start, end, duration) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    
+    const range = end - start;
+    const increment = range / (duration / 16);
+    let current = start;
+    
+    const timer = setInterval(() => {
+        current += increment;
+        if((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+            current = end;
+            clearInterval(timer);
+        }
+        el.textContent = Math.round(current);
+    }, 16);
+};
+
+window.updateWeeklyChart = function() {
+    const canvas = document.getElementById('weekly-chart');
+    if(!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size for retina displays
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    if(FILTERED_SANTRI.length === 0) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 12px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Belum ada data', width/2, height/2);
+        return;
+    }
+    
+    // Get last 7 days data
+    const days = [];
+    const labels = [];
+    const today = new Date();
+    for(let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        days.push(d.toISOString().split('T')[0]);
+        labels.push(['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][d.getDay()]);
+    }
+    
+    const data = days.map(date => {
+        const dayData = appState.attendanceData[date];
+        if(!dayData) return 0;
+        
+        let count = 0, total = 0;
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            if(dayData[slot.id]) {
+                FILTERED_SANTRI.forEach(s => {
+                    const id = String(s.nis || s.id);
+                    if(dayData[slot.id][id]?.status?.shalat === 'Hadir') count++;
+                    if(dayData[slot.id][id]?.status?.shalat) total++;
+                });
+            }
+        });
+        return total === 0 ? 0 : Math.round((count/total)*100);
+    });
+    
+    // Draw chart with animation
+    const maxVal = Math.max(...data, 100);
+    const barWidth = (width - 40) / (days.length * 2);
+    const gap = barWidth / 2;
+    const chartHeight = height - 40;
+    
+    data.forEach((val, i) => {
+        const barHeight = (val / maxVal) * chartHeight;
+        const x = i * (barWidth + gap) + gap + 20;
+        const y = height - barHeight - 25;
+        
+        // Shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 2;
+        
+        // Gradient
+        const gradient = ctx.createLinearGradient(0, y, 0, height - 25);
+        gradient.addColorStop(0, val >= 80 ? '#10b981' : val >= 60 ? '#f59e0b' : '#ef4444');
+        gradient.addColorStop(1, val >= 80 ? '#059669' : val >= 60 ? '#d97706' : '#dc2626');
+        ctx.fillStyle = gradient;
+        
+        // Draw rounded bar
+        const radius = 4;
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + barWidth - radius, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+        ctx.lineTo(x + barWidth, height - 25);
+        ctx.lineTo(x, height - 25);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        
+        // Value text
+        if(val > 0) {
+            ctx.fillStyle = '#475569';
+            ctx.font = 'bold 11px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(val + '%', x + barWidth/2, y - 8);
+        }
+        
+        // Day label
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px Arial, sans-serif';
+        ctx.fillText(labels[i], x + barWidth/2, height - 8);
+    });
+};
+
+// ==========================================
+// 5. MISC
+// ==========================================
+
+window.switchTab = function(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    
+    // Show main content for home tab
+    const mainContent = document.getElementById('main-content');
+    if (tabName === 'home') {
+        mainContent.classList.remove('hidden');
+        document.getElementById('tab-report')?.classList.add('hidden');
+        document.getElementById('tab-profile')?.classList.add('hidden');
+    } else {
+        // Hide main content when switching to other tabs
+        mainContent.classList.add('hidden');
+    }
+    
+    // Show selected tab
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+    }
+    
+    // Update nav buttons with animation
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        if(btn.dataset.target === tabName) {
+            btn.classList.add('active');
+            btn.style.transform = 'scale(1.1)';
+            setTimeout(() => btn.style.transform = '', 200);
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Refresh data based on tab
+    if(tabName === 'home') {
+        window.updateDashboard();
+    } else if(tabName === 'report') {
+        window.updateReportTab();
+    } else if(tabName === 'profile') {
+        window.updateProfileStats();
+    }
+    
+    lucide.createIcons();
+};
+
+window.updateReportTab = function() {
+    const container = document.getElementById('report-problem-list');
+    if (!container) return;
+    
+    // Show skeleton loading
+    container.innerHTML = window.getSkeletonHTML(3);
+    
+    setTimeout(() => {
+        container.innerHTML = '';
+        
+        if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
+            container.innerHTML = '<div class="text-center py-12"><i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i><p class="text-slate-400 font-bold">Belum ada data laporan</p></div>';
+            lucide.createIcons();
+            return;
+        }
+        
+        const dateKey = appState.date;
+        const data = appState.attendanceData[dateKey];
+        
+        if (!data) {
+            container.innerHTML = '<div class="text-center py-12"><i data-lucide="calendar-x" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i><p class="text-slate-400 font-bold">Belum ada data untuk hari ini</p></div>';
+            lucide.createIcons();
+            return;
+        }
+        
+        let problems = [];
+        
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            if (data[slot.id]) {
+                FILTERED_SANTRI.forEach(s => {
+                    const id = String(s.nis || s.id);
+                    const status = data[slot.id][id]?.status?.shalat;
+                    if (status === 'Alpa' || status === 'Sakit' || status === 'Izin') {
+                        problems.push({
+                            nama: s.nama,
+                            slot: slot.label,
+                            status: status,
+                            note: data[slot.id][id]?.note || '-',
+                            slotTheme: slot.theme
+                        });
+                    }
+                });
+            }
+        });
+        
+        if (problems.length === 0) {
+            container.innerHTML = '<div class="text-center py-12"><i data-lucide="party-popper" class="w-16 h-16 mx-auto mb-4 text-emerald-500"></i><p class="text-emerald-600 dark:text-emerald-400 font-black text-xl">Tidak ada masalah kehadiran hari ini 🎉</p><p class="text-slate-400 text-sm mt-2">Semua santri hadir lengkap</p></div>';
+            lucide.createIcons();
+            return;
+        }
+        
+        problems.forEach((p, idx) => {
+            const statusClass = STATUS_UI[p.status]?.class || '';
+            const div = document.createElement('div');
+            div.className = 'glass-card p-4 rounded-2xl opacity-0 animate-[slideUp_0.3s_ease-out] hover:scale-[1.02] transition-all';
+            div.style.animationDelay = `${idx * 50}ms`;
+            div.style.animationFillMode = 'forwards';
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-${p.slotTheme}-100 dark:bg-${p.slotTheme}-900/30 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-${p.slotTheme}-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 dark:text-white">${p.nama}</h4>
+                            <p class="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                                <i data-lucide="clock" class="w-3 h-3"></i> ${p.slot}
+                            </p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 rounded-lg text-xs font-bold ${statusClass}">${p.status}</span>
+                </div>
+                ${p.note !== '-' ? `<div class="mt-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-l-4 border-amber-500"><p class="text-xs text-slate-600 dark:text-slate-400 italic">"${p.note}"</p></div>` : ''}
+            `;
+            container.appendChild(div);
+        });
+        
+        lucide.createIcons();
+    }, 300);
+};
+
+window.getSkeletonHTML = function(count) {
+    let html = '';
+    for(let i = 0; i < count; i++) {
+        html += `
+            <div class="glass-card p-4 rounded-2xl animate-pulse">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-3 flex-1">
+                        <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                            <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                    <div class="w-16 h-6 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
+                </div>
+            </div>
+        `;
+    }
+    return html;
+};
+
+window.updateProfileStats = function() {
+    if(!appState.selectedClass) return;
+    
+    // Calculate total activities
+    let totalChecks = 0, totalDays = 0;
+    
+    Object.keys(appState.attendanceData).forEach(dateKey => {
+        const dayData = appState.attendanceData[dateKey];
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            if(dayData[slot.id]) {
+                FILTERED_SANTRI.forEach(s => {
+                    const id = String(s.nis || s.id);
+                    if(dayData[slot.id][id]?.status?.shalat === 'Hadir') totalChecks++;
+                });
+            }
+        });
+        totalDays++;
+    });
+    
+    const avgEl = document.getElementById('profile-avg-attendance');
+    if(avgEl) {
+        const avg = totalDays === 0 ? 0 : Math.round((totalChecks / (totalDays * FILTERED_SANTRI.length * Object.keys(SLOT_WAKTU).length)) * 100);
+        avgEl.textContent = avg + '%';
+    }
+    
+    const daysEl = document.getElementById('profile-days-count');
+    if(daysEl) daysEl.textContent = totalDays;
+};
+
+// ==========================================
+// 6. DATA ACTIONS
+// ==========================================
+
+window.handleClearData = function() {
+    window.showConfirmModal(
+        'Hapus Data Hari Ini?',
+        'Data presensi hari ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+        'Hapus',
+        'Batal',
+        () => {
+            delete appState.attendanceData[appState.date];
+            window.saveData();
+            window.updateDashboard();
+            window.showToast('Data berhasil dihapus', 'success');
+            window.logActivity('Hapus Data', `Menghapus data tanggal ${appState.date}`);
+        }
+    );
+};
+
+window.showConfirmModal = function(title, message, confirmText, cancelText, onConfirm) {
+    const modal = document.getElementById('modal-confirm');
+    if(!modal) return;
+    
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-yes').textContent = confirmText;
+    document.getElementById('confirm-no').textContent = cancelText;
+    
+    document.getElementById('confirm-yes').onclick = () => {
+        onConfirm();
+        modal.classList.add('hidden');
+    };
+    
+    document.getElementById('confirm-no').onclick = () => {
+        modal.classList.add('hidden');
+    };
+    
+    modal.classList.remove('hidden');
+};
+
+window.backupData = function() {
+    const backup = {
+        version: '1.0',
+        date: new Date().toISOString(),
+        class: appState.selectedClass,
+        attendance: appState.attendanceData,
+        activityLog: appState.activityLog
+    };
+    
+    const dataStr = JSON.stringify(backup, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_${appState.selectedClass}_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    window.showToast('Backup berhasil diunduh', 'success');
+    window.logActivity('Backup Data', 'Membuat backup data');
+};
+
+window.restoreData = function() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const backup = JSON.parse(event.target.result);
+                
+                if(!backup.version || !backup.attendance) {
+                    throw new Error('Format backup tidak valid');
+                }
+                
+                window.showConfirmModal(
+                    'Restore Data?',
+                    `Restore data dari backup tanggal ${new Date(backup.date).toLocaleDateString('id-ID')}? Data yang ada akan ditimpa.`,
+                    'Restore',
+                    'Batal',
+                    () => {
+                        appState.attendanceData = backup.attendance;
+                        if(backup.activityLog) appState.activityLog = backup.activityLog;
+                        
+                        window.saveData();
+                        localStorage.setItem(APP_CONFIG.activityLogKey, JSON.stringify(appState.activityLog));
+                        
+                        window.updateDashboard();
+                        window.showToast('Data berhasil di-restore', 'success');
+                        window.logActivity('Restore Data', 'Memulihkan data dari backup');
+                    }
+                );
+            } catch(err) {
+                window.showToast('Gagal membaca file backup: ' + err.message, 'error');
+            }
+        };
+        reader.readAsText(file);
+    };
+    
+    input.click();
+};
+
+window.printReport = function() {
+    window.print();
+};
+
+window.startClock = function() {
+    const updateClock = () => {
+        const el = document.getElementById('dash-clock');
+        if(el) {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            el.textContent = `${hours}:${minutes}`;
+            
+            // Update seconds indicator
+            const secEl = document.getElementById('dash-clock-sec');
+            if(secEl) secEl.textContent = seconds;
+        }
+    };
+    
+    updateClock();
+    setInterval(updateClock, 1000);
+};
