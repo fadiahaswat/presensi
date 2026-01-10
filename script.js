@@ -189,8 +189,12 @@ window.updateDashboard = function() {
 
     // Stats Chart (Global)
     const stats = window.calculateGlobalStats();
-    document.getElementById('dash-stats-text').textContent = stats + "%";
-    document.getElementById('dash-stats-pie').style.setProperty('--percent', stats + "%");
+    // Pastikan elemen text ada sebelum di-update (optional safety)
+    const statsText = document.getElementById('dash-stats-text');
+    if(statsText) statsText.textContent = stats + "%";
+
+    // HAPUS atau KOMENTARI baris di bawah ini karena elemennya tidak ada di HTML
+    // document.getElementById('dash-stats-pie').style.setProperty('--percent', stats + "%");
 
     // Main Card
     const slot = SLOT_WAKTU[appState.currentSlotId];
