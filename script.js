@@ -982,13 +982,13 @@ window.animateValue = function(id, start, end, duration) {
     }, 16);
 };
 
-window.updateWeeklyChart = function() {
-    const canvas = document.getElementById('weekly-chart');
+window.drawDonutChart = function() {
+    const canvas = document.getElementById('weekly-chart'); // ID di HTML tetap sama biar ga perlu ubah HTML
     if(!canvas) return;
     
     const ctx = canvas.getContext('2d');
     
-    // Set canvas size for retina displays
+    // Resolusi Tinggi
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * dpr;
@@ -997,97 +997,66 @@ window.updateWeeklyChart = function() {
     
     const width = rect.width;
     const height = rect.height;
-    
-    // Clear canvas
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) / 2 - 10;
+
+    // Hitung Persentase Hari Ini
+    const percent = window.calculateGlobalStats(); // 0 - 100
+
     ctx.clearRect(0, 0, width, height);
+
+    // 1. Gambar Lingkaran Belakang (Abu-abu)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.lineWidth = 15;
+    ctx.strokeStyle = '#f1f5f9'; // slate-100
+    if (document.documentElement.classList.contains('dark')) {
+        ctx.strokeStyle = '#334155'; // slate-700
+    }
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 2. Gambar Lingkaran Depan (Warna)
+    const startAngle = -Math.PI / 2; // Mulai dari jam 12
+    const endAngle = startAngle + ((percent / 100) * 2 * Math.PI);
     
-    if(FILTERED_SANTRI.length === 0) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = 'bold 12px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Belum ada data', width/2, height/2);
-        return;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    ctx.lineWidth = 15;
+    
+    // Warna Gradient
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    if(percent >= 80) {
+        gradient.addColorStop(0, '#34d399'); // Emerald
+        gradient.addColorStop(1, '#059669');
+    } else if (percent >= 60) {
+        gradient.addColorStop(0, '#fbbf24'); // Amber
+        gradient.addColorStop(1, '#d97706');
+    } else {
+        gradient.addColorStop(0, '#f87171'); // Red
+        gradient.addColorStop(1, '#dc2626');
     }
     
-    // Get last 7 days data
-    const days = [];
-    const labels = [];
-    const today = new Date();
-    for(let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        days.push(d.toISOString().split('T')[0]);
-        labels.push(['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][d.getDay()]);
-    }
+    ctx.strokeStyle = gradient;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 3. Teks di Tengah
+    ctx.fillStyle = '#334155';
+    if (document.documentElement.classList.contains('dark')) ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${percent}%`, centerX, centerY);
     
-    const data = days.map(date => {
-        const dayData = appState.attendanceData[date];
-        if(!dayData) return 0;
-        
-        let count = 0, total = 0;
-        Object.values(SLOT_WAKTU).forEach(slot => {
-            if(dayData[slot.id]) {
-                FILTERED_SANTRI.forEach(s => {
-                    const id = String(s.nis || s.id);
-                    if(dayData[slot.id][id]?.status?.shalat === 'Hadir') count++;
-                    if(dayData[slot.id][id]?.status?.shalat) total++;
-                });
-            }
-        });
-        return total === 0 ? 0 : Math.round((count/total)*100);
-    });
+    ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Kehadiran', centerX, centerY + 20);
     
-    // Draw chart with animation
-    const maxVal = Math.max(...data, 100);
-    const barWidth = (width - 40) / (days.length * 2);
-    const gap = barWidth / 2;
-    const chartHeight = height - 40;
-    
-    data.forEach((val, i) => {
-        const barHeight = (val / maxVal) * chartHeight;
-        const x = i * (barWidth + gap) + gap + 20;
-        const y = height - barHeight - 25;
-        
-        // Shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetY = 2;
-        
-        // Gradient
-        const gradient = ctx.createLinearGradient(0, y, 0, height - 25);
-        gradient.addColorStop(0, val >= 80 ? '#10b981' : val >= 60 ? '#f59e0b' : '#ef4444');
-        gradient.addColorStop(1, val >= 80 ? '#059669' : val >= 60 ? '#d97706' : '#dc2626');
-        ctx.fillStyle = gradient;
-        
-        // Draw rounded bar
-        const radius = 4;
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + barWidth - radius, y);
-        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
-        ctx.lineTo(x + barWidth, height - 25);
-        ctx.lineTo(x, height - 25);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Reset shadow
-        ctx.shadowColor = 'transparent';
-        
-        // Value text
-        if(val > 0) {
-            ctx.fillStyle = '#475569';
-            ctx.font = 'bold 11px Arial, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(val + '%', x + barWidth/2, y - 8);
-        }
-        
-        // Day label
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '10px Arial, sans-serif';
-        ctx.fillText(labels[i], x + barWidth/2, height - 8);
-    });
+    // Update text kecil di pojok kartu
+    const statsText = document.getElementById('dash-stats-text');
+    if(statsText) statsText.textContent = percent + "%";
 };
 
 // ==========================================
