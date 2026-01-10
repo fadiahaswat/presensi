@@ -121,6 +121,9 @@ window.initApp = async function() {
     const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
     if(savedLog) appState.activityLog = JSON.parse(savedLog);
 
+    // --- TAMBAHAN BARU: Set Slot Otomatis ---
+    appState.currentSlotId = window.determineCurrentSlot();
+
     // Fetch Data
     try {
         if (!window.loadClassData || !window.loadSantriData) {
