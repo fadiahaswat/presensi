@@ -897,8 +897,6 @@ window.saveData = function() {
     }
 };
 
-// Start
-window.onload = window.initApp;
 
 // ...existing code...
 window.updateQuickStats = function() {
@@ -1416,3 +1414,6 @@ window.startClock = function() {
     updateClock();
     setInterval(updateClock, 1000);
 };
+
+// Start
+window.onload = window.initApp;
