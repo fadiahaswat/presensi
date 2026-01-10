@@ -509,19 +509,28 @@ window.toggleStatus = function(id, actId, type) {
 
 window.handleBulkAction = function(type) {
     const slotId = appState.currentSlotId;
-    const dbSlot = appState.attendanceData[appState.date][slotId];
-    const activities = SLOT_WAKTU[slotId].activities;
+    const dateKey = appState.date;
     
-    // --- CEK HARI INI ---
+    // Pastikan struktur slot ada
+    if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    if(!appState.attendanceData[dateKey][slotId]) appState.attendanceData[dateKey][slotId] = {};
+    
+    const dbSlot = appState.attendanceData[dateKey][slotId];
+    const activities = SLOT_WAKTU[slotId].activities;
     const currentDay = new Date(appState.date).getDay();
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        if(!dbSlot[id]) return; 
+        
+        // --- PERBAIKAN DI SINI ---
+        // Jika data santri belum ada, buat baru sekarang juga!
+        if(!dbSlot[id]) {
+            dbSlot[id] = { status: {}, note: '' };
+        }
+        // -------------------------
         
         activities.forEach(act => {
-            // LOGIKA FILTER HARI:
-            // Jangan ubah status massal untuk aktivitas yang tersembunyi hari ini
+            // Skip aktivitas yang tidak muncul hari ini
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
             if(type === 'alpa') {
@@ -533,7 +542,10 @@ window.handleBulkAction = function(type) {
     });
     
     window.saveData();
-    window.renderAttendanceList();
+    window.renderAttendanceList(); // Refresh tampilan list
+    
+    // Opsional: Refresh dashboard di background agar saat kembali angkanya sudah update
+    window.updateDashboard(); 
     
     if (type === 'alpa') {
         window.showToast("Semua santri ditandai Alpa", 'warning');
