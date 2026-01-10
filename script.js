@@ -1,12 +1,9 @@
 // --- 1. DATA MASTER & CONFIG ---
-// Kita ubah agar data diambil dari penyimpanan lokal HP (LocalStorage)
-// Jika kosong, baru kita pakai data bawaan (default)
 let DATA_SANTRI = JSON.parse(localStorage.getItem('musyrif_data_santri')) || [
     { id: 1, nama: "Ahmad Fulan", kamar: "101", avatar: "AF" },
     { id: 2, nama: "Budi Santoso", kamar: "101", avatar: "BS" }
 ];
 
-// Fungsi untuk menyimpan perubahan data santri ke memori HP
 function saveSantriData() {
     localStorage.setItem('musyrif_data_santri', JSON.stringify(DATA_SANTRI));
 }
@@ -38,7 +35,7 @@ const SLOT_WAKTU = {
 };
 
 const STATUS = { HADIR: 'Hadir', SAKIT: 'Sakit', IZIN: 'Izin', ALPA: 'Alpa', YA: 'Ya', TIDAK: 'Tidak' };
-// UI Config: Dark mode adjustments handled via class structure in render logic
+
 const STATUS_UI = {
     'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 dark:shadow-none shadow-lg', label: 'icon-check' },
     'Ya': { class: 'bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 dark:shadow-none shadow-lg', label: 'icon-check' },
@@ -65,7 +62,6 @@ function loadFromStorage() {
     if(saved) {
         appState.attendanceData = JSON.parse(saved);
     }
-    // Load theme
     const theme = localStorage.getItem('theme');
     if(theme === 'dark') {
         appState.darkMode = true;
@@ -92,14 +88,10 @@ function handleClearData() {
     if(!confirm('PERINGATAN: Data presensi hari ini akan dihapus permanen. Lanjutkan?')) {
         return;
     }
-
     let pinInput = prompt("Masukkan PIN Keamanan untuk menghapus:");
-    
-    // --- BARIS INI YANG KITA UBAH ---
     const storedPin = localStorage.getItem('musyrif_pin') || '1234';
-    // -------------------------------
 
-    if(pinInput === storedPin) { // Cek sama storedPin, bukan '1234' lagi
+    if(pinInput === storedPin) {
         localStorage.removeItem(STORAGE_KEY);
         appState.attendanceData = {};
         showToast("Data berhasil direset");
@@ -148,28 +140,19 @@ function exportToCSV() {
 function kirimLaporanWA() {
     const dateKey = getTodayKey();
     const dataHariIni = appState.attendanceData[dateKey];
-
-    // Cek jika belum ada data sama sekali
     if (!dataHariIni) {
         alert("Belum ada data presensi hari ini untuk dilaporkan.");
         return;
     }
-
-    // Siapkan wadah untuk menampung daftar pelanggaran
     let listAlpa = [];
     let listSakit = [];
     let totalHadir = 0;
-    let totalSantri = DATA_SANTRI.length;
-
-    // Loop (putar) semua data santri untuk dicek satu-satu
+    
     DATA_SANTRI.forEach(santri => {
         let statusShalat = "Belum Absen";
-        
-        // Cek status di slot waktu saat ini (misal: Shubuh)
         if (dataHariIni[appState.currentSlotId] && dataHariIni[appState.currentSlotId][santri.id]) {
             statusShalat = dataHariIni[appState.currentSlotId][santri.id].status.shalat;
         }
-
         if (statusShalat === 'Hadir') {
             totalHadir++;
         } else if (statusShalat === 'Alpa') {
@@ -179,8 +162,6 @@ function kirimLaporanWA() {
         }
     });
 
-    // Susun kata-kata laporan
-    // %0A adalah kode untuk "Enter" (Ganti Baris) di link WhatsApp
     let teks = `*LAPORAN PRESENSI ASRAMA* %0A`;
     teks += `📅 Tanggal: ${dateKey} %0A`;
     teks += `🕌 Waktu: ${SLOT_WAKTU[appState.currentSlotId].label} %0A`;
@@ -190,17 +171,10 @@ function kirimLaporanWA() {
     teks += `❌ Alpa: ${listAlpa.length} %0A`;
     teks += `--------------------------- %0A`;
 
-    if (listAlpa.length > 0) {
-        teks += `*DAFTAR ALPA:* %0A${listAlpa.join('%0A')} %0A %0A`;
-    }
-    
-    if (listSakit.length > 0) {
-        teks += `*DAFTAR SAKIT:* %0A${listSakit.join('%0A')} %0A`;
-    }
+    if (listAlpa.length > 0) teks += `*DAFTAR ALPA:* %0A${listAlpa.join('%0A')} %0A %0A`;
+    if (listSakit.length > 0) teks += `*DAFTAR SAKIT:* %0A${listSakit.join('%0A')} %0A`;
 
     teks += `_Digenerate oleh MusyrifApp_`;
-
-    // Buka WhatsApp
     window.open(`https://wa.me/?text=${teks}`, '_blank');
 }
 
@@ -245,6 +219,7 @@ function init() {
     loadFromStorage();
     autoDetectSlot();
     startClock();
+    lucide.createIcons();
 }
 
 function startClock() {
@@ -278,20 +253,16 @@ function autoDetectSlot() {
 function handleLogin() {
     const inputField = document.getElementById('login-pin');
     const inputPin = inputField.value;
-    
-    // Ambil PIN dari memori HP. Kalau tidak ada, pakai standar '1234'
     const storedPin = localStorage.getItem('musyrif_pin') || '1234';
 
     if (inputPin === storedPin) {
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-main').classList.remove('hidden');
         switchTab('home');
-        
-        // Kosongkan input biar aman kalau logout nanti
         inputField.value = ''; 
     } else {
         alert("PIN SALAH! Silakan coba lagi.");
-        inputField.value = ''; // Reset input
+        inputField.value = '';
         inputField.focus();
     }
 }
@@ -325,7 +296,7 @@ function closeAttendance() {
     switchTab('home');
 }
 
-// --- 5. RENDER LOGIC ---
+// --- 5. RENDER LOGIC (UPDATED FOR NEW DESIGN) ---
 
 function updateDashboard() {
     document.getElementById('dash-greeting').textContent = getGreeting();
@@ -336,14 +307,24 @@ function updateDashboard() {
     const currentSlot = SLOT_WAKTU[appState.currentSlotId];
     const card = document.getElementById('dash-main-card');
     
+    // Tema warna gradient untuk kartu aktif
     const themes = {
-        emerald: 'from-emerald-400 to-emerald-600 shadow-emerald-500/30',
-        orange: 'from-orange-400 to-orange-600 shadow-orange-500/30',
-        indigo: 'from-indigo-400 to-indigo-600 shadow-indigo-500/30',
-        slate: 'from-slate-700 to-slate-900 shadow-slate-500/30',
+        emerald: 'from-emerald-600 to-teal-500',
+        orange: 'from-orange-500 to-red-500',
+        indigo: 'from-indigo-600 to-blue-500',
+        slate: 'from-slate-700 to-slate-900',
     };
     
-    card.className = `p-1 rounded-[2rem] bg-gradient-to-br ${themes[currentSlot.theme]} shadow-lg transform transition-all duration-300 hover:scale-[1.01] cursor-pointer`;
+    // UPDATE: Kita ganti class dengan aman (tanpa menimpa class layout)
+    // Kita target element background gradient di dalam kartu jika ada, atau ubah class utama
+    // Cara paling aman dengan struktur baru: Reset class lalu pasang class lengkap yang baru
+    
+    // Hapus class warna lama (kita asumsikan defaultnya dark/slate)
+    card.classList.remove('bg-[#1e293b]', 'dark:bg-black', 'bg-gradient-to-br', 'from-emerald-600', 'to-teal-500', 'from-orange-500', 'to-red-500', 'from-indigo-600', 'to-blue-500', 'from-slate-700', 'to-slate-900');
+    
+    // Tambahkan class dasar layout + class warna dinamis
+    card.className = `cursor-pointer rounded-[2.5rem] p-7 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ring-1 ring-white/10 bg-gradient-to-br ${themes[currentSlot.theme]}`;
+    
     document.getElementById('dash-card-title').textContent = currentSlot.label;
     document.getElementById('dash-card-time').textContent = currentSlot.subLabel;
 
@@ -356,9 +337,18 @@ function updateDashboard() {
 
         const clone = tpl.content.cloneNode(true);
         const itemDiv = clone.querySelector('.slot-item');
+        
+        // Setup Icon Background Color
+        const iconBg = clone.querySelector('.slot-icon-bg');
+        // Bersihkan class lama di template jika perlu, lalu tambah yang baru
+        iconBg.classList.add(`bg-${slot.theme}-50`, `dark:bg-${slot.theme}-900/30`, `text-${slot.theme}-600`, `dark:text-${slot.theme}-400`);
+        
+        // Setup Label Hover Color
+        const label = clone.querySelector('.slot-label');
+        label.classList.add(`group-hover:text-${slot.theme}-600`, `dark:group-hover:text-${slot.theme}-400`);
+
         itemDiv.onclick = () => { appState.currentSlotId = slot.id; openAttendance(); };
 
-        clone.querySelector('.slot-icon-bg').className = `slot-icon-bg w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-${slot.theme}-50 dark:bg-${slot.theme}-900/50 text-${slot.theme}-600 dark:text-${slot.theme}-400 group-hover:bg-${slot.theme}-100 dark:group-hover:bg-${slot.theme}-900`;
         clone.querySelector('.slot-label').textContent = slot.label;
         
         const dateKey = getTodayKey();
@@ -373,11 +363,23 @@ function updateDashboard() {
         }
 
         clone.querySelector('.slot-status').textContent = statusText;
-        clone.querySelector('.slot-progress').style.width = progressWidth;
-        clone.querySelector('.slot-progress').className = `slot-progress h-full bg-${slot.theme}-500 w-0 progress-bar rounded-full`;
+        
+        // UPDATE: Progress Bar Logic (FIX WHITE LAYER BUG)
+        // Jangan pakai .className = '...' karena akan menghapus class 'relative'
+        const progressBar = clone.querySelector('.slot-progress');
+        progressBar.style.width = progressWidth;
+        
+        // Tambahkan warna spesifik tanpa menghapus class lain
+        // Hapus warna default gradient emerald di HTML jika ingin dinamis, atau timpa
+        progressBar.classList.remove('from-emerald-400', 'to-teal-400');
+        // Tambah warna sesuai tema slot
+        progressBar.classList.add(`bg-${slot.theme}-500`); 
+        // Atau jika mau gradient:
+        // progressBar.classList.add(`bg-gradient-to-r`, `from-${slot.theme}-400`, `to-${slot.theme}-600`);
 
         listContainer.appendChild(clone);
     });
+    lucide.createIcons();
 }
 
 function updateReportTab() {
@@ -402,15 +404,15 @@ function updateReportTab() {
         if (alpaCount > 0) {
             problemCount++;
             const div = document.createElement('div');
-            div.className = 'bg-white dark:bg-dark-card p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition slide-up';
+            div.className = 'bg-white/80 dark:bg-slate-800 p-4 rounded-2xl border border-red-100 dark:border-red-900/30 flex items-center gap-4 cursor-pointer active:bg-slate-50 dark:active:bg-slate-700 transition slide-up shadow-sm hover:shadow-md';
             div.onclick = () => openSantriModal(santri.id);
             div.innerHTML = `
-                <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-sm ring-2 ring-white dark:ring-slate-700 shadow-sm">${santri.avatar}</div>
+                <div class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-sm ring-1 ring-red-100 dark:ring-red-900 shadow-sm">${santri.avatar}</div>
                 <div class="flex-1">
                     <h4 class="font-bold text-slate-700 dark:text-white text-sm">${santri.nama}</h4>
-                    <p class="text-xs text-red-500 dark:text-red-400 font-medium">Alpa: ${details.join(', ')}</p>
+                    <p class="text-xs text-red-500 dark:text-red-400 font-medium mt-0.5">Alpa: ${details.join(', ')}</p>
                 </div>
-                <button class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">Detail</button>
+                <button class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600">Detail</button>
             `;
             container.appendChild(div);
         }
@@ -418,9 +420,11 @@ function updateReportTab() {
 
     if(problemCount === 0) {
         container.innerHTML = `
-            <div class="text-center py-8 bg-white dark:bg-dark-card rounded-3xl border border-slate-100 dark:border-slate-700 border-dashed">
-                <i data-lucide="check-circle" class="w-12 h-12 text-emerald-200 dark:text-emerald-900 mx-auto mb-2"></i>
-                <p class="text-slate-400 text-sm">Alhamdulillah, nihil pelanggaran hari ini.</p>
+            <div class="text-center py-10 bg-white/50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-700">
+                <div class="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 dark:text-emerald-400"></i>
+                </div>
+                <p class="text-slate-400 text-sm font-medium">Alhamdulillah, nihil pelanggaran.</p>
             </div>
         `;
     }
@@ -444,12 +448,12 @@ function toggleProblemFilter() {
     appState.filterProblemOnly = !appState.filterProblemOnly;
     const btn = document.getElementById('btn-filter-problem');
     if (appState.filterProblemOnly) {
-        btn.classList.add('bg-red-100', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30', 'dark:text-red-400', 'dark:border-red-800');
-        btn.classList.remove('bg-slate-100', 'text-slate-500', 'border-transparent', 'dark:bg-slate-800', 'dark:text-slate-400');
+        btn.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
+        btn.classList.remove('bg-slate-100', 'text-slate-400');
         showToast('Filter: Masalah Saja');
     } else {
-        btn.classList.remove('bg-red-100', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30', 'dark:text-red-400', 'dark:border-red-800');
-        btn.classList.add('bg-slate-100', 'text-slate-500', 'border-transparent', 'dark:bg-slate-800', 'dark:text-slate-400');
+        btn.classList.remove('bg-red-100', 'text-red-600', 'border-red-200');
+        btn.classList.add('bg-slate-100', 'text-slate-400');
         showToast('Filter: Semua');
     }
     renderAttendanceList();
@@ -463,7 +467,6 @@ function openSantriModal(santriId) {
     document.getElementById('modal-name').textContent = santri.nama;
     document.getElementById('modal-kamar').textContent = santri.kamar;
 
-    // Stats Hari Ini
     const dateKey = getTodayKey();
     const todayData = appState.attendanceData[dateKey] || {};
     let countHadir = 0;
@@ -482,11 +485,9 @@ function openSantriModal(santriId) {
     document.getElementById('modal-stat-hadir').textContent = countHadir;
     document.getElementById('modal-stat-alpa').textContent = countAlpa;
 
-    // Riwayat list (Last 5 days)
     const historyList = document.getElementById('modal-history-list');
     historyList.innerHTML = '';
     
-    // Get all stored dates, sort desc
     const dates = Object.keys(appState.attendanceData).sort().reverse();
     let foundHistory = false;
 
@@ -501,19 +502,17 @@ function openSantriModal(santriId) {
         if(dailyStatus.length > 0) {
              foundHistory = true;
              const item = document.createElement('div');
-             item.className = 'text-xs bg-slate-50 dark:bg-slate-800 p-2 rounded flex justify-between';
+             item.className = 'text-xs bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl flex justify-between border border-slate-100 dark:border-slate-700';
              item.innerHTML = `
                 <span class="font-bold text-slate-600 dark:text-slate-300">${date}</span>
-                <span class="text-red-500">${dailyStatus.join(', ')}</span>
+                <span class="text-red-500 font-bold">${dailyStatus.join(', ')}</span>
              `;
              historyList.appendChild(item);
-        } else if (date !== getTodayKey()) {
-             // Show safe days too maybe? Just show problems for now to keep it clean
         }
     });
 
     if(!foundHistory) {
-        historyList.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-2">Tidak ada catatan pelanggaran.</p>';
+        historyList.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">Tidak ada catatan pelanggaran.</p>';
     }
 
     document.getElementById('modal-santri').showModal();
@@ -538,7 +537,7 @@ function renderAttendanceList() {
     document.getElementById('att-santri-count').textContent = `${filteredSantri.length} Santri`;
 
     if (filteredSantri.length === 0) {
-        container.innerHTML = `<div class="flex flex-col items-center justify-center py-10 text-slate-400"><i data-lucide="search-x" class="w-12 h-12 mb-2 opacity-50"></i><p class="text-sm">Tidak ada data.</p></div>`;
+        container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-slate-400 opacity-60"><i data-lucide="search-x" class="w-16 h-16 mb-4 opacity-50"></i><p class="text-sm font-bold">Tidak ada data.</p></div>`;
     }
 
     filteredSantri.forEach(santri => {
@@ -548,9 +547,10 @@ function renderAttendanceList() {
         const rowDiv = rowClone.querySelector('.santri-row');
         
         if (isProblematic) {
-            rowDiv.classList.add('ring-1', 'ring-red-200', 'bg-red-50/30', 'dark:bg-red-900/20', 'dark:ring-red-900');
-            rowDiv.classList.remove('bg-white', 'dark:bg-dark-card');
-            rowClone.querySelector('.santri-avatar').className = 'santri-avatar w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 ring-2 ring-white dark:ring-red-900 shadow-sm';
+            rowDiv.classList.add('ring-2', 'ring-red-200', 'bg-red-50/50', 'dark:bg-red-900/10', 'dark:ring-red-900/50');
+            rowDiv.classList.remove('bg-white', 'dark:bg-slate-800');
+            rowClone.querySelector('.santri-avatar').className = 'santri-avatar w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 shadow-sm border border-red-200 dark:border-red-800';
+            rowClone.querySelector('.bar-indicator').className = 'absolute left-0 top-0 bottom-0 w-2 bg-red-400 transition-colors bar-indicator';
         }
 
         rowClone.querySelector('.santri-avatar').textContent = santri.avatar;
@@ -569,7 +569,6 @@ function renderAttendanceList() {
         };
         noteInput.onchange = (e) => updateNote(e.target.value);
 
-        // Quick Chips Logic
         rowClone.querySelectorAll('.chip-note').forEach(chip => {
             chip.onclick = () => updateNote(chip.textContent);
         });
@@ -577,7 +576,7 @@ function renderAttendanceList() {
         if (appState.noteOpenId === santri.id) {
             noteSection.classList.remove('hidden');
             btnEdit.classList.add('text-emerald-600', 'bg-emerald-50', 'dark:bg-emerald-900/30', 'dark:text-emerald-400');
-            btnEdit.classList.remove('text-slate-300', 'dark:text-slate-500');
+            btnEdit.classList.remove('text-slate-300');
         }
         btnEdit.onclick = () => {
             appState.noteOpenId = appState.noteOpenId === santri.id ? null : santri.id;
@@ -592,7 +591,7 @@ function renderAttendanceList() {
             const currentStatus = sData.status[act.id];
             const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
 
-            btn.className = `btn-status w-[3.25rem] h-[3.25rem] rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[3px] group-hover:-translate-y-1 ${uiConfig.class}`;
+            btn.className = `btn-status w-[3.5rem] h-[3.5rem] rounded-[1.2rem] flex items-center justify-center shadow-sm transition-all duration-300 active:scale-90 border-[3px] hover:-translate-y-1 relative overflow-hidden ${uiConfig.class}`;
             label.textContent = act.label;
 
             if (uiConfig.label.startsWith('icon-')) {
@@ -609,7 +608,6 @@ function renderAttendanceList() {
     lucide.createIcons();
 }
 
-// --- 6. ACTIONS ---
 function handleStatusChange(studentId, activityId, activityType) {
     const slotId = appState.currentSlotId;
     const data = getSlotData(slotId);
@@ -628,7 +626,6 @@ function handleStatusChange(studentId, activityId, activityType) {
 
     studentData.status[activityId] = nextStatus;
 
-    // CASCADE LOGIC
     if (activityId === 'shalat' && (nextStatus === STATUS.ALPA || nextStatus === STATUS.SAKIT || nextStatus === STATUS.IZIN)) {
         SLOT_WAKTU[slotId].activities.forEach(act => {
             if (act.id !== 'shalat') {
@@ -668,13 +665,7 @@ function saveNote(studentId, note) {
 }
 
 function showToast(msg = 'Saved') {
-    // --- TAMBAHAN BARU: EFEK GETAR ---
-    // Cek apakah HP mendukung fitur getar
-    if (navigator.vibrate) {
-        navigator.vibrate(50); // Getar selama 50 milidetik (singkat)
-    }
-    // ---------------------------------
-
+    if (navigator.vibrate) navigator.vibrate(50);
     const indicator = document.getElementById('save-indicator');
     if(!indicator) {
         let toast = document.createElement('div');
@@ -689,8 +680,6 @@ function showToast(msg = 'Saved') {
     setTimeout(() => { if(indicator) indicator.innerHTML = ''; }, 2000);
 }
 
-// --- FITUR BARU: MANAJEMEN SANTRI ---
-
 function bukaMenuSantri() {
     renderListEditorSantri();
     document.getElementById('modal-manage-santri').showModal();
@@ -699,19 +688,16 @@ function bukaMenuSantri() {
 function renderListEditorSantri() {
     const container = document.getElementById('list-manage-santri');
     container.innerHTML = '';
-
-    // Urutkan santri berdasarkan nama biar rapi
     const sortedSantri = [...DATA_SANTRI].sort((a, b) => a.nama.localeCompare(b.nama));
-
     sortedSantri.forEach((santri, index) => {
         const div = document.createElement('div');
-        div.className = 'flex justify-between items-center bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-slate-700';
+        div.className = 'flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700';
         div.innerHTML = `
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold dark:text-white">${santri.avatar}</div>
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-xs font-bold dark:text-white shadow-sm">${santri.avatar}</div>
                 <div>
                     <h4 class="font-bold text-sm text-slate-800 dark:text-white">${santri.nama}</h4>
-                    <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">${santri.kamar}</span>
+                    <span class="text-[10px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-2 py-0.5 rounded text-slate-500">${santri.kamar}</span>
                 </div>
             </div>
             <button onclick="hapusSantri(${santri.id})" class="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
@@ -726,42 +712,24 @@ function renderListEditorSantri() {
 function tambahSantriBaru() {
     const namaInput = document.getElementById('input-nama-baru');
     const kamarInput = document.getElementById('input-kamar-baru');
-    
     const nama = namaInput.value.trim();
     const kamar = kamarInput.value.trim();
 
-    if (!nama || !kamar) {
-        alert("Nama dan Kamar wajib diisi!");
-        return;
-    }
+    if (!nama || !kamar) { alert("Nama dan Kamar wajib diisi!"); return; }
 
-    // Buat ID baru (ambil ID terbesar + 1)
     const newId = DATA_SANTRI.length > 0 ? Math.max(...DATA_SANTRI.map(s => s.id)) + 1 : 1;
-    
-    // Buat inisial avatar (misal: Ahmad Fulan -> AF)
     const avatar = nama.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-    // Masukkan ke data
-    DATA_SANTRI.push({
-        id: newId,
-        nama: nama,
-        kamar: kamar,
-        avatar: avatar
-    });
-
-    saveSantriData(); // Simpan ke HP
-    
-    // Reset form
+    DATA_SANTRI.push({ id: newId, nama: nama, kamar: kamar, avatar: avatar });
+    saveSantriData();
     namaInput.value = '';
     kamarInput.value = '';
-    
-    // Refresh tampilan
     renderListEditorSantri();
-    showToast("Santri berhasil ditambahkan");
+    showToast("Santri ditambahkan");
 }
 
 function hapusSantri(id) {
-    if(confirm('Yakin hapus santri ini? Data presensi lama mungkin akan error jika tidak dibersihkan.')) {
+    if(confirm('Yakin hapus santri ini?')) {
         DATA_SANTRI = DATA_SANTRI.filter(s => s.id !== id);
         saveSantriData();
         renderListEditorSantri();
@@ -771,34 +739,14 @@ function hapusSantri(id) {
 
 function handleGantiPin() {
     const storedPin = localStorage.getItem('musyrif_pin') || '1234';
-    
-    // 1. Tanya PIN Lama dulu (biar tidak sembarang orang ganti)
     const pinLama = prompt("Masukkan PIN Lama Anda:");
-    
-    if (pinLama !== storedPin) {
-        alert("PIN Lama salah! Gagal mengganti PIN.");
-        return;
-    }
-
-    // 2. Minta PIN Baru
-    const pinBaru = prompt("Masukkan PIN Baru (Minimal 4 angka):");
-    
-    if (!pinBaru || pinBaru.length < 4) {
-        alert("PIN terlalu pendek atau kosong.");
-        return;
-    }
-
-    // 3. Konfirmasi ulang biar tidak typo
+    if (pinLama !== storedPin) { alert("PIN Lama salah!"); return; }
+    const pinBaru = prompt("Masukkan PIN Baru (Min 4 angka):");
+    if (!pinBaru || pinBaru.length < 4) { alert("PIN terlalu pendek."); return; }
     const konfirmasi = prompt("Ketik ulang PIN Baru Anda:");
-    
-    if (pinBaru !== konfirmasi) {
-        alert("Konfirmasi tidak cocok. Ulangi lagi.");
-        return;
-    }
-
-    // 4. Simpan ke memori HP
+    if (pinBaru !== konfirmasi) { alert("Konfirmasi tidak cocok."); return; }
     localStorage.setItem('musyrif_pin', pinBaru);
-    alert("BERHASIL! PIN Login dan Reset Data telah diganti.");
+    alert("BERHASIL! PIN Login telah diganti.");
 }
 
 window.onload = init;
