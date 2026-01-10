@@ -1,12 +1,7 @@
 // --- 1. DATA MASTER & CONFIG ---
-let DATA_SANTRI = JSON.parse(localStorage.getItem('musyrif_data_santri')) || [
-    { id: 1, nama: "Ahmad Fulan", kamar: "101", avatar: "AF" },
-    { id: 2, nama: "Budi Santoso", kamar: "101", avatar: "BS" }
-];
 
-function saveSantriData() {
-    localStorage.setItem('musyrif_data_santri', JSON.stringify(DATA_SANTRI));
-}
+let DATA_SANTRI = []; 
+let DATA_KELAS = {};
 
 const SLOT_WAKTU = {
     shubuh: { id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', activities: [
@@ -45,14 +40,15 @@ const STATUS_UI = {
     'Tidak': { class: 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-slate-700', label: 'icon-minus' }
 };
 
-// --- 2. STATE MANAGEMENT & STORAGE ---
+// --- 2. STATE MANAGEMENT ---
 let appState = {
     currentSlotId: 'shubuh',
     attendanceData: {}, 
     noteOpenId: null,
     searchQuery: '',
     filterProblemOnly: false,
-    darkMode: false
+    darkMode: false,
+    selectedDate: new Date().toISOString().split('T')[0]
 };
 
 const STORAGE_KEY = 'musyrif_app_v4';
@@ -84,109 +80,77 @@ function toggleDarkMode() {
     }
 }
 
-function handleClearData() {
-    if(!confirm('PERINGATAN: Data presensi hari ini akan dihapus permanen. Lanjutkan?')) {
-        return;
-    }
-    let pinInput = prompt("Masukkan PIN Keamanan untuk menghapus:");
-    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
+// --- 3. CORE INIT LOGIC (INTEGRATED) ---
 
-    if(pinInput === storedPin) {
-        localStorage.removeItem(STORAGE_KEY);
-        appState.attendanceData = {};
-        showToast("Data berhasil direset");
-        window.location.reload();
-    } else {
-        alert("PIN SALAH! Penghapusan dibatalkan.");
-    }
-}
+function getTodayKey() { return appState.selectedDate; }
 
-function exportToCSV() {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Tanggal,Slot,Nama Santri,Kamar,Kegiatan,Status,Catatan\n";
-
-    const data = appState.attendanceData;
-    Object.keys(data).forEach(date => {
-        const slots = data[date];
-        Object.keys(slots).forEach(slotId => {
-            const santris = slots[slotId];
-            Object.keys(santris).forEach(santriId => {
-                const sData = santris[santriId];
-                const santri = DATA_SANTRI.find(s => s.id == santriId);
-                if(santri) {
-                        Object.keys(sData.status).forEach(actId => {
-                            const status = sData.status[actId];
-                            const slotName = SLOT_WAKTU[slotId].label;
-                            const actName = SLOT_WAKTU[slotId].activities.find(a => a.id === actId).label;
-                            const note = sData.note || "-";
-                            const row = `${date},${slotName},${santri.nama},${santri.kamar},${actName},${status},"${note}"`;
-                            csvContent += row + "\n";
-                        });
-                }
-            });
-        });
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Laporan_Presensi_${getTodayKey()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Laporan berhasil diunduh!");
-}
-
-function kirimLaporanWA() {
-    const dateKey = getTodayKey();
-    const dataHariIni = appState.attendanceData[dateKey];
-    if (!dataHariIni) {
-        alert("Belum ada data presensi hari ini untuk dilaporkan.");
-        return;
-    }
-    let listAlpa = [];
-    let listSakit = [];
-    let totalHadir = 0;
+async function init() {
+    const loadingEl = document.getElementById('view-loading');
+    if(loadingEl) loadingEl.classList.remove('opacity-0', 'pointer-events-none');
     
-    DATA_SANTRI.forEach(santri => {
-        let statusShalat = "Belum Absen";
-        if (dataHariIni[appState.currentSlotId] && dataHariIni[appState.currentSlotId][santri.id]) {
-            statusShalat = dataHariIni[appState.currentSlotId][santri.id].status.shalat;
+    loadFromStorage();
+    startClock();
+    autoDetectSlot();
+
+    try {
+        // 1. Load Data Kelas (dari data-kelas.js)
+        if (window.loadClassData) {
+            DATA_KELAS = await window.loadClassData();
         }
-        if (statusShalat === 'Hadir') {
-            totalHadir++;
-        } else if (statusShalat === 'Alpa') {
-            listAlpa.push(`- ${santri.nama} (${santri.kamar})`);
-        } else if (statusShalat === 'Sakit') {
-            listSakit.push(`- ${santri.nama}`);
+        
+        // 2. Load Data Santri (dari data-santri.js)
+        if (window.loadSantriData) {
+            const rawSantriData = await window.loadSantriData();
+            
+            // 3. Parse Data Santri (dari santri-manager.js)
+            if (window.parseSantriData) {
+                window.parseSantriData(); // Menyusun window.santriDB
+            }
+
+            // 4. Map Data ke Format Aplikasi
+            DATA_SANTRI = rawSantriData.map(s => {
+                const id = s.nis ? s.nis.toString() : `temp_${Math.random().toString(36).substr(2, 9)}`;
+                
+                // INTEGRASI SANTRI MANAGER: Ambil preferensi lokal (avatar custom)
+                // Jika SantriManager ada, kita cek apakah ada data tersimpan (misal avatar)
+                const prefs = (window.SantriManager) ? window.SantriManager.getPrefs(id) : {};
+                
+                return {
+                    id: id,
+                    nama: s.nama || "Tanpa Nama",
+                    kamar: s.kelas || "Umum", 
+                    // Prioritas Avatar: 1. Prefs Lokal -> 2. Generate Inisial
+                    avatar: prefs.avatar || generateInitials(s.nama)
+                };
+            });
         }
-    });
 
-    let teks = `*LAPORAN PRESENSI ASRAMA* %0A`;
-    teks += `📅 Tanggal: ${dateKey} %0A`;
-    teks += `🕌 Waktu: ${SLOT_WAKTU[appState.currentSlotId].label} %0A`;
-    teks += `--------------------------- %0A`;
-    teks += `✅ Hadir: ${totalHadir} %0A`;
-    teks += `🤒 Sakit: ${listSakit.length} %0A`;
-    teks += `❌ Alpa: ${listAlpa.length} %0A`;
-    teks += `--------------------------- %0A`;
+    } catch (error) {
+        console.error("Error initializing data:", error);
+        alert("Gagal memuat data dari server. Cek koneksi internet.");
+    }
 
-    if (listAlpa.length > 0) teks += `*DAFTAR ALPA:* %0A${listAlpa.join('%0A')} %0A %0A`;
-    if (listSakit.length > 0) teks += `*DAFTAR SAKIT:* %0A${listSakit.join('%0A')} %0A`;
-
-    teks += `_Digenerate oleh MusyrifApp_`;
-    window.open(`https://wa.me/?text=${teks}`, '_blank');
+    lucide.createIcons();
+    updateDashboard();
+    
+    setTimeout(() => {
+        if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
+    }, 800);
 }
 
-// --- 3. CORE LOGIC ---
-function getTodayKey() { return new Date().toISOString().split('T')[0]; }
+function generateInitials(name) {
+    if(!name) return "??";
+    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+}
 
 function getSlotData(slotId) {
     const dateKey = getTodayKey();
     if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    
     if (!appState.attendanceData[dateKey][slotId]) {
         const slotConfig = SLOT_WAKTU[slotId];
         appState.attendanceData[dateKey][slotId] = {};
+        
         DATA_SANTRI.forEach(santri => {
             const statuses = {};
             slotConfig.activities.forEach(act => {
@@ -195,6 +159,18 @@ function getSlotData(slotId) {
             appState.attendanceData[dateKey][slotId][santri.id] = { status: statuses, note: '' };
         });
     }
+    
+    // Sinkronisasi data baru
+    DATA_SANTRI.forEach(santri => {
+        if(!appState.attendanceData[dateKey][slotId][santri.id]) {
+             const statuses = {};
+             SLOT_WAKTU[slotId].activities.forEach(act => {
+                statuses[act.id] = act.type === 'mandator' ? STATUS.HADIR : STATUS.YA;
+            });
+            appState.attendanceData[dateKey][slotId][santri.id] = { status: statuses, note: '' };
+        }
+    });
+
     return appState.attendanceData[dateKey][slotId];
 }
 
@@ -215,12 +191,6 @@ function calculateStats() {
 }
 
 // --- 4. NAVIGATION & TIME ---
-function init() {
-    loadFromStorage();
-    autoDetectSlot();
-    startClock();
-    lucide.createIcons();
-}
 
 function startClock() {
     function update() {
@@ -296,7 +266,7 @@ function closeAttendance() {
     switchTab('home');
 }
 
-// --- 5. RENDER LOGIC (UPDATED FOR NEW DESIGN) ---
+// --- 5. RENDER LOGIC ---
 
 function updateDashboard() {
     document.getElementById('dash-greeting').textContent = getGreeting();
@@ -307,7 +277,6 @@ function updateDashboard() {
     const currentSlot = SLOT_WAKTU[appState.currentSlotId];
     const card = document.getElementById('dash-main-card');
     
-    // Tema warna gradient untuk kartu aktif
     const themes = {
         emerald: 'from-emerald-600 to-teal-500',
         orange: 'from-orange-500 to-red-500',
@@ -315,14 +284,6 @@ function updateDashboard() {
         slate: 'from-slate-700 to-slate-900',
     };
     
-    // UPDATE: Kita ganti class dengan aman (tanpa menimpa class layout)
-    // Kita target element background gradient di dalam kartu jika ada, atau ubah class utama
-    // Cara paling aman dengan struktur baru: Reset class lalu pasang class lengkap yang baru
-    
-    // Hapus class warna lama (kita asumsikan defaultnya dark/slate)
-    card.classList.remove('bg-[#1e293b]', 'dark:bg-black', 'bg-gradient-to-br', 'from-emerald-600', 'to-teal-500', 'from-orange-500', 'to-red-500', 'from-indigo-600', 'to-blue-500', 'from-slate-700', 'to-slate-900');
-    
-    // Tambahkan class dasar layout + class warna dinamis
     card.className = `cursor-pointer rounded-[2.5rem] p-7 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ring-1 ring-white/10 bg-gradient-to-br ${themes[currentSlot.theme]}`;
     
     document.getElementById('dash-card-title').textContent = currentSlot.label;
@@ -338,12 +299,9 @@ function updateDashboard() {
         const clone = tpl.content.cloneNode(true);
         const itemDiv = clone.querySelector('.slot-item');
         
-        // Setup Icon Background Color
         const iconBg = clone.querySelector('.slot-icon-bg');
-        // Bersihkan class lama di template jika perlu, lalu tambah yang baru
         iconBg.classList.add(`bg-${slot.theme}-50`, `dark:bg-${slot.theme}-900/30`, `text-${slot.theme}-600`, `dark:text-${slot.theme}-400`);
         
-        // Setup Label Hover Color
         const label = clone.querySelector('.slot-label');
         label.classList.add(`group-hover:text-${slot.theme}-600`, `dark:group-hover:text-${slot.theme}-400`);
 
@@ -364,18 +322,10 @@ function updateDashboard() {
 
         clone.querySelector('.slot-status').textContent = statusText;
         
-        // UPDATE: Progress Bar Logic (FIX WHITE LAYER BUG)
-        // Jangan pakai .className = '...' karena akan menghapus class 'relative'
         const progressBar = clone.querySelector('.slot-progress');
         progressBar.style.width = progressWidth;
-        
-        // Tambahkan warna spesifik tanpa menghapus class lain
-        // Hapus warna default gradient emerald di HTML jika ingin dinamis, atau timpa
         progressBar.classList.remove('from-emerald-400', 'to-teal-400');
-        // Tambah warna sesuai tema slot
         progressBar.classList.add(`bg-${slot.theme}-500`); 
-        // Atau jika mau gradient:
-        // progressBar.classList.add(`bg-gradient-to-r`, `from-${slot.theme}-400`, `to-${slot.theme}-600`);
 
         listContainer.appendChild(clone);
     });
@@ -532,6 +482,10 @@ function renderAttendanceList() {
         const matchesSearch = santri.nama.toLowerCase().includes(appState.searchQuery);
         let hasProblem = sData.status['shalat'] !== STATUS.HADIR;
         return appState.filterProblemOnly ? (matchesSearch && hasProblem) : matchesSearch;
+    }).sort((a, b) => {
+        if (a.kamar < b.kamar) return -1;
+        if (a.kamar > b.kamar) return 1;
+        return a.nama.localeCompare(b.nama);
     });
 
     document.getElementById('att-santri-count').textContent = `${filteredSantri.length} Santri`;
@@ -688,6 +642,12 @@ function bukaMenuSantri() {
 function renderListEditorSantri() {
     const container = document.getElementById('list-manage-santri');
     container.innerHTML = '';
+    
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'p-3 mb-3 bg-blue-50 text-blue-700 text-xs rounded-xl border border-blue-100';
+    infoDiv.innerText = "Info: Data santri diambil dari Server (Google Sheet). Perubahan di sini bersifat sementara.";
+    container.appendChild(infoDiv);
+
     const sortedSantri = [...DATA_SANTRI].sort((a, b) => a.nama.localeCompare(b.nama));
     sortedSantri.forEach((santri, index) => {
         const div = document.createElement('div');
@@ -700,9 +660,6 @@ function renderListEditorSantri() {
                     <span class="text-[10px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-2 py-0.5 rounded text-slate-500">${santri.kamar}</span>
                 </div>
             </div>
-            <button onclick="hapusSantri(${santri.id})" class="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
         `;
         container.appendChild(div);
     });
@@ -710,31 +667,11 @@ function renderListEditorSantri() {
 }
 
 function tambahSantriBaru() {
-    const namaInput = document.getElementById('input-nama-baru');
-    const kamarInput = document.getElementById('input-kamar-baru');
-    const nama = namaInput.value.trim();
-    const kamar = kamarInput.value.trim();
-
-    if (!nama || !kamar) { alert("Nama dan Kamar wajib diisi!"); return; }
-
-    const newId = DATA_SANTRI.length > 0 ? Math.max(...DATA_SANTRI.map(s => s.id)) + 1 : 1;
-    const avatar = nama.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-
-    DATA_SANTRI.push({ id: newId, nama: nama, kamar: kamar, avatar: avatar });
-    saveSantriData();
-    namaInput.value = '';
-    kamarInput.value = '';
-    renderListEditorSantri();
-    showToast("Santri ditambahkan");
+    alert("Fitur Tambah Santri dimatikan karena data diambil otomatis dari Google Sheet. Silakan tambahkan di Spreadsheet.");
 }
 
 function hapusSantri(id) {
-    if(confirm('Yakin hapus santri ini?')) {
-        DATA_SANTRI = DATA_SANTRI.filter(s => s.id !== id);
-        saveSantriData();
-        renderListEditorSantri();
-        showToast("Santri dihapus");
-    }
+    alert("Fitur Hapus Santri dimatikan. Silakan hapus data dari Google Sheet.");
 }
 
 function handleGantiPin() {
@@ -747,6 +684,100 @@ function handleGantiPin() {
     if (pinBaru !== konfirmasi) { alert("Konfirmasi tidak cocok."); return; }
     localStorage.setItem('musyrif_pin', pinBaru);
     alert("BERHASIL! PIN Login telah diganti.");
+}
+
+function handleClearData() {
+    if(!confirm('PERINGATAN: Data presensi hari ini akan dihapus permanen. Lanjutkan?')) {
+        return;
+    }
+    let pinInput = prompt("Masukkan PIN Keamanan untuk menghapus:");
+    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
+
+    if(pinInput === storedPin) {
+        delete appState.attendanceData[getTodayKey()];
+        saveToLocalStorage();
+        showToast("Data hari ini direset");
+        window.location.reload();
+    } else {
+        alert("PIN SALAH! Penghapusan dibatalkan.");
+    }
+}
+
+function exportToCSV() {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Tanggal,Slot,Nama Santri,Kamar,Kegiatan,Status,Catatan\n";
+
+    const data = appState.attendanceData;
+    Object.keys(data).forEach(date => {
+        const slots = data[date];
+        Object.keys(slots).forEach(slotId => {
+            const santris = slots[slotId];
+            Object.keys(santris).forEach(santriId => {
+                const sData = santris[santriId];
+                const santri = DATA_SANTRI.find(s => s.id == santriId);
+                if(santri) {
+                        Object.keys(sData.status).forEach(actId => {
+                            const status = sData.status[actId];
+                            const slotName = SLOT_WAKTU[slotId].label;
+                            const actName = SLOT_WAKTU[slotId].activities.find(a => a.id === actId).label;
+                            const note = sData.note || "-";
+                            const row = `${date},${slotName},${santri.nama},${santri.kamar},${actName},${status},"${note}"`;
+                            csvContent += row + "\n";
+                        });
+                }
+            });
+        });
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Laporan_Presensi_${getTodayKey()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Laporan berhasil diunduh!");
+}
+
+function kirimLaporanWA() {
+    const dateKey = getTodayKey();
+    const dataHariIni = appState.attendanceData[dateKey];
+    if (!dataHariIni) {
+        alert("Belum ada data presensi hari ini untuk dilaporkan.");
+        return;
+    }
+    let listAlpa = [];
+    let listSakit = [];
+    let totalHadir = 0;
+    
+    DATA_SANTRI.forEach(santri => {
+        let statusShalat = "Belum Absen";
+        if (dataHariIni[appState.currentSlotId] && dataHariIni[appState.currentSlotId][santri.id]) {
+            statusShalat = dataHariIni[appState.currentSlotId][santri.id].status.shalat;
+        }
+        if (statusShalat === 'Hadir') {
+            totalHadir++;
+        } else if (statusShalat === 'Alpa') {
+            listAlpa.push(`- ${santri.nama} (${santri.kamar})`);
+        } else if (statusShalat === 'Sakit') {
+            listSakit.push(`- ${santri.nama}`);
+        }
+    });
+
+    let teks = `*LAPORAN PRESENSI ASRAMA* %0A`;
+    teks += `📅 Tanggal: ${dateKey} %0A`;
+    teks += `🕌 Waktu: ${SLOT_WAKTU[appState.currentSlotId].label} %0A`;
+    teks += `--------------------------- %0A`;
+    teks += `✅ Hadir: ${totalHadir} %0A`;
+    teks += `🤒 Sakit: ${listSakit.length} %0A`;
+    teks += `❌ Alpa: ${listAlpa.length} %0A`;
+    teks += `--------------------------- %0A`;
+
+    if (listAlpa.length > 0) teks += `*DAFTAR ALPA:* %0A${listAlpa.join('%0A')} %0A %0A`;
+    if (listSakit.length > 0) teks += `*DAFTAR SAKIT:* %0A${listSakit.join('%0A')} %0A`;
+
+    teks += `_Digenerate oleh MusyrifApp_`;
+    window.open(`https://wa.me/?text=${teks}`, '_blank');
 }
 
 window.onload = init;
