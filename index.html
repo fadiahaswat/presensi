@@ -39,49 +39,50 @@
     </script>
 
     <style>
-        /* Base Styles mimic Setor.in */
+        /* Base Styles */
         body { -webkit-tap-highlight-color: transparent; }
         
         .ambient-bg {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1;
-            background-color: #f8fafc;
+            /* Hapus background-color solid agar tidak menumpuk putih */
             background-image: 
-                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(52, 211, 153, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.25) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(52, 211, 153, 0.25) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.2) 0px, transparent 50%);
         }
         
         .dark .ambient-bg {
-            background-color: #0f172a;
             background-image: none;
         }
 
+        /* Glassmorphism yang Diperbaiki (Lebih Bening) */
         .glass-card {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            background: rgba(255, 255, 255, 0.5); /* Diturunkan dari 0.85 ke 0.5 */
+            backdrop-filter: blur(20px); /* Blur dinaikkan agar tulisan tetap terbaca */
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .dark .glass-card {
-            background: rgba(30, 41, 59, 0.85);
+            background: rgba(30, 41, 59, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
         }
 
         .glass-nav {
-            background: rgba(255, 255, 255, 0.9) !important;
+            background: rgba(255, 255, 255, 0.7) !important; /* Diturunkan dari 0.9 */
             backdrop-filter: blur(20px) !important;
             border-top: 1px solid rgba(255, 255, 255, 0.6);
             box-shadow: 0 -10px 40px -10px rgba(0,0,0,0.05);
         }
         .dark .glass-nav {
-            background: rgba(15, 23, 42, 0.9) !important;
+            background: rgba(15, 23, 42, 0.7) !important;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .modern-input {
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.6);
             border: 1px solid #e2e8f0;
             transition: all 0.2s;
         }
@@ -100,7 +101,7 @@
             background: #1e293b;
         }
 
-        .fade-in { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .fade-in { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         
         /* Pie Chart Styles */
         .pie-chart {
@@ -121,6 +122,18 @@
         .loader-spin-slow { animation: spin 3s linear infinite; }
         .loader-spin-reverse { animation: spin 4s linear infinite reverse; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* Utility animasi tambahan */
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Masking untuk scroll horizontal yang halus */
+        .mask-linear-fade {
+            mask-image: linear-gradient(to right, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+        }
     </style>
 </head>
 <body class="text-slate-800 dark:text-slate-200 antialiased selection:bg-emerald-500/30 selection:text-emerald-700 dark:selection:text-emerald-400 overflow-hidden h-screen flex flex-col bg-slate-50 dark:bg-[#0f172a]">
@@ -604,3 +617,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
