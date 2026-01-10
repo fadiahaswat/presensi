@@ -263,10 +263,10 @@
                     <span class="flex items-center gap-3"><i data-lucide="lock" class="text-emerald-500"></i> Ganti PIN</span>
                     <i data-lucide="chevron-right" class="text-slate-300"></i>
                 </button>
-                <button onclick="toggleDarkMode()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">
+                <button onclick="toggleDarkMode()" id="btn-dark-mode" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">
                     <span class="flex items-center gap-3"><i data-lucide="moon" class="text-indigo-500"></i> Mode Gelap</span>
-                    <div class="w-12 h-6 rounded-full relative transition-colors ${appState.settings?.darkMode ? 'bg-emerald-500' : 'bg-slate-300'}">
-                        <div class="absolute top-1 ${appState.settings?.darkMode ? 'right-1' : 'left-1'} w-4 h-4 bg-white rounded-full transition-all"></div>
+                    <div id="dark-mode-toggle" class="w-12 h-6 bg-slate-300 dark:bg-emerald-500 rounded-full relative transition-colors">
+                        <div class="absolute top-1 left-1 dark:left-7 w-4 h-4 bg-white rounded-full transition-all"></div>
                     </div>
                 </button>
                 <button id="btn-notifications" onclick="toggleNotifications()" class="w-full p-4 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-between font-bold text-slate-700 dark:text-white shadow-sm">

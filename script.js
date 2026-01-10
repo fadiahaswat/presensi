@@ -8,6 +8,25 @@ const APP_CONFIG = {
     settingsKey: 'musyrif_settings'
 };
 
+// Polyfill for CanvasRenderingContext2D.roundRect
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radii) {
+        const radius = Array.isArray(radii) ? radii[0] : radii;
+        this.beginPath();
+        this.moveTo(x + radius, y);
+        this.lineTo(x + width - radius, y);
+        this.quadraticCurveTo(x + width, y, x + width, y + radius);
+        this.lineTo(x + width, y + height - radius);
+        this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        this.lineTo(x + radius, y + height);
+        this.quadraticCurveTo(x, y + height, x, y + height - radius);
+        this.lineTo(x, y + radius);
+        this.quadraticCurveTo(x, y, x + radius, y);
+        this.closePath();
+        return this;
+    };
+}
+
 // --- STATE ---
 let appState = {
     selectedClass: null,
@@ -216,107 +235,50 @@ window.updateDashboard = function() {
     lucide.createIcons();
 };
 
-window.updateQuickStats = function() {
-    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) return;
+window.updateProfileInfo = function() {
+    const elName = document.getElementById('profile-name');
+    const elRole = document.getElementById('profile-role');
     
-    const dateKey = appState.date;
-    const data = appState.attendanceData[dateKey];
-    
-    let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlpa = 0;
-    
-    if(data) {
-        Object.values(SLOT_WAKTU).forEach(slot => {
-            if(data[slot.id]) {
-                FILTERED_SANTRI.forEach(s => {
-                    const id = String(s.nis || s.id);
-                    const status = data[slot.id][id]?.status?.shalat;
-                    if(status === 'Hadir') totalHadir++;
-                    else if(status === 'Sakit') totalSakit++;
-                    else if(status === 'Izin') totalIzin++;
-                    else if(status === 'Alpa') totalAlpa++;
-                });
-            }
-        });
+    if(appState.selectedClass && MASTER_KELAS[appState.selectedClass]) {
+        if(elName) elName.textContent = MASTER_KELAS[appState.selectedClass].musyrif;
+        if(elRole) elRole.textContent = "Kelas " + appState.selectedClass;
     }
-    
-    const stats = [
-        { id: 'stat-hadir', value: totalHadir, color: 'emerald' },
-        { id: 'stat-sakit', value: totalSakit, color: 'amber' },
-        { id: 'stat-izin', value: totalIzin, color: 'blue' },
-        { id: 'stat-alpa', value: totalAlpa, color: 'red' }
-    ];
-    
-    stats.forEach(stat => {
-        const el = document.getElementById(stat.id);
-        if(el) el.textContent = stat.value;
-    });
 };
 
-window.updateWeeklyChart = function() {
-    const canvas = document.getElementById('weekly-chart');
-    if(!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Get last 7 days data
-    const days = [];
-    const today = new Date();
-    for(let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        days.push(d.toISOString().split('T')[0]);
-    }
-    
-    const data = days.map(date => {
-        const dayData = appState.attendanceData[date];
-        if(!dayData) return 0;
-        
-        let count = 0, total = 0;
-        Object.values(SLOT_WAKTU).forEach(slot => {
-            if(dayData[slot.id]) {
-                FILTERED_SANTRI.forEach(s => {
-                    const id = String(s.nis || s.id);
-                    if(dayData[slot.id][id]?.status?.shalat === 'Hadir') count++;
-                    if(dayData[slot.id][id]?.status?.shalat) total++;
-                });
-            }
-        });
-        return total === 0 ? 0 : Math.round((count/total)*100);
+window.calculateGlobalStats = function() {
+    if(!appState.selectedClass) return 0;
+    const dateKey = appState.date;
+    const data = appState.attendanceData[dateKey];
+    if(!data) return 0;
+
+    let checks = 0, total = 0;
+    Object.values(SLOT_WAKTU).forEach(slot => {
+        if(data[slot.id]) {
+            FILTERED_SANTRI.forEach(s => {
+                const id = String(s.nis || s.id);
+                if(data[slot.id][id]?.status?.shalat === 'Hadir') checks++;
+                if(data[slot.id][id]?.status?.shalat) total++;
+            });
+        }
     });
+    return total === 0 ? 0 : Math.round((checks/total)*100);
+};
+
+window.calculateSlotProgress = function(slotId) {
+    if(FILTERED_SANTRI.length === 0) return { percent: 0, text: "0/0" };
     
-    // Draw chart
-    const maxVal = Math.max(...data, 100);
-    const barWidth = width / (days.length * 2);
-    const gap = barWidth;
-    
-    ctx.fillStyle = '#10b981';
-    data.forEach((val, i) => {
-        const barHeight = (val / maxVal) * (height - 20);
-        const x = i * (barWidth + gap) + gap;
-        const y = height - barHeight;
-        
-        // Gradient
-        const gradient = ctx.createLinearGradient(0, y, 0, height);
-        gradient.addColorStop(0, '#10b981');
-        gradient.addColorStop(1, '#059669');
-        ctx.fillStyle = gradient;
-        
-        // Rounded bar
-        ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, barHeight, [4, 4, 0, 0]);
-        ctx.fill();
-        
-        // Value text
-        ctx.fillStyle = '#64748b';
-        ctx.font = 'bold 10px Plus Jakarta Sans';
-        ctx.textAlign = 'center';
-        ctx.fillText(val + '%', x + barWidth/2, y - 5);
+    const dateKey = appState.date;
+    const slotData = appState.attendanceData[dateKey]?.[slotId];
+    if(!slotData) return { percent: 0, text: `0/${FILTERED_SANTRI.length}` };
+
+    let count = 0;
+    FILTERED_SANTRI.forEach(s => {
+        const id = String(s.nis || s.id);
+        if(slotData[id]?.status?.shalat) count++;
     });
+
+    const pct = Math.round((count / FILTERED_SANTRI.length) * 100);
+    return { percent: pct, text: `${count}/${FILTERED_SANTRI.length}` };
 };
 
 // ==========================================
