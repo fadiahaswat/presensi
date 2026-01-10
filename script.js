@@ -154,10 +154,10 @@ window.handleLogin = function() {
     if(!kelas) return alert("Pilih kelas dulu!");
     if(pin !== savedPin) return alert("PIN Salah!");
 
-    // FILTER DATA
+    // FILTER DATA (PERBAIKAN: Cek juga kolom 'rombel' jika 'kelas' kosong)
     appState.selectedClass = kelas;
     FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
-        const sKelas = String(s.kelas || "").trim();
+        const sKelas = String(s.kelas || s.rombel || "").trim();
         return sKelas === kelas;
     }).sort((a,b) => a.nama.localeCompare(b.nama));
 
@@ -189,12 +189,13 @@ window.updateDashboard = function() {
 
     // Stats Chart (Global)
     const stats = window.calculateGlobalStats();
-    // Pastikan elemen text ada sebelum di-update (optional safety)
+    
+    // PERBAIKAN: Cek elemen text ada sebelum di-set
     const statsText = document.getElementById('dash-stats-text');
     if(statsText) statsText.textContent = stats + "%";
 
-    // HAPUS atau KOMENTARI baris di bawah ini karena elemennya tidak ada di HTML
-    // document.getElementById('dash-stats-pie').style.setProperty('--percent', stats + "%");
+    // PERBAIKAN: Hapus kode yang mencari 'dash-stats-pie' karena elemennya tidak ada di HTML
+    // (Kode lama penyebab error dihapus di sini)
 
     // Main Card
     const slot = SLOT_WAKTU[appState.currentSlotId];
