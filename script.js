@@ -42,7 +42,7 @@ let appState = {
     attendanceData: {},
     searchQuery: '',
     filterProblemOnly: false,
-    date: new Date().toISOString().split('T')[0],
+    date: window.getLocalDateStr(), // <-- GANTI INI (Pakai fungsi helper)
     activityLog: [],
     settings: {
         darkMode: false,
