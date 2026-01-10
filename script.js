@@ -45,8 +45,8 @@ const SLOT_WAKTU = {
 };
 
 const STATUS_UI = {
-    'Hadir': { class: 'bg-emerald-500 text-white', label: 'icon-check' },
-    'Ya': { class: 'bg-emerald-500 text-white', label: 'icon-check' },
+    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'icon-check' },
+    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'icon-check' },
     'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
     'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
     'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'icon-x' },
@@ -506,6 +506,97 @@ function exportToCSV() {
     a.click();
 }
 
+function handleBulkAction(type) {
+    const slotId = appState.currentSlotId;
+    const dateKey = appState.date;
+    const slot = SLOT_WAKTU[slotId];
+    
+    if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    if (!appState.attendanceData[dateKey][slotId]) appState.attendanceData[dateKey][slotId] = {};
+    
+    const dbSlot = appState.attendanceData[dateKey][slotId];
+
+    // Terapkan hanya pada santri yang difilter (kelas aktif)
+    FILTERED_SANTRI.forEach(santri => {
+        const id = String(santri.nis || santri.id);
+        
+        // Pastikan record ada
+        if (!dbSlot[id]) {
+            const initialStatus = {};
+            slot.activities.forEach(act => {
+                initialStatus[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
+            });
+            dbSlot[id] = { status: initialStatus, note: '' };
+        }
+
+        const sData = dbSlot[id];
+        
+        // Update Status
+        slot.activities.forEach(act => {
+            if (type === 'alpa') {
+                if (act.type === 'mandator') sData.status[act.id] = 'Alpa';
+                else sData.status[act.id] = 'Tidak';
+            } else if (type === 'reset') {
+                if (act.type === 'mandator') sData.status[act.id] = 'Hadir';
+                else sData.status[act.id] = 'Ya';
+            }
+        });
+    });
+
+    saveData();
+    renderAttendanceList();
+    alert(`Berhasil: Semua santri ${type === 'reset' ? 'Hadir' : 'Alpa'}.`);
+}
+
+function kirimLaporanWA() {
+    if (!appState.selectedClass) {
+        alert("Pilih kelas terlebih dahulu.");
+        return;
+    }
+
+    const slot = SLOT_WAKTU[appState.currentSlotId];
+    const dateKey = appState.date;
+    const dbSlot = appState.attendanceData[dateKey]?.[slot.id];
+
+    if (!dbSlot) {
+        alert("Belum ada data absensi untuk slot ini.");
+        return;
+    }
+
+    let hadir = 0, sakit = 0, izin = 0, alpa = 0;
+    let listSakit = [], listIzin = [], listAlpa = [];
+
+    FILTERED_SANTRI.forEach(santri => {
+        const id = String(santri.nis || santri.id);
+        const record = dbSlot[id];
+        
+        if (record && record.status && record.status.shalat) {
+            const st = record.status.shalat;
+            if (st === 'Hadir') hadir++;
+            else if (st === 'Sakit') { sakit++; listSakit.push(santri.nama); }
+            else if (st === 'Izin') { izin++; listIzin.push(santri.nama); }
+            else if (st === 'Alpa') { alpa++; listAlpa.push(santri.nama); }
+        }
+    });
+
+    let msg = `*LAPORAN ABSENSI KELAS ${appState.selectedClass}*\n`;
+    msg += `📅 Tanggal: ${dateKey}\n`;
+    msg += `🕌 Waktu: ${slot.label}\n`;
+    msg += `--------------------------\n`;
+    msg += `✅ Hadir: ${hadir}\n`;
+    msg += `🤒 Sakit: ${sakit}\n`;
+    msg += `📝 Izin: ${izin}\n`;
+    msg += `❌ Alpa: ${alpa}\n`;
+    msg += `--------------------------\n`;
+
+    if (listSakit.length > 0) msg += `*Sakit:* \n- ${listSakit.join('\n- ')}\n\n`;
+    if (listIzin.length > 0) msg += `*Izin:* \n- ${listIzin.join('\n- ')}\n\n`;
+    if (listAlpa.length > 0) msg += `*Alpa:* \n- ${listAlpa.join('\n- ')}\n\n`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+}
+
 function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.getElementById(`tab-${tab}`).classList.remove('hidden');
@@ -518,6 +609,55 @@ function switchTab(tab) {
 
     if (tab === 'home') updateDashboard();
     if (tab === 'profile') updateProfileInfo();
+}
+
+function toggleProblemFilter() {
+    appState.filterProblemOnly = !appState.filterProblemOnly;
+    const btn = document.getElementById('btn-filter-problem');
+    
+    if (appState.filterProblemOnly) {
+        btn.classList.add('bg-red-100', 'text-red-600');
+        btn.classList.remove('bg-slate-100', 'text-slate-400');
+    } else {
+        btn.classList.remove('bg-red-100', 'text-red-600');
+        btn.classList.add('bg-slate-100', 'text-slate-400');
+    }
+    
+    renderAttendanceList();
+}
+
+function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+}
+
+function handleClearData() {
+    if (confirm("Yakin ingin menghapus data hari ini?")) {
+        delete appState.attendanceData[appState.date];
+        saveData();
+        alert("Data hari ini telah dihapus.");
+        updateDashboard();
+    }
+}
+
+function handleGantiPin() {
+    const oldPin = prompt("Masukkan PIN lama:");
+    const savedPin = localStorage.getItem('musyrif_pin') || APP_CONFIG.pinDefault;
+    
+    if (oldPin === savedPin) {
+        const newPin = prompt("Masukkan PIN baru:");
+        if (newPin && newPin.length >= 4) {
+            localStorage.setItem('musyrif_pin', newPin);
+            alert("PIN berhasil diganti.");
+        } else {
+            alert("PIN minimal 4 karakter.");
+        }
+    } else {
+        alert("PIN lama salah.");
+    }
+}
+
+function bukaMenuSantri() {
+    alert("Menu pengelolaan santri hanya tersedia di versi desktop/admin.");
 }
 
 // JALANKAN APLIKASI
