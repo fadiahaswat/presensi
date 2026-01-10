@@ -109,6 +109,42 @@ function handleClearData() {
     }
 }
 
+function exportToCSV() {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Tanggal,Slot,Nama Santri,Kamar,Kegiatan,Status,Catatan\n";
+
+    const data = appState.attendanceData;
+    Object.keys(data).forEach(date => {
+        const slots = data[date];
+        Object.keys(slots).forEach(slotId => {
+            const santris = slots[slotId];
+            Object.keys(santris).forEach(santriId => {
+                const sData = santris[santriId];
+                const santri = DATA_SANTRI.find(s => s.id == santriId);
+                if(santri) {
+                        Object.keys(sData.status).forEach(actId => {
+                            const status = sData.status[actId];
+                            const slotName = SLOT_WAKTU[slotId].label;
+                            const actName = SLOT_WAKTU[slotId].activities.find(a => a.id === actId).label;
+                            const note = sData.note || "-";
+                            const row = `${date},${slotName},${santri.nama},${santri.kamar},${actName},${status},"${note}"`;
+                            csvContent += row + "\n";
+                        });
+                }
+            });
+        });
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Laporan_Presensi_${getTodayKey()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Laporan berhasil diunduh!");
+}
+
 function kirimLaporanWA() {
     const dateKey = getTodayKey();
     const dataHariIni = appState.attendanceData[dateKey];
