@@ -247,7 +247,16 @@
                         <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400" id="dash-stats-text">0%</span>
                     </div>
                 </div>
-                <canvas id="weekly-chart" width="300" height="140" class="w-full"></canvas>
+                <div class="glass-card p-6 rounded-[2rem] animate-slide-up" style="animation-delay: 0.5s">
+    <div class="flex justify-between items-center mb-2">
+        <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-500"></i> Performa Hari Ini
+        </h3>
+    </div>
+    <div class="flex justify-center">
+        <canvas id="weekly-chart" width="200" height="200" class="w-48 h-48"></canvas>
+    </div>
+</div>
             </div>
 
             <div class="animate-slide-up" style="animation-delay: 0.6s">
@@ -541,3 +550,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
