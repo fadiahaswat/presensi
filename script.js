@@ -419,12 +419,33 @@ window.toggleStatus = function(id, actId, type) {
     
     sData.status[actId] = next;
     
-    // Dependency Logic
-    if(actId === 'shalat' && ['Sakit','Izin','Alpa'].includes(next)) {
-        Object.keys(sData.status).forEach(k => { if(k !== 'shalat') sData.status[k] = 'Tidak'; });
-    } else if (actId === 'shalat' && next === 'Hadir') {
-        Object.keys(sData.status).forEach(k => { if(k !== 'shalat') sData.status[k] = 'Ya'; });
+    // ... kode sebelumnya ...
+    
+    // Dependency Logic (Perbaikan untuk support kegiatan baru)
+    if(actId === 'shalat') {
+        // Ambil semua daftar kegiatan dari konfigurasi, bukan cuma yang tersimpan
+        const allActivities = SLOT_WAKTU[slotId].activities;
+
+        allActivities.forEach(act => {
+            if (act.id === 'shalat') return; // Jangan ubah status shalat itu sendiri
+
+            // Tentukan status baru
+            let newStatus = 'Ya'; // Default
+            
+            if (['Sakit', 'Izin', 'Alpa'].includes(next)) {
+                // Jika Shalat bermasalah, maka kegiatan lain ikut bermasalah
+                newStatus = act.type === 'mandator' ? next : 'Tidak'; // Ikuti status induk atau set Tidak
+            } else {
+                // Jika Shalat Hadir, reset kegiatan lain ke default
+                newStatus = act.type === 'mandator' ? 'Hadir' : 'Ya';
+            }
+
+            // Update status
+            sData.status[act.id] = newStatus;
+        });
     }
+
+    // ... kode sesudahnya ...
 
     window.saveData();
     window.renderAttendanceList();
