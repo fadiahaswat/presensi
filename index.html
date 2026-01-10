@@ -131,9 +131,16 @@
             <div id="tab-report" class="tab-content hidden fade-in px-6 pt-12">
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white">Laporan</h1>
-                    <button onclick="exportToCSV()" class="p-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-200 transition active:scale-95" title="Export CSV">
-                        <i data-lucide="download" class="w-5 h-5"></i>
-                    </button>
+                    
+                    <div class="flex gap-2"> <button onclick="kirimLaporanWA()" class="p-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30" title="Kirim ke WA">
+                            <i data-lucide="send" class="w-5 h-5"></i>
+                        </button>
+                
+                        <button onclick="exportToCSV()" class="p-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-200 transition active:scale-95" title="Export CSV">
+                            <i data-lucide="download" class="w-5 h-5"></i>
+                        </button>
+                        
+                    </div>
                 </div>
                 
                 <div class="bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 mb-6 transition-colors">
@@ -428,5 +435,6 @@
 
 </body>
 </html>
+
 
 
