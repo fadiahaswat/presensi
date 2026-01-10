@@ -1,73 +1,59 @@
-// URL Web App dari Google Apps Script
-const API_URL = "https://script.google.com/macros/s/AKfycbw-URYAsLTWCdnGurQhM1ZXa9N8vm-GBlHwtetDlin73-Ma8G0aAbFoboGGUI8GgVDl/exec";
+// File: data-santri.js
 
-// [PERBAIKAN] Gunakan window.santriData agar bisa dibaca oleh modul lain (main.js)
-window.santriData = [];
+const API_SANTRI_URL = "https://script.google.com/macros/s/AKfycbw-URYAsLTWCdnGurQhM1ZXa9N8vm-GBlHwtetDlin73-Ma8G0aAbFoboGGUI8GgVDl/exec";
 
-/**
- * Fungsi Mengambil Data Santri dengan Sistem Caching (Local Storage)
- */
+window.santriData = []; // Variabel global penampung data santri
+
 async function loadSantriData() {
-    const CACHE_KEY = 'santri_data_cache';
-    const CACHE_TIME_KEY = 'santri_data_time';
-    const EXPIRY_HOURS = 24; // Data berlaku 24 jam
+    const CACHE_KEY = 'cache_data_santri_full';
+    const CACHE_TIME = 'time_data_santri';
+    const EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 Jam
 
-    // 1. Cek apakah ada cache yang valid di browser
-    const cachedData = localStorage.getItem(CACHE_KEY);
-    const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
-    const now = new Date().getTime();
-
-    // Jika cache ada DAN belum kadaluwarsa
-    if (cachedData && cachedTime && (now - cachedTime < EXPIRY_HOURS * 3600 * 1000)) {
-        console.log("Mengambil data santri dari Cache (Hemat Kuota)...");
-        try {
-            // [PERBAIKAN] Update variabel global window
-            window.santriData = JSON.parse(cachedData);
-            return window.santriData;
-        } catch (e) {
-            console.warn("Cache rusak, akan download ulang.");
-        }
-    }
-
-    // 2. Jika tidak ada cache, ambil dari Server (GAS)
     try {
-        console.log("Mengunduh data santri baru dari Server...");
-        const response = await fetch(API_URL);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        console.log("📥 Mengambil data Santri...");
+        const now = new Date().getTime();
+        const cachedStr = localStorage.getItem(CACHE_KEY);
+        const cachedTime = localStorage.getItem(CACHE_TIME);
+
+        // 1. Gunakan Cache jika Valid
+        if (cachedStr && cachedTime && (now - cachedTime < EXPIRY_MS)) {
+            console.log("✅ Data Santri dimuat dari cache (Cepat).");
+            window.santriData = JSON.parse(cachedStr);
+            return window.santriData;
         }
+
+        // 2. Jika Cache Expired/Kosong, Download Baru
+        console.log("🌐 Mengunduh data santri terbaru dari server...");
+        const response = await fetch(API_SANTRI_URL); // Default parameter doGet adalah santri
+        
+        if (!response.ok) throw new Error("Gagal koneksi server santri");
 
         const data = await response.json();
         
-        // [PERBAIKAN] Update variabel global window
-        window.santriData = data;
+        if (!Array.isArray(data)) throw new Error("Format data santri salah");
 
-        // 3. Simpan data baru ke Cache Browser
-        try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-            localStorage.setItem(CACHE_TIME_KEY, now);
-            console.log("Data santri berhasil disimpan ke cache.");
-        } catch (e) {
-            console.warn("Penyimpanan penuh, gagal caching data.");
-        }
+        // Simpan ke Global & Cache
+        window.santriData = data;
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        localStorage.setItem(CACHE_TIME, now);
         
+        console.log("✅ Data Santri berhasil diunduh:", data.length, "santri.");
         return window.santriData;
 
     } catch (error) {
-        console.error("Gagal mengambil data:", error);
+        console.error("❌ Error loadSantriData:", error);
         
-        // Fallback: Gunakan cache lama jika ada
-        if (cachedData) {
-            console.warn("Menggunakan data cache lama karena koneksi error.");
-            window.santriData = JSON.parse(cachedData);
+        // Fallback: Pakai cache lama meskipun expired daripada error
+        const oldCache = localStorage.getItem(CACHE_KEY);
+        if (oldCache) {
+            console.warn("⚠️ Menggunakan data cache lawas (Offline Mode).");
+            window.santriData = JSON.parse(oldCache);
             return window.santriData;
         }
         
-        alert("Gagal memuat data santri. Pastikan internet lancar.");
         return [];
     }
 }
 
-// [PERBAIKAN] Pastikan fungsi ini menempel di window agar bisa dipanggil main.js
+// Ekspos ke global window
 window.loadSantriData = loadSantriData;
