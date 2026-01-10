@@ -341,6 +341,18 @@ window.calculateSlotProgress = function(slotId) {
 // ==========================================
 
 window.openAttendance = function() {
+    // --- CEK KEAMANAN ---
+    const access = window.isSlotAccessible(appState.currentSlotId, appState.date);
+    if (access.locked) {
+        let msg = "Akses ditolak.";
+        if(access.reason === 'wait') msg = "Belum masuk waktu " + SLOT_WAKTU[appState.currentSlotId].label;
+        if(access.reason === 'limit') msg = "Data lampau (>3 hari) tidak dapat diedit.";
+        if(access.reason === 'future') msg = "Belum bisa mengisi data masa depan.";
+        
+        return window.showToast(msg, 'warning');
+    }
+    // --------------------
+
     document.getElementById('view-main').classList.add('hidden');
     document.getElementById('view-attendance').classList.remove('hidden');
     
