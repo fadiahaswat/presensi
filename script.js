@@ -318,12 +318,15 @@ window.renderAttendanceList = function() {
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const dateKey = appState.date;
     
-    // Ensure Data Structure
+    // --- CEK HARI INI (0=Ahad, 1=Senin, ..., 5=Jumat) ---
+    const currentDay = new Date(appState.date).getDay();
+
+    // Pastikan Struktur Data Ada
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     const dbSlot = appState.attendanceData[dateKey][slot.id];
 
-    // Filter
+    // Filter Pencarian & Masalah
     const search = appState.searchQuery.toLowerCase();
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(search);
@@ -336,14 +339,14 @@ window.renderAttendanceList = function() {
 
     document.getElementById('att-santri-count').textContent = `${list.length} Santri`;
 
-    // Templates
+    // Ambil Template HTML
     const tplRow = document.getElementById('tpl-santri-row');
     const tplBtn = document.getElementById('tpl-activity-btn');
 
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // Init Default
+        // Inisialisasi Data Default Santri
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya');
@@ -358,12 +361,23 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
         const btnCont = clone.querySelector('.activity-container');
+        
+        // --- LOOPING AKTIVITAS ---
         slot.activities.forEach(act => {
+            // LOGIKA FILTER HARI: 
+            // Jika aktivitas punya aturan 'showOnDays' dan hari ini tidak termasuk, sembunyikan.
+            if (act.showOnDays && !act.showOnDays.includes(currentDay)) {
+                return; // Skip (jangan dirender)
+            }
+
             const bClone = tplBtn.content.cloneNode(true);
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
             
-            const curr = sData.status[act.id];
+            // Ambil status saat ini, atau gunakan default jika data lama belum punya field ini
+            const defaultVal = act.type === 'mandator' ? 'Hadir' : 'Ya';
+            const curr = sData.status[act.id] || defaultVal;
+            
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
             btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
@@ -374,7 +388,7 @@ window.renderAttendanceList = function() {
             btnCont.appendChild(bClone);
         });
 
-        // Note
+        // Bagian Catatan
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
