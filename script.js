@@ -89,20 +89,20 @@ function toggleDarkMode() {
 }
 
 function handleClearData() {
-    // 1. Tanya konfirmasi dulu
     if(!confirm('PERINGATAN: Data presensi hari ini akan dihapus permanen. Lanjutkan?')) {
-        return; // Batalkan jika pilih No
+        return;
     }
 
-    // 2. Minta PIN keamanan
     let pinInput = prompt("Masukkan PIN Keamanan untuk menghapus:");
+    
+    // --- BARIS INI YANG KITA UBAH ---
+    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
+    // -------------------------------
 
-    // 3. Cek apakah PIN benar (PIN bawaan '1234')
-    if(pinInput === '1234') {
+    if(pinInput === storedPin) { // Cek sama storedPin, bukan '1234' lagi
         localStorage.removeItem(STORAGE_KEY);
         appState.attendanceData = {};
         showToast("Data berhasil direset");
-        // Refresh halaman agar bersih
         window.location.reload();
     } else {
         alert("PIN SALAH! Penghapusan dibatalkan.");
