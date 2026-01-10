@@ -1179,6 +1179,56 @@ window.updateProfileStats = function() {
     if(daysEl) daysEl.textContent = totalDays;
 };
 
+// --- LOGIKA WAKTU & AKSES ---
+
+// 1. Cek apakah Slot boleh diakses
+window.isSlotAccessible = function(slotId, dateStr) {
+    const selectedDate = new Date(dateStr);
+    const today = new Date();
+    
+    // Reset jam agar perbandingan hari akurat
+    selectedDate.setHours(0,0,0,0);
+    const todayDate = new Date();
+    todayDate.setHours(0,0,0,0);
+
+    // Hitung selisih hari (dalam milidetik)
+    const diffTime = todayDate - selectedDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+    // ATURAN 1: MASA LALU (Maksimal 3 hari)
+    if (diffDays > 3) {
+        return { locked: true, reason: 'limit' }; // Terkunci karena sudah lewat 3 hari
+    }
+
+    // ATURAN 2: MASA DEPAN (Hari belum terjadi)
+    if (selectedDate > todayDate) {
+        return { locked: true, reason: 'future' };
+    }
+
+    // ATURAN 3: HARI INI (Cek Jam)
+    if (diffDays === 0) { // Jika hari ini
+        const currentHour = new Date().getHours();
+        const slotStart = SLOT_WAKTU[slotId].startHour;
+        
+        // Jika jam sekarang belum sampai jam mulai slot
+        if (currentHour < slotStart) {
+            return { locked: true, reason: 'wait' };
+        }
+    }
+
+    return { locked: false, reason: '' };
+};
+
+// 2. Tentukan Slot Default saat buka aplikasi
+window.determineCurrentSlot = function() {
+    const h = new Date().getHours();
+    
+    if (h >= 19) return 'isya';
+    if (h >= 18) return 'maghrib';
+    if (h >= 15) return 'ashar';
+    return 'shubuh'; // Default pagi/siang kembali ke shubuh atau slot aktif terakhir
+};
+
 // ==========================================
 // 6. DATA ACTIONS
 // ==========================================
