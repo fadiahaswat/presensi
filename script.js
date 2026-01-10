@@ -209,18 +209,32 @@ window.updateDashboard = function() {
 
     // Stats Chart (Global)
     const stats = window.calculateGlobalStats();
-    
-    // PERBAIKAN: Cek elemen text ada sebelum di-set
     const statsText = document.getElementById('dash-stats-text');
     if(statsText) statsText.textContent = stats + "%";
 
-    // PERBAIKAN: Hapus kode yang mencari 'dash-stats-pie' karena elemennya tidak ada di HTML
-    // (Kode lama penyebab error dihapus di sini)
-
+    // --- LOGIKA KARTU UTAMA ---
+    // Cek apakah slot utama yang sedang aktif (currentSlotId) terkunci?
+    // Jika terkunci, kita paksa ganti ke slot yang valid terakhir atau biarkan tapi kasih peringatan
+    const accessMain = window.isSlotAccessible(appState.currentSlotId, appState.date);
+    
     // Main Card
     const slot = SLOT_WAKTU[appState.currentSlotId];
     document.getElementById('dash-card-title').textContent = slot.label;
-    document.getElementById('dash-card-time').textContent = slot.subLabel;
+    
+    // Ubah sublabel jika terkunci
+    if(accessMain.locked) {
+        let msg = slot.subLabel;
+        if(accessMain.reason === 'wait') msg = "⏳ Belum Waktunya";
+        if(accessMain.reason === 'future') msg = "🔒 Masa Depan";
+        if(accessMain.reason === 'limit') msg = "🔒 Terkunci (>3 Hari)";
+        document.getElementById('dash-card-time').textContent = msg;
+        
+        // Visual Lock untuk Main Card (Opsional: bikin agak transparan)
+        document.querySelector('.card-gradient')?.classList.add('opacity-75', 'grayscale');
+    } else {
+        document.getElementById('dash-card-time').textContent = slot.subLabel;
+        document.querySelector('.card-gradient')?.classList.remove('opacity-75', 'grayscale');
+    }
     
     // Other Slots List
     const container = document.getElementById('dash-other-slots');
@@ -233,30 +247,46 @@ window.updateDashboard = function() {
         const clone = tpl.content.cloneNode(true);
         const item = clone.querySelector('.slot-item');
         
+        // --- CEK AKSES SLOT INI ---
+        const access = window.isSlotAccessible(s.id, appState.date);
+        
         clone.querySelector('.slot-label').textContent = s.label;
         const iconBg = clone.querySelector('.slot-icon-bg');
-        iconBg.classList.add(`bg-${s.theme}-50`, `text-${s.theme}-600`);
         
         // Slot Progress
         const prog = window.calculateSlotProgress(s.id);
-        clone.querySelector('.slot-status').textContent = prog.text;
         const bar = clone.querySelector('.slot-progress');
-        bar.style.width = prog.percent + "%";
-        bar.classList.add(`bg-${s.theme}-500`);
+        
+        // LOGIKA KUNCI TAMPILAN
+        if (access.locked) {
+            item.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+            clone.querySelector('.slot-status').textContent = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
+            bar.style.width = "0%";
+            iconBg.classList.add('bg-slate-100', 'text-slate-400');
+            
+            // JANGAN KASIH ONCLICK JIKA TERKUNCI
+            item.onclick = () => {
+                window.showToast("🔒 Akses slot ini terkunci", "error");
+            };
+        } else {
+            // JIKA TIDAK TERKUNCI, TAMPILKAN NORMAL
+            iconBg.classList.add(`bg-${s.theme}-50`, `text-${s.theme}-600`);
+            clone.querySelector('.slot-status').textContent = prog.text;
+            bar.style.width = prog.percent + "%";
+            bar.classList.add(`bg-${s.theme}-500`);
 
-        item.onclick = () => {
-            appState.currentSlotId = s.id;
-            window.openAttendance();
-        };
+            item.onclick = () => {
+                appState.currentSlotId = s.id;
+                window.updateDashboard(); // Refresh biar kartu utama berubah
+                // window.openAttendance(); // Opsional: kalau mau langsung buka
+            };
+        }
+
         container.appendChild(clone);
     });
     
-    // Update Quick Stats
     window.updateQuickStats();
-    
-    // Update Weekly Chart
     window.updateWeeklyChart();
-    
     lucide.createIcons();
 };
 
