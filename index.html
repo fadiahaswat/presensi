@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MusyrifApp Pro v4</title>
     
-    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="style.css">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -28,83 +29,12 @@
         }
     </script>
     
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <style>
-        /* Base Styles */
-        body { -webkit-tap-highlight-color: transparent; }
-        
-        /* Custom Scrollbar */
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Animations */
-        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .scale-in { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .pulse-slow { animation: pulse 3s infinite; }
-        .float { animation: float 6s ease-in-out infinite; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-
-        /* Glassmorphism */
-        .glass { 
-            background: rgba(255, 255, 255, 0.9); 
-            backdrop-filter: blur(16px); 
-            border-top: 1px solid rgba(255,255,255,0.5); 
-        }
-        .dark .glass {
-            background: rgba(15, 23, 42, 0.9);
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        /* Mesh Gradient Background */
-        .mesh-bg {
-            background-color: #f8fafc;
-            background-image: 
-                radial-gradient(at 0% 0%, hsla(156,72%,90%,1) 0, transparent 50%), 
-                radial-gradient(at 100% 0%, hsla(180,70%,93%,1) 0, transparent 50%), 
-                radial-gradient(at 100% 100%, hsla(210,80%,94%,1) 0, transparent 50%), 
-                radial-gradient(at 0% 100%, hsla(140,70%,92%,1) 0, transparent 50%);
-        }
-        .dark .mesh-bg {
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, hsla(156,72%,10%,0.4) 0, transparent 50%), 
-                radial-gradient(at 100% 0%, hsla(210,70%,15%,0.4) 0, transparent 50%);
-        }
-
-        /* Pie Chart Utility */
-        .pie-chart {
-            background: conic-gradient(var(--color) var(--percent), #e2e8f0 0);
-            border-radius: 50%;
-            transition: all 1s ease-out;
-        }
-        .dark .pie-chart {
-            background: conic-gradient(var(--color) var(--percent), #334155 0);
-        }
-
-        /* Active Tab Indicator */
-        .nav-btn.active { color: #10b981; }
-        .nav-btn.active i { fill: currentColor; }
-        
-        /* Progress Bar Transition */
-        .progress-bar { transition: width 0.5s ease-in-out; }
-    </style>
 </head>
 <body class="bg-slate-50 dark:bg-dark-bg text-slate-800 dark:text-dark-text h-screen flex flex-col overflow-hidden selection:bg-emerald-200 transition-colors duration-300">
 
-    <!-- ========================================= -->
-    <!-- 1. VIEW: LOGIN (Halaman Depan)            -->
-    <!-- ========================================= -->
     <section id="view-login" class="flex-1 flex flex-col items-center justify-center min-h-screen mesh-bg p-6 text-center fade-in absolute inset-0 z-50">
         
         <div class="relative z-10 w-full max-w-md flex flex-col items-center">
@@ -128,17 +58,11 @@
         </div>
     </section>
 
-    <!-- ========================================= -->
-    <!-- 2. MAIN APP CONTAINER (Tabs)              -->
-    <!-- ========================================= -->
     <section id="view-main" class="flex-1 flex flex-col h-full hidden mesh-bg relative transition-colors duration-300">
         
-        <!-- CONTENT AREA (Scrollable) -->
         <div id="main-content" class="flex-1 overflow-y-auto pb-24 hide-scrollbar relative">
             
-            <!-- TAB: BERANDA (HOME) -->
             <div id="tab-home" class="tab-content fade-in">
-                <!-- Header -->
                 <div class="bg-white/80 dark:bg-dark-card/80 backdrop-blur-md px-6 pt-12 pb-8 shadow-sm rounded-b-[2.5rem] mb-6 relative overflow-hidden transition-colors duration-300">
                     <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                         <i data-lucide="layout-grid" class="w-64 h-64 text-slate-900 dark:text-white"></i>
@@ -157,7 +81,6 @@
                         </div>
                     </div>
 
-                    <!-- Stats Ring Card -->
                     <div class="bg-slate-900 dark:bg-black text-white p-5 rounded-3xl shadow-xl shadow-slate-900/20 mb-6 flex items-center justify-between border border-slate-800">
                         <div>
                             <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Performa Hari Ini</p>
@@ -172,7 +95,6 @@
                         </div>
                     </div>
                     
-                    <!-- Main Active Slot Card -->
                     <div id="dash-main-card" class="p-1 rounded-3xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 transform transition-all duration-300 hover:scale-[1.01] cursor-pointer" onclick="openAttendance()">
                         <div class="bg-white/10 backdrop-blur-sm p-6 rounded-[1.3rem] relative overflow-hidden">
                             <div class="absolute -right-6 -top-6 text-white/10">
@@ -197,7 +119,6 @@
                     </div>
                 </div>
 
-                <!-- List Slot Lainnya -->
                 <div class="px-6 pb-6">
                     <h3 class="font-bold text-slate-800 dark:text-white text-lg mb-4 flex items-center gap-2">
                         <i data-lucide="clock" class="w-5 h-5 text-slate-400"></i>
@@ -207,7 +128,6 @@
                 </div>
             </div>
 
-            <!-- TAB: LAPORAN (REPORTS) -->
             <div id="tab-report" class="tab-content hidden fade-in px-6 pt-12">
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white">Laporan</h1>
@@ -216,15 +136,12 @@
                     </button>
                 </div>
                 
-                <!-- Weekly Chart -->
                 <div class="bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 mb-6 transition-colors">
                     <div class="flex items-center justify-between mb-6">
                         <h3 class="font-bold text-slate-700 dark:text-slate-200">Statistik Mingguan</h3>
                         <i data-lucide="bar-chart-2" class="w-5 h-5 text-emerald-500"></i>
                     </div>
-                    <!-- Chart Placeholder using CSS Flex -->
                     <div class="flex items-end justify-between h-32 gap-2 text-xs text-slate-400 font-medium">
-                        <!-- Bars generated dynamically or static for visual -->
                         <div class="flex flex-col items-center gap-2 w-full group">
                             <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
                                 <div style="height: 60%" class="w-full bg-emerald-400/80 rounded-t-lg"></div>
@@ -249,7 +166,7 @@
                             </div>
                             <span>Kam</span>
                         </div>
-                         <div class="flex flex-col items-center gap-2 w-full group">
+                          <div class="flex flex-col items-center gap-2 w-full group">
                              <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
                                 <div style="height: 70%" class="w-full bg-emerald-500 rounded-t-lg"></div>
                             </div>
@@ -258,21 +175,18 @@
                     </div>
                 </div>
 
-                <!-- Problematic Students List -->
                 <div class="flex justify-between items-center mb-4">
-                     <h3 class="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
+                      <h3 class="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
                         <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-500"></i>
                         Perlu Perhatian
                     </h3>
                     <span class="text-[10px] bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-500 dark:text-slate-300">Hari Ini</span>
                 </div>
-               
+                
                 <div id="report-problem-list" class="space-y-3 pb-6">
-                    <!-- Populated by JS -->
-                </div>
+                    </div>
             </div>
 
-            <!-- TAB: PROFIL (PROFILE) -->
             <div id="tab-profile" class="tab-content hidden fade-in px-6 pt-12">
                 <div class="flex flex-col items-center mb-8">
                     <div class="w-24 h-24 bg-slate-200 dark:bg-slate-700 rounded-3xl overflow-hidden mb-4 shadow-lg border-4 border-white dark:border-slate-700 relative group">
@@ -285,10 +199,8 @@
                     <p class="text-slate-500 dark:text-slate-400 font-medium">Asrama Al-Madinah lt. 2</p>
                 </div>
 
-                <!-- Settings Card -->
                 <div class="bg-white dark:bg-dark-card rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-6 transition-colors">
                     
-                    <!-- Dark Mode Toggle -->
                     <div class="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" onclick="toggleDarkMode()">
                         <div class="p-2 bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
                             <i data-lucide="moon" class="w-5 h-5"></i>
@@ -318,7 +230,6 @@
 
         </div>
 
-        <!-- BOTTOM NAVIGATION (FIXED) -->
         <div class="absolute bottom-0 w-full glass z-40 px-6 py-3 flex justify-around items-center pb-6 transition-colors duration-300">
             <button onclick="switchTab('home')" class="nav-btn active flex flex-col items-center gap-1.5 text-slate-400 dark:text-slate-500 transition-colors w-16" data-target="home">
                 <i data-lucide="home" class="w-6 h-6"></i>
@@ -335,11 +246,7 @@
         </div>
     </section>
 
-    <!-- ========================================= -->
-    <!-- 3. VIEW: ATTENDANCE (FULLSCREEN TASK)     -->
-    <!-- ========================================= -->
     <section id="view-attendance" class="flex-1 flex flex-col h-full hidden bg-slate-50 dark:bg-dark-bg z-[60] transition-colors duration-300">
-        <!-- Sticky Header -->
         <div class="glass px-4 py-4 shadow-sm z-30 flex flex-col gap-3 sticky top-0 transition-all">
             <div class="flex justify-between items-center">
                 <button onclick="closeAttendance()" class="w-10 h-10 flex items-center justify-center bg-white dark:bg-dark-card border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full shadow-sm active:scale-95 transition">
@@ -351,7 +258,6 @@
                 <div id="save-indicator" class="w-10 flex justify-end"></div>
             </div>
 
-            <!-- Search & Filter Bar -->
             <div class="flex gap-2">
                 <div class="relative flex-1">
                     <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
@@ -370,10 +276,8 @@
             </div>
         </div>
 
-        <!-- List Santri Container -->
         <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-36 space-y-3 scroll-smooth"></div>
 
-        <!-- Floating Bottom Actions -->
         <div class="fixed bottom-6 left-4 right-4 z-[80]">
             <div class="glass p-2 rounded-2xl shadow-xl border border-white/50 dark:border-white/10 flex gap-2 backdrop-blur-xl">
                 <button onclick="handleBulkAction('alpa')" class="flex-1 py-3.5 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold text-sm border border-red-100 dark:border-red-900 hover:bg-red-100 active:scale-95 transition flex items-center justify-center gap-2">
@@ -386,9 +290,6 @@
         </div>
     </section>
 
-    <!-- ========================================= -->
-    <!-- MODAL: DETAIL SANTRI                      -->
-    <!-- ========================================= -->
     <dialog id="modal-santri" class="bg-transparent p-0 w-full h-full max-w-none max-h-none z-[90] backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm m-0 open:flex open:items-center open:justify-center">
         <div class="bg-white dark:bg-dark-card w-full max-w-sm mx-4 rounded-3xl shadow-2xl p-6 scale-in relative overflow-hidden ring-1 ring-white/50 dark:ring-slate-700">
             <button onclick="document.getElementById('modal-santri').close()" class="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
@@ -416,22 +317,16 @@
                     </div>
                 </div>
                 
-                <!-- History Section -->
                 <div>
-                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Riwayat Terakhir</h4>
-                     <div id="modal-history-list" class="max-h-32 overflow-y-auto space-y-2 pr-1">
-                         <!-- Filled by JS -->
-                         <p class="text-xs text-slate-400 italic text-center py-2">Belum ada riwayat.</p>
-                     </div>
+                      <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Riwayat Terakhir</h4>
+                      <div id="modal-history-list" class="max-h-32 overflow-y-auto space-y-2 pr-1">
+                          <p class="text-xs text-slate-400 italic text-center py-2">Belum ada riwayat.</p>
+                      </div>
                 </div>
             </div>
         </div>
     </dialog>
 
-
-    <!-- ========================================= -->
-    <!-- HTML TEMPLATES                            -->
-    <!-- ========================================= -->
 
     <template id="tpl-slot-item">
         <div class="slot-item bg-white dark:bg-dark-card p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer active:scale-[0.98] transition-all hover:shadow-md mb-3 group">
@@ -473,7 +368,6 @@
                 <div class="activity-container flex gap-2 overflow-x-auto hide-scrollbar pb-1"></div>
             </div>
             
-            <!-- Note Section with Quick Chips -->
             <div class="note-section hidden px-3 pb-3 pt-2 bg-slate-50/50 dark:bg-slate-800/30 animate-in border-t border-slate-100 dark:border-slate-700">
                 <div class="relative mb-2">
                     <input type="text" placeholder="Tulis catatan..." 
@@ -499,612 +393,7 @@
     </template>
 
 
-    <!-- ========================================= -->
-    <!-- LOGIC JAVASCRIPT                          -->
-    <!-- ========================================= -->
-    <script>
-        // --- 1. DATA MASTER & CONFIG ---
-        const DATA_SANTRI = [
-            { id: 1, nama: "Ahmad Fulan", kamar: "101", avatar: "AF" },
-            { id: 2, nama: "Budi Santoso", kamar: "101", avatar: "BS" },
-            { id: 3, nama: "Cecep Gorbachev", kamar: "102", avatar: "CG" },
-            { id: 4, nama: "Dedi Corbuzier", kamar: "102", avatar: "DC" },
-            { id: 5, nama: "Eko Patrio", kamar: "103", avatar: "EP" },
-            { id: 6, nama: "Fajar Sadboy", kamar: "103", avatar: "FS" },
-            { id: 7, nama: "Gilang Dirga", kamar: "104", avatar: "GD" },
-            { id: 8, nama: "Haji Bolot", kamar: "104", avatar: "HB" },
-            { id: 9, nama: "Iko Uwais", kamar: "105", avatar: "IU" },
-            { id: 10, nama: "Joko Anwar", kamar: "105", avatar: "JA" },
-            { id: 11, nama: "Kiki CJR", kamar: "106", avatar: "KC" },
-            { id: 12, nama: "Lesti Kejora", kamar: "106", avatar: "LK" }
-        ];
+    <script src="script.js"></script>
 
-        const SLOT_WAKTU = {
-            shubuh: { id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', activities: [
-                { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
-                { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah', icon: 'heart' },
-                { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', icon: 'book-open' },
-                { id: 'dzikir', label: 'Dzikir', type: 'sunnah', icon: 'volume-2' },
-                { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah', icon: 'moon' }
-            ]},
-            ashar: { id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', activities: [
-                { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
-                { id: 'dzikir', label: 'Dzikir', type: 'sunnah', icon: 'volume-2' }
-            ]},
-            maghrib: { id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', activities: [
-                { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
-                { id: 'bakdiyah', label: 'Bakdiyah', type: 'sunnah', icon: 'heart' },
-                { id: 'tahsin', label: 'Tahsin', type: 'mandator', icon: 'book-open' },
-                { id: 'conversation', label: 'Hiwar', type: 'mandator', icon: 'message-circle' },
-                { id: 'vocab', label: 'Vocab', type: 'mandator', icon: 'mic' },
-                { id: 'puasa', label: 'Puasa', type: 'sunnah', icon: 'coffee' }
-            ]},
-            isya: { id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', activities: [
-                { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
-                { id: 'bakdiyah', label: 'Bakdiyah', type: 'sunnah', icon: 'heart' }
-            ]}
-        };
-
-        const STATUS = { HADIR: 'Hadir', SAKIT: 'Sakit', IZIN: 'Izin', ALPA: 'Alpa', YA: 'Ya', TIDAK: 'Tidak' };
-        // UI Config: Dark mode adjustments handled via class structure in render logic
-        const STATUS_UI = {
-            'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 dark:shadow-none shadow-lg', label: 'icon-check' },
-            'Ya': { class: 'bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 dark:shadow-none shadow-lg', label: 'icon-check' },
-            'Sakit': { class: 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700', label: 'S' },
-            'Izin': { class: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700', label: 'I' },
-            'Alpa': { class: 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border-red-200 dark:border-red-800', label: 'icon-x' },
-            'Tidak': { class: 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-slate-700', label: 'icon-minus' }
-        };
-
-        // --- 2. STATE MANAGEMENT & STORAGE ---
-        let appState = {
-            currentSlotId: 'shubuh',
-            attendanceData: {}, 
-            noteOpenId: null,
-            searchQuery: '',
-            filterProblemOnly: false,
-            darkMode: false
-        };
-
-        const STORAGE_KEY = 'musyrif_app_v4';
-        
-        function loadFromStorage() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if(saved) {
-                appState.attendanceData = JSON.parse(saved);
-            }
-            // Load theme
-            const theme = localStorage.getItem('theme');
-            if(theme === 'dark') {
-                appState.darkMode = true;
-                document.documentElement.classList.add('dark');
-            }
-        }
-
-        function saveToLocalStorage() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.attendanceData));
-        }
-
-        function toggleDarkMode() {
-            appState.darkMode = !appState.darkMode;
-            if(appState.darkMode) {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            }
-        }
-
-        function handleClearData() {
-            if(confirm('Yakin hapus data hari ini? Data tidak bisa dikembalikan.')) {
-                localStorage.removeItem(STORAGE_KEY);
-                appState.attendanceData = {};
-                showToast("Data berhasil direset");
-                switchTab('home');
-            }
-        }
-
-        function exportToCSV() {
-            let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "Tanggal,Slot,Nama Santri,Kamar,Kegiatan,Status,Catatan\n";
-
-            const data = appState.attendanceData;
-            Object.keys(data).forEach(date => {
-                const slots = data[date];
-                Object.keys(slots).forEach(slotId => {
-                    const santris = slots[slotId];
-                    Object.keys(santris).forEach(santriId => {
-                        const sData = santris[santriId];
-                        const santri = DATA_SANTRI.find(s => s.id == santriId);
-                        if(santri) {
-                             Object.keys(sData.status).forEach(actId => {
-                                 const status = sData.status[actId];
-                                 const slotName = SLOT_WAKTU[slotId].label;
-                                 const actName = SLOT_WAKTU[slotId].activities.find(a => a.id === actId).label;
-                                 const note = sData.note || "-";
-                                 const row = `${date},${slotName},${santri.nama},${santri.kamar},${actName},${status},"${note}"`;
-                                 csvContent += row + "\n";
-                             });
-                        }
-                    });
-                });
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Laporan_Presensi_${getTodayKey()}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            showToast("Laporan berhasil diunduh!");
-        }
-
-        // --- 3. CORE LOGIC ---
-        function getTodayKey() { return new Date().toISOString().split('T')[0]; }
-
-        function getSlotData(slotId) {
-            const dateKey = getTodayKey();
-            if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
-            if (!appState.attendanceData[dateKey][slotId]) {
-                const slotConfig = SLOT_WAKTU[slotId];
-                appState.attendanceData[dateKey][slotId] = {};
-                DATA_SANTRI.forEach(santri => {
-                    const statuses = {};
-                    slotConfig.activities.forEach(act => {
-                        statuses[act.id] = act.type === 'mandator' ? STATUS.HADIR : STATUS.YA;
-                    });
-                    appState.attendanceData[dateKey][slotId][santri.id] = { status: statuses, note: '' };
-                });
-            }
-            return appState.attendanceData[dateKey][slotId];
-        }
-
-        function calculateStats() {
-            let totalChecks = 0, totalHadir = 0;
-            const data = appState.attendanceData[getTodayKey()] || {};
-            Object.keys(data).forEach(slotId => {
-                Object.values(data[slotId]).forEach(santri => {
-                    if (santri.status.shalat) {
-                        totalChecks++;
-                        if (santri.status.shalat === STATUS.HADIR) totalHadir++;
-                    }
-                });
-            });
-            if (totalChecks === 0 && Object.keys(data).length === 0) return 0;
-            if (totalChecks === 0) return 100; 
-            return Math.round((totalHadir / totalChecks) * 100);
-        }
-
-        // --- 4. NAVIGATION & TIME ---
-        function init() {
-            loadFromStorage();
-            autoDetectSlot();
-            startClock();
-        }
-
-        function startClock() {
-            function update() {
-                const now = new Date();
-                const dateString = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' });
-                const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                const el = document.getElementById('dash-clock');
-                if(el) el.textContent = `${dateString} • ${timeString} WIB`;
-            }
-            update();
-            setInterval(update, 1000);
-        }
-
-        function getGreeting() {
-            const h = new Date().getHours();
-            if(h < 11) return "Selamat Pagi";
-            if(h < 15) return "Selamat Siang";
-            if(h < 18) return "Selamat Sore";
-            return "Selamat Malam";
-        }
-
-        function autoDetectSlot() {
-            const hour = new Date().getHours();
-            if (hour >= 3 && hour < 10) appState.currentSlotId = 'shubuh';
-            else if (hour >= 15 && hour < 17) appState.currentSlotId = 'ashar';
-            else if (hour >= 17 && hour < 19) appState.currentSlotId = 'maghrib';
-            else appState.currentSlotId = 'isya';
-        }
-
-        function handleLogin() {
-            document.getElementById('view-login').classList.add('hidden');
-            document.getElementById('view-main').classList.remove('hidden');
-            switchTab('home'); 
-        }
-        
-        function handleLogout() {
-            document.getElementById('view-main').classList.add('hidden');
-            document.getElementById('view-login').classList.remove('hidden');
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if (btn.dataset.target === tabName) btn.classList.add('active');
-                else btn.classList.remove('active');
-            });
-            if (tabName === 'home') updateDashboard();
-            if (tabName === 'report') updateReportTab();
-            lucide.createIcons();
-        }
-
-        function openAttendance() {
-            document.getElementById('view-main').classList.add('hidden');
-            document.getElementById('view-attendance').classList.remove('hidden');
-            updateAttendanceView();
-        }
-
-        function closeAttendance() {
-            document.getElementById('view-attendance').classList.add('hidden');
-            document.getElementById('view-main').classList.remove('hidden');
-            switchTab('home');
-        }
-
-        // --- 5. RENDER LOGIC ---
-
-        function updateDashboard() {
-            document.getElementById('dash-greeting').textContent = getGreeting();
-            const percent = calculateStats();
-            document.getElementById('dash-stats-pie').style.setProperty('--percent', `${percent}%`);
-            document.getElementById('dash-stats-text').textContent = `${percent}%`;
-
-            const currentSlot = SLOT_WAKTU[appState.currentSlotId];
-            const card = document.getElementById('dash-main-card');
-            
-            const themes = {
-                emerald: 'from-emerald-400 to-emerald-600 shadow-emerald-500/30',
-                orange: 'from-orange-400 to-orange-600 shadow-orange-500/30',
-                indigo: 'from-indigo-400 to-indigo-600 shadow-indigo-500/30',
-                slate: 'from-slate-700 to-slate-900 shadow-slate-500/30',
-            };
-            
-            card.className = `p-1 rounded-[2rem] bg-gradient-to-br ${themes[currentSlot.theme]} shadow-lg transform transition-all duration-300 hover:scale-[1.01] cursor-pointer`;
-            document.getElementById('dash-card-title').textContent = currentSlot.label;
-            document.getElementById('dash-card-time').textContent = currentSlot.subLabel;
-
-            const listContainer = document.getElementById('dash-other-slots');
-            listContainer.innerHTML = ''; 
-            const tpl = document.getElementById('tpl-slot-item');
-
-            Object.values(SLOT_WAKTU).forEach(slot => {
-                if (slot.id === appState.currentSlotId) return;
-
-                const clone = tpl.content.cloneNode(true);
-                const itemDiv = clone.querySelector('.slot-item');
-                itemDiv.onclick = () => { appState.currentSlotId = slot.id; openAttendance(); };
-
-                clone.querySelector('.slot-icon-bg').className = `slot-icon-bg w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-${slot.theme}-50 dark:bg-${slot.theme}-900/50 text-${slot.theme}-600 dark:text-${slot.theme}-400 group-hover:bg-${slot.theme}-100 dark:group-hover:bg-${slot.theme}-900`;
-                clone.querySelector('.slot-label').textContent = slot.label;
-                
-                const dateKey = getTodayKey();
-                const hasData = appState.attendanceData[dateKey] && appState.attendanceData[dateKey][slot.id];
-                
-                let statusText = "Belum dimulai";
-                let progressWidth = "0%";
-                
-                if(hasData) {
-                    statusText = `${DATA_SANTRI.length}/${DATA_SANTRI.length} Santri`;
-                    progressWidth = "100%";
-                }
-
-                clone.querySelector('.slot-status').textContent = statusText;
-                clone.querySelector('.slot-progress').style.width = progressWidth;
-                clone.querySelector('.slot-progress').className = `slot-progress h-full bg-${slot.theme}-500 w-0 progress-bar rounded-full`;
-
-                listContainer.appendChild(clone);
-            });
-        }
-
-        function updateReportTab() {
-            const container = document.getElementById('report-problem-list');
-            container.innerHTML = '';
-            
-            const dateKey = getTodayKey();
-            const todayData = appState.attendanceData[dateKey] || {};
-            let problemCount = 0;
-
-            DATA_SANTRI.forEach(santri => {
-                let alpaCount = 0;
-                let details = [];
-                Object.keys(todayData).forEach(slotId => {
-                    const sData = todayData[slotId][santri.id];
-                    if (sData && (sData.status.shalat === STATUS.ALPA)) {
-                        alpaCount++;
-                        details.push(SLOT_WAKTU[slotId].label);
-                    }
-                });
-
-                if (alpaCount > 0) {
-                    problemCount++;
-                    const div = document.createElement('div');
-                    div.className = 'bg-white dark:bg-dark-card p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-4 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition slide-up';
-                    div.onclick = () => openSantriModal(santri.id);
-                    div.innerHTML = `
-                        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-sm ring-2 ring-white dark:ring-slate-700 shadow-sm">${santri.avatar}</div>
-                        <div class="flex-1">
-                            <h4 class="font-bold text-slate-700 dark:text-white text-sm">${santri.nama}</h4>
-                            <p class="text-xs text-red-500 dark:text-red-400 font-medium">Alpa: ${details.join(', ')}</p>
-                        </div>
-                        <button class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">Detail</button>
-                    `;
-                    container.appendChild(div);
-                }
-            });
-
-            if(problemCount === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-8 bg-white dark:bg-dark-card rounded-3xl border border-slate-100 dark:border-slate-700 border-dashed">
-                        <i data-lucide="check-circle" class="w-12 h-12 text-emerald-200 dark:text-emerald-900 mx-auto mb-2"></i>
-                        <p class="text-slate-400 text-sm">Alhamdulillah, nihil pelanggaran hari ini.</p>
-                    </div>
-                `;
-            }
-            lucide.createIcons();
-        }
-
-        function updateAttendanceView() {
-            const slot = SLOT_WAKTU[appState.currentSlotId];
-            document.getElementById('att-slot-title').textContent = slot.label;
-            appState.searchQuery = '';
-            document.getElementById('att-search').value = '';
-            renderAttendanceList();
-        }
-
-        function handleSearch(val) {
-            appState.searchQuery = val.toLowerCase();
-            renderAttendanceList();
-        }
-
-        function toggleProblemFilter() {
-            appState.filterProblemOnly = !appState.filterProblemOnly;
-            const btn = document.getElementById('btn-filter-problem');
-            if (appState.filterProblemOnly) {
-                btn.classList.add('bg-red-100', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30', 'dark:text-red-400', 'dark:border-red-800');
-                btn.classList.remove('bg-slate-100', 'text-slate-500', 'border-transparent', 'dark:bg-slate-800', 'dark:text-slate-400');
-                showToast('Filter: Masalah Saja');
-            } else {
-                btn.classList.remove('bg-red-100', 'text-red-600', 'border-red-200', 'dark:bg-red-900/30', 'dark:text-red-400', 'dark:border-red-800');
-                btn.classList.add('bg-slate-100', 'text-slate-500', 'border-transparent', 'dark:bg-slate-800', 'dark:text-slate-400');
-                showToast('Filter: Semua');
-            }
-            renderAttendanceList();
-        }
-
-        function openSantriModal(santriId) {
-            const santri = DATA_SANTRI.find(s => s.id === santriId);
-            if (!santri) return;
-            
-            document.getElementById('modal-avatar').textContent = santri.avatar;
-            document.getElementById('modal-name').textContent = santri.nama;
-            document.getElementById('modal-kamar').textContent = santri.kamar;
-
-            // Stats Hari Ini
-            const dateKey = getTodayKey();
-            const todayData = appState.attendanceData[dateKey] || {};
-            let countHadir = 0;
-            let countAlpa = 0;
-
-            Object.keys(todayData).forEach(slotId => {
-                const sData = todayData[slotId][santri.id];
-                if(sData) {
-                    Object.values(sData.status).forEach(status => {
-                        if(status === STATUS.HADIR || status === STATUS.YA) countHadir++;
-                        if(status === STATUS.ALPA || status === STATUS.TIDAK) countAlpa++;
-                    });
-                }
-            });
-
-            document.getElementById('modal-stat-hadir').textContent = countHadir;
-            document.getElementById('modal-stat-alpa').textContent = countAlpa;
-
-            // Riwayat list (Last 5 days)
-            const historyList = document.getElementById('modal-history-list');
-            historyList.innerHTML = '';
-            
-            // Get all stored dates, sort desc
-            const dates = Object.keys(appState.attendanceData).sort().reverse();
-            let foundHistory = false;
-
-            dates.forEach(date => {
-                const sSlots = appState.attendanceData[date];
-                let dailyStatus = [];
-                Object.keys(sSlots).forEach(slotKey => {
-                    const statusShalat = sSlots[slotKey][santri.id]?.status.shalat;
-                    if(statusShalat === STATUS.ALPA) dailyStatus.push(`${SLOT_WAKTU[slotKey].label}: Alpa`);
-                });
-
-                if(dailyStatus.length > 0) {
-                     foundHistory = true;
-                     const item = document.createElement('div');
-                     item.className = 'text-xs bg-slate-50 dark:bg-slate-800 p-2 rounded flex justify-between';
-                     item.innerHTML = `
-                        <span class="font-bold text-slate-600 dark:text-slate-300">${date}</span>
-                        <span class="text-red-500">${dailyStatus.join(', ')}</span>
-                     `;
-                     historyList.appendChild(item);
-                } else if (date !== getTodayKey()) {
-                     // Show safe days too maybe? Just show problems for now to keep it clean
-                }
-            });
-
-            if(!foundHistory) {
-                historyList.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-2">Tidak ada catatan pelanggaran.</p>';
-            }
-
-            document.getElementById('modal-santri').showModal();
-        }
-
-        function renderAttendanceList() {
-            const container = document.getElementById('attendance-list-container');
-            container.innerHTML = '';
-            
-            const slot = SLOT_WAKTU[appState.currentSlotId];
-            const data = getSlotData(appState.currentSlotId);
-            const rowTpl = document.getElementById('tpl-santri-row');
-            const btnTpl = document.getElementById('tpl-activity-btn');
-
-            const filteredSantri = DATA_SANTRI.filter(santri => {
-                const sData = data[santri.id];
-                const matchesSearch = santri.nama.toLowerCase().includes(appState.searchQuery);
-                let hasProblem = sData.status['shalat'] !== STATUS.HADIR;
-                return appState.filterProblemOnly ? (matchesSearch && hasProblem) : matchesSearch;
-            });
-
-            document.getElementById('att-santri-count').textContent = `${filteredSantri.length} Santri`;
-
-            if (filteredSantri.length === 0) {
-                container.innerHTML = `<div class="flex flex-col items-center justify-center py-10 text-slate-400"><i data-lucide="search-x" class="w-12 h-12 mb-2 opacity-50"></i><p class="text-sm">Tidak ada data.</p></div>`;
-            }
-
-            filteredSantri.forEach(santri => {
-                const sData = data[santri.id];
-                const isProblematic = sData.status['shalat'] === STATUS.ALPA || sData.status['shalat'] === STATUS.SAKIT;
-                const rowClone = rowTpl.content.cloneNode(true);
-                const rowDiv = rowClone.querySelector('.santri-row');
-                
-                if (isProblematic) {
-                    rowDiv.classList.add('ring-1', 'ring-red-200', 'bg-red-50/30', 'dark:bg-red-900/20', 'dark:ring-red-900');
-                    rowDiv.classList.remove('bg-white', 'dark:bg-dark-card');
-                    rowClone.querySelector('.santri-avatar').className = 'santri-avatar w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 ring-2 ring-white dark:ring-red-900 shadow-sm';
-                }
-
-                rowClone.querySelector('.santri-avatar').textContent = santri.avatar;
-                rowClone.querySelector('.santri-name').textContent = santri.nama;
-                rowClone.querySelector('.santri-kamar').textContent = santri.kamar;
-                rowClone.querySelector('.btn-profile').onclick = () => openSantriModal(santri.id);
-
-                const noteSection = rowClone.querySelector('.note-section');
-                const noteInput = rowClone.querySelector('.input-note');
-                const btnEdit = rowClone.querySelector('.btn-edit-note');
-
-                noteInput.value = sData.note;
-                const updateNote = (val) => {
-                     saveNote(santri.id, val);
-                     noteInput.value = val;
-                };
-                noteInput.onchange = (e) => updateNote(e.target.value);
-
-                // Quick Chips Logic
-                rowClone.querySelectorAll('.chip-note').forEach(chip => {
-                    chip.onclick = () => updateNote(chip.textContent);
-                });
-
-                if (appState.noteOpenId === santri.id) {
-                    noteSection.classList.remove('hidden');
-                    btnEdit.classList.add('text-emerald-600', 'bg-emerald-50', 'dark:bg-emerald-900/30', 'dark:text-emerald-400');
-                    btnEdit.classList.remove('text-slate-300', 'dark:text-slate-500');
-                }
-                btnEdit.onclick = () => {
-                    appState.noteOpenId = appState.noteOpenId === santri.id ? null : santri.id;
-                    renderAttendanceList(); 
-                };
-
-                const activityContainer = rowClone.querySelector('.activity-container');
-                slot.activities.forEach(act => {
-                    const btnClone = btnTpl.content.cloneNode(true);
-                    const btn = btnClone.querySelector('.btn-status');
-                    const label = btnClone.querySelector('.lbl-status');
-                    const currentStatus = sData.status[act.id];
-                    const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
-
-                    btn.className = `btn-status w-[3.25rem] h-[3.25rem] rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[3px] group-hover:-translate-y-1 ${uiConfig.class}`;
-                    label.textContent = act.label;
-
-                    if (uiConfig.label.startsWith('icon-')) {
-                        const iconName = uiConfig.label === 'icon-check' ? 'check' : (uiConfig.label === 'icon-minus' ? 'minus' : 'x');
-                        btn.innerHTML = `<i data-lucide="${iconName}" class="w-6 h-6 stroke-[3px]"></i>`;
-                    } else {
-                        btn.innerHTML = `<span class="text-lg font-extrabold">${uiConfig.label}</span>`;
-                    }
-                    btn.onclick = () => handleStatusChange(santri.id, act.id, act.type);
-                    activityContainer.appendChild(btnClone);
-                });
-                container.appendChild(rowClone);
-            });
-            lucide.createIcons();
-        }
-
-        // --- 6. ACTIONS ---
-        function handleStatusChange(studentId, activityId, activityType) {
-            const slotId = appState.currentSlotId;
-            const data = getSlotData(slotId);
-            const studentData = data[studentId];
-            const currentStatus = studentData.status[activityId];
-            let nextStatus;
-
-            if (activityType === 'mandator') {
-                if (currentStatus === STATUS.HADIR) nextStatus = STATUS.SAKIT;
-                else if (currentStatus === STATUS.SAKIT) nextStatus = STATUS.IZIN;
-                else if (currentStatus === STATUS.IZIN) nextStatus = STATUS.ALPA;
-                else nextStatus = STATUS.HADIR;
-            } else {
-                nextStatus = currentStatus === STATUS.YA ? STATUS.TIDAK : STATUS.YA;
-            }
-
-            studentData.status[activityId] = nextStatus;
-
-            // CASCADE LOGIC
-            if (activityId === 'shalat' && (nextStatus === STATUS.ALPA || nextStatus === STATUS.SAKIT || nextStatus === STATUS.IZIN)) {
-                SLOT_WAKTU[slotId].activities.forEach(act => {
-                    if (act.id !== 'shalat') {
-                        studentData.status[act.id] = act.type === 'mandator' ? nextStatus : STATUS.TIDAK;
-                    }
-                });
-            }
-            saveToLocalStorage();
-            renderAttendanceList();
-            showToast('Tersimpan');
-        }
-
-        function handleBulkAction(type) {
-            const data = getSlotData(appState.currentSlotId);
-            const slotConfig = SLOT_WAKTU[appState.currentSlotId];
-            const visibleSantriIds = Array.from(document.querySelectorAll('.santri-name')).map(el => {
-                return DATA_SANTRI.find(s => s.nama === el.textContent).id;
-            });
-            visibleSantriIds.forEach(id => {
-                slotConfig.activities.forEach(act => {
-                    if (type === 'reset') {
-                        data[id].status[act.id] = act.type === 'mandator' ? STATUS.HADIR : STATUS.YA;
-                    } else if (type === 'alpa') {
-                        data[id].status[act.id] = act.type === 'mandator' ? STATUS.ALPA : STATUS.TIDAK;
-                    }
-                });
-            });
-            saveToLocalStorage();
-            renderAttendanceList();
-            showToast(type === 'reset' ? 'Semua Hadir' : 'Semua Alpa');
-        }
-
-        function saveNote(studentId, note) {
-            const data = getSlotData(appState.currentSlotId);
-            data[studentId].note = note;
-            saveToLocalStorage();
-        }
-
-        function showToast(msg = 'Saved') {
-            const indicator = document.getElementById('save-indicator');
-            if(!indicator) {
-                let toast = document.createElement('div');
-                toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white text-white dark:text-slate-800 text-xs font-bold py-3 px-6 rounded-full shadow-2xl z-[100] fade-in flex items-center gap-2';
-                toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 dark:text-emerald-600"></i> ${msg}`;
-                document.body.appendChild(toast);
-                lucide.createIcons();
-                setTimeout(() => toast.remove(), 2500);
-                return;
-            }
-            indicator.innerHTML = `<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full fade-in shadow-sm border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">${msg}</span>`;
-            setTimeout(() => { if(indicator) indicator.innerHTML = ''; }, 2000);
-        }
-
-        window.onload = init;
-    </script>
 </body>
 </html>
