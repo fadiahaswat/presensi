@@ -89,11 +89,23 @@ function toggleDarkMode() {
 }
 
 function handleClearData() {
-    if(confirm('Yakin hapus data hari ini? Data tidak bisa dikembalikan.')) {
+    // 1. Tanya konfirmasi dulu
+    if(!confirm('PERINGATAN: Data presensi hari ini akan dihapus permanen. Lanjutkan?')) {
+        return; // Batalkan jika pilih No
+    }
+
+    // 2. Minta PIN keamanan
+    let pinInput = prompt("Masukkan PIN Keamanan untuk menghapus:");
+
+    // 3. Cek apakah PIN benar (PIN bawaan '1234')
+    if(pinInput === '1234') {
         localStorage.removeItem(STORAGE_KEY);
         appState.attendanceData = {};
         showToast("Data berhasil direset");
-        switchTab('home');
+        // Refresh halaman agar bersih
+        window.location.reload();
+    } else {
+        alert("PIN SALAH! Penghapusan dibatalkan.");
     }
 }
 
