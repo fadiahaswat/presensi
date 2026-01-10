@@ -604,6 +604,15 @@ window.showToast = function(message, type = 'info') {
 window.changeDateView = function(direction) {
     const current = new Date(appState.date);
     current.setDate(current.getDate() + direction);
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    // Validasi: Jangan biarkan ke masa depan
+    if (current > today) {
+        return window.showToast("Tidak bisa melihat masa depan", "warning");
+    }
+
     appState.date = current.toISOString().split('T')[0];
     
     window.updateDateDisplay();
