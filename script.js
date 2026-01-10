@@ -79,7 +79,7 @@ function toggleDarkMode() {
     }
 }
 
-// --- 3. CORE INIT LOGIC (FIXED) ---
+// --- 3. INIT LOGIC (PERBAIKAN MAPPING DISINI) ---
 
 function getTodayKey() { return appState.selectedDate; }
 
@@ -95,35 +95,34 @@ async function init() {
         // 1. Load Data Kelas
         if (window.loadClassData) {
             DATA_KELAS = await window.loadClassData();
-            console.log("RAW DATA KELAS:", DATA_KELAS); // Debugging
         }
         
         // 2. Load Data Santri
         if (window.loadSantriData) {
             const rawSantriData = await window.loadSantriData();
-            console.log("RAW DATA SANTRI:", rawSantriData); // Debugging
+            console.log("Data Mentah dari Apps Script:", rawSantriData); // Cek Console browser jika masih error
 
             if (rawSantriData && rawSantriData.length > 0) {
-                // 3. Map Data dengan Pengecekan Nama Kolom (Case Insensitive)
+                // 3. MAP DATA DENGAN BENAR (Sesuai Code.gs)
                 DATA_SANTRI = rawSantriData.map(s => {
-                    // Cek berbagai kemungkinan nama kolom
-                    const idVal = s.nis || s.NIS || s.id || s.ID;
-                    const id = idVal ? idVal.toString() : `temp_${Math.random().toString(36).substr(2, 9)}`;
-                    
-                    const nama = s.nama || s.Nama || s.NAMA || "Tanpa Nama";
-                    const kamar = s.kelas || s.Kelas || s.rombel || s.kamar || "Umum";
-                    
+                    // Code.gs mengirim keys: nis, nama, kelas, asrama
+                    const id = s.nis ? s.nis.toString() : `temp_${Math.random().toString(36).substr(2, 9)}`;
                     const prefs = (window.SantriManager) ? window.SantriManager.getPrefs(id) : {};
                     
                     return {
                         id: id,
-                        nama: nama,
-                        kamar: kamar, 
-                        avatar: prefs.avatar || generateInitials(nama)
+                        nama: s.nama || "Tanpa Nama", // Key 'nama' dari Code.gs
+                        
+                        // PERBAIKAN UTAMA: Ambil 'asrama' dulu untuk ditampilkan di kartu
+                        // Code.gs mengirim kolom F sebagai key 'asrama'
+                        kamar: s.asrama && s.asrama !== "-" ? s.asrama : (s.kelas || "Umum"), 
+                        
+                        kelas: s.kelas, // Simpan kelas asli juga
+                        avatar: prefs.avatar || generateInitials(s.nama)
                     };
                 });
             } else {
-                console.warn("Data Santri dari server KOSONG.");
+                console.warn("Data Santri kosong. Cek Spreadsheet.");
             }
             
             // 4. Parse untuk SantriManager
@@ -134,42 +133,33 @@ async function init() {
 
     } catch (error) {
         console.error("Error initializing data:", error);
-        alert("Gagal memuat data dari server. Aplikasi berjalan dengan data cache (jika ada).");
+        alert("Gagal koneksi server. Cek internet atau URL Apps Script.");
     }
 
     lucide.createIcons();
     updateDashboard();
-    updateProfileInfo(); // Update Tampilan Profil Musyrif
+    updateProfileInfo(); // Update Tampilan Profil
     
     setTimeout(() => {
         if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
-    }, 800);
+    }, 1000);
 }
 
-// FUNGSI BARU: Update Info Musyrif di Tab Profil
+// Menampilkan Data Musyrif di Profil (Contoh mengambil dari data kelas pertama)
 function updateProfileInfo() {
     const profileNameEl = document.getElementById('profile-name');
     const profileRoleEl = document.getElementById('profile-role');
     
     if(!profileNameEl || !profileRoleEl) return;
 
-    // Logika Sederhana: Ambil nama musyrif dari kelas pertama yang ditemukan
-    // Karena kita tidak tahu user login sebagai siapa, kita ambil sampel data kelas
+    // Ambil sample data dari salah satu kelas
     const kelasKeys = Object.keys(DATA_KELAS);
-    
     if (kelasKeys.length > 0) {
-        // Ambil kelas pertama sebagai contoh
-        const sampleKelas = DATA_KELAS[kelasKeys[0]];
+        const sampleKelas = DATA_KELAS[kelasKeys[0]]; // Ambil kelas pertama yg ditemukan
         if (sampleKelas && sampleKelas.musyrif) {
             profileNameEl.textContent = sampleKelas.musyrif;
-            profileRoleEl.textContent = "Musyrif Asrama";
-        } else {
-            profileNameEl.textContent = "Ustadz Musyrif";
-            profileRoleEl.textContent = "Data Kelas Belum Lengkap";
+            profileRoleEl.textContent = "Musyrif Bertugas";
         }
-    } else {
-        profileNameEl.textContent = "Ustadz Musyrif";
-        profileRoleEl.textContent = "Mode Offline / Tanpa Data";
     }
 }
 
@@ -195,7 +185,7 @@ function getSlotData(slotId) {
         });
     }
     
-    // Sinkronisasi data baru
+    // Sinkronisasi jika ada santri baru dari server
     DATA_SANTRI.forEach(santri => {
         if(!appState.attendanceData[dateKey][slotId][santri.id]) {
              const statuses = {};
@@ -320,6 +310,8 @@ function updateDashboard() {
         slate: 'from-slate-700 to-slate-900',
     };
     
+    // Reset Class
+    card.className = "";
     card.className = `cursor-pointer rounded-[2.5rem] p-7 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ring-1 ring-white/10 bg-gradient-to-br ${themes[currentSlot.theme]}`;
     
     document.getElementById('dash-card-title').textContent = currentSlot.label;
@@ -545,7 +537,7 @@ function renderAttendanceList() {
 
         rowClone.querySelector('.santri-avatar').textContent = santri.avatar;
         rowClone.querySelector('.santri-name').textContent = santri.nama;
-        rowClone.querySelector('.santri-kamar').textContent = santri.kamar;
+        rowClone.querySelector('.santri-kamar').textContent = santri.kamar; // Akan menampilkan Asrama
         rowClone.querySelector('.btn-profile').onclick = () => openSantriModal(santri.id);
 
         const noteSection = rowClone.querySelector('.note-section');
@@ -670,6 +662,7 @@ function showToast(msg = 'Saved') {
     setTimeout(() => { if(indicator) indicator.innerHTML = ''; }, 2000);
 }
 
+// --- MODIFIED MENU SANTRI (READ ONLY) ---
 function bukaMenuSantri() {
     renderListEditorSantri();
     document.getElementById('modal-manage-santri').showModal();
@@ -681,7 +674,7 @@ function renderListEditorSantri() {
     
     const infoDiv = document.createElement('div');
     infoDiv.className = 'p-3 mb-3 bg-blue-50 text-blue-700 text-xs rounded-xl border border-blue-100';
-    infoDiv.innerText = "Info: Data santri diambil dari Server (Google Sheet). Perubahan di sini bersifat sementara.";
+    infoDiv.innerText = "Info: Data santri diambil dari Server (Google Sheet). Tambah/Edit data di Spreadsheet.";
     container.appendChild(infoDiv);
 
     const sortedSantri = [...DATA_SANTRI].sort((a, b) => a.nama.localeCompare(b.nama));
@@ -703,11 +696,7 @@ function renderListEditorSantri() {
 }
 
 function tambahSantriBaru() {
-    alert("Fitur Tambah Santri dimatikan karena data diambil otomatis dari Google Sheet. Silakan tambahkan di Spreadsheet.");
-}
-
-function hapusSantri(id) {
-    alert("Fitur Hapus Santri dimatikan. Silakan hapus data dari Google Sheet.");
+    alert("Fitur Tambah Santri dimatikan. Data diambil dari Google Sheet.");
 }
 
 function handleGantiPin() {
