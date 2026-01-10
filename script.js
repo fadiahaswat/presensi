@@ -668,6 +668,13 @@ function saveNote(studentId, note) {
 }
 
 function showToast(msg = 'Saved') {
+    // --- TAMBAHAN BARU: EFEK GETAR ---
+    // Cek apakah HP mendukung fitur getar
+    if (navigator.vibrate) {
+        navigator.vibrate(50); // Getar selama 50 milidetik (singkat)
+    }
+    // ---------------------------------
+
     const indicator = document.getElementById('save-indicator');
     if(!indicator) {
         let toast = document.createElement('div');
