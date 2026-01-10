@@ -1,14 +1,32 @@
-// --- 1. DATA MASTER & CONFIG ---
+// File: script.js
 
-let DATA_SANTRI = []; 
-let DATA_KELAS = {};
+// --- CONFIG ---
+const APP_CONFIG = {
+    storageKey: 'musyrif_app_v5_presensi',
+    pinDefault: '1234'
+};
 
+// --- GLOBAL STATE ---
+let appState = {
+    selectedClass: null,    // Kelas yang sedang aktif (Login)
+    currentSlotId: 'shubuh',
+    attendanceData: {},     // Data presensi harian
+    searchQuery: '',
+    filterProblemOnly: false,
+    date: new Date().toISOString().split('T')[0]
+};
+
+// --- DATA MASTERS (Diisi oleh data-*.js) ---
+let MASTER_SANTRI = []; // Semua santri satu sekolah
+let MASTER_KELAS = {};  // Data wali & musyrif per kelas
+let FILTERED_SANTRI = []; // Santri HANYA kelas yang dipilih
+
+// --- SLOT WAKTU CONFIG ---
 const SLOT_WAKTU = {
     shubuh: { id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', activities: [
         { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
         { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah', icon: 'heart' },
         { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', icon: 'book-open' },
-        { id: 'dzikir', label: 'Dzikir', type: 'sunnah', icon: 'volume-2' },
         { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah', icon: 'moon' }
     ]},
     ashar: { id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', activities: [
@@ -18,10 +36,7 @@ const SLOT_WAKTU = {
     maghrib: { id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', activities: [
         { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
         { id: 'bakdiyah', label: 'Bakdiyah', type: 'sunnah', icon: 'heart' },
-        { id: 'tahsin', label: 'Tahsin', type: 'mandator', icon: 'book-open' },
-        { id: 'conversation', label: 'Hiwar', type: 'mandator', icon: 'message-circle' },
-        { id: 'vocab', label: 'Vocab', type: 'mandator', icon: 'mic' },
-        { id: 'puasa', label: 'Puasa', type: 'sunnah', icon: 'coffee' }
+        { id: 'tahsin', label: 'Tahsin', type: 'mandator', icon: 'book-open' }
     ]},
     isya: { id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', activities: [
         { id: 'shalat', label: 'Shalat', type: 'mandator', icon: 'users' },
@@ -29,231 +44,424 @@ const SLOT_WAKTU = {
     ]}
 };
 
-const STATUS = { HADIR: 'Hadir', SAKIT: 'Sakit', IZIN: 'Izin', ALPA: 'Alpa', YA: 'Ya', TIDAK: 'Tidak' };
-
 const STATUS_UI = {
-    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 dark:shadow-none shadow-lg', label: 'icon-check' },
-    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500 shadow-emerald-200 dark:shadow-none shadow-lg', label: 'icon-check' },
-    'Sakit': { class: 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700', label: 'S' },
-    'Izin': { class: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700', label: 'I' },
-    'Alpa': { class: 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 border-red-200 dark:border-red-800', label: 'icon-x' },
-    'Tidak': { class: 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-slate-700', label: 'icon-minus' }
+    'Hadir': { class: 'bg-emerald-500 text-white', label: 'icon-check' },
+    'Ya': { class: 'bg-emerald-500 text-white', label: 'icon-check' },
+    'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
+    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
+    'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'icon-x' },
+    'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: 'icon-minus' }
 };
 
-let appState = {
-    currentSlotId: 'shubuh',
-    attendanceData: {}, 
-    noteOpenId: null,
-    searchQuery: '',
-    filterProblemOnly: false,
-    darkMode: false,
-    selectedDate: new Date().toISOString().split('T')[0],
-    selectedClass: null // PERBAIKAN: Menyimpan kelas yang dipilih saat login
-};
+// ==========================================
+// 1. INITIALIZATION FLOW
+// ==========================================
 
-const STORAGE_KEY = 'musyrif_app_v4';
-
-function loadFromStorage() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if(saved) {
-        appState.attendanceData = JSON.parse(saved);
-    }
-    const theme = localStorage.getItem('theme');
-    if(theme === 'dark') {
-        appState.darkMode = true;
-        document.documentElement.classList.add('dark');
-    }
-}
-
-function saveToLocalStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.attendanceData));
-}
-
-function toggleDarkMode() {
-    appState.darkMode = !appState.darkMode;
-    if(appState.darkMode) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-    } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-    }
-}
-
-// --- 3. CORE INIT LOGIC ---
-
-function getTodayKey() { return appState.selectedDate; }
-
-async function init() {
+async function initApp() {
     const loadingEl = document.getElementById('view-loading');
-    if(loadingEl) loadingEl.classList.remove('opacity-0', 'pointer-events-none');
     
-    loadFromStorage();
-    startClock();
-    autoDetectSlot();
+    // 1. Load Local Storage (Presensi)
+    const savedData = localStorage.getItem(APP_CONFIG.storageKey);
+    if (savedData) appState.attendanceData = JSON.parse(savedData);
 
+    // 2. Load Data Master (Parallel Fetch)
     try {
-        // 1. Load Data Kelas
-        if (window.loadClassData) {
-            DATA_KELAS = await window.loadClassData();
-            // PERBAIKAN: Isi dropdown login setelah data kelas siap
-            populateLoginDropdown(); 
+        // Cek apakah script pendukung sudah dimuat
+        if (!window.loadClassData || !window.loadSantriData) {
+            throw new Error("Script data-kelas.js atau data-santri.js belum terpasang!");
         }
+
+        // Jalankan fetch bersamaan biar cepat
+        await Promise.all([
+            window.loadClassData().then(data => MASTER_KELAS = data),
+            window.loadSantriData().then(data => MASTER_SANTRI = data)
+        ]);
+
+        console.log("🚀 Init Selesai. Santri:", MASTER_SANTRI.length, "Kelas:", Object.keys(MASTER_KELAS).length);
+
+        // 3. Setup UI Login
+        populateClassDropdown();
         
-        // 2. Load Data Santri
-        if (window.loadSantriData) {
-            const rawSantriData = await window.loadSantriData();
+        // Hide Loading
+        if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
 
-            if (rawSantriData && rawSantriData.length > 0) {
-                DATA_SANTRI = rawSantriData.map(s => {
-                    const id = s.nis ? s.nis.toString() : `temp_${Math.random().toString(36).substr(2, 9)}`;
-                    const prefs = (window.SantriManager) ? window.SantriManager.getPrefs(id) : {};
-                    
-                    return {
-                        id: id,
-                        nama: s.nama || "Tanpa Nama", 
-                        kamar: s.asrama && s.asrama !== "-" ? s.asrama : (s.kelas || "Umum"), 
-                        kelas: s.kelas, // PENTING: Simpan atribut kelas asli untuk filter
-                        avatar: prefs.avatar || generateInitials(s.nama)
-                    };
-                });
-            } else {
-                console.warn("Data Santri kosong. Cek Spreadsheet.");
-            }
-            
-            if (window.parseSantriData) {
-                window.parseSantriData(); 
-            }
-        }
-
-    } catch (error) {
-        console.error("Error initializing data:", error);
-        alert("Gagal memuat data dari server.");
+    } catch (err) {
+        console.error("Critical Init Error:", err);
+        alert("Gagal memuat data: " + err.message);
     }
 
+    startClock();
     lucide.createIcons();
-    
-    // Jangan langsung update dashboard, tunggu login dulu
-    // updateDashboard(); 
-    
-    setTimeout(() => {
-        if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
-    }, 1000);
 }
 
-// PERBAIKAN: Fungsi Mengisi Dropdown Login
-function populateLoginDropdown() {
+// Mengisi Dropdown Kelas di Halaman Login
+function populateClassDropdown() {
     const select = document.getElementById('login-kelas');
-    if(!select) return;
+    if (!select) return;
 
-    select.innerHTML = '<option value="" disabled selected>-- Pilih Kelas Binaan --</option>';
+    select.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
     
-    // Ambil daftar kelas dari DATA_KELAS dan urutkan
-    const sortedKelas = Object.keys(DATA_KELAS).sort();
+    // Urutkan kelas secara alfabetis
+    const sortedKeys = Object.keys(MASTER_KELAS).sort();
     
-    sortedKelas.forEach(kelas => {
+    sortedKeys.forEach(kelas => {
         const option = document.createElement('option');
         option.value = kelas;
-        option.textContent = `Kelas ${kelas} (${DATA_KELAS[kelas].musyrif})`;
+        // Tampilkan Nama Kelas + Nama Musyrif
+        const musyrif = MASTER_KELAS[kelas].musyrif || "Tanpa Musyrif";
+        option.textContent = `${kelas} - ${musyrif}`;
         select.appendChild(option);
     });
 }
 
-// PERBAIKAN: Fungsi Update Profil sesuai Kelas Terpilih
-function updateProfileInfo() {
-    const profileNameEl = document.getElementById('profile-name');
-    const profileRoleEl = document.getElementById('profile-role');
-    
-    if(!profileNameEl || !profileRoleEl) return;
+// ==========================================
+// 2. LOGIN & FILTERING LOGIC
+// ==========================================
 
-    if (appState.selectedClass && DATA_KELAS[appState.selectedClass]) {
-        const kelasInfo = DATA_KELAS[appState.selectedClass];
-        profileNameEl.textContent = kelasInfo.musyrif || "Ustadz Musyrif";
-        profileRoleEl.textContent = `Musyrif Kelas ${appState.selectedClass}`;
-    } else {
-        profileNameEl.textContent = "Ustadz Musyrif";
-        profileRoleEl.textContent = "Belum Login";
+function handleLogin() {
+    const selectKelas = document.getElementById('login-kelas');
+    const inputPin = document.getElementById('login-pin');
+    
+    const selectedClass = selectKelas.value;
+    const pin = inputPin.value;
+    
+    // Validasi
+    if (!selectedClass) {
+        alert("Silakan pilih kelas terlebih dahulu!");
+        return;
     }
-}
-
-function generateInitials(name) {
-    if(!name) return "??";
-    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-}
-
-// PERBAIKAN: getSlotData sekarang tidak memfilter, filter dilakukan di render
-function getSlotData(slotId) {
-    const dateKey = getTodayKey();
-    if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     
-    if (!appState.attendanceData[dateKey][slotId]) {
-        const slotConfig = SLOT_WAKTU[slotId];
-        appState.attendanceData[dateKey][slotId] = {};
+    const savedPin = localStorage.getItem('musyrif_pin') || APP_CONFIG.pinDefault;
+    
+    if (pin === savedPin) {
+        // LOGIN SUKSES
+        appState.selectedClass = selectedClass;
         
-        // Inisialisasi data untuk SEMUA santri dulu (biar tersimpan di db)
-        DATA_SANTRI.forEach(santri => {
-            const statuses = {};
-            slotConfig.activities.forEach(act => {
-                statuses[act.id] = act.type === 'mandator' ? STATUS.HADIR : STATUS.YA;
-            });
-            appState.attendanceData[dateKey][slotId][santri.id] = { status: statuses, note: '' };
-        });
+        // FILTER DATA SANTRI SEKARANG!
+        // Logika: Filter data santri yg kolom 'kelas' nya sama dengan pilihan
+        FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
+            // Normalisasi string agar aman (trim spasi)
+            const sKelas = String(s.kelas || "").trim();
+            return sKelas === selectedClass;
+        }).sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
+
+        console.log(`✅ Login Kelas ${selectedClass}. Ditemukan ${FILTERED_SANTRI.length} santri.`);
+
+        if (FILTERED_SANTRI.length === 0) {
+            alert(`Peringatan: Tidak ada data santri untuk kelas ${selectedClass} di database.`);
+        }
+
+        // Pindah View
+        document.getElementById('view-login').classList.add('hidden');
+        document.getElementById('view-main').classList.remove('hidden');
+        
+        // Setup Dashboard
+        updateProfileInfo();
+        updateDashboard();
+        
+        inputPin.value = ""; // Clear PIN
+    } else {
+        alert("PIN Salah! Coba lagi.");
+        inputPin.value = "";
+        inputPin.focus();
     }
+}
+
+function handleLogout() {
+    appState.selectedClass = null;
+    FILTERED_SANTRI = []; // Reset filter
+    document.getElementById('view-main').classList.add('hidden');
+    document.getElementById('view-login').classList.remove('hidden');
+}
+
+// ==========================================
+// 3. DASHBOARD & RENDER
+// ==========================================
+
+function updateProfileInfo() {
+    const nameEl = document.getElementById('profile-name');
+    const roleEl = document.getElementById('profile-role');
     
-    // Sinkronisasi santri baru
-    DATA_SANTRI.forEach(santri => {
-        if(!appState.attendanceData[dateKey][slotId][santri.id]) {
-             const statuses = {};
-             SLOT_WAKTU[slotId].activities.forEach(act => {
-                statuses[act.id] = act.type === 'mandator' ? STATUS.HADIR : STATUS.YA;
-            });
-            appState.attendanceData[dateKey][slotId][santri.id] = { status: statuses, note: '' };
+    if (appState.selectedClass && MASTER_KELAS[appState.selectedClass]) {
+        const info = MASTER_KELAS[appState.selectedClass];
+        nameEl.textContent = info.musyrif || "Ustadz Musyrif";
+        roleEl.textContent = `Musyrif Kelas ${appState.selectedClass}`;
+    }
+}
+
+function updateDashboard() {
+    // Update Statistik
+    document.getElementById('dash-greeting').textContent = getGreeting();
+    
+    // Render List Jadwal
+    const container = document.getElementById('dash-other-slots');
+    container.innerHTML = '';
+    const template = document.getElementById('tpl-slot-item');
+
+    Object.values(SLOT_WAKTU).forEach(slot => {
+        // Skip slot yang sedang aktif (ditampilkan di kartu utama)
+        if (slot.id === appState.currentSlotId) {
+            updateMainCard(slot);
+            return;
+        }
+
+        const clone = template.content.cloneNode(true);
+        const item = clone.querySelector('.slot-item');
+        
+        // Styling
+        clone.querySelector('.slot-label').textContent = slot.label;
+        clone.querySelector('.slot-icon-bg').classList.add(`bg-${slot.theme}-50`, `text-${slot.theme}-600`);
+        
+        // Cek Progress
+        const progress = calculateSlotProgress(slot.id);
+        clone.querySelector('.slot-status').textContent = progress.text;
+        
+        const bar = clone.querySelector('.slot-progress');
+        bar.style.width = progress.percent + "%";
+        bar.classList.add(`bg-${slot.theme}-500`);
+
+        item.onclick = () => {
+            appState.currentSlotId = slot.id;
+            openAttendanceView();
+        };
+
+        container.appendChild(clone);
+    });
+    
+    lucide.createIcons();
+}
+
+function updateMainCard(slot) {
+    const card = document.getElementById('dash-main-card');
+    const title = document.getElementById('dash-card-title');
+    const time = document.getElementById('dash-card-time');
+    
+    // Reset Class
+    card.className = "cursor-pointer rounded-[2.5rem] p-7 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ring-1 ring-white/10";
+    
+    // Tambah Gradient sesuai tema
+    const gradients = {
+        emerald: 'bg-gradient-to-br from-emerald-600 to-teal-500',
+        orange: 'bg-gradient-to-br from-orange-500 to-red-500',
+        indigo: 'bg-gradient-to-br from-indigo-600 to-blue-500',
+        slate: 'bg-gradient-to-br from-slate-700 to-slate-900'
+    };
+    card.classList.add(...gradients[slot.theme].split(' '));
+    
+    title.textContent = slot.label;
+    time.textContent = slot.subLabel;
+}
+
+function calculateSlotProgress(slotId) {
+    if (FILTERED_SANTRI.length === 0) return { percent: 0, text: "0/0 Santri" };
+
+    const dateKey = appState.date;
+    const dataHarian = appState.attendanceData[dateKey];
+    
+    if (!dataHarian || !dataHarian[slotId]) {
+        return { percent: 0, text: `0/${FILTERED_SANTRI.length} Santri` };
+    }
+
+    // Hitung berapa santri di KELAS INI yang sudah punya status absen
+    let checkedCount = 0;
+    FILTERED_SANTRI.forEach(s => {
+        // Ambil ID yg dinormalisasi string
+        const id = String(s.nis || s.id);
+        const record = dataHarian[slotId][id];
+        
+        // Anggap sudah absen jika record ada dan status shalat sudah diisi
+        if (record && record.status && record.status.shalat) {
+            checkedCount++;
         }
     });
 
-    return appState.attendanceData[dateKey][slotId];
+    const percent = Math.round((checkedCount / FILTERED_SANTRI.length) * 100);
+    return { percent: percent, text: `${checkedCount}/${FILTERED_SANTRI.length} Santri` };
 }
 
-// PERBAIKAN: Hitung statistik HANYA untuk kelas yang dipilih
-function calculateStats() {
-    if (!appState.selectedClass) return 0;
+// ==========================================
+// 4. ATTENDANCE LIST (CORE FEATURE)
+// ==========================================
 
-    let totalChecks = 0, totalHadir = 0;
-    const data = appState.attendanceData[getTodayKey()] || {};
+function openAttendanceView() {
+    document.getElementById('view-main').classList.add('hidden');
+    document.getElementById('view-attendance').classList.remove('hidden');
     
-    // Filter santri berdasarkan kelas yang dipilih
-    const santriKelasIni = DATA_SANTRI.filter(s => s.kelas === appState.selectedClass);
-    const santriIds = santriKelasIni.map(s => s.id);
+    const slot = SLOT_WAKTU[appState.currentSlotId];
+    document.getElementById('att-slot-title').textContent = slot.label;
+    
+    renderAttendanceList();
+}
 
-    Object.keys(data).forEach(slotId => {
-        Object.keys(data[slotId]).forEach(santriId => {
-            // Hanya hitung jika santri ini ada di kelas yang dipilih
-            if (santriIds.includes(santriId) || santriIds.includes(String(santriId))) {
-                const sData = data[slotId][santriId];
-                if (sData.status.shalat) {
-                    totalChecks++;
-                    if (sData.status.shalat === STATUS.HADIR) totalHadir++;
-                }
+function closeAttendance() {
+    document.getElementById('view-attendance').classList.add('hidden');
+    document.getElementById('view-main').classList.remove('hidden');
+    updateDashboard(); // Refresh data dashboard
+}
+
+function renderAttendanceList() {
+    const container = document.getElementById('attendance-list-container');
+    container.innerHTML = '';
+    
+    const slot = SLOT_WAKTU[appState.currentSlotId];
+    
+    // Pastikan struktur data hari ini ada
+    const dateKey = appState.date;
+    if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    if (!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
+
+    const dbSlot = appState.attendanceData[dateKey][slot.id];
+
+    // Filter Pencarian
+    const search = appState.searchQuery.toLowerCase();
+    const listToRender = FILTERED_SANTRI.filter(s => 
+        s.nama.toLowerCase().includes(search)
+    );
+
+    document.getElementById('att-santri-count').textContent = `${listToRender.length} Santri`;
+
+    const rowTemplate = document.getElementById('tpl-santri-row');
+    const btnTemplate = document.getElementById('tpl-activity-btn');
+
+    listToRender.forEach(santri => {
+        const santriId = String(santri.nis || santri.id);
+        
+        // Init data santri jika belum ada di DB lokal
+        if (!dbSlot[santriId]) {
+            const initialStatus = {};
+            slot.activities.forEach(act => {
+                initialStatus[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya'; // Default Hadir
+            });
+            dbSlot[santriId] = { status: initialStatus, note: '' };
+        }
+
+        const sData = dbSlot[santriId];
+        const clone = rowTemplate.content.cloneNode(true);
+        
+        // Isi Data Personal
+        clone.querySelector('.santri-name').textContent = santri.nama;
+        clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas; // Prioritas Asrama
+        clone.querySelector('.santri-avatar').textContent = getInitials(santri.nama);
+
+        // Jika Alpa/Sakit, beri highlight merah
+        if (sData.status.shalat === 'Alpa' || sData.status.shalat === 'Sakit') {
+            const row = clone.querySelector('.santri-row');
+            row.classList.remove('bg-white', 'dark:bg-slate-800');
+            row.classList.add('bg-red-50', 'border-red-200');
+        }
+
+        // Render Tombol Aktivitas
+        const btnContainer = clone.querySelector('.activity-container');
+        slot.activities.forEach(act => {
+            const btnClone = btnTemplate.content.cloneNode(true);
+            const btn = btnClone.querySelector('.btn-status');
+            const lbl = btnClone.querySelector('.lbl-status');
+            
+            const currentStatus = sData.status[act.id];
+            const ui = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
+
+            // Style Tombol
+            btn.className = `btn-status w-[3.5rem] h-[3.5rem] rounded-[1.2rem] flex items-center justify-center shadow-sm transition-all active:scale-95 border-2 ${ui.class}`;
+            
+            // Icon Logic
+            if (ui.label.startsWith('icon-')) {
+                const iconMap = { 'icon-check': 'check', 'icon-x': 'x', 'icon-minus': 'minus' };
+                btn.innerHTML = `<i data-lucide="${iconMap[ui.label]}" class="w-6 h-6 stroke-[3px]"></i>`;
+            } else {
+                btn.textContent = ui.label;
+                btn.classList.add('font-black', 'text-lg');
             }
+            lbl.textContent = act.label;
+
+            // Click Event
+            btn.onclick = () => toggleStatus(santriId, act.id, act.type);
+            
+            btnContainer.appendChild(btnClone);
         });
+
+        // Catatan
+        const btnNote = clone.querySelector('.btn-edit-note');
+        const noteSec = clone.querySelector('.note-section');
+        const inputNote = clone.querySelector('.input-note');
+        
+        inputNote.value = sData.note || "";
+        inputNote.onchange = (e) => {
+            sData.note = e.target.value;
+            saveData();
+        };
+
+        btnNote.onclick = () => {
+            noteSec.classList.toggle('hidden');
+        };
+
+        container.appendChild(clone);
     });
 
-    if (totalChecks === 0) return 0;
-    return Math.round((totalHadir / totalChecks) * 100);
+    lucide.createIcons();
 }
 
-// --- 4. NAVIGATION & TIME ---
+function toggleStatus(santriId, actId, type) {
+    const slotId = appState.currentSlotId;
+    const dateKey = appState.date;
+    const sData = appState.attendanceData[dateKey][slotId][santriId];
+    
+    const current = sData.status[actId];
+    let next = 'Hadir';
+
+    if (type === 'mandator') {
+        // Cycle: Hadir -> Sakit -> Izin -> Alpa -> Hadir
+        if (current === 'Hadir') next = 'Sakit';
+        else if (current === 'Sakit') next = 'Izin';
+        else if (current === 'Izin') next = 'Alpa';
+        else next = 'Hadir';
+    } else {
+        // Cycle: Ya -> Tidak -> Ya
+        next = (current === 'Ya') ? 'Tidak' : 'Ya';
+    }
+
+    sData.status[actId] = next;
+    
+    // Auto-update related activities if Mandator changes to non-present
+    if (actId === 'shalat' && ['Sakit', 'Izin', 'Alpa'].includes(next)) {
+        // Jika Shalat tidak hadir, maka aktivitas sunnah/lainnya otomatis "Tidak"
+        Object.keys(sData.status).forEach(k => {
+            if (k !== 'shalat') sData.status[k] = 'Tidak';
+        });
+    } else if (actId === 'shalat' && next === 'Hadir') {
+        // Reset ke default jika kembali hadir
+        Object.keys(sData.status).forEach(k => {
+            if (k !== 'shalat') sData.status[k] = 'Ya'; // Default sunnah
+        });
+    }
+
+    saveData();
+    renderAttendanceList();
+}
+
+// ==========================================
+// 5. UTILS
+// ==========================================
+
+function saveData() {
+    localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
+}
+
+function handleSearch(val) {
+    appState.searchQuery = val;
+    renderAttendanceList();
+}
+
+function getInitials(name) {
+    if (!name) return "??";
+    return name.split(' ').slice(0,2).map(n => n[0]).join('').toUpperCase();
+}
 
 function startClock() {
-    function update() {
+    setInterval(() => {
         const now = new Date();
-        const dateString = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' });
-        const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         const el = document.getElementById('dash-clock');
-        if(el) el.textContent = `${dateString} • ${timeString} WIB`;
-    }
-    update();
-    setInterval(update, 1000);
+        if (el) el.textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    }, 1000);
 }
 
 function getGreeting() {
@@ -264,624 +472,53 @@ function getGreeting() {
     return "Selamat Malam";
 }
 
-function autoDetectSlot() {
-    const hour = new Date().getHours();
-    if (hour >= 3 && hour < 10) appState.currentSlotId = 'shubuh';
-    else if (hour >= 15 && hour < 17) appState.currentSlotId = 'ashar';
-    else if (hour >= 17 && hour < 19) appState.currentSlotId = 'maghrib';
-    else appState.currentSlotId = 'isya';
-}
-
-// PERBAIKAN: Logic Login Baru
-function handleLogin() {
-    const selectKelas = document.getElementById('login-kelas');
-    const inputField = document.getElementById('login-pin');
-    
-    const selectedClass = selectKelas.value;
-    const inputPin = inputField.value;
-    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
-
-    if (!selectedClass) {
-        alert("Mohon pilih kelas terlebih dahulu!");
+// Fungsi Export CSV
+function exportToCSV() {
+    if (!FILTERED_SANTRI.length) {
+        alert("Belum ada data untuk diexport.");
         return;
     }
 
-    if (inputPin === storedPin) {
-        // Simpan state kelas yang dipilih
-        appState.selectedClass = selectedClass;
-        
-        document.getElementById('view-login').classList.add('hidden');
-        document.getElementById('view-main').classList.remove('hidden');
-        
-        // Render ulang dashboard sesuai kelas terpilih
-        updateDashboard();
-        updateProfileInfo();
-        
-        switchTab('home');
-        inputField.value = ''; 
-    } else {
-        alert("PIN SALAH! Silakan coba lagi.");
-        inputField.value = '';
-        inputField.focus();
-    }
+    let csv = "Tanggal,Slot,Nama,Kelas,Kegiatan,Status,Catatan\n";
+    const dateKey = appState.date;
+    
+    Object.keys(SLOT_WAKTU).forEach(slotKey => {
+        const slotData = appState.attendanceData[dateKey]?.[slotKey];
+        if (!slotData) return;
+
+        FILTERED_SANTRI.forEach(s => {
+            const id = String(s.nis || s.id);
+            const record = slotData[id];
+            if (record) {
+                Object.keys(record.status).forEach(actId => {
+                    const actName = SLOT_WAKTU[slotKey].activities.find(a => a.id === actId)?.label || actId;
+                    csv += `${dateKey},${SLOT_WAKTU[slotKey].label},"${s.nama}","${s.kelas}","${actName}","${record.status[actId]}","${record.note || ''}"\n`;
+                });
+            }
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Presensi_${appState.selectedClass}_${dateKey}.csv`;
+    a.click();
 }
 
-function handleLogout() {
-    appState.selectedClass = null; // Reset kelas saat logout
-    document.getElementById('view-main').classList.add('hidden');
-    document.getElementById('view-login').classList.remove('hidden');
-}
-
-function switchTab(tabName) {
+function switchTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+    
+    // Update nav active state
     document.querySelectorAll('.nav-btn').forEach(btn => {
-        if (btn.dataset.target === tabName) btn.classList.add('active');
+        if(btn.dataset.target === tab) btn.classList.add('active');
         else btn.classList.remove('active');
     });
-    if (tabName === 'home') updateDashboard();
-    if (tabName === 'report') updateReportTab();
-    if (tabName === 'profile') updateProfileInfo();
-    lucide.createIcons();
+
+    if (tab === 'home') updateDashboard();
+    if (tab === 'profile') updateProfileInfo();
 }
 
-function openAttendance() {
-    if (!appState.selectedClass) {
-        alert("Sesi kadaluarsa. Silakan login ulang.");
-        handleLogout();
-        return;
-    }
-    document.getElementById('view-main').classList.add('hidden');
-    document.getElementById('view-attendance').classList.remove('hidden');
-    updateAttendanceView();
-}
-
-function closeAttendance() {
-    document.getElementById('view-attendance').classList.add('hidden');
-    document.getElementById('view-main').classList.remove('hidden');
-    switchTab('home');
-}
-
-// --- 5. RENDER LOGIC ---
-
-function updateDashboard() {
-    document.getElementById('dash-greeting').textContent = getGreeting();
-    const percent = calculateStats();
-    document.getElementById('dash-stats-pie').style.setProperty('--percent', `${percent}%`);
-    document.getElementById('dash-stats-text').textContent = `${percent}%`;
-
-    const currentSlot = SLOT_WAKTU[appState.currentSlotId];
-    const card = document.getElementById('dash-main-card');
-    
-    const themes = {
-        emerald: 'from-emerald-600 to-teal-500',
-        orange: 'from-orange-500 to-red-500',
-        indigo: 'from-indigo-600 to-blue-500',
-        slate: 'from-slate-700 to-slate-900',
-    };
-    
-    card.className = `cursor-pointer rounded-[2.5rem] p-7 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ring-1 ring-white/10 bg-gradient-to-br ${themes[currentSlot.theme]}`;
-    
-    document.getElementById('dash-card-title').textContent = currentSlot.label;
-    document.getElementById('dash-card-time').textContent = currentSlot.subLabel;
-
-    const listContainer = document.getElementById('dash-other-slots');
-    listContainer.innerHTML = ''; 
-    const tpl = document.getElementById('tpl-slot-item');
-
-    // Filter santri sesuai kelas yang dipilih
-    const santriKelasIni = DATA_SANTRI.filter(s => s.kelas === appState.selectedClass);
-    const totalSantriKelas = santriKelasIni.length;
-
-    Object.values(SLOT_WAKTU).forEach(slot => {
-        if (slot.id === appState.currentSlotId) return;
-
-        const clone = tpl.content.cloneNode(true);
-        const itemDiv = clone.querySelector('.slot-item');
-        
-        const iconBg = clone.querySelector('.slot-icon-bg');
-        iconBg.classList.add(`bg-${slot.theme}-50`, `dark:bg-${slot.theme}-900/30`, `text-${slot.theme}-600`, `dark:text-${slot.theme}-400`);
-        
-        const label = clone.querySelector('.slot-label');
-        label.classList.add(`group-hover:text-${slot.theme}-600`, `dark:group-hover:text-${slot.theme}-400`);
-
-        itemDiv.onclick = () => { appState.currentSlotId = slot.id; openAttendance(); };
-
-        clone.querySelector('.slot-label').textContent = slot.label;
-        
-        // Update Status Text berdasarkan kelas
-        let statusText = "Belum dimulai";
-        let progressWidth = "0%";
-        
-        // Logika sederhana: jika ada 1 saja data absen, anggap progress 100% (bisa diperbaiki nanti)
-        const dateKey = getTodayKey();
-        const hasData = appState.attendanceData[dateKey] && appState.attendanceData[dateKey][slot.id];
-        
-        if(hasData) {
-            statusText = `${totalSantriKelas}/${totalSantriKelas} Santri`;
-            progressWidth = "100%";
-        }
-
-        clone.querySelector('.slot-status').textContent = statusText;
-        
-        const progressBar = clone.querySelector('.slot-progress');
-        progressBar.style.width = progressWidth;
-        progressBar.classList.remove('from-emerald-400', 'to-teal-400');
-        progressBar.classList.add(`bg-${slot.theme}-500`); 
-
-        listContainer.appendChild(clone);
-    });
-    lucide.createIcons();
-}
-
-function updateReportTab() {
-    const container = document.getElementById('report-problem-list');
-    container.innerHTML = '';
-    
-    if (!appState.selectedClass) return;
-
-    const dateKey = getTodayKey();
-    const todayData = appState.attendanceData[dateKey] || {};
-    let problemCount = 0;
-
-    // PERBAIKAN: Filter hanya santri di kelas ini
-    const filteredSantri = DATA_SANTRI.filter(s => s.kelas === appState.selectedClass);
-
-    filteredSantri.forEach(santri => {
-        let alpaCount = 0;
-        let details = [];
-        Object.keys(todayData).forEach(slotId => {
-            const sData = todayData[slotId][santri.id];
-            if (sData && (sData.status.shalat === STATUS.ALPA)) {
-                alpaCount++;
-                details.push(SLOT_WAKTU[slotId].label);
-            }
-        });
-
-        if (alpaCount > 0) {
-            problemCount++;
-            const div = document.createElement('div');
-            div.className = 'bg-white/80 dark:bg-slate-800 p-4 rounded-2xl border border-red-100 dark:border-red-900/30 flex items-center gap-4 cursor-pointer active:bg-slate-50 dark:active:bg-slate-700 transition slide-up shadow-sm hover:shadow-md';
-            div.onclick = () => openSantriModal(santri.id);
-            div.innerHTML = `
-                <div class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-sm ring-1 ring-red-100 dark:ring-red-900 shadow-sm">${santri.avatar}</div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-slate-700 dark:text-white text-sm">${santri.nama}</h4>
-                    <p class="text-xs text-red-500 dark:text-red-400 font-medium mt-0.5">Alpa: ${details.join(', ')}</p>
-                </div>
-                <button class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600">Detail</button>
-            `;
-            container.appendChild(div);
-        }
-    });
-
-    if(problemCount === 0) {
-        container.innerHTML = `
-            <div class="text-center py-10 bg-white/50 dark:bg-slate-800/50 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-700">
-                <div class="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 dark:text-emerald-400"></i>
-                </div>
-                <p class="text-slate-400 text-sm font-medium">Alhamdulillah, nihil pelanggaran.</p>
-            </div>
-        `;
-    }
-    lucide.createIcons();
-}
-
-function updateAttendanceView() {
-    const slot = SLOT_WAKTU[appState.currentSlotId];
-    document.getElementById('att-slot-title').textContent = slot.label;
-    appState.searchQuery = '';
-    document.getElementById('att-search').value = '';
-    renderAttendanceList();
-}
-
-function handleSearch(val) {
-    appState.searchQuery = val.toLowerCase();
-    renderAttendanceList();
-}
-
-function toggleProblemFilter() {
-    appState.filterProblemOnly = !appState.filterProblemOnly;
-    const btn = document.getElementById('btn-filter-problem');
-    if (appState.filterProblemOnly) {
-        btn.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
-        btn.classList.remove('bg-slate-100', 'text-slate-400');
-        showToast('Filter: Masalah Saja');
-    } else {
-        btn.classList.remove('bg-red-100', 'text-red-600', 'border-red-200');
-        btn.classList.add('bg-slate-100', 'text-slate-400');
-        showToast('Filter: Semua');
-    }
-    renderAttendanceList();
-}
-
-function openSantriModal(santriId) {
-    const santri = DATA_SANTRI.find(s => s.id === santriId);
-    if (!santri) return;
-    
-    document.getElementById('modal-avatar').textContent = santri.avatar;
-    document.getElementById('modal-name').textContent = santri.nama;
-    document.getElementById('modal-kamar').textContent = santri.kamar;
-
-    const dateKey = getTodayKey();
-    const todayData = appState.attendanceData[dateKey] || {};
-    let countHadir = 0;
-    let countAlpa = 0;
-
-    Object.keys(todayData).forEach(slotId => {
-        const sData = todayData[slotId][santri.id];
-        if(sData) {
-            Object.values(sData.status).forEach(status => {
-                if(status === STATUS.HADIR || status === STATUS.YA) countHadir++;
-                if(status === STATUS.ALPA || status === STATUS.TIDAK) countAlpa++;
-            });
-        }
-    });
-
-    document.getElementById('modal-stat-hadir').textContent = countHadir;
-    document.getElementById('modal-stat-alpa').textContent = countAlpa;
-
-    const historyList = document.getElementById('modal-history-list');
-    historyList.innerHTML = '';
-    
-    const dates = Object.keys(appState.attendanceData).sort().reverse();
-    let foundHistory = false;
-
-    dates.forEach(date => {
-        const sSlots = appState.attendanceData[date];
-        let dailyStatus = [];
-        Object.keys(sSlots).forEach(slotKey => {
-            const statusShalat = sSlots[slotKey][santri.id]?.status.shalat;
-            if(statusShalat === STATUS.ALPA) dailyStatus.push(`${SLOT_WAKTU[slotKey].label}: Alpa`);
-        });
-
-        if(dailyStatus.length > 0) {
-             foundHistory = true;
-             const item = document.createElement('div');
-             item.className = 'text-xs bg-slate-50 dark:bg-slate-700/50 p-3 rounded-xl flex justify-between border border-slate-100 dark:border-slate-700';
-             item.innerHTML = `
-                <span class="font-bold text-slate-600 dark:text-slate-300">${date}</span>
-                <span class="text-red-500 font-bold">${dailyStatus.join(', ')}</span>
-             `;
-             historyList.appendChild(item);
-        }
-    });
-
-    if(!foundHistory) {
-        historyList.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4">Tidak ada catatan pelanggaran.</p>';
-    }
-
-    document.getElementById('modal-santri').showModal();
-}
-
-function renderAttendanceList() {
-    const container = document.getElementById('attendance-list-container');
-    container.innerHTML = '';
-    
-    const slot = SLOT_WAKTU[appState.currentSlotId];
-    const data = getSlotData(appState.currentSlotId);
-    const rowTpl = document.getElementById('tpl-santri-row');
-    const btnTpl = document.getElementById('tpl-activity-btn');
-
-    // PERBAIKAN: Filter data berdasarkan KELAS yang dipilih di LOGIN
-    const filteredSantri = DATA_SANTRI.filter(santri => {
-        // Filter Kelas
-        if (santri.kelas !== appState.selectedClass) return false;
-
-        const sData = data[santri.id];
-        const matchesSearch = santri.nama.toLowerCase().includes(appState.searchQuery);
-        let hasProblem = sData.status['shalat'] !== STATUS.HADIR;
-        return appState.filterProblemOnly ? (matchesSearch && hasProblem) : matchesSearch;
-    }).sort((a, b) => {
-        return a.nama.localeCompare(b.nama);
-    });
-
-    document.getElementById('att-santri-count').textContent = `${filteredSantri.length} Santri`;
-
-    if (filteredSantri.length === 0) {
-        container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-slate-400 opacity-60"><i data-lucide="search-x" class="w-16 h-16 mb-4 opacity-50"></i><p class="text-sm font-bold">Tidak ada data untuk kelas ${appState.selectedClass}.</p></div>`;
-    }
-
-    filteredSantri.forEach(santri => {
-        const sData = data[santri.id];
-        const isProblematic = sData.status['shalat'] === STATUS.ALPA || sData.status['shalat'] === STATUS.SAKIT;
-        const rowClone = rowTpl.content.cloneNode(true);
-        const rowDiv = rowClone.querySelector('.santri-row');
-        
-        if (isProblematic) {
-            rowDiv.classList.add('ring-2', 'ring-red-200', 'bg-red-50/50', 'dark:bg-red-900/10', 'dark:ring-red-900/50');
-            rowDiv.classList.remove('bg-white', 'dark:bg-slate-800');
-            rowClone.querySelector('.santri-avatar').className = 'santri-avatar w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 shadow-sm border border-red-200 dark:border-red-800';
-            rowClone.querySelector('.bar-indicator').className = 'absolute left-0 top-0 bottom-0 w-2 bg-red-400 transition-colors bar-indicator';
-        }
-
-        rowClone.querySelector('.santri-avatar').textContent = santri.avatar;
-        rowClone.querySelector('.santri-name').textContent = santri.nama;
-        // Tampilkan Asrama (Kamar) di list
-        rowClone.querySelector('.santri-kamar').textContent = santri.kamar; 
-        rowClone.querySelector('.btn-profile').onclick = () => openSantriModal(santri.id);
-
-        const noteSection = rowClone.querySelector('.note-section');
-        const noteInput = rowClone.querySelector('.input-note');
-        const btnEdit = rowClone.querySelector('.btn-edit-note');
-
-        noteInput.value = sData.note;
-        const updateNote = (val) => {
-             saveNote(santri.id, val);
-             noteInput.value = val;
-        };
-        noteInput.onchange = (e) => updateNote(e.target.value);
-
-        rowClone.querySelectorAll('.chip-note').forEach(chip => {
-            chip.onclick = () => updateNote(chip.textContent);
-        });
-
-        if (appState.noteOpenId === santri.id) {
-            noteSection.classList.remove('hidden');
-            btnEdit.classList.add('text-emerald-600', 'bg-emerald-50', 'dark:bg-emerald-900/30', 'dark:text-emerald-400');
-            btnEdit.classList.remove('text-slate-300');
-        }
-        btnEdit.onclick = () => {
-            appState.noteOpenId = appState.noteOpenId === santri.id ? null : santri.id;
-            renderAttendanceList(); 
-        };
-
-        const activityContainer = rowClone.querySelector('.activity-container');
-        slot.activities.forEach(act => {
-            const btnClone = btnTpl.content.cloneNode(true);
-            const btn = btnClone.querySelector('.btn-status');
-            const label = btnClone.querySelector('.lbl-status');
-            const currentStatus = sData.status[act.id];
-            const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
-
-            btn.className = `btn-status w-[3.5rem] h-[3.5rem] rounded-[1.2rem] flex items-center justify-center shadow-sm transition-all duration-300 active:scale-90 border-[3px] hover:-translate-y-1 relative overflow-hidden ${uiConfig.class}`;
-            label.textContent = act.label;
-
-            if (uiConfig.label.startsWith('icon-')) {
-                const iconName = uiConfig.label === 'icon-check' ? 'check' : (uiConfig.label === 'icon-minus' ? 'minus' : 'x');
-                btn.innerHTML = `<i data-lucide="${iconName}" class="w-6 h-6 stroke-[3px]"></i>`;
-            } else {
-                btn.innerHTML = `<span class="text-lg font-extrabold">${uiConfig.label}</span>`;
-            }
-            btn.onclick = () => handleStatusChange(santri.id, act.id, act.type);
-            activityContainer.appendChild(btnClone);
-        });
-        container.appendChild(rowClone);
-    });
-    lucide.createIcons();
-}
-
-function handleStatusChange(studentId, activityId, activityType) {
-    const slotId = appState.currentSlotId;
-    const data = getSlotData(slotId);
-    const studentData = data[studentId];
-    const currentStatus = studentData.status[activityId];
-    let nextStatus;
-
-    if (activityType === 'mandator') {
-        if (currentStatus === STATUS.HADIR) nextStatus = STATUS.SAKIT;
-        else if (currentStatus === STATUS.SAKIT) nextStatus = STATUS.IZIN;
-        else if (currentStatus === STATUS.IZIN) nextStatus = STATUS.ALPA;
-        else nextStatus = STATUS.HADIR;
-    } else {
-        nextStatus = currentStatus === STATUS.YA ? STATUS.TIDAK : STATUS.YA;
-    }
-
-    studentData.status[activityId] = nextStatus;
-
-    if (activityId === 'shalat' && (nextStatus === STATUS.ALPA || nextStatus === STATUS.SAKIT || nextStatus === STATUS.IZIN)) {
-        SLOT_WAKTU[slotId].activities.forEach(act => {
-            if (act.id !== 'shalat') {
-                studentData.status[act.id] = act.type === 'mandator' ? nextStatus : STATUS.TIDAK;
-            }
-        });
-    }
-    saveToLocalStorage();
-    renderAttendanceList();
-    showToast('Tersimpan');
-}
-
-function handleBulkAction(type) {
-    const data = getSlotData(appState.currentSlotId);
-    const slotConfig = SLOT_WAKTU[appState.currentSlotId];
-    
-    // PERBAIKAN: Hanya ambil santri di kelas yang dipilih
-    const visibleSantriIds = DATA_SANTRI
-        .filter(s => s.kelas === appState.selectedClass)
-        .map(s => s.id);
-
-    visibleSantriIds.forEach(id => {
-        slotConfig.activities.forEach(act => {
-            if (type === 'reset') {
-                data[id].status[act.id] = act.type === 'mandator' ? STATUS.HADIR : STATUS.YA;
-            } else if (type === 'alpa') {
-                data[id].status[act.id] = act.type === 'mandator' ? STATUS.ALPA : STATUS.TIDAK;
-            }
-        });
-    });
-    saveToLocalStorage();
-    renderAttendanceList();
-    showToast(type === 'reset' ? 'Semua Hadir' : 'Semua Alpa');
-}
-
-function saveNote(studentId, note) {
-    const data = getSlotData(appState.currentSlotId);
-    data[studentId].note = note;
-    saveToLocalStorage();
-}
-
-function showToast(msg = 'Saved') {
-    if (navigator.vibrate) navigator.vibrate(50);
-    const indicator = document.getElementById('save-indicator');
-    if(!indicator) {
-        let toast = document.createElement('div');
-        toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white text-white dark:text-slate-800 text-xs font-bold py-3 px-6 rounded-full shadow-2xl z-[100] fade-in flex items-center gap-2';
-        toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 dark:text-emerald-600"></i> ${msg}`;
-        document.body.appendChild(toast);
-        lucide.createIcons();
-        setTimeout(() => toast.remove(), 2500);
-        return;
-    }
-    indicator.innerHTML = `<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full fade-in shadow-sm border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">${msg}</span>`;
-    setTimeout(() => { if(indicator) indicator.innerHTML = ''; }, 2000);
-}
-
-// --- MODIFIED MENU SANTRI (READ ONLY) ---
-function bukaMenuSantri() {
-    renderListEditorSantri();
-    document.getElementById('modal-manage-santri').showModal();
-}
-
-function renderListEditorSantri() {
-    const container = document.getElementById('list-manage-santri');
-    container.innerHTML = '';
-    
-    const infoDiv = document.createElement('div');
-    infoDiv.className = 'p-3 mb-3 bg-blue-50 text-blue-700 text-xs rounded-xl border border-blue-100';
-    infoDiv.innerText = "Info: Data diambil dari Server. Menampilkan santri di kelas " + (appState.selectedClass || "semua") + ".";
-    container.appendChild(infoDiv);
-
-    // Filter santri sesuai kelas yang login (optional, atau tampilkan semua?)
-    // Sebaiknya tampilkan semua jika admin, tapi karena ini per kelas, tampilkan kelas saja
-    const filteredForManage = DATA_SANTRI.filter(s => s.kelas === appState.selectedClass);
-    const sortedSantri = filteredForManage.sort((a, b) => a.nama.localeCompare(b.nama));
-
-    sortedSantri.forEach((santri, index) => {
-        const div = document.createElement('div');
-        div.className = 'flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700';
-        div.innerHTML = `
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-xs font-bold dark:text-white shadow-sm">${santri.avatar}</div>
-                <div>
-                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">${santri.nama}</h4>
-                    <span class="text-[10px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-2 py-0.5 rounded text-slate-500">${santri.kamar}</span>
-                </div>
-            </div>
-        `;
-        container.appendChild(div);
-    });
-    lucide.createIcons();
-}
-
-function tambahSantriBaru() {
-    alert("Fitur Tambah Santri dimatikan. Data diambil dari Google Sheet.");
-}
-
-function handleGantiPin() {
-    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
-    const pinLama = prompt("Masukkan PIN Lama Anda:");
-    if (pinLama !== storedPin) { alert("PIN Lama salah!"); return; }
-    const pinBaru = prompt("Masukkan PIN Baru (Min 4 angka):");
-    if (!pinBaru || pinBaru.length < 4) { alert("PIN terlalu pendek."); return; }
-    const konfirmasi = prompt("Ketik ulang PIN Baru Anda:");
-    if (pinBaru !== konfirmasi) { alert("Konfirmasi tidak cocok."); return; }
-    localStorage.setItem('musyrif_pin', pinBaru);
-    alert("BERHASIL! PIN Login telah diganti.");
-}
-
-function handleClearData() {
-    if(!confirm('PERINGATAN: Data presensi hari ini akan dihapus permanen. Lanjutkan?')) {
-        return;
-    }
-    let pinInput = prompt("Masukkan PIN Keamanan untuk menghapus:");
-    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
-
-    if(pinInput === storedPin) {
-        delete appState.attendanceData[getTodayKey()];
-        saveToLocalStorage();
-        showToast("Data hari ini direset");
-        window.location.reload();
-    } else {
-        alert("PIN SALAH! Penghapusan dibatalkan.");
-    }
-}
-
-function exportToCSV() {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Tanggal,Slot,Nama Santri,Kamar,Kegiatan,Status,Catatan\n";
-
-    const data = appState.attendanceData;
-    // PERBAIKAN: Hanya ekspor data kelas yang dipilih
-    const santriKelasIds = DATA_SANTRI.filter(s => s.kelas === appState.selectedClass).map(s => s.id);
-
-    Object.keys(data).forEach(date => {
-        const slots = data[date];
-        Object.keys(slots).forEach(slotId => {
-            const santris = slots[slotId];
-            Object.keys(santris).forEach(santriId => {
-                // Filter ID
-                if (!santriKelasIds.includes(santriId) && !santriKelasIds.includes(String(santriId))) return;
-
-                const sData = santris[santriId];
-                const santri = DATA_SANTRI.find(s => s.id == santriId);
-                if(santri) {
-                        Object.keys(sData.status).forEach(actId => {
-                            const status = sData.status[actId];
-                            const slotName = SLOT_WAKTU[slotId].label;
-                            const actName = SLOT_WAKTU[slotId].activities.find(a => a.id === actId).label;
-                            const note = sData.note || "-";
-                            const row = `${date},${slotName},${santri.nama},${santri.kamar},${actName},${status},"${note}"`;
-                            csvContent += row + "\n";
-                        });
-                }
-            });
-        });
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Laporan_Kelas_${appState.selectedClass}_${getTodayKey()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Laporan berhasil diunduh!");
-}
-
-function kirimLaporanWA() {
-    const dateKey = getTodayKey();
-    const dataHariIni = appState.attendanceData[dateKey];
-    if (!dataHariIni) {
-        alert("Belum ada data presensi hari ini untuk dilaporkan.");
-        return;
-    }
-    let listAlpa = [];
-    let listSakit = [];
-    let totalHadir = 0;
-    
-    // PERBAIKAN: Loop hanya santri di kelas yang dipilih
-    const santriKelas = DATA_SANTRI.filter(s => s.kelas === appState.selectedClass);
-
-    santriKelas.forEach(santri => {
-        let statusShalat = "Belum Absen";
-        if (dataHariIni[appState.currentSlotId] && dataHariIni[appState.currentSlotId][santri.id]) {
-            statusShalat = dataHariIni[appState.currentSlotId][santri.id].status.shalat;
-        }
-        if (statusShalat === 'Hadir') {
-            totalHadir++;
-        } else if (statusShalat === 'Alpa') {
-            listAlpa.push(`- ${santri.nama} (${santri.kamar})`);
-        } else if (statusShalat === 'Sakit') {
-            listSakit.push(`- ${santri.nama}`);
-        }
-    });
-
-    let teks = `*LAPORAN PRESENSI ASRAMA* %0A`;
-    teks += `📅 Tanggal: ${dateKey} %0A`;
-    teks += `🏫 Kelas: ${appState.selectedClass} %0A`;
-    teks += `🕌 Waktu: ${SLOT_WAKTU[appState.currentSlotId].label} %0A`;
-    teks += `--------------------------- %0A`;
-    teks += `✅ Hadir: ${totalHadir} %0A`;
-    teks += `🤒 Sakit: ${listSakit.length} %0A`;
-    teks += `❌ Alpa: ${listAlpa.length} %0A`;
-    teks += `--------------------------- %0A`;
-
-    if (listAlpa.length > 0) teks += `*DAFTAR ALPA:* %0A${listAlpa.join('%0A')} %0A %0A`;
-    if (listSakit.length > 0) teks += `*DAFTAR SAKIT:* %0A${listSakit.join('%0A')} %0A`;
-
-    teks += `_Digenerate oleh MusyrifApp_`;
-    window.open(`https://wa.me/?text=${teks}`, '_blank');
-}
-
-window.onload = init;
+// JALANKAN APLIKASI
+window.onload = initApp;
