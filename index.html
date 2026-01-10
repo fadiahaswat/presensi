@@ -476,16 +476,20 @@
 
     <template id="tpl-slot-item">
         <div class="slot-item bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between cursor-pointer hover:border-emerald-200 hover:shadow-md transition-all group">
-            <div class="flex items-center gap-4">
-                <div class="slot-icon-bg w-12 h-12 rounded-xl flex items-center justify-center transition-colors shadow-sm">
+            <div class="flex items-center gap-4 w-full"> <div class="slot-icon-bg w-12 h-12 rounded-xl flex items-center justify-center transition-colors shadow-sm flex-shrink-0">
                     <i data-lucide="clock" class="w-6 h-6"></i>
                 </div>
-                <div>
-                    <h4 class="slot-label font-bold text-slate-700 text-base group-hover:text-emerald-600 transition-colors">Label</h4>
-                    <span class="slot-status text-xs font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded">Belum dimulai</span>
-                </div>
+                <div class="flex-1 min-w-0"> <h4 class="slot-label font-bold text-slate-700 text-base group-hover:text-emerald-600 transition-colors">Label</h4>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="slot-status text-xs font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded">Belum dimulai</span>
+                    </div>
+                    
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div class="slot-progress h-full bg-slate-300 w-0 rounded-full transition-all duration-500"></div>
+                    </div>
+                    </div>
             </div>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 ml-3"></i>
         </div>
     </template>
 
@@ -529,3 +533,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
