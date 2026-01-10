@@ -762,4 +762,36 @@ function hapusSantri(id) {
     }
 }
 
+function handleGantiPin() {
+    const storedPin = localStorage.getItem('musyrif_pin') || '1234';
+    
+    // 1. Tanya PIN Lama dulu (biar tidak sembarang orang ganti)
+    const pinLama = prompt("Masukkan PIN Lama Anda:");
+    
+    if (pinLama !== storedPin) {
+        alert("PIN Lama salah! Gagal mengganti PIN.");
+        return;
+    }
+
+    // 2. Minta PIN Baru
+    const pinBaru = prompt("Masukkan PIN Baru (Minimal 4 angka):");
+    
+    if (!pinBaru || pinBaru.length < 4) {
+        alert("PIN terlalu pendek atau kosong.");
+        return;
+    }
+
+    // 3. Konfirmasi ulang biar tidak typo
+    const konfirmasi = prompt("Ketik ulang PIN Baru Anda:");
+    
+    if (pinBaru !== konfirmasi) {
+        alert("Konfirmasi tidak cocok. Ulangi lagi.");
+        return;
+    }
+
+    // 4. Simpan ke memori HP
+    localStorage.setItem('musyrif_pin', pinBaru);
+    alert("BERHASIL! PIN Login dan Reset Data telah diganti.");
+}
+
 window.onload = init;
