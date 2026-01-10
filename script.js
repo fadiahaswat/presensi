@@ -596,4 +596,84 @@ function showToast(msg = 'Saved') {
     setTimeout(() => { if(indicator) indicator.innerHTML = ''; }, 2000);
 }
 
+// --- FITUR BARU: MANAJEMEN SANTRI ---
+
+function bukaMenuSantri() {
+    renderListEditorSantri();
+    document.getElementById('modal-manage-santri').showModal();
+}
+
+function renderListEditorSantri() {
+    const container = document.getElementById('list-manage-santri');
+    container.innerHTML = '';
+
+    // Urutkan santri berdasarkan nama biar rapi
+    const sortedSantri = [...DATA_SANTRI].sort((a, b) => a.nama.localeCompare(b.nama));
+
+    sortedSantri.forEach((santri, index) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-slate-700';
+        div.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold dark:text-white">${santri.avatar}</div>
+                <div>
+                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">${santri.nama}</h4>
+                    <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">${santri.kamar}</span>
+                </div>
+            </div>
+            <button onclick="hapusSantri(${santri.id})" class="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        `;
+        container.appendChild(div);
+    });
+    lucide.createIcons();
+}
+
+function tambahSantriBaru() {
+    const namaInput = document.getElementById('input-nama-baru');
+    const kamarInput = document.getElementById('input-kamar-baru');
+    
+    const nama = namaInput.value.trim();
+    const kamar = kamarInput.value.trim();
+
+    if (!nama || !kamar) {
+        alert("Nama dan Kamar wajib diisi!");
+        return;
+    }
+
+    // Buat ID baru (ambil ID terbesar + 1)
+    const newId = DATA_SANTRI.length > 0 ? Math.max(...DATA_SANTRI.map(s => s.id)) + 1 : 1;
+    
+    // Buat inisial avatar (misal: Ahmad Fulan -> AF)
+    const avatar = nama.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    // Masukkan ke data
+    DATA_SANTRI.push({
+        id: newId,
+        nama: nama,
+        kamar: kamar,
+        avatar: avatar
+    });
+
+    saveSantriData(); // Simpan ke HP
+    
+    // Reset form
+    namaInput.value = '';
+    kamarInput.value = '';
+    
+    // Refresh tampilan
+    renderListEditorSantri();
+    showToast("Santri berhasil ditambahkan");
+}
+
+function hapusSantri(id) {
+    if(confirm('Yakin hapus santri ini? Data presensi lama mungkin akan error jika tidak dibersihkan.')) {
+        DATA_SANTRI = DATA_SANTRI.filter(s => s.id !== id);
+        saveSantriData();
+        renderListEditorSantri();
+        showToast("Santri dihapus");
+    }
+}
+
 window.onload = init;
