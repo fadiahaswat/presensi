@@ -1,0 +1,63 @@
+/* Base Styles */
+body { -webkit-tap-highlight-color: transparent; }
+
+/* Custom Scrollbar */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Animations */
+.fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.scale-in { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pulse-slow { animation: pulse 3s infinite; }
+.float { animation: float 6s ease-in-out infinite; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+
+/* Glassmorphism */
+.glass { 
+    background: rgba(255, 255, 255, 0.9); 
+    backdrop-filter: blur(16px); 
+    border-top: 1px solid rgba(255,255,255,0.5); 
+}
+.dark .glass {
+    background: rgba(15, 23, 42, 0.9);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Mesh Gradient Background */
+.mesh-bg {
+    background-color: #f8fafc;
+    background-image: 
+        radial-gradient(at 0% 0%, hsla(156,72%,90%,1) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, hsla(180,70%,93%,1) 0, transparent 50%), 
+        radial-gradient(at 100% 100%, hsla(210,80%,94%,1) 0, transparent 50%), 
+        radial-gradient(at 0% 100%, hsla(140,70%,92%,1) 0, transparent 50%);
+}
+.dark .mesh-bg {
+    background-color: #0f172a;
+    background-image: 
+        radial-gradient(at 0% 0%, hsla(156,72%,10%,0.4) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, hsla(210,70%,15%,0.4) 0, transparent 50%);
+}
+
+/* Pie Chart Utility */
+.pie-chart {
+    background: conic-gradient(var(--color) var(--percent), #e2e8f0 0);
+    border-radius: 50%;
+    transition: all 1s ease-out;
+}
+.dark .pie-chart {
+    background: conic-gradient(var(--color) var(--percent), #334155 0);
+}
+
+/* Active Tab Indicator */
+.nav-btn.active { color: #10b981; }
+.nav-btn.active i { fill: currentColor; }
+
+/* Progress Bar Transition */
+.progress-bar { transition: width 0.5s ease-in-out; }
