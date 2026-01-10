@@ -40,7 +40,6 @@ const STATUS_UI = {
     'Tidak': { class: 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 border-slate-200 dark:border-slate-700', label: 'icon-minus' }
 };
 
-// --- 2. STATE MANAGEMENT ---
 let appState = {
     currentSlotId: 'shubuh',
     attendanceData: {}, 
@@ -80,7 +79,7 @@ function toggleDarkMode() {
     }
 }
 
-// --- 3. CORE INIT LOGIC (INTEGRATED) ---
+// --- 3. CORE INIT LOGIC (FIXED) ---
 
 function getTodayKey() { return appState.selectedDate; }
 
@@ -93,49 +92,85 @@ async function init() {
     autoDetectSlot();
 
     try {
-        // 1. Load Data Kelas (dari data-kelas.js)
+        // 1. Load Data Kelas
         if (window.loadClassData) {
             DATA_KELAS = await window.loadClassData();
+            console.log("RAW DATA KELAS:", DATA_KELAS); // Debugging
         }
         
-        // 2. Load Data Santri (dari data-santri.js)
+        // 2. Load Data Santri
         if (window.loadSantriData) {
             const rawSantriData = await window.loadSantriData();
-            
-            // 3. Parse Data Santri (dari santri-manager.js)
-            if (window.parseSantriData) {
-                window.parseSantriData(); // Menyusun window.santriDB
-            }
+            console.log("RAW DATA SANTRI:", rawSantriData); // Debugging
 
-            // 4. Map Data ke Format Aplikasi
-            DATA_SANTRI = rawSantriData.map(s => {
-                const id = s.nis ? s.nis.toString() : `temp_${Math.random().toString(36).substr(2, 9)}`;
-                
-                // INTEGRASI SANTRI MANAGER: Ambil preferensi lokal (avatar custom)
-                // Jika SantriManager ada, kita cek apakah ada data tersimpan (misal avatar)
-                const prefs = (window.SantriManager) ? window.SantriManager.getPrefs(id) : {};
-                
-                return {
-                    id: id,
-                    nama: s.nama || "Tanpa Nama",
-                    kamar: s.kelas || "Umum", 
-                    // Prioritas Avatar: 1. Prefs Lokal -> 2. Generate Inisial
-                    avatar: prefs.avatar || generateInitials(s.nama)
-                };
-            });
+            if (rawSantriData && rawSantriData.length > 0) {
+                // 3. Map Data dengan Pengecekan Nama Kolom (Case Insensitive)
+                DATA_SANTRI = rawSantriData.map(s => {
+                    // Cek berbagai kemungkinan nama kolom
+                    const idVal = s.nis || s.NIS || s.id || s.ID;
+                    const id = idVal ? idVal.toString() : `temp_${Math.random().toString(36).substr(2, 9)}`;
+                    
+                    const nama = s.nama || s.Nama || s.NAMA || "Tanpa Nama";
+                    const kamar = s.kelas || s.Kelas || s.rombel || s.kamar || "Umum";
+                    
+                    const prefs = (window.SantriManager) ? window.SantriManager.getPrefs(id) : {};
+                    
+                    return {
+                        id: id,
+                        nama: nama,
+                        kamar: kamar, 
+                        avatar: prefs.avatar || generateInitials(nama)
+                    };
+                });
+            } else {
+                console.warn("Data Santri dari server KOSONG.");
+            }
+            
+            // 4. Parse untuk SantriManager
+            if (window.parseSantriData) {
+                window.parseSantriData(); 
+            }
         }
 
     } catch (error) {
         console.error("Error initializing data:", error);
-        alert("Gagal memuat data dari server. Cek koneksi internet.");
+        alert("Gagal memuat data dari server. Aplikasi berjalan dengan data cache (jika ada).");
     }
 
     lucide.createIcons();
     updateDashboard();
+    updateProfileInfo(); // Update Tampilan Profil Musyrif
     
     setTimeout(() => {
         if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
     }, 800);
+}
+
+// FUNGSI BARU: Update Info Musyrif di Tab Profil
+function updateProfileInfo() {
+    const profileNameEl = document.getElementById('profile-name');
+    const profileRoleEl = document.getElementById('profile-role');
+    
+    if(!profileNameEl || !profileRoleEl) return;
+
+    // Logika Sederhana: Ambil nama musyrif dari kelas pertama yang ditemukan
+    // Karena kita tidak tahu user login sebagai siapa, kita ambil sampel data kelas
+    const kelasKeys = Object.keys(DATA_KELAS);
+    
+    if (kelasKeys.length > 0) {
+        // Ambil kelas pertama sebagai contoh
+        const sampleKelas = DATA_KELAS[kelasKeys[0]];
+        if (sampleKelas && sampleKelas.musyrif) {
+            profileNameEl.textContent = sampleKelas.musyrif;
+            profileRoleEl.textContent = "Musyrif Asrama";
+        } else {
+            profileNameEl.textContent = "Ustadz Musyrif";
+            profileRoleEl.textContent = "Data Kelas Belum Lengkap";
+        }
+    } else {
+        profileNameEl.textContent = "Ustadz Musyrif";
+        profileRoleEl.textContent = "Mode Offline / Tanpa Data";
+    }
 }
 
 function generateInitials(name) {
@@ -251,6 +286,7 @@ function switchTab(tabName) {
     });
     if (tabName === 'home') updateDashboard();
     if (tabName === 'report') updateReportTab();
+    if (tabName === 'profile') updateProfileInfo();
     lucide.createIcons();
 }
 
