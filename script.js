@@ -937,46 +937,33 @@ window.saveData = function() {
 
 
 window.updateQuickStats = function() {
-    // Cek apakah ada kelas yang dipilih & ada santri
-    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) {
-        // Reset angka jadi 0 jika tidak ada data
-        ['stat-hadir', 'stat-sakit', 'stat-izin', 'stat-alpa'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.textContent = '0';
-        });
-        return;
-    }
+    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) return;
     
     const dateKey = appState.date;
     const data = appState.attendanceData[dateKey];
     
-    let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlpa = 0;
+    let stats = { Hadir: 0, Sakit: 0, Izin: 0, Alpa: 0 };
     
     if(data) {
-        // Loop semua slot (Shubuh, Ashar, dll)
         Object.values(SLOT_WAKTU).forEach(slot => {
             if(data[slot.id]) {
                 FILTERED_SANTRI.forEach(s => {
                     const id = String(s.nis || s.id);
-                    // Ambil status shalat wajib
                     const status = data[slot.id][id]?.status?.shalat;
-                    
-                    if(status === 'Hadir') totalHadir++;
-                    else if(status === 'Sakit') totalSakit++;
-                    else if(status === 'Izin') totalIzin++;
-                    else if(status === 'Alpa') totalAlpa++;
+                    if(status && stats[status] !== undefined) {
+                        stats[status]++;
+                    }
                 });
             }
         });
     }
     
-    // Update UI
-    window.animateValue('stat-hadir', parseInt(document.getElementById('stat-hadir').textContent), totalHadir, 500);
-    window.animateValue('stat-sakit', parseInt(document.getElementById('stat-sakit').textContent), totalSakit, 500);
-    window.animateValue('stat-izin', parseInt(document.getElementById('stat-izin').textContent), totalIzin, 500);
-    window.animateValue('stat-alpa', parseInt(document.getElementById('stat-alpa').textContent), totalAlpa, 500);
+    // Update Text Langsung (Tanpa Animasi Glitchy)
+    document.getElementById('stat-hadir').textContent = stats.Hadir;
+    document.getElementById('stat-sakit').textContent = stats.Sakit;
+    document.getElementById('stat-izin').textContent = stats.Izin;
+    document.getElementById('stat-alpa').textContent = stats.Alpa;
 };
-
 window.animateValue = function(id, start, end, duration) {
     const el = document.getElementById(id);
     if(!el) return;
