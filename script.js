@@ -434,12 +434,19 @@ window.handleBulkAction = function(type) {
     const slotId = appState.currentSlotId;
     const dbSlot = appState.attendanceData[appState.date][slotId];
     const activities = SLOT_WAKTU[slotId].activities;
+    
+    // --- CEK HARI INI ---
+    const currentDay = new Date(appState.date).getDay();
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        if(!dbSlot[id]) return; // Should exist by render
+        if(!dbSlot[id]) return; 
         
         activities.forEach(act => {
+            // LOGIKA FILTER HARI:
+            // Jangan ubah status massal untuk aktivitas yang tersembunyi hari ini
+            if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
+
             if(type === 'alpa') {
                 dbSlot[id].status[act.id] = act.type === 'mandator' ? 'Alpa' : 'Tidak';
             } else {
@@ -450,7 +457,12 @@ window.handleBulkAction = function(type) {
     
     window.saveData();
     window.renderAttendanceList();
-    alert("Berhasil ubah status massal.");
+    
+    if (type === 'alpa') {
+        window.showToast("Semua santri ditandai Alpa", 'warning');
+    } else {
+        window.showToast("Semua santri ditandai Hadir", 'success');
+    }
 };
 
 window.toggleProblemFilter = function() {
