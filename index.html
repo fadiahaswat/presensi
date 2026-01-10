@@ -27,6 +27,10 @@
                             text: '#f1f5f9',
                             muted: '#94a3b8'
                         }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 20px rgba(16, 185, 129, 0.15)',
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)'
                     }
                 }
             }
@@ -37,82 +41,106 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body class="bg-slate-50 dark:bg-dark-bg text-slate-800 dark:text-dark-text h-screen flex flex-col overflow-hidden selection:bg-emerald-200 transition-colors duration-300">
+<body class="bg-slate-50 dark:bg-dark-bg text-slate-800 dark:text-dark-text h-screen flex flex-col overflow-hidden selection:bg-emerald-200 transition-colors duration-300 antialiased">
 
     <section id="view-login" class="flex-1 flex flex-col items-center justify-center min-h-screen mesh-bg p-6 text-center fade-in absolute inset-0 z-50">
         
         <div class="relative z-10 w-full max-w-md flex flex-col items-center">
-            <div class="bg-white dark:bg-dark-card p-6 rounded-3xl shadow-xl shadow-emerald-500/10 mb-8 scale-in ring-1 ring-slate-100 dark:ring-slate-700 float">
-                <i data-lucide="shield-check" class="w-16 h-16 text-emerald-500"></i>
+            <div class="bg-white dark:bg-dark-card p-6 rounded-[2rem] shadow-2xl shadow-emerald-500/10 mb-8 scale-in ring-1 ring-slate-100 dark:ring-slate-700 float relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <i data-lucide="shield-check" class="w-16 h-16 text-emerald-500 relative z-10"></i>
             </div>
-            <h1 class="text-4xl font-extrabold text-slate-800 dark:text-white mb-2 tracking-tight">Musyrif<span class="text-emerald-500">Pro</span></h1>
-            <p class="text-slate-500 dark:text-dark-muted mb-10 text-lg leading-relaxed">Sistem Monitoring Santri<br>v4.0 Ultimate Edition</p>
             
-            <div class="w-full bg-white dark:bg-dark-card p-2 rounded-2xl border border-slate-100 dark:border-slate-700 mb-6 flex items-center focus-within:ring-2 ring-emerald-500/50 transition-all shadow-sm">
-                <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                    <i data-lucide="key-round" class="w-5 h-5 text-emerald-500"></i>
+            <h1 class="text-4xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight drop-shadow-sm">
+                Musyrif<span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500">Pro</span>
+            </h1>
+            <p class="text-slate-500 dark:text-dark-muted mb-10 text-lg leading-relaxed font-medium">
+                Sistem Monitoring Santri<br>
+                <span class="text-sm opacity-75">v4.0 Ultimate Edition</span>
+            </p>
+            
+            <div class="w-full bg-white dark:bg-dark-card p-2 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex items-center focus-within:ring-4 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-card hover:shadow-md">
+                <div class="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-emerald-600 dark:text-emerald-400">
+                    <i data-lucide="key-round" class="w-5 h-5"></i>
                 </div>
-                <input type="password" id="login-pin" placeholder="PIN: 1234" class="bg-transparent w-full px-4 outline-none font-bold text-slate-700 dark:text-white placeholder:font-normal">
+                <input type="password" id="login-pin" placeholder="PIN Akses" class="bg-transparent w-full px-4 py-1 outline-none font-bold text-lg text-slate-700 dark:text-white placeholder:font-normal placeholder:text-slate-400 transition-colors">
             </div>
 
-            <button onclick="handleLogin()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-3">
-                Masuk Dashboard <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            <button onclick="handleLogin()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all flex items-center justify-center gap-3 group relative overflow-hidden">
+                <span class="relative z-10 flex items-center gap-2">
+                    Masuk Dashboard <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                </span>
+                <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
             </button>
-            <p class="mt-8 text-xs text-slate-400 font-medium">Database Lokal Aktif • Aman & Cepat</p>
+            
+            <p class="mt-8 text-xs text-slate-400 font-medium flex items-center gap-1.5">
+                <i data-lucide="database" class="w-3 h-3"></i> Database Lokal Aktif • Aman & Cepat
+            </p>
         </div>
     </section>
 
     <section id="view-main" class="flex-1 flex flex-col h-full hidden mesh-bg relative transition-colors duration-300">
         
-        <div id="main-content" class="flex-1 overflow-y-auto pb-24 hide-scrollbar relative">
+        <div id="main-content" class="flex-1 overflow-y-auto pb-28 hide-scrollbar relative z-0">
             
             <div id="tab-home" class="tab-content fade-in">
-                <div class="bg-white/80 dark:bg-dark-card/80 backdrop-blur-md px-6 pt-12 pb-8 shadow-sm rounded-b-[2.5rem] mb-6 relative overflow-hidden transition-colors duration-300">
-                    <div class="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                <div class="bg-white/90 dark:bg-dark-card/90 backdrop-blur-xl px-6 pt-14 pb-10 shadow-lg shadow-slate-200/50 dark:shadow-none rounded-b-[2.5rem] mb-8 relative overflow-hidden border-b border-white/50 dark:border-slate-800 transition-colors duration-300">
+                    <div class="absolute top-0 right-0 p-8 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transform rotate-12">
                         <i data-lucide="layout-grid" class="w-64 h-64 text-slate-900 dark:text-white"></i>
                     </div>
-                    <div class="relative z-10 flex justify-between items-start mb-6">
+
+                    <div class="relative z-10 flex justify-between items-start mb-8">
                         <div>
-                            <h2 id="dash-greeting" class="text-emerald-600 dark:text-emerald-400 text-sm font-bold uppercase tracking-wider mb-1">Selamat Pagi</h2>
-                            <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white">Ahlan, Ustadz!</h1>
-                            <div class="flex items-center gap-2 mt-1">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <p id="dash-clock" class="text-xs text-slate-500 dark:text-slate-400 font-mono font-semibold">...</p>
+                            <h2 id="dash-greeting" class="text-emerald-600 dark:text-emerald-400 text-sm font-bold uppercase tracking-wider mb-1.5 flex items-center gap-2">
+                                <i data-lucide="sun-medium" class="w-4 h-4"></i> Selamat Pagi
+                            </h2>
+                            <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Ahlan, Ustadz!</h1>
+                            <div class="flex items-center gap-2 mt-2 bg-slate-100 dark:bg-slate-800/50 w-fit px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                                <span class="relative flex h-2.5 w-2.5">
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <p id="dash-clock" class="text-xs text-slate-500 dark:text-slate-400 font-mono font-bold">Waiting clock...</p>
                             </div>
                         </div>
-                        <div onclick="switchTab('profile')" class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition overflow-hidden">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" class="w-full h-full object-cover">
+                        <div onclick="switchTab('profile')" class="w-14 h-14 bg-white dark:bg-slate-700 rounded-2xl p-1 shadow-md border border-slate-100 dark:border-slate-600 cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-300">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" class="w-full h-full object-cover rounded-xl bg-slate-100 dark:bg-slate-800">
                         </div>
                     </div>
 
-                    <div class="bg-slate-900 dark:bg-black text-white p-5 rounded-3xl shadow-xl shadow-slate-900/20 mb-6 flex items-center justify-between border border-slate-800">
-                        <div>
-                            <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Performa Hari Ini</p>
-                            <h3 class="text-2xl font-bold">Kehadiran Santri</h3>
-                            <p class="text-slate-400 text-sm mt-1">Total seluruh kegiatan</p>
+                    <div class="bg-slate-900 dark:bg-black text-white p-5 rounded-[1.5rem] shadow-2xl shadow-slate-900/20 mb-6 flex items-center justify-between border border-slate-800 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="relative z-10">
+                            <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Performa Hari Ini</p>
+                            <h3 class="text-2xl font-bold mb-1">Kehadiran Santri</h3>
+                            <p class="text-slate-400 text-xs font-medium">Akumulasi seluruh kegiatan</p>
                         </div>
-                        <div class="relative w-20 h-20 flex items-center justify-center">
-                            <div id="dash-stats-pie" class="pie-chart w-full h-full" style="--percent: 0%; --color: #10b981;"></div>
-                            <div class="absolute inset-1 bg-slate-900 dark:bg-black rounded-full flex items-center justify-center">
-                                <span id="dash-stats-text" class="text-sm font-bold">0%</span>
+                        <div class="relative w-20 h-20 flex items-center justify-center flex-shrink-0">
+                            <div id="dash-stats-pie" class="pie-chart w-full h-full shadow-lg shadow-emerald-500/20" style="--percent: 0%; --color: #10b981;"></div>
+                            <div class="absolute inset-1.5 bg-slate-900 dark:bg-black rounded-full flex items-center justify-center border border-slate-800">
+                                <span id="dash-stats-text" class="text-sm font-bold text-white">0%</span>
                             </div>
                         </div>
                     </div>
                     
-                    <div id="dash-main-card" class="p-1 rounded-3xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 transform transition-all duration-300 hover:scale-[1.01] cursor-pointer" onclick="openAttendance()">
-                        <div class="bg-white/10 backdrop-blur-sm p-6 rounded-[1.3rem] relative overflow-hidden">
-                            <div class="absolute -right-6 -top-6 text-white/10">
-                                <i data-lucide="sun" class="w-32 h-32"></i>
+                    <div id="dash-main-card" class="p-1 rounded-[2rem] bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl shadow-emerald-500/30 transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer" onclick="openAttendance()">
+                        <div class="bg-white/10 backdrop-blur-md p-6 rounded-[1.8rem] relative overflow-hidden border border-white/20">
+                            <div class="absolute -right-8 -top-8 text-white/10 transform rotate-12">
+                                <i data-lucide="sun" class="w-40 h-40"></i>
                             </div>
                             <div class="relative z-10 text-white">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide backdrop-blur-md border border-white/10 shadow-sm">Sedang Berlangsung</span>
-                                    <span class="pulse-slow w-2 h-2 bg-red-400 rounded-full box-shadow"></span>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <span class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide backdrop-blur-md border border-white/10 shadow-sm flex items-center gap-1.5">
+                                        <span class="pulse-slow w-1.5 h-1.5 bg-white rounded-full"></span>
+                                        Sedang Berlangsung
+                                    </span>
                                 </div>
-                                <h3 id="dash-card-title" class="text-4xl font-extrabold mb-1 tracking-tight">Loading...</h3>
-                                <p id="dash-card-time" class="text-emerald-100 font-medium mb-6">...</p>
+                                <h3 id="dash-card-title" class="text-4xl font-black mb-1 tracking-tight drop-shadow-sm">Loading...</h3>
+                                <p id="dash-card-time" class="text-emerald-50 font-medium mb-6 flex items-center gap-2 text-sm opacity-90">
+                                    <i data-lucide="clock" class="w-4 h-4"></i> ...
+                                </p>
                                 
-                                <button class="w-full bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 font-bold py-4 rounded-xl shadow-sm hover:bg-emerald-50 dark:hover:bg-slate-800 active:scale-95 transition flex items-center justify-center gap-2 group">
+                                <button class="w-full bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 font-bold py-4 rounded-xl shadow-lg hover:bg-emerald-50 dark:hover:bg-slate-800 active:scale-[0.97] transition-all flex items-center justify-center gap-2 group">
                                     Mulai Presensi 
                                     <span class="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-400 p-1 rounded-full group-hover:translate-x-1 transition-transform">
                                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
@@ -124,331 +152,383 @@
                 </div>
 
                 <div class="px-6 pb-6">
-                    <h3 class="font-bold text-slate-800 dark:text-white text-lg mb-4 flex items-center gap-2">
-                        <i data-lucide="clock" class="w-5 h-5 text-slate-400"></i>
+                    <h3 class="font-bold text-slate-800 dark:text-white text-lg mb-4 flex items-center gap-2 px-1">
+                        <div class="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500">
+                            <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+                        </div>
                         Jadwal Lainnya
                     </h3>
-                    <div id="dash-other-slots" class="space-y-3"></div>
+                    <div id="dash-other-slots" class="space-y-4"></div>
                 </div>
             </div>
 
-            <div id="tab-report" class="tab-content hidden fade-in px-6 pt-12">
-                <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white">Laporan</h1>
+            <div id="tab-report" class="tab-content hidden fade-in px-6 pt-14">
+                <div class="flex justify-between items-end mb-8">
+                    <div>
+                        <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">Laporan</h1>
+                        <p class="text-slate-500 text-sm font-medium mt-1">Ringkasan data & statistik</p>
+                    </div>
                     
-                    <div class="flex gap-2"> <button onclick="kirimLaporanWA()" class="p-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition active:scale-95 shadow-lg shadow-green-500/30" title="Kirim ke WA">
+                    <div class="flex gap-3">
+                        <button onclick="kirimLaporanWA()" class="p-3 bg-green-500 text-white rounded-2xl hover:bg-green-600 hover:-translate-y-1 transition-all active:scale-90 shadow-lg shadow-green-500/30 ring-2 ring-white dark:ring-slate-800" title="Kirim ke WA">
                             <i data-lucide="send" class="w-5 h-5"></i>
                         </button>
                 
-                        <button onclick="exportToCSV()" class="p-2 bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-200 transition active:scale-95" title="Export CSV">
+                        <button onclick="exportToCSV()" class="p-3 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-2xl hover:bg-emerald-50 dark:hover:bg-slate-700 hover:-translate-y-1 transition-all active:scale-90 shadow-sm" title="Export CSV">
                             <i data-lucide="download" class="w-5 h-5"></i>
                         </button>
-                        
                     </div>
                 </div>
                 
-                <div class="bg-white dark:bg-dark-card p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 mb-6 transition-colors">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="font-bold text-slate-700 dark:text-slate-200">Statistik Mingguan</h3>
-                        <i data-lucide="bar-chart-2" class="w-5 h-5 text-emerald-500"></i>
+                <div class="bg-white dark:bg-dark-card p-6 rounded-[2rem] shadow-card border border-slate-100 dark:border-slate-700 mb-8 transition-colors">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 class="font-bold text-slate-800 dark:text-white text-lg">Statistik Mingguan</h3>
+                            <p class="text-xs text-slate-400 font-medium">Grafik kehadiran 5 hari terakhir</p>
+                        </div>
+                        <div class="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl text-emerald-500">
+                            <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+                        </div>
                     </div>
-                    <div class="flex items-end justify-between h-32 gap-2 text-xs text-slate-400 font-medium">
-                        <div class="flex flex-col items-center gap-2 w-full group">
-                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
-                                <div style="height: 60%" class="w-full bg-emerald-400/80 rounded-t-lg"></div>
+                    
+                    <div class="flex items-end justify-between h-40 gap-3 text-xs text-slate-400 font-bold">
+                        <div class="flex flex-col items-center gap-3 w-full group cursor-pointer">
+                            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-2xl relative h-full flex items-end overflow-hidden group-hover:shadow-md transition-all">
+                                <div style="height: 60%" class="w-full bg-gradient-to-t from-emerald-400 to-emerald-300 rounded-2xl group-hover:from-emerald-500 group-hover:to-emerald-400 transition-all"></div>
                             </div>
                             <span>Sen</span>
                         </div>
-                        <div class="flex flex-col items-center gap-2 w-full group">
-                             <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
-                                <div style="height: 85%" class="w-full bg-emerald-500 rounded-t-lg"></div>
+                        <div class="flex flex-col items-center gap-3 w-full group cursor-pointer">
+                             <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-2xl relative h-full flex items-end overflow-hidden group-hover:shadow-md transition-all">
+                                <div style="height: 85%" class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-2xl group-hover:from-emerald-600 group-hover:to-emerald-500 transition-all"></div>
                             </div>
-                            <span>Sel</span>
+                            <span class="text-emerald-600 dark:text-emerald-400">Sel</span>
                         </div>
-                        <div class="flex flex-col items-center gap-2 w-full group">
-                             <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
-                                <div style="height: 40%" class="w-full bg-emerald-500/80 rounded-t-lg"></div>
+                        <div class="flex flex-col items-center gap-3 w-full group cursor-pointer">
+                             <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-2xl relative h-full flex items-end overflow-hidden group-hover:shadow-md transition-all">
+                                <div style="height: 40%" class="w-full bg-gradient-to-t from-emerald-400/80 to-emerald-300/80 rounded-2xl"></div>
                             </div>
                             <span>Rab</span>
                         </div>
-                        <div class="flex flex-col items-center gap-2 w-full group">
-                             <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
-                                <div style="height: 90%" class="w-full bg-emerald-600 rounded-t-lg"></div>
+                        <div class="flex flex-col items-center gap-3 w-full group cursor-pointer">
+                             <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-2xl relative h-full flex items-end overflow-hidden group-hover:shadow-md transition-all">
+                                <div style="height: 90%" class="w-full bg-gradient-to-t from-emerald-600 to-emerald-500 rounded-2xl"></div>
                             </div>
                             <span>Kam</span>
                         </div>
-                          <div class="flex flex-col items-center gap-2 w-full group">
-                             <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition">
-                                <div style="height: 70%" class="w-full bg-emerald-500 rounded-t-lg"></div>
+                        <div class="flex flex-col items-center gap-3 w-full group cursor-pointer">
+                             <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-2xl relative h-full flex items-end overflow-hidden group-hover:shadow-md transition-all">
+                                <div style="height: 70%" class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-2xl"></div>
                             </div>
                             <span>Jum</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center mb-5 px-1">
                       <h3 class="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-500"></i>
+                        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-500 fill-amber-500/20"></i>
                         Perlu Perhatian
                     </h3>
-                    <span class="text-[10px] bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-500 dark:text-slate-300">Hari Ini</span>
+                    <span class="text-[10px] font-bold bg-white border border-slate-200 dark:bg-slate-700 dark:border-slate-600 px-3 py-1.5 rounded-full text-slate-500 dark:text-slate-300 shadow-sm">Hari Ini</span>
                 </div>
                 
-                <div id="report-problem-list" class="space-y-3 pb-6">
-                    </div>
+                <div id="report-problem-list" class="space-y-4 pb-6"></div>
             </div>
 
-            <div id="tab-profile" class="tab-content hidden fade-in px-6 pt-12">
-                <div class="flex flex-col items-center mb-8">
-                    <div class="w-24 h-24 bg-slate-200 dark:bg-slate-700 rounded-3xl overflow-hidden mb-4 shadow-lg border-4 border-white dark:border-slate-700 relative group">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
-                        <div class="absolute bottom-0 right-0 p-1.5 bg-emerald-500 rounded-tl-xl border-2 border-white dark:border-slate-800">
-                             <div class="w-2 h-2 bg-white rounded-full"></div>
+            <div id="tab-profile" class="tab-content hidden fade-in px-6 pt-14">
+                <div class="flex flex-col items-center mb-10">
+                    <div class="w-28 h-28 p-1 bg-white dark:bg-slate-800 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-700 mb-5 relative group">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" class="w-full h-full object-cover rounded-[1.8rem] bg-slate-50 dark:bg-slate-900 group-hover:scale-95 transition-transform duration-500">
+                        <div class="absolute bottom-0 right-0 p-2 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-50 dark:border-slate-700 transform translate-x-2 translate-y-2">
+                             <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
                         </div>
                     </div>
-                    <h1 class="text-2xl font-extrabold text-slate-800 dark:text-white">Ustadz Musyrif</h1>
-                    <p class="text-slate-500 dark:text-slate-400 font-medium">Asrama Al-Madinah lt. 2</p>
+                    <h1 class="text-2xl font-black text-slate-800 dark:text-white mb-1">Ustadz Musyrif</h1>
+                    <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                        <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wide">Asrama Al-Madinah lt. 2</p>
+                    </div>
                 </div>
 
-                <div class="bg-white dark:bg-dark-card rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-6 transition-colors">
+                <div class="bg-white dark:bg-dark-card rounded-[2rem] shadow-card border border-slate-100 dark:border-slate-700 overflow-hidden mb-8 transition-colors">
                     
-                    <div class="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" onclick="toggleDarkMode()">
-                        <div class="p-2 bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
-                            <i data-lucide="moon" class="w-5 h-5"></i>
+                    <div class="p-5 border-b border-slate-50 dark:border-slate-700/50 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition active:bg-slate-100" onclick="toggleDarkMode()">
+                        <div class="w-12 h-12 flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+                            <i data-lucide="moon" class="w-6 h-6"></i>
                         </div>
                         <div class="flex-1">
-                            <span class="font-bold text-slate-700 dark:text-white block">Mode Gelap</span>
+                            <span class="font-bold text-slate-800 dark:text-white block text-sm mb-0.5">Mode Gelap</span>
                             <span class="text-xs text-slate-400 block">Ganti tema aplikasi</span>
                         </div>
-                        <div class="relative inline-flex items-center cursor-pointer">
+                        <div class="relative inline-flex items-center cursor-pointer pointer-events-none">
                             <div class="w-11 h-6 bg-slate-200 dark:bg-slate-600 rounded-full peer dark:bg-emerald-600 transition-colors"></div>
                             <div class="w-4 h-4 bg-white rounded-full absolute left-1 top-1 transition-transform dark:translate-x-5 shadow-sm"></div>
                         </div>
                     </div>
 
-                    <div class="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" onclick="handleClearData()">
-                        <div class="p-2 bg-amber-50 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 rounded-xl"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
-                        <span class="font-bold text-slate-700 dark:text-white flex-1">Reset Data Hari Ini</span>
-                        <div class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-400 px-2 py-1 rounded">Debug</div>
+                    <div class="p-5 border-b border-slate-50 dark:border-slate-700/50 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition active:bg-slate-100" onclick="handleClearData()">
+                        <div class="w-12 h-12 flex items-center justify-center bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-2xl">
+                            <i data-lucide="trash-2" class="w-6 h-6"></i>
+                        </div>
+                        <span class="font-bold text-slate-800 dark:text-white flex-1 text-sm">Reset Data Hari Ini</span>
+                        <div class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 border border-slate-200 dark:border-slate-600 px-2.5 py-1 rounded-lg font-bold">DEBUG</div>
                     </div>
 
-                    <div class="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" onclick="bukaMenuSantri()">
-                        <div class="p-2 bg-emerald-50 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                            <i data-lucide="users" class="w-5 h-5"></i>
+                    <div class="p-5 border-b border-slate-50 dark:border-slate-700/50 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition active:bg-slate-100" onclick="bukaMenuSantri()">
+                        <div class="w-12 h-12 flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                            <i data-lucide="users" class="w-6 h-6"></i>
                         </div>
-                        <span class="font-bold text-slate-700 dark:text-white flex-1">Kelola Data Santri</span>
-                        <div class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-400 px-2 py-1 rounded">Admin</div>
+                        <span class="font-bold text-slate-800 dark:text-white flex-1 text-sm">Kelola Data Santri</span>
+                        <div class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 border border-slate-200 dark:border-slate-600 px-2.5 py-1 rounded-lg font-bold">ADMIN</div>
                     </div>
 
-                    <div class="p-4 border-b border-slate-50 dark:border-slate-700 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" onclick="handleGantiPin()">
-                        <div class="p-2 bg-purple-50 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-xl">
-                            <i data-lucide="lock" class="w-5 h-5"></i>
+                    <div class="p-5 flex items-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition active:bg-slate-100" onclick="handleGantiPin()">
+                        <div class="w-12 h-12 flex items-center justify-center bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl">
+                            <i data-lucide="lock" class="w-6 h-6"></i>
                         </div>
-                        <span class="font-bold text-slate-700 dark:text-white flex-1">Ganti PIN Keamanan</span>
+                        <span class="font-bold text-slate-800 dark:text-white flex-1 text-sm">Ganti PIN Keamanan</span>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
                     </div>
                 </div>
 
-                <button onclick="handleLogout()" class="w-full py-4 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-900/30 active:scale-95 transition">
+                <button onclick="handleLogout()" class="w-full py-4 rounded-2xl bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-bold flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-900/30 active:scale-[0.98] transition border border-red-100 dark:border-red-900/30">
                     <i data-lucide="log-out" class="w-5 h-5"></i> Keluar Aplikasi
                 </button>
-                <p class="text-center text-xs text-slate-300 dark:text-slate-600 mt-6 mb-6">MusyrifApp v4.0 Ultimate</p>
+                <p class="text-center text-xs text-slate-300 dark:text-slate-600 mt-8 mb-8 font-medium">MusyrifApp v4.0 Ultimate</p>
             </div>
 
         </div>
 
-        <div class="absolute bottom-0 w-full glass z-40 px-6 py-3 flex justify-around items-center pb-6 transition-colors duration-300">
-            <button onclick="switchTab('home')" class="nav-btn active flex flex-col items-center gap-1.5 text-slate-400 dark:text-slate-500 transition-colors w-16" data-target="home">
-                <i data-lucide="home" class="w-6 h-6"></i>
-                <span class="text-[10px] font-bold">Beranda</span>
-            </button>
-            <button onclick="switchTab('report')" class="nav-btn flex flex-col items-center gap-1.5 text-slate-400 dark:text-slate-500 transition-colors w-16" data-target="report">
-                <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
-                <span class="text-[10px] font-bold">Laporan</span>
-            </button>
-            <button onclick="switchTab('profile')" class="nav-btn flex flex-col items-center gap-1.5 text-slate-400 dark:text-slate-500 transition-colors w-16" data-target="profile">
-                <i data-lucide="user" class="w-6 h-6"></i>
-                <span class="text-[10px] font-bold">Profil</span>
-            </button>
+        <div class="absolute bottom-0 w-full z-40 px-6 py-4 pb-8 transition-colors duration-300 pointer-events-none">
+            <div class="glass px-2 py-2 rounded-[2rem] shadow-2xl border border-white/50 dark:border-white/10 flex justify-around items-center backdrop-blur-xl pointer-events-auto bg-white/80 dark:bg-slate-900/80">
+                <button onclick="switchTab('home')" class="nav-btn active flex-1 flex flex-col items-center gap-1 py-2 rounded-2xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 group" data-target="home">
+                    <i data-lucide="home" class="w-6 h-6 group-[.active]:fill-current transition-colors"></i>
+                    <span class="text-[10px] font-bold opacity-0 group-[.active]:opacity-100 transition-opacity -mt-1 group-[.active]:mt-0">Beranda</span>
+                </button>
+                <button onclick="switchTab('report')" class="nav-btn flex-1 flex flex-col items-center gap-1 py-2 rounded-2xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 group" data-target="report">
+                    <i data-lucide="bar-chart-2" class="w-6 h-6 group-[.active]:fill-current transition-colors"></i>
+                    <span class="text-[10px] font-bold opacity-0 group-[.active]:opacity-100 transition-opacity -mt-1 group-[.active]:mt-0">Laporan</span>
+                </button>
+                <button onclick="switchTab('profile')" class="nav-btn flex-1 flex flex-col items-center gap-1 py-2 rounded-2xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all active:scale-95 group" data-target="profile">
+                    <i data-lucide="user" class="w-6 h-6 group-[.active]:fill-current transition-colors"></i>
+                    <span class="text-[10px] font-bold opacity-0 group-[.active]:opacity-100 transition-opacity -mt-1 group-[.active]:mt-0">Profil</span>
+                </button>
+            </div>
         </div>
     </section>
 
     <section id="view-attendance" class="flex-1 flex flex-col h-full hidden bg-slate-50 dark:bg-dark-bg z-[60] transition-colors duration-300">
-        <div class="glass px-4 py-4 shadow-sm z-30 flex flex-col gap-3 sticky top-0 transition-all">
+        <div class="glass px-6 py-4 shadow-sm z-30 flex flex-col gap-4 sticky top-0 transition-all border-b border-slate-200/50 dark:border-slate-800/50 backdrop-blur-xl bg-white/80 dark:bg-dark-bg/80">
             <div class="flex justify-between items-center">
-                <button onclick="closeAttendance()" class="w-10 h-10 flex items-center justify-center bg-white dark:bg-dark-card border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full shadow-sm active:scale-95 transition">
-                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                <button onclick="closeAttendance()" class="w-11 h-11 flex items-center justify-center bg-white dark:bg-dark-card border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl shadow-sm active:scale-90 transition">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
                 </button>
                 <div class="text-center">
-                    <h2 id="att-slot-title" class="font-extrabold text-slate-800 dark:text-white text-xl tracking-tight">...</h2>
+                    <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-0.5">Sesi Absensi</p>
+                    <h2 id="att-slot-title" class="font-black text-slate-800 dark:text-white text-xl tracking-tight">...</h2>
                 </div>
-                <div id="save-indicator" class="w-10 flex justify-end"></div>
+                <div id="save-indicator" class="w-11 flex justify-end"></div>
             </div>
 
-            <div class="flex gap-2">
-                <div class="relative flex-1">
-                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                    <input type="text" id="att-search" placeholder="Cari santri..." 
+            <div class="flex gap-3">
+                <div class="relative flex-1 group">
+                    <div class="absolute left-3.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </div>
+                    <input type="text" id="att-search" placeholder="Cari nama santri..." 
                         oninput="handleSearch(this.value)"
-                        class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl py-2.5 pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-white placeholder:text-slate-400 transition-all">
+                        class="w-full bg-slate-100 dark:bg-slate-900 border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-black rounded-2xl py-3.5 pl-14 pr-4 text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 text-slate-800 dark:text-white placeholder:text-slate-400 transition-all">
                 </div>
-                <button onclick="toggleProblemFilter()" id="btn-filter-problem" class="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors border border-transparent active:scale-95">
-                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                <button onclick="toggleProblemFilter()" id="btn-filter-problem" class="w-14 flex items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 rounded-2xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-200 border border-transparent transition-all active:scale-95 shadow-sm">
+                    <i data-lucide="alert-circle" class="w-6 h-6"></i>
                 </button>
             </div>
             
-            <div class="flex justify-between items-end px-1">
-                <p id="att-santri-count" class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">... Santri</p>
-                <p class="text-[10px] text-slate-400 italic">Geser kartu untuk catatan</p>
+            <div class="flex justify-between items-center px-1">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="users" class="w-3 h-3 text-slate-400"></i>
+                    <p id="att-santri-count" class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">... Santri</p>
+                </div>
+                <p class="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md">Geser kartu untuk catatan</p>
             </div>
         </div>
 
-        <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-36 space-y-3 scroll-smooth"></div>
+        <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-40 space-y-4 scroll-smooth"></div>
 
-        <div class="fixed bottom-6 left-4 right-4 z-[80]">
-            <div class="glass p-2 rounded-2xl shadow-xl border border-white/50 dark:border-white/10 flex gap-2 backdrop-blur-xl">
-                <button onclick="handleBulkAction('alpa')" class="flex-1 py-3.5 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold text-sm border border-red-100 dark:border-red-900 hover:bg-red-100 active:scale-95 transition flex items-center justify-center gap-2">
-                    <i data-lucide="x-circle" class="w-4 h-4"></i> Semua Alpa
+        <div class="fixed bottom-8 left-6 right-6 z-[80]">
+            <div class="glass p-2.5 rounded-[1.5rem] shadow-2xl border border-white/50 dark:border-white/10 flex gap-3 backdrop-blur-xl bg-white/80 dark:bg-slate-900/90">
+                <button onclick="handleBulkAction('alpa')" class="flex-1 py-4 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold text-sm border border-red-100 dark:border-red-900 hover:bg-red-100 hover:-translate-y-1 active:scale-95 transition flex items-center justify-center gap-2">
+                    <i data-lucide="x-circle" class="w-5 h-5"></i>
+                    <span class="hidden sm:inline">Tandai</span> Alpa
                 </button>
-                <button onclick="handleBulkAction('reset')" class="flex-[2] py-3.5 rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/30 hover:bg-emerald-700 active:scale-95 transition flex items-center justify-center gap-2">
+                <button onclick="handleBulkAction('reset')" class="flex-[2] py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-1 active:scale-95 transition flex items-center justify-center gap-2">
                     <i data-lucide="check-circle-2" class="w-5 h-5"></i> Hadir Semua
                 </button>
             </div>
         </div>
     </section>
 
-    <dialog id="modal-santri" class="bg-transparent p-0 w-full h-full max-w-none max-h-none z-[90] backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm m-0 open:flex open:items-center open:justify-center">
-        <div class="bg-white dark:bg-dark-card w-full max-w-sm mx-4 rounded-3xl shadow-2xl p-6 scale-in relative overflow-hidden ring-1 ring-white/50 dark:ring-slate-700">
-            <button onclick="document.getElementById('modal-santri').close()" class="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-            
-            <div class="flex flex-col items-center mb-6">
-                <div id="modal-avatar" class="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/50 rounded-full flex items-center justify-center text-2xl font-bold text-emerald-700 dark:text-emerald-400 mb-3 shadow-inner ring-4 ring-white dark:ring-slate-700">AF</div>
-                <h3 id="modal-name" class="text-xl font-bold text-slate-800 dark:text-white text-center">Nama Santri</h3>
-                <span id="modal-kamar" class="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold mt-1">Kamar 101</span>
+    <dialog id="modal-santri" class="bg-transparent p-0 w-full h-full max-w-none max-h-none z-[90] backdrop:bg-slate-900/80 backdrop:backdrop-blur-sm m-0 open:flex open:items-center open:justify-center">
+        <div class="bg-white dark:bg-dark-card w-full max-w-sm mx-6 rounded-[2.5rem] shadow-2xl p-0 scale-in relative overflow-hidden ring-1 ring-white/20 dark:ring-slate-700">
+            <div class="relative bg-gradient-to-br from-emerald-500 to-teal-600 p-8 text-center rounded-b-[2rem] shadow-lg mb-4">
+                <button onclick="document.getElementById('modal-santri').close()" class="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition backdrop-blur-sm">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                
+                <div id="modal-avatar" class="w-24 h-24 bg-white text-emerald-600 rounded-3xl mx-auto flex items-center justify-center text-3xl font-black mb-4 shadow-xl ring-4 ring-emerald-400/50 transform rotate-3">AF</div>
+                <h3 id="modal-name" class="text-2xl font-black text-white leading-tight mb-1">Nama Santri</h3>
+                <span id="modal-kamar" class="bg-emerald-700/50 text-emerald-50 px-4 py-1.5 rounded-full text-xs font-bold backdrop-blur-md shadow-inner border border-white/10">Kamar 101</span>
             </div>
 
-            <div class="space-y-4">
-                <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-3 h-3"></i> Statistik Hari Ini (Real)</h4>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center shadow-sm">
-                            <span id="modal-stat-hadir" class="block text-2xl font-bold text-emerald-600 dark:text-emerald-400">0</span>
-                            <span class="text-[10px] text-slate-400 font-bold uppercase">Hadir</span>
+            <div class="p-6 space-y-6">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2 px-1 tracking-wider">
+                        <i data-lucide="activity" class="w-3 h-3"></i> Statistik Hari Ini
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 text-center relative overflow-hidden group">
+                            <div class="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition"></div>
+                            <span id="modal-stat-hadir" class="block text-3xl font-black text-emerald-600 dark:text-emerald-400 mb-1">0</span>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Hadir</span>
                         </div>
-                        <div class="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center shadow-sm">
-                            <span id="modal-stat-alpa" class="block text-2xl font-bold text-red-500 dark:text-red-400">0</span>
-                            <span class="text-[10px] text-slate-400 font-bold uppercase">Pelanggaran</span>
+                        <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 text-center relative overflow-hidden group">
+                            <div class="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition"></div>
+                            <span id="modal-stat-alpa" class="block text-3xl font-black text-red-500 dark:text-red-400 mb-1">0</span>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Pelanggaran</span>
                         </div>
                     </div>
                 </div>
                 
                 <div>
-                      <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Riwayat Terakhir</h4>
-                      <div id="modal-history-list" class="max-h-32 overflow-y-auto space-y-2 pr-1">
-                          <p class="text-xs text-slate-400 italic text-center py-2">Belum ada riwayat.</p>
+                      <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 px-1 tracking-wider flex items-center gap-2">
+                          <i data-lucide="history" class="w-3 h-3"></i> Riwayat Pelanggaran
+                      </h4>
+                      <div id="modal-history-list" class="max-h-32 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                          <div class="text-xs text-slate-400 italic text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                              Belum ada riwayat.
+                          </div>
                       </div>
                 </div>
+            </div>
+            
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 text-center">
+                <p class="text-[10px] text-slate-400">Data diperbarui secara real-time</p>
             </div>
         </div>
     </dialog>
 
-    <dialog id="modal-manage-santri" class="bg-transparent p-0 w-full h-full max-w-none max-h-none z-[90] backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm m-0">
+    <dialog id="modal-manage-santri" class="bg-transparent p-0 w-full h-full max-w-none max-h-none z-[90] backdrop:bg-slate-900/80 backdrop:backdrop-blur-md m-0">
         <div class="bg-white dark:bg-dark-card w-full h-full flex flex-col scale-in">
-            <div class="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
-                <h2 class="font-bold text-lg dark:text-white">Kelola Data Santri</h2>
-                <button onclick="document.getElementById('modal-manage-santri').close()" class="p-2 bg-slate-100 dark:bg-slate-800 rounded-full">
-                    <i data-lucide="x" class="w-5 h-5 dark:text-white"></i>
-                </button>
-            </div>
-    
-            <div class="p-4 bg-slate-50 dark:bg-slate-800/50">
-                <div class="flex gap-2 mb-2">
-                    <input type="text" id="input-nama-baru" placeholder="Nama Santri" class="flex-[2] p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-dark-card dark:text-white">
-                    <input type="text" id="input-kamar-baru" placeholder="Kamar" class="flex-1 p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-dark-card dark:text-white">
+            <div class="p-4 pt-6 pb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-dark-card/90 backdrop-blur-md sticky top-0 z-20">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                        <i data-lucide="database-zap" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg dark:text-white leading-tight">Database Santri</h2>
+                        <p class="text-xs text-slate-400 font-medium">Tambah atau hapus data</p>
+                    </div>
                 </div>
-                <button onclick="tambahSantriBaru()" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition">
-                    + Tambah Santri
+                <button onclick="document.getElementById('modal-manage-santri').close()" class="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition active:scale-95">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
     
-            <div id="list-manage-santri" class="flex-1 overflow-y-auto p-4 space-y-2">
+            <div class="p-5 bg-slate-50/80 dark:bg-black/20 border-b border-slate-100 dark:border-slate-800 backdrop-blur-sm">
+                <div class="flex gap-3 mb-3">
+                    <div class="flex-[2] relative group">
+                        <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
+                        <input type="text" id="input-nama-baru" placeholder="Nama Lengkap" class="w-full pl-10 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all dark:text-white">
+                    </div>
+                    <div class="flex-1 relative group">
+                        <i data-lucide="bed" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
+                        <input type="text" id="input-kamar-baru" placeholder="Kamar" class="w-full pl-10 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all dark:text-white">
+                    </div>
+                </div>
+                <button onclick="tambahSantriBaru()" class="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3.5 rounded-2xl shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Tambah Data Santri
+                </button>
+            </div>
+    
+            <div id="list-manage-santri" class="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50 dark:bg-dark-bg/50">
                 </div>
         </div>
     </dialog>
 
     <template id="tpl-slot-item">
-        <div class="slot-item bg-white dark:bg-dark-card p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer active:scale-[0.98] transition-all hover:shadow-md mb-3 group">
-            <div class="flex items-center justify-between w-full mb-3">
+        <div class="slot-item bg-white dark:bg-dark-card p-5 rounded-[1.5rem] shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer active:scale-[0.98] transition-all hover:shadow-lg hover:border-emerald-500/30 mb-4 group relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent to-slate-50/50 dark:to-slate-800/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="flex items-center justify-between w-full mb-4 relative z-10">
                 <div class="flex items-center gap-4">
-                    <div class="slot-icon-bg w-12 h-12 rounded-xl flex items-center justify-center transition-colors">
-                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    <div class="slot-icon-bg w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-sm">
+                        <i data-lucide="clock" class="w-7 h-7"></i>
                     </div>
                     <div>
-                        <h4 class="slot-label font-bold text-slate-700 dark:text-slate-200 text-lg group-hover:text-emerald-500 transition-colors">Label</h4>
-                        <span class="slot-status text-xs text-slate-400 dark:text-slate-500">Belum dimulai</span>
+                        <h4 class="slot-label font-black text-slate-700 dark:text-slate-200 text-lg group-hover:text-emerald-500 transition-colors tracking-tight">Label</h4>
+                        <span class="slot-status text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md mt-1 inline-block">Belum dimulai</span>
                     </div>
                 </div>
-                <div class="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-500 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900 group-hover:text-emerald-600 transition-all">
+                <div class="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-500 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
                     <i data-lucide="chevron-right" class="w-5 h-5"></i>
                 </div>
             </div>
-            <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                <div class="slot-progress h-full bg-emerald-500 w-0 progress-bar rounded-full"></div>
+            <div class="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden relative z-10">
+                <div class="slot-progress h-full bg-emerald-500 w-0 progress-bar rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
             </div>
         </div>
     </template>
 
     <template id="tpl-santri-row">
-        <div class="santri-row rounded-2xl shadow-sm border transition-all duration-300 bg-white dark:bg-dark-card border-slate-100 dark:border-slate-700 overflow-hidden slide-up">
-            <div class="flex items-center justify-between p-3 border-b border-slate-50 dark:border-slate-700 bg-gradient-to-r from-white dark:from-dark-card to-slate-50/50 dark:to-slate-800/30">
-                <div class="flex items-center gap-3 cursor-pointer btn-profile active:scale-95 transition">
-                    <div class="santri-avatar w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-2 ring-white dark:ring-slate-600 shadow-sm transition-transform hover:scale-110">AF</div>
+        <div class="santri-row rounded-[1.5rem] shadow-sm border transition-all duration-300 bg-white dark:bg-dark-card border-slate-100 dark:border-slate-700 overflow-hidden slide-up group hover:shadow-md">
+            <div class="flex items-center justify-between p-4 border-b border-slate-50 dark:border-slate-800 bg-gradient-to-r from-white dark:from-dark-card to-slate-50/50 dark:to-slate-800/30">
+                <div class="flex items-center gap-4 cursor-pointer btn-profile active:scale-95 transition">
+                    <div class="santri-avatar w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 ring-2 ring-white dark:ring-slate-700 shadow-sm transition-transform group-hover:scale-105 group-hover:bg-white">AF</div>
                     <div>
-                        <h3 class="santri-name font-bold text-slate-800 dark:text-white text-sm leading-tight">Nama Santri</h3>
-                        <p class="santri-kamar text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 inline-block px-1.5 py-0.5 rounded mt-0.5">Kamar 101</p>
+                        <h3 class="santri-name font-bold text-slate-800 dark:text-white text-[0.95rem] leading-tight mb-0.5 group-hover:text-emerald-600 transition-colors">Nama Santri</h3>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                            <p class="santri-kamar text-[10px] font-bold text-slate-400 uppercase tracking-wide">Kamar 101</p>
+                        </div>
                     </div>
                 </div>
-                <button class="btn-edit-note w-9 h-9 flex items-center justify-center rounded-full text-slate-300 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-emerald-600 transition">
+                <button class="btn-edit-note w-10 h-10 flex items-center justify-center rounded-xl text-slate-300 dark:text-slate-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 transition active:scale-90">
                     <i data-lucide="message-square-plus" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div class="p-3 bg-white dark:bg-dark-card">
-                <div class="activity-container flex gap-2 overflow-x-auto hide-scrollbar pb-1"></div>
+            
+            <div class="p-4 bg-white dark:bg-dark-card relative z-10">
+                <div class="activity-container flex gap-3 overflow-x-auto hide-scrollbar pb-2 pt-1 snap-x"></div>
             </div>
             
-            <div class="note-section hidden px-3 pb-3 pt-2 bg-slate-50/50 dark:bg-slate-800/30 animate-in border-t border-slate-100 dark:border-slate-700">
-                <div class="relative mb-2">
-                    <input type="text" placeholder="Tulis catatan..." 
-                        class="input-note w-full text-sm pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900 transition shadow-sm">
-                    <i data-lucide="pencil" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <div class="note-section hidden px-4 pb-4 pt-2 bg-slate-50/80 dark:bg-slate-900/30 animate-in border-t border-slate-100 dark:border-slate-800">
+                <div class="relative mb-3 group/input">
+                    <input type="text" placeholder="Tulis catatan khusus..." 
+                        class="input-note w-full text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition shadow-sm">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 dark:bg-slate-700 rounded-md text-slate-400 group-focus-within/input:text-emerald-500 transition-colors">
+                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                    </div>
                 </div>
-                <div class="flex gap-2 overflow-x-auto hide-scrollbar">
-                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full text-slate-500 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900 hover:text-emerald-600 transition whitespace-nowrap">Sakit</button>
-                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full text-slate-500 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900 hover:text-emerald-600 transition whitespace-nowrap">Izin Pulang</button>
-                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full text-slate-500 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900 hover:text-emerald-600 transition whitespace-nowrap">Terlambat</button>
-                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-1 rounded-full text-slate-500 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900 hover:text-emerald-600 transition whitespace-nowrap">Alpha</button>
+                <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:border-emerald-200 hover:text-emerald-600 transition whitespace-nowrap shadow-sm active:scale-95">Sakit</button>
+                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 hover:text-blue-600 transition whitespace-nowrap shadow-sm active:scale-95">Izin Pulang</button>
+                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:border-amber-200 hover:text-amber-600 transition whitespace-nowrap shadow-sm active:scale-95">Terlambat</button>
+                    <button class="chip-note text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:border-red-200 hover:text-red-600 transition whitespace-nowrap shadow-sm active:scale-95">Alpha</button>
                 </div>
             </div>
         </div>
     </template>
 
     <template id="tpl-activity-btn">
-        <div class="flex flex-col items-center gap-1.5 flex-shrink-0 group">
-            <button class="btn-status w-[3.25rem] h-[3.25rem] rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[3px] group-hover:-translate-y-1">
+        <div class="flex flex-col items-center gap-2 flex-shrink-0 group snap-center">
+            <button class="btn-status w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[3px] group-hover:-translate-y-1 relative overflow-hidden">
+                <div class="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </button>
-            <span class="lbl-status text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate w-[4.5rem] text-center group-hover:text-emerald-500 transition-colors">Label</span>
+            <span class="lbl-status text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate w-16 text-center group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors tracking-wide">Label</span>
         </div>
     </template>
-
 
     <script src="script.js"></script>
 
 </body>
 </html>
-
-
-
-
-
-
