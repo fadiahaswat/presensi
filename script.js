@@ -86,39 +86,71 @@ const SLOT_WAKTU = {
     shubuh: { 
         id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', 
         startHour: 4, 
+        // --- CONFIG TEMA BARU ---
+        style: {
+            icon: 'sunrise', // Ikon Matahari Terbit
+            gradient: 'from-emerald-50 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/20',
+            border: 'hover:border-emerald-300 dark:hover:border-emerald-700',
+            text: 'text-emerald-700 dark:text-emerald-300',
+            iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-200'
+        },
         activities: [
             { id: 'shalat', label: 'Shubuh', type: 'mandator' },
             { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah' },
             { id: 'tahfizh', label: 'Tahfizh', type: 'mandator' },
             { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah' },
             { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' },
-            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [0] } // 0 = Minggu
+            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [0] }
     ]},
     ashar: { 
         id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', 
-        startHour: 15, 
+        startHour: 15,
+        // --- CONFIG TEMA BARU ---
+        style: {
+            icon: 'sun', // Ikon Matahari Terik
+            gradient: 'from-orange-50 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/20',
+            border: 'hover:border-orange-300 dark:hover:border-orange-700',
+            text: 'text-orange-700 dark:text-orange-300',
+            iconBg: 'bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-200'
+        },
         activities: [
             { id: 'shalat', label: 'Ashar', type: 'mandator' },
             { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah' }
     ]},
     maghrib: { 
         id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', 
-        startHour: 18, 
+        startHour: 18,
+        // --- CONFIG TEMA BARU ---
+        style: {
+            icon: 'sunset', // Ikon Matahari Terbenam
+            gradient: 'from-indigo-50 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/20',
+            border: 'hover:border-indigo-300 dark:hover:border-indigo-700',
+            text: 'text-indigo-700 dark:text-indigo-300',
+            iconBg: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-800 dark:text-indigo-200'
+        },
         activities: [
             { id: 'shalat', label: 'Maghrib', type: 'mandator' },
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
-            { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] }, // Kamis, Jumat
-            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [3] }, // Rabu
-            { id: 'vocabularies', label: 'Vocab', type: 'mandator', showOnDays: [1, 2] }, // Senin, Selasa
+            { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] },
+            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [3] },
+            { id: 'vocabularies', label: 'Vocab', type: 'mandator', showOnDays: [1, 2] },
             { id: 'puasa', label: 'Puasa', type: 'sunnah' }
     ]},
     isya: { 
         id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', 
-        startHour: 19, 
+        startHour: 19,
+        // --- CONFIG TEMA BARU ---
+        style: {
+            icon: 'moon', // Ikon Bulan
+            gradient: 'from-slate-50 to-blue-100 dark:from-slate-800 dark:to-blue-900/40',
+            border: 'hover:border-blue-300 dark:hover:border-blue-700',
+            text: 'text-slate-700 dark:text-slate-300',
+            iconBg: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+        },
         activities: [
             { id: 'shalat', label: 'Isya', type: 'mandator' },
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
-            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] } // Kamis Malam
+            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] }
     ]}
 };
 
