@@ -485,24 +485,42 @@
     </div>
 
     <template id="tpl-slot-item">
-        <div class="slot-item bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm flex items-center justify-between cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition-all group">
-            <div class="flex items-center gap-4 w-full">
-                <div class="slot-icon-bg w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm shrink-0">
-                    <i data-lucide="clock" class="w-5 h-5"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <h4 class="slot-label font-bold text-slate-700 dark:text-white text-sm truncate">Label</h4>
-                    <div class="flex justify-between items-center mb-1.5">
-                        <span class="slot-status text-[10px] font-bold text-slate-400 uppercase tracking-wider">0/0</span>
+        <div class="slot-item w-full bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition-all group relative overflow-hidden">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="slot-icon-bg w-10 h-10 rounded-2xl flex items-center justify-center transition-colors shadow-sm shrink-0">
+                        <i data-lucide="clock" class="w-5 h-5"></i>
                     </div>
-                    <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                        <div class="slot-progress h-full bg-slate-300 w-0 rounded-full transition-all duration-700 ease-out"></div>
+                    <div>
+                        <h4 class="slot-label font-bold text-slate-800 dark:text-white text-base leading-none mb-1">Label</h4>
+                        <div class="slot-status-badge text-[10px] font-bold px-2 py-0.5 rounded-md inline-block">Status</div>
                     </div>
                 </div>
+                <div class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700/50 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </div>
             </div>
-            <div class="pl-3">
-                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors"></i>
+            
+            <div class="slot-stats-grid grid grid-cols-4 gap-2 mt-2">
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl py-1.5 px-2 text-center">
+                    <span class="block text-[8px] font-bold text-emerald-400 uppercase">Hadir</span>
+                    <span class="slot-stat-h text-sm font-black text-emerald-600 dark:text-emerald-400">0</span>
+                </div>
+                <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl py-1.5 px-2 text-center">
+                    <span class="block text-[8px] font-bold text-amber-400 uppercase">Sakit</span>
+                    <span class="slot-stat-s text-sm font-black text-amber-600 dark:text-amber-400">0</span>
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl py-1.5 px-2 text-center">
+                    <span class="block text-[8px] font-bold text-blue-400 uppercase">Izin</span>
+                    <span class="slot-stat-i text-sm font-black text-blue-600 dark:text-blue-400">0</span>
+                </div>
+                <div class="bg-red-50 dark:bg-red-900/20 rounded-xl py-1.5 px-2 text-center">
+                    <span class="block text-[8px] font-bold text-red-400 uppercase">Alpa</span>
+                    <span class="slot-stat-a text-sm font-black text-red-600 dark:text-red-400">0</span>
+                </div>
             </div>
+            
+            <div class="slot-progress hidden"></div>
         </div>
     </template>
 
@@ -549,3 +567,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
