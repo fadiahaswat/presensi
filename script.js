@@ -1254,34 +1254,29 @@ window.updateProfileStats = function() {
 
 // 1. Cek apakah Slot boleh diakses
 window.isSlotAccessible = function(slotId, dateStr) {
-    const selectedDate = new Date(dateStr);
-    const today = new Date();
+    const todayStr = window.getLocalDateStr();
     
-    // Reset jam agar perbandingan hari akurat
-    selectedDate.setHours(0,0,0,0);
-    const todayDate = new Date();
-    todayDate.setHours(0,0,0,0);
-
-    // Hitung selisih hari (dalam milidetik)
-    const diffTime = todayDate - selectedDate;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-    // ATURAN 1: MASA LALU (Maksimal 3 hari)
-    if (diffDays > 3) {
-        return { locked: true, reason: 'limit' }; // Terkunci karena sudah lewat 3 hari
-    }
-
-    // ATURAN 2: MASA DEPAN (Hari belum terjadi)
-    if (selectedDate > todayDate) {
+    // 1. Cek Masa Depan (Lewat String Comparison)
+    if (dateStr > todayStr) {
         return { locked: true, reason: 'future' };
     }
 
-    // ATURAN 3: HARI INI (Cek Jam)
-    if (diffDays === 0) { // Jika hari ini
+    // 2. Hitung Selisih Hari
+    const d1 = new Date(dateStr);
+    const d2 = new Date(todayStr);
+    const diffTime = Math.abs(d2 - d1);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+    // 3. Cek Batas Masa Lalu (> 3 Hari)
+    if (diffDays > 3) {
+        return { locked: true, reason: 'limit' };
+    }
+
+    // 4. Jika Hari Ini, Cek Jam
+    if (dateStr === todayStr) {
         const currentHour = new Date().getHours();
         const slotStart = SLOT_WAKTU[slotId].startHour;
         
-        // Jika jam sekarang belum sampai jam mulai slot
         if (currentHour < slotStart) {
             return { locked: true, reason: 'wait' };
         }
