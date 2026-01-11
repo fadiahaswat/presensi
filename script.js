@@ -681,12 +681,13 @@ window.updateDateDisplay = function() {
     const input = document.getElementById('date-picker-input');
     
     if(el) {
-        // Format cantik: "Senin, 12 Jan 2025"
-        const formatted = window.formatDate(appState.date);
-        el.textContent = formatted;
+        // Tampilkan format cantik di teks: "Senin, 12 Jan 2025"
+        el.textContent = window.formatDate(appState.date);
     }
     
-    // Sinkronkan input hidden juga
+    // SINKRONISASI PENTING:
+    // Pastikan nilai input date di belakang layar selalu sama dengan appState.date
+    // Jadi saat diklik, kalender langsung terbuka di tanggal yang benar.
     if(input) {
         input.value = appState.date;
     }
