@@ -3,17 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>MusyrifApp Pro</title>
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
-
+    
+    <title>MusyrifApp Pro</title>
+    
+    <!-- Favicon -->
     <link rel="icon" href="https://api.iconify.design/lucide/shield-check.svg?color=%2310b981">
     
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <script>
@@ -30,7 +36,7 @@
                         'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
                         'fade-in': 'fadeIn 0.3s ease-out',
                         'blob': 'blob 10s infinite alternate',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                        'spin-slow': 'spin 3s linear infinite',
                     },
                     keyframes: {
                         slideUp: { '0%': { transform: 'translateY(20px)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
@@ -46,25 +52,26 @@
     </script>
 
     <style>
-        /* --- Base Reset & Mobile Fixes --- */
+        /* --- Base & Reset --- */
         body { 
             -webkit-tap-highlight-color: transparent; 
-            overflow: hidden; /* Prevent body scroll, handle inside views */
-            overscroll-behavior-y: none; /* Disables pull-to-refresh on mobile */
+            overflow: hidden; 
+            overscroll-behavior-y: none;
+            touch-action: manipulation;
         }
         
-        /* Safe Area Padding for iPhone X+ */
-        .pt-safe { padding-top: max(24px, env(safe-area-inset-top)); }
+        /* --- Safe Area Padding --- */
+        .pt-safe { padding-top: max(20px, env(safe-area-inset-top)); }
         .pb-safe { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
         .top-safe-area { top: env(safe-area-inset-top); }
 
-        /* --- Glassmorphism Upgrade --- */
+        /* --- Glassmorphism --- */
         .glass-card {
             background: rgba(255, 255, 255, 0.75);
             backdrop-filter: blur(16px) saturate(180%);
             -webkit-backdrop-filter: blur(16px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
         .dark .glass-card {
             background: rgba(30, 41, 59, 0.7);
@@ -83,79 +90,71 @@
             border-top: 1px solid rgba(255,255,255,0.05);
         }
 
-        /* --- Ambient Background --- */
-        .blob-bg {
-            position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
-        }
-        .blob {
-            position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5;
-            will-change: transform; /* Performance Boost */
-            animation: blob 10s infinite alternate;
-        }
-        .blob-1 { top: -10%; left: -20%; width: 60vw; height: 60vw; background: #34d399; }
+        /* --- Background Animation --- */
+        .blob-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; animation: blob 10s infinite alternate; will-change: transform; }
+        .blob-1 { top: -10%; left: -20%; width: 70vw; height: 70vw; background: #34d399; }
         .blob-2 { bottom: -10%; right: -20%; width: 70vw; height: 70vw; background: #60a5fa; animation-delay: -5s; }
-        .dark .blob-1 { background: #059669; opacity: 0.25; }
-        .dark .blob-2 { background: #2563eb; opacity: 0.2; }
+        .dark .blob-1 { background: #059669; opacity: 0.2; }
+        .dark .blob-2 { background: #2563eb; opacity: 0.15; }
 
         /* --- Utilities --- */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Smooth Text Rendering */
         * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-        /* --- Active States --- */
-        .nav-btn { transition: all 0.3s ease; }
-        .nav-btn.active i { color: #10b981; stroke-width: 2.5px; transform: scale(1.1); }
-        .nav-btn.active::after {
-            content: ''; position: absolute; bottom: 0; width: 40%; height: 3px; 
-            background: #10b981; border-radius: 10px 10px 0 0;
-        }
+        /* --- Navigation States --- */
+        .nav-btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .nav-btn.active i { color: #10b981; transform: scale(1.1); stroke-width: 2.5px; }
+        .nav-btn.active .nav-indicator { transform: scale(1); opacity: 1; }
 
         /* --- Print Styles --- */
         @media print {
-            body { background: white !important; overflow: visible !important; height: auto !important; }
-            .no-print, nav, #toast-container, .blob-bg, #view-loading { display: none !important; }
-            #tab-report { display: block !important; position: static !important; padding: 0 !important; }
-            .glass-card { box-shadow: none; border: 1px solid #ddd; background: white; }
-            #report-problem-list { page-break-inside: avoid; }
+            body { background: white !important; overflow: visible !important; height: auto !important; position: static !important; }
+            .no-print, nav, #toast-container, .blob-bg, #view-loading, #view-login { display: none !important; }
+            #view-main, #tab-report { display: block !important; position: static !important; height: auto !important; overflow: visible !important; }
+            .glass-card { box-shadow: none; border: 1px solid #ddd; background: white; break-inside: avoid; }
         }
     </style>
 </head>
-<body class="text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] h-[100dvh] w-full flex flex-col relative selection:bg-emerald-500 selection:text-white">
+<body class="text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] h-[100dvh] w-full flex flex-col relative selection:bg-emerald-500 selection:text-white overflow-hidden">
 
+    <!-- Background Ambience -->
     <div class="blob-bg">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
     </div>
 
+    <!-- Toast Notifications -->
     <div id="toast-container" class="fixed top-safe-area right-4 z-[200] flex flex-col items-end pointer-events-none gap-2 pt-4"></div>
 
+    <!-- Loading Screen -->
     <div id="view-loading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-50 dark:bg-[#0f172a] transition-opacity duration-500">
-        <div class="relative w-24 h-24 mb-6">
+        <div class="relative w-20 h-20 mb-6">
             <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
             <div class="absolute inset-0 rounded-full border-4 border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-            <div class="absolute inset-0 flex items-center justify-center animate-pulse-slow">
-                <i data-lucide="shield-check" class="w-10 h-10 text-emerald-500 fill-emerald-500/10"></i>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <i data-lucide="shield-check" class="w-8 h-8 text-emerald-500"></i>
             </div>
         </div>
-        <h2 class="text-3xl font-black tracking-tighter">Musyrif<span class="text-emerald-500">App</span></h2>
-        <p class="text-xs font-semibold text-slate-400 mt-2 uppercase tracking-widest">Memuat Data...</p>
+        <h2 class="text-2xl font-black tracking-tight text-slate-800 dark:text-white">Musyrif<span class="text-emerald-500">App</span></h2>
+        <p class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Memuat Data...</p>
     </div>
 
+    <!-- Login View -->
     <section id="view-login" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-hidden">
         <div class="glass-card w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl animate-slide-up border-t-4 border-t-emerald-500 relative overflow-hidden">
             <div class="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-            <div class="text-center mb-10 relative z-10">
-                <div class="inline-flex p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/40 dark:to-emerald-900/10 rounded-2xl mb-5 text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-100 dark:border-emerald-800">
+            <div class="text-center mb-8 relative z-10">
+                <div class="inline-flex p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/40 dark:to-emerald-900/10 rounded-2xl mb-4 text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-100 dark:border-emerald-800">
                     <i data-lucide="school" class="w-10 h-10"></i>
                 </div>
                 <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Akses Musyrif</h1>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">Silakan masuk untuk mengelola presensi.</p>
             </div>
 
-            <div class="space-y-6 relative z-10">
+            <div class="space-y-5 relative z-10">
                 <div class="space-y-2">
                     <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Pilih Kelas</label>
                     <div class="relative group">
@@ -171,7 +170,7 @@
                     <input type="tel" id="login-pin" placeholder="••••" maxlength="4" class="w-full py-4 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-center text-2xl text-slate-700 dark:text-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all tracking-[0.5em] placeholder:tracking-normal placeholder:text-sm">
                 </div>
 
-                <button onclick="handleLogin()" class="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group mt-4">
+                <button onclick="handleLogin()" class="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group mt-2">
                     Masuk Dashboard 
                     <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
                 </button>
@@ -183,16 +182,19 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Database Terhubung</span>
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">System Online</span>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- Main App View -->
     <section id="view-main" class="flex-1 flex flex-col h-full hidden relative overflow-hidden">
         
+        <!-- Tab: Home / Dashboard -->
         <div id="main-content" class="tab-content flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-6 pt-safe">
             
+            <!-- Header -->
             <header class="flex justify-between items-start animate-slide-up" style="animation-delay: 0.1s">
                 <div>
                     <div class="flex items-center gap-2 mb-1">
@@ -204,28 +206,30 @@
                     </div>
                     <h1 class="text-3xl font-black text-slate-800 dark:text-white leading-tight tracking-tight">Dashboard<br>Presensi</h1>
                 </div>
-                <div class="flex flex-col items-end">
-                    <div class="glass-card px-4 py-2 rounded-2xl flex flex-col items-end shadow-sm mb-2">
+                <div class="flex flex-col items-end gap-2">
+                    <div class="glass-card px-4 py-2 rounded-2xl flex flex-col items-end shadow-sm">
                         <p class="text-xl font-black text-slate-800 dark:text-slate-100 tabular-nums tracking-tight" id="dash-clock">--:--</p>
                         <p class="text-[10px] font-bold text-slate-400" id="dash-clock-sec">WIB</p>
                     </div>
-                    <span id="profile-role" class="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg">Loading...</span>
+                    <span id="profile-role" class="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg truncate max-w-[100px]">...</span>
                 </div>
             </header>
 
+            <!-- Date Navigator -->
             <div class="glass-card p-2 rounded-2xl flex items-center justify-between animate-slide-up shadow-sm" style="animation-delay: 0.15s">
                 <button onclick="changeDateView(-1)" class="w-12 h-12 rounded-xl flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 active:scale-90 transition-all z-20">
                     <i data-lucide="chevron-left" class="w-6 h-6"></i>
                 </button>
 
-                <div class="flex-1 text-center px-2 relative h-12 flex flex-col justify-center overflow-hidden">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Hari Ini</p>
+                <div class="flex-1 text-center px-2 relative h-12 flex flex-col justify-center overflow-hidden group">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Tampilan Tanggal</p>
                     <div class="flex items-center justify-center gap-2">
-                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-emerald-500"></i>
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-emerald-500 group-hover:scale-110 transition-transform"></i>
                         <h3 class="font-black text-slate-800 dark:text-white text-base leading-none truncate" id="current-date-display">
                             Memuat...
                         </h3>
                     </div>
+                    <!-- Native Date Picker Overlay -->
                     <input type="date" id="date-picker-input" class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" onchange="handleDateChange(this.value)">
                 </div>
 
@@ -234,7 +238,9 @@
                 </button>
             </div>
             
-            <div id="dash-main-card" onclick="openAttendance()" class="cursor-pointer bg-slate-900 dark:bg-black rounded-[2.5rem] p-7 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group animate-slide-up" style="animation-delay: 0.2s">
+            <!-- Main Action Card (Current Slot) -->
+            <div id="dash-main-card" class="cursor-pointer bg-slate-900 dark:bg-black rounded-[2.5rem] p-7 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group animate-slide-up" style="animation-delay: 0.2s">
+                <!-- Card Background Effects -->
                 <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500 rounded-full blur-[90px] opacity-20 -mr-16 -mt-16 group-hover:opacity-30 transition-opacity duration-700"></div>
                 <div class="absolute bottom-0 left-0 w-48 h-48 bg-blue-600 rounded-full blur-[80px] opacity-10 -ml-10 -mb-10"></div>
                 
@@ -260,6 +266,7 @@
                 </div>
             </div>
 
+            <!-- Quick Stats Grid -->
             <div class="grid grid-cols-4 gap-3 animate-slide-up" style="animation-delay: 0.3s">
                 <div class="glass-card p-3 rounded-2xl text-center flex flex-col items-center justify-center min-h-[100px] border-b-4 border-b-emerald-500/20">
                     <div class="text-emerald-500 mb-1.5 bg-emerald-50 dark:bg-emerald-900/30 p-2 rounded-full"><i data-lucide="check-circle-2" class="w-4 h-4"></i></div>
@@ -283,6 +290,7 @@
                 </div>
             </div>
 
+            <!-- Chart Section -->
             <div class="glass-card p-5 rounded-[2.5rem] animate-slide-up" style="animation-delay: 0.4s">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm">
@@ -292,20 +300,23 @@
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400" id="dash-stats-text">0% KEHADIRAN</span>
                     </div>
                 </div>
-                <div class="flex justify-center items-center py-2 h-48">
+                <div class="flex justify-center items-center py-2 h-48 relative">
                     <canvas id="weekly-chart" class="w-full h-full"></canvas>
                 </div>
             </div>
 
+            <!-- All Slots List -->
             <div class="animate-slide-up pb-safe" style="animation-delay: 0.5s">
                 <h3 class="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 px-1 text-sm">
                     <i data-lucide="list-todo" class="w-4 h-4 text-slate-400"></i> Jadwal Lengkap
                 </h3>
                 <div id="dash-other-slots" class="space-y-3">
-                    </div>
+                    <!-- Slot Items injected by JS -->
+                </div>
             </div>
         </div>
 
+        <!-- Tab: Report -->
         <div id="tab-report" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-6 pt-safe">
             <header class="flex justify-between items-end mb-4">
                 <div>
@@ -341,9 +352,11 @@
                 <i data-lucide="alert-octagon" class="w-4 h-4 text-red-500"></i> Masalah Hari Ini
             </h3>
             <div id="report-problem-list" class="space-y-3 pb-8">
-                </div>
+                <!-- Injected by JS -->
+            </div>
         </div>
 
+        <!-- Tab: Profile / Settings -->
         <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-5 pt-safe">
             <div class="glass-card p-6 rounded-[2.5rem] text-center relative overflow-hidden border-t-4 border-t-emerald-500 shadow-xl">
                 <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-emerald-500/10 to-transparent"></div>
@@ -370,14 +383,6 @@
                     </div>
                 </div>
             </div>
-
-            <button id="btn-sync-cloud" onclick="window.syncToGoogleSheet && window.syncToGoogleSheet()" class="w-full p-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl flex items-center justify-between font-bold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all group">
-                <span class="flex items-center gap-3 text-sm">
-                    <div class="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm"><i data-lucide="cloud-upload" class="w-4 h-4"></i></div>
-                    Simpan ke Cloud
-                </span>
-                <i data-lucide="chevron-right" class="w-4 h-4 opacity-70 group-hover:translate-x-1 transition-transform"></i>
-            </button>
 
             <div class="space-y-3 mt-2">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 mt-4 mb-1">Manajemen Data</p>
@@ -419,24 +424,26 @@
             </button>
         </div>
 
+        <!-- Bottom Navigation Bar -->
         <nav class="absolute bottom-6 left-6 right-6 z-50">
             <div class="glass-nav rounded-[1.25rem] p-2 flex justify-around shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5 dark:ring-white/10">
                 <button onclick="switchTab('home')" class="nav-btn active flex-1 py-3.5 rounded-2xl flex flex-col items-center gap-1 transition-all relative overflow-hidden" data-target="home">
                     <i data-lucide="home" class="w-6 h-6 text-slate-400 transition-colors relative z-10"></i>
-                    <div class="absolute inset-0 bg-emerald-500/10 scale-0 rounded-2xl transition-transform origin-bottom"></div>
+                    <div class="nav-indicator absolute inset-0 bg-emerald-500/10 opacity-0 scale-50 rounded-2xl transition-all duration-300 origin-center"></div>
                 </button>
                 <button onclick="switchTab('report')" class="nav-btn flex-1 py-3.5 rounded-2xl flex flex-col items-center gap-1 transition-all relative overflow-hidden" data-target="report">
                     <i data-lucide="bar-chart-2" class="w-6 h-6 text-slate-400 transition-colors relative z-10"></i>
-                    <div class="absolute inset-0 bg-emerald-500/10 scale-0 rounded-2xl transition-transform origin-bottom"></div>
+                    <div class="nav-indicator absolute inset-0 bg-emerald-500/10 opacity-0 scale-50 rounded-2xl transition-all duration-300 origin-center"></div>
                 </button>
                 <button onclick="switchTab('profile')" class="nav-btn flex-1 py-3.5 rounded-2xl flex flex-col items-center gap-1 transition-all relative overflow-hidden" data-target="profile">
                     <i data-lucide="user" class="w-6 h-6 text-slate-400 transition-colors relative z-10"></i>
-                    <div class="absolute inset-0 bg-emerald-500/10 scale-0 rounded-2xl transition-transform origin-bottom"></div>
+                    <div class="nav-indicator absolute inset-0 bg-emerald-500/10 opacity-0 scale-50 rounded-2xl transition-all duration-300 origin-center"></div>
                 </button>
             </div>
         </nav>
     </section>
 
+    <!-- Attendance Input View -->
     <section id="view-attendance" class="fixed inset-0 z-[60] bg-slate-50 dark:bg-[#0f172a] flex flex-col hidden transition-colors">
         <div class="glass-nav px-5 py-4 flex items-center justify-between shadow-sm z-20 sticky top-0 pt-safe">
             <button onclick="closeAttendance()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-50 transition-colors">
@@ -447,13 +454,14 @@
                 <h2 id="att-slot-title" class="text-lg font-black text-slate-800 dark:text-white leading-none">...</h2>
             </div>
             <div id="save-indicator" class="w-10 h-10 flex items-center justify-center">
-                </div>
+                <!-- Injected Icon by JS -->
+            </div>
         </div>
 
         <div class="px-5 py-3 bg-slate-50 dark:bg-[#0f172a] z-10 sticky top-[72px]">
             <div class="relative">
                 <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
-                <input type="text" id="att-search" oninput="handleSearch(this.value)" placeholder="Cari nama santri..." class="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-sm text-slate-700 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm">
+                <input type="text" id="att-search" oninput="handleSearch(this.value)" placeholder="Cari nama santri..." class="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-base text-slate-700 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm">
                 <button onclick="toggleProblemFilter()" id="btn-filter-problem" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
                     <i data-lucide="filter" class="w-5 h-5"></i>
                 </button>
@@ -466,7 +474,9 @@
             </div>
         </div>
 
-        <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-32 space-y-3 scroll-smooth"></div>
+        <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-32 space-y-3 scroll-smooth">
+            <!-- Items Injected by JS -->
+        </div>
 
         <div class="fixed bottom-0 left-0 right-0 p-6 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-20 pointer-events-none">
             <div class="glass-card p-2 rounded-2xl flex gap-3 shadow-2xl pointer-events-auto">
@@ -480,6 +490,7 @@
         </div>
     </section>
 
+    <!-- Modals -->
     <div id="modal-rekap" class="fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
         <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-6 max-h-[85vh] flex flex-col shadow-2xl animate-slide-up border border-white/10">
             <div class="flex justify-between items-center mb-6">
@@ -524,6 +535,7 @@
         </div>
     </div>
 
+    <!-- Templates -->
     <template id="tpl-slot-item">
         <div class="slot-item w-full bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition-all group relative overflow-hidden">
             <div class="flex justify-between items-start mb-3">
@@ -559,7 +571,6 @@
                     <span class="slot-stat-a text-sm font-black text-red-600 dark:text-red-400">0</span>
                 </div>
             </div>
-            
             <div class="slot-progress hidden"></div>
         </div>
     </template>
@@ -583,7 +594,8 @@
             </div>
             
             <div class="activity-container flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1">
-                </div>
+                <!-- Buttons Injected Here -->
+            </div>
 
             <div class="note-section hidden mt-3 animate-fade-in border-t border-slate-100 dark:border-slate-700 pt-3">
                 <div class="relative">
@@ -601,6 +613,7 @@
         </div>
     </template>
 
+    <!-- Scripts -->
     <script src="data-kelas.js"></script>
     <script src="data-santri.js"></script>
     <script src="santri-manager.js"></script>
