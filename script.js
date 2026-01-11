@@ -717,21 +717,25 @@ window.openDatePicker = function() {
 };
 
 window.handleDateChange = function(value) {
-    if(!value) return;
+    if(!value) return; // Cegah input kosong
 
     const today = new Date();
     const offsetToday = today.getTimezoneOffset() * 60000;
     const todayStr = new Date(today.getTime() - offsetToday).toISOString().split('T')[0];
 
+    // Validasi Masa Depan
     if (value > todayStr) {
-        window.showToast("Tidak bisa memilih tanggal masa depan", "warning");
-        // Kembalikan value input ke state terakhir yang valid
-        document.getElementById('date-picker-input').value = appState.date;
+        window.showToast("Tidak bisa memilih tanggal masa depan 🚫", "warning");
+        
+        // Reset input ke tanggal yang valid (sebelumnya)
+        const input = document.getElementById('date-picker-input');
+        if(input) input.value = appState.date; 
+        
         return;
     }
 
     appState.date = value;
-    window.updateDateDisplay();
+    window.updateDateDisplay(); // Penting: update teks agar sesuai input
     window.updateDashboard();
     window.showToast('Tanggal berhasil diubah', 'success');
 };
