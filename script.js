@@ -218,7 +218,7 @@ window.updateDashboard = function() {
     // 2. Cek Hari Ini
     const isToday = (appState.date === window.getLocalDateStr());
 
-    // 3. Kartu Utama (Hanya muncul jika Hari Ini)
+    // 3. Logika Kartu Utama
     const mainCard = document.getElementById('dash-main-card');
     if (isToday) {
         mainCard.classList.remove('hidden');
@@ -228,7 +228,6 @@ window.updateDashboard = function() {
         const access = window.isSlotAccessible(appState.currentSlotId, appState.date);
         if(access.locked && access.reason === 'wait') {
              document.getElementById('dash-card-time').innerHTML = `<i data-lucide="clock" class="w-3 h-3"></i> Belum Masuk Waktu`;
-             // Visual effect disable
              mainCard.classList.add('opacity-80', 'grayscale');
              mainCard.onclick = () => window.showToast("Belum masuk waktu " + slot.label, 'warning');
         } else {
@@ -240,56 +239,69 @@ window.updateDashboard = function() {
         mainCard.classList.add('hidden');
     }
 
-    // 4. List Semua Sesi
+    // 4. Render List Semua Sesi (Updated Design)
     const container = document.getElementById('dash-other-slots');
     container.innerHTML = '';
     const tpl = document.getElementById('tpl-slot-item');
 
+    // Update Judul List
+    const listTitle = document.querySelector('#main-content h3');
+    if(listTitle) listTitle.innerHTML = `<i data-lucide="list-todo" class="w-5 h-5 text-emerald-500"></i> Daftar Sesi Presensi`;
+
     Object.values(SLOT_WAKTU).forEach(s => {
-        // Render SEMUA sesi (tidak ada filter)
         const clone = tpl.content.cloneNode(true);
         const item = clone.querySelector('.slot-item');
-        
         const access = window.isSlotAccessible(s.id, appState.date);
         
+        // Label & Icon
         clone.querySelector('.slot-label').textContent = s.label;
         const iconBg = clone.querySelector('.slot-icon-bg');
-        const prog = window.calculateSlotProgress(s.id);
-        const bar = clone.querySelector('.slot-progress');
         
+        // --- LOGIKA STATUS & ANGKA ---
+        const stats = window.calculateSlotStats(s.id);
+        const badge = clone.querySelector('.slot-status-badge');
+        
+        // Isi Angka Statistik
+        clone.querySelector('.slot-stat-h').textContent = stats.h;
+        clone.querySelector('.slot-stat-s').textContent = stats.s;
+        clone.querySelector('.slot-stat-i').textContent = stats.i;
+        clone.querySelector('.slot-stat-a').textContent = stats.a;
+
+        // Tentukan Teks & Warna Badge Status
         if (access.locked) {
-            // Tampilan Terkunci
-            item.classList.add('opacity-60', 'grayscale', 'cursor-not-allowed');
-            let statusText = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
-            if(access.reason === 'limit') statusText = 'Expired (>3 hari)';
+            // Jika Terkunci
+            item.classList.add('opacity-60', 'grayscale');
+            let lockText = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
+            if(access.reason === 'limit') lockText = 'Expired';
             
-            clone.querySelector('.slot-status').textContent = statusText;
-            bar.style.width = "0%";
+            badge.textContent = lockText;
+            badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-500";
             iconBg.classList.add('bg-slate-100', 'text-slate-400');
             
-            item.onclick = () => window.showToast(`🔒 ${statusText}`, "error");
+            item.onclick = () => window.showToast(`🔒 Akses ${s.label} ${lockText}`, "error");
         } else {
-            // Tampilan Terbuka
+            // Jika Terbuka
             iconBg.classList.add(`bg-${s.theme}-50`, `text-${s.theme}-600`);
-            clone.querySelector('.slot-status').textContent = prog.text;
-            bar.style.width = prog.percent + "%";
-            bar.classList.add(`bg-${s.theme}-500`);
+            
+            if (stats.isFilled) {
+                badge.textContent = "Sudah Presensi";
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400";
+            } else {
+                badge.textContent = "Belum Presensi";
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400";
+            }
 
             item.onclick = () => {
-                // Update slot yang dipilih
                 appState.currentSlotId = s.id;
-                
-                // Jika hari ini, update dashboard agar kartu utama berubah
                 if(isToday) {
-                    window.updateDashboard(); 
-                    // Scroll smooth ke atas agar user sadar kartu utama berubah
+                    window.updateDashboard();
                     document.getElementById('main-content').scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                    // Jika tanggal lampau (kartu utama hidden), langsung buka halaman absen
                     window.openAttendance();
                 }
             };
         }
+        
         container.appendChild(clone);
     });
     
