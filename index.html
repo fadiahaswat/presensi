@@ -179,23 +179,27 @@
             </header>
 
             <div class="glass-card p-2 rounded-2xl flex items-center justify-between animate-slide-up shadow-sm mb-4" style="animation-delay: 0.15s">
-                <button onclick="changeDateView(-1)" class="w-12 h-12 rounded-xl flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 hover:text-emerald-600 active:scale-90 transition-all">
+                <button onclick="changeDateView(-1)" class="w-12 h-12 rounded-xl flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 hover:text-emerald-600 active:scale-90 transition-all z-20">
                     <i data-lucide="chevron-left" class="w-6 h-6"></i>
                 </button>
-                <div class="flex-1 text-center cursor-pointer group px-2 relative" onclick="openDatePicker()">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 group-hover:text-emerald-500 transition-colors">
+
+                <div class="flex-1 text-center px-2 relative h-12 flex flex-col justify-center">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 group-hover:text-emerald-500 transition-colors pointer-events-none">
                         Tanggal Aktif
                     </p>
-                    <div class="flex items-center justify-center gap-2">
-                        <i data-lucide="calendar" class="w-4 h-4 text-emerald-500"></i>
-                        <h3 class="font-black text-slate-800 dark:text-white text-base leading-tight group-hover:scale-105 transition-transform" id="current-date-display">
+                    <div class="flex items-center justify-center gap-2 pointer-events-none">
+                        <i data-lucide="calendar" class="w-3 h-3 text-emerald-500"></i>
+                        <h3 class="font-black text-slate-800 dark:text-white text-base leading-none" id="current-date-display">
                             Memuat...
                         </h3>
                     </div>
-                    <input type="date" id="date-picker-input" onchange="handleDateChange(this.value)" 
-                           class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+
+                    <input type="date" id="date-picker-input" 
+                           class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                           onchange="handleDateChange(this.value)">
                 </div>
-                <button onclick="changeDateView(1)" class="w-12 h-12 rounded-xl flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 hover:text-emerald-600 active:scale-90 transition-all">
+
+                <button onclick="changeDateView(1)" class="w-12 h-12 rounded-xl flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-700 hover:bg-emerald-50 hover:text-emerald-600 active:scale-90 transition-all z-20">
                     <i data-lucide="chevron-right" class="w-6 h-6"></i>
                 </button>
             </div>
@@ -575,5 +579,6 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
