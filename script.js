@@ -984,7 +984,12 @@ window.updateQuickStats = function() {
             if(data[slot.id]) {
                 FILTERED_SANTRI.forEach(s => {
                     const id = String(s.nis || s.id);
+                    
+                    // --- PERBAIKAN: STRICT check property 'shalat' ---
+                    // Ini memastikan yang dihitung HANYA status Shalat Wajib
+                    // Tidak akan menghitung Qabliyah, Tahfizh, dll meskipun ada datanya
                     const status = data[slot.id][id]?.status?.shalat;
+                    
                     if(status && stats[status] !== undefined) {
                         stats[status]++;
                     }
@@ -993,12 +998,12 @@ window.updateQuickStats = function() {
         });
     }
     
-    // Update Text Langsung (Tanpa Animasi Glitchy)
     document.getElementById('stat-hadir').textContent = stats.Hadir;
     document.getElementById('stat-sakit').textContent = stats.Sakit;
     document.getElementById('stat-izin').textContent = stats.Izin;
     document.getElementById('stat-alpa').textContent = stats.Alpa;
 };
+
 window.animateValue = function(id, start, end, duration) {
     const el = document.getElementById(id);
     if(!el) return;
