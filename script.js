@@ -291,10 +291,6 @@ window.renderSlotList = function() {
     const tpl = document.getElementById('tpl-slot-item');
     const isToday = (appState.date === window.getLocalDateStr());
 
-    // Update Judul List
-    const listTitle = document.querySelector('#main-content h3');
-    if(listTitle) listTitle.innerHTML = `<i data-lucide="list-todo" class="w-5 h-5 text-emerald-500"></i> Daftar Sesi Presensi`;
-
     // Gunakan DocumentFragment untuk performa
     const fragment = document.createDocumentFragment();
 
