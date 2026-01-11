@@ -1054,6 +1054,8 @@ window.updateQuickStats = function() {
     document.getElementById('stat-alpa').textContent = Math.round(stats.a / divider);
 };
 
+// Ganti fungsi window.drawDonutChart yang lama dengan ini:
+
 window.drawDonutChart = function() {
     const canvas = document.getElementById('weekly-chart');
     if(!canvas) return;
@@ -1061,10 +1063,9 @@ window.drawDonutChart = function() {
     const ctx = canvas.getContext('2d');
     if(!ctx) return;
     
-    // --- 1. Setup Resolusi & Dimensi ---
+    // --- Setup Resolusi ---
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    
     if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
@@ -1079,11 +1080,10 @@ window.drawDonutChart = function() {
     
     ctx.clearRect(0, 0, width, height);
 
-    // --- 2. Hitung Total Data Harian ---
+    // --- Hitung Data ---
     let stats = { h: 0, s: 0, i: 0, a: 0 };
     let total = 0;
 
-    // Ambil data dari semua slot yang sudah diisi
     if(appState.selectedClass) {
         Object.values(SLOT_WAKTU).forEach(slot => {
             const sStats = window.calculateSlotStats(slot.id);
@@ -1097,71 +1097,77 @@ window.drawDonutChart = function() {
         });
     }
 
-    // --- 3. Logika Penggambaran ---
+    // --- UPDATE LEGENDA (BAGIAN BARU) ---
+    // Mengisi angka ke dalam kotak-kotak legenda di HTML
+    const setLegend = (id, val) => {
+        const el = document.getElementById(id);
+        if(el) el.textContent = val;
+    };
     
-    // Jika Data Kosong: Gambar lingkaran abu-abu polos
+    // Kita bagi 'activeSlots' seperti logika Quick Stats agar angkanya Rata-rata
+    // ATAU biarkan total akumulasi jika ingin melihat total kejadian.
+    // Di sini saya pakai TOTAL kejadian agar sinkron dengan grafik donatnya.
+    setLegend('legend-hadir', stats.h);
+    setLegend('legend-sakit', stats.s);
+    setLegend('legend-izin', stats.i);
+    setLegend('legend-alpa', stats.a);
+
+    // --- Menggambar Grafik ---
     if (total === 0) {
+        // Lingkaran Kosong
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#334155' : '#f1f5f9';
-        ctx.lineWidth = 15;
+        ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0';
+        ctx.lineWidth = 12;
         ctx.lineCap = 'round';
         ctx.stroke();
-        
-        // Teks Default
-        drawCenterText(ctx, centerX, centerY, "0%", "Belum Ada Data");
+        drawCenterText(ctx, centerX, centerY, "0%", "No Data");
         return;
     }
 
-    // Definisi Segmen (Warna sesuai kartu statistik)
     const segments = [
-        { value: stats.h, color: '#10b981' }, // Emerald (Hadir)
-        { value: stats.s, color: '#f59e0b' }, // Amber (Sakit)
-        { value: stats.i, color: '#3b82f6' }, // Blue (Izin)
-        { value: stats.a, color: '#f43f5e' }  // Rose (Alpa)
+        { value: stats.h, color: '#10b981' }, // Emerald
+        { value: stats.s, color: '#f59e0b' }, // Amber
+        { value: stats.i, color: '#3b82f6' }, // Blue
+        { value: stats.a, color: '#f43f5e' }  // Rose
     ];
 
-    let startAngle = -Math.PI / 2; // Mulai dari arah jam 12
+    let startAngle = -Math.PI / 2;
 
-    // Gambar Setiap Segmen
     segments.forEach(seg => {
         if(seg.value > 0) {
-            // Hitung besar sudut segmen berdasarkan proporsi data
             const sliceAngle = (seg.value / total) * 2 * Math.PI;
             const endAngle = startAngle + sliceAngle;
 
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, startAngle, endAngle);
             ctx.strokeStyle = seg.color;
-            ctx.lineWidth = 15;
-            ctx.lineCap = 'butt'; // 'butt' agar sambungan antar warna rapi (tidak tumpul)
+            ctx.lineWidth = 14; // Sedikit lebih tebal
+            ctx.lineCap = 'butt';
             ctx.stroke();
 
-            // Geser titik mulai untuk segmen berikutnya
             startAngle = endAngle;
         }
     });
 
-    // --- 4. Update Teks Tengah & UI ---
     const percentHadir = Math.round((stats.h / total) * 100);
-    drawCenterText(ctx, centerX, centerY, `${percentHadir}%`, "Kehadiran");
+    drawCenterText(ctx, centerX, centerY, `${percentHadir}%`, "Hadir");
     
-    // Update teks kecil di pojok kanan kartu (HTML)
     const statsText = document.getElementById('dash-stats-text');
-    if(statsText) statsText.textContent = `${percentHadir}% KEHADIRAN`;
+    if(statsText) statsText.textContent = `${percentHadir}% HADIR`;
 };
 
-// Helper untuk menggambar teks di tengah lingkaran
+// Pastikan fungsi helper ini ada (biasanya di luar fungsi utama)
 function drawCenterText(ctx, x, y, mainText, subText) {
-    ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#334155';
-    ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#1e293b';
+    ctx.font = '800 28px "Plus Jakarta Sans", sans-serif'; // Font lebih tebal
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(mainText, x, y);
+    ctx.fillText(mainText, x, y - 5);
     
-    ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+    ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText(subText, x, y + 20);
+    ctx.fillText(subText, x, y + 18);
 }
 
 // ==========================================
