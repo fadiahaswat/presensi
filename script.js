@@ -701,22 +701,6 @@ window.formatDate = function(dateStr) {
     return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-window.openDatePicker = function() {
-    const input = document.getElementById('date-picker-input');
-    if(input) {
-        // Set nilai input ke tanggal yang sedang aktif agar kalender buka di tanggal tsb
-        input.value = appState.date;
-        
-        // Coba cara modern dulu
-        if('showPicker' in HTMLInputElement.prototype) {
-            input.showPicker();
-        } else {
-            // Fallback untuk browser lama (meskipun input opacity 0 sudah meng-handle klik)
-            input.click(); 
-        }
-    }
-};
-
 window.handleDateChange = function(value) {
     if(!value) return; // Cegah input kosong
 
