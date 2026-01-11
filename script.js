@@ -651,25 +651,29 @@ window.showToast = function(message, type = 'info') {
 };
 
 window.changeDateView = function(direction) {
-    const currentDateObj = new Date(appState.date);
-    currentDateObj.setDate(currentDateObj.getDate() + direction);
+    const current = new Date(appState.date);
+    current.setDate(current.getDate() + direction);
     
-    // Konversi hasil pindah tanggal ke String YYYY-MM-DD
-    const offset = currentDateObj.getTimezoneOffset() * 60000;
-    const nextDateStr = new Date(currentDateObj.getTime() - offset).toISOString().split('T')[0];
+    // Konversi ke string YYYY-MM-DD lokal
+    const offset = current.getTimezoneOffset() * 60000;
+    const nextDateStr = new Date(current.getTime() - offset).toISOString().split('T')[0];
     
-    const todayStr = window.getLocalDateStr();
+    // Ambil tanggal hari ini (Lokal)
+    const today = new Date();
+    const offsetToday = today.getTimezoneOffset() * 60000;
+    const todayStr = new Date(today.getTime() - offsetToday).toISOString().split('T')[0];
 
-    // Validasi Sederhana (String Comparison)
+    // Validasi: Cegah ke masa depan
     if (nextDateStr > todayStr) {
-        return window.showToast("Tidak bisa melihat masa depan", "warning");
+        // Efek visual getar/merah jika memaksa (opsional, cukup toast saja)
+        return window.showToast("Masa depan belum terjadi 🚫", "warning");
     }
 
     appState.date = nextDateStr;
     
     window.updateDateDisplay();
     window.updateDashboard();
-    window.showToast(`Menampilkan data ${window.formatDate(appState.date)}`, 'info');
+    window.showToast(`📅 Data ${window.formatDate(appState.date)}`, 'info');
 };
 
 window.updateDateDisplay = function() {
