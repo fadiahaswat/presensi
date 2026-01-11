@@ -568,59 +568,57 @@
 
     <!-- Templates -->
     <template id="tpl-slot-item">
-    <div class="slot-item w-full bg-white dark:bg-slate-800 p-5 rounded-[2rem] border border-slate-100 dark:border-slate-700/60 shadow-lg shadow-slate-200/50 dark:shadow-none cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/50 transition-all duration-300 group relative overflow-hidden">
+    <div class="slot-item w-full p-5 rounded-[2rem] border border-slate-100 dark:border-slate-700/60 shadow-lg cursor-pointer transition-all duration-300 group relative overflow-hidden bg-gradient-to-br bg-white dark:bg-slate-800 hover:-translate-y-1">
         
-        <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-[4rem] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <div class="slot-decor absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"></div>
 
         <div class="flex justify-between items-center mb-4 relative z-10">
             <div class="flex items-center gap-4">
-                <div class="slot-icon-bg w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-sm shrink-0 border border-slate-100 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 group-hover:scale-105">
-                    <i data-lucide="clock" class="w-6 h-6 text-slate-400 group-hover:text-emerald-500 transition-colors"></i>
+                <div class="slot-icon-bg w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm shrink-0 border border-white/20 ring-1 ring-black/5">
+                    <i class="slot-icon w-7 h-7 transition-colors"></i>
                 </div>
                 <div>
-                    <h4 class="slot-label font-extrabold text-slate-800 dark:text-white text-lg leading-tight">Label</h4>
-                    <div class="flex items-center gap-2 mt-1">
-                        <div class="slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                    <h4 class="slot-label font-black text-xl leading-tight tracking-tight">Label</h4>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <div class="slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-black/5 shadow-sm">
                             Menunggu
                         </div>
-                        <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 slot-time-range">--:--</span>
+                        <span class="text-[10px] font-bold opacity-60 slot-time-range font-mono">--:--</span>
                     </div>
                 </div>
             </div>
             
-            <div class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700/50 text-slate-300 group-hover:bg-emerald-500 group-hover:text-white group-hover:shadow-lg group-hover:shadow-emerald-500/30 transition-all duration-300">
-                <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-0.5 transition-transform"></i>
+            <div class="w-10 h-10 flex items-center justify-center rounded-full bg-white/40 dark:bg-black/20 backdrop-blur-md group-hover:bg-white group-hover:shadow-lg transition-all duration-300">
+                <i data-lucide="arrow-right" class="w-5 h-5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all text-current"></i>
             </div>
         </div>
 
-        <div class="mb-4 relative z-10">
-            <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-1.5 px-1">
-                <span>Progres Presensi</span>
-                <span class="slot-progress-text text-emerald-600 dark:text-emerald-400">0%</span>
+        <div class="mb-4 relative z-10 bg-white/40 dark:bg-black/10 p-3 rounded-2xl border border-white/20 backdrop-blur-sm">
+            <div class="flex justify-between text-[10px] font-bold opacity-70 mb-1.5 px-1">
+                <span>Total Kehadiran</span>
+                <span class="slot-progress-text">0%</span>
             </div>
-            <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
-                <div class="slot-progress-bar h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full w-0 transition-all duration-1000 ease-out relative">
-                    <div class="absolute inset-0 bg-white/30 w-full -translate-x-full animate-[shimmer_2s_infinite]"></div>
-                </div>
+            <div class="w-full h-2 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                <div class="slot-progress-bar h-full rounded-full w-0 transition-all duration-1000 ease-out relative opacity-80"></div>
             </div>
         </div>
         
         <div class="slot-stats-grid grid grid-cols-4 gap-2 relative z-10">
-            <div class="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl py-2 px-1 text-center border border-emerald-100/50 dark:border-emerald-800/20 group-hover:border-emerald-200 dark:group-hover:border-emerald-700/50 transition-colors">
-                <span class="block text-[9px] font-bold text-emerald-500/70 uppercase tracking-wider mb-0.5">Hadir</span>
-                <span class="slot-stat-h text-base font-black text-emerald-600 dark:text-emerald-400">0</span>
+            <div class="bg-white/50 dark:bg-black/20 rounded-xl py-1.5 px-1 text-center border border-white/10">
+                <span class="block text-[8px] font-bold opacity-60 uppercase mb-0.5">Hadir</span>
+                <span class="slot-stat-h text-sm font-black">0</span>
             </div>
-            <div class="bg-amber-50/50 dark:bg-amber-900/10 rounded-2xl py-2 px-1 text-center border border-amber-100/50 dark:border-amber-800/20 group-hover:border-amber-200 dark:group-hover:border-amber-700/50 transition-colors">
-                <span class="block text-[9px] font-bold text-amber-500/70 uppercase tracking-wider mb-0.5">Sakit</span>
-                <span class="slot-stat-s text-base font-black text-amber-600 dark:text-amber-400">0</span>
+            <div class="bg-white/50 dark:bg-black/20 rounded-xl py-1.5 px-1 text-center border border-white/10">
+                <span class="block text-[8px] font-bold opacity-60 uppercase mb-0.5">Sakit</span>
+                <span class="slot-stat-s text-sm font-black">0</span>
             </div>
-            <div class="bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl py-2 px-1 text-center border border-blue-100/50 dark:border-blue-800/20 group-hover:border-blue-200 dark:group-hover:border-blue-700/50 transition-colors">
-                <span class="block text-[9px] font-bold text-blue-500/70 uppercase tracking-wider mb-0.5">Izin</span>
-                <span class="slot-stat-i text-base font-black text-blue-600 dark:text-blue-400">0</span>
+            <div class="bg-white/50 dark:bg-black/20 rounded-xl py-1.5 px-1 text-center border border-white/10">
+                <span class="block text-[8px] font-bold opacity-60 uppercase mb-0.5">Izin</span>
+                <span class="slot-stat-i text-sm font-black">0</span>
             </div>
-            <div class="bg-red-50/50 dark:bg-red-900/10 rounded-2xl py-2 px-1 text-center border border-red-100/50 dark:border-red-800/20 group-hover:border-red-200 dark:group-hover:border-red-700/50 transition-colors">
-                <span class="block text-[9px] font-bold text-red-500/70 uppercase tracking-wider mb-0.5">Alpa</span>
-                <span class="slot-stat-a text-base font-black text-red-600 dark:text-red-400">0</span>
+            <div class="bg-white/50 dark:bg-black/20 rounded-xl py-1.5 px-1 text-center border border-white/10">
+                <span class="block text-[8px] font-bold opacity-60 uppercase mb-0.5">Alpa</span>
+                <span class="slot-stat-a text-sm font-black">0</span>
             </div>
         </div>
     </div>
@@ -671,6 +669,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
