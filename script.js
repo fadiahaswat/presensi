@@ -379,12 +379,39 @@ window.renderSlotList = function() {
 };
 
 window.updateProfileInfo = function() {
-    const elName = document.getElementById('profile-name');
-    const elRole = document.getElementById('profile-role');
+    // Referensi Elemen Header Baru
+    const elHeaderName = document.getElementById('header-user-name');
+    const elHeaderRole = document.getElementById('profile-role');
+    const elHeaderAvatar = document.getElementById('header-avatar');
     
+    // Referensi Elemen Tab Profil (Lama)
+    const elName = document.getElementById('profile-name');
+    const elRole = document.getElementById('profile-role-tab'); // Pastikan ID di tab profile unik jika perlu
+
     if(appState.selectedClass && MASTER_KELAS[appState.selectedClass]) {
-        if(elName) elName.textContent = MASTER_KELAS[appState.selectedClass].musyrif;
-        if(elRole) elRole.textContent = "Kelas " + appState.selectedClass;
+        const musyrifName = MASTER_KELAS[appState.selectedClass].musyrif;
+        const className = appState.selectedClass;
+
+        // Update Header Baru
+        if(elHeaderName) elHeaderName.textContent = musyrifName.split(' ')[0]; // Ambil nama depan saja
+        if(elHeaderRole) elHeaderRole.textContent = className;
+        
+        // Buat Inisial untuk Avatar (Misal: "Ahmad Fulan" -> "AF")
+        if(elHeaderAvatar) {
+            const initials = musyrifName
+                .split(' ')
+                .map(n => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+            elHeaderAvatar.textContent = initials;
+            // Hapus icon user default jika sudah ada inisial
+            elHeaderAvatar.innerHTML = initials; 
+        }
+
+        // Update Tab Profil (Existing)
+        if(elName) elName.textContent = musyrifName;
+        // ... kode lama lainnya
     }
 };
 
