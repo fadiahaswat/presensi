@@ -327,6 +327,35 @@ window.calculateGlobalStats = function() {
     return total === 0 ? 0 : Math.round((checks/total)*100);
 };
 
+// Fungsi baru untuk menghitung detail per sesi (H/S/I/A)
+window.calculateSlotStats = function(slotId) {
+    const stats = { h: 0, s: 0, i: 0, a: 0, total: 0, isFilled: false };
+    
+    if (FILTERED_SANTRI.length === 0) return stats;
+    
+    const dateKey = appState.date;
+    const slotData = appState.attendanceData[dateKey]?.[slotId];
+    
+    if (!slotData) return stats;
+
+    FILTERED_SANTRI.forEach(s => {
+        const id = String(s.nis || s.id);
+        // Mengambil status aktivitas utama (Shalat Fardhu)
+        const status = slotData[id]?.status?.shalat;
+        
+        if (status) {
+            stats.isFilled = true; // Menandakan sudah ada data masuk
+            if (status === 'Hadir') stats.h++;
+            else if (status === 'Sakit') stats.s++;
+            else if (status === 'Izin') stats.i++;
+            else if (status === 'Alpa') stats.a++;
+            stats.total++;
+        }
+    });
+    
+    return stats;
+};
+
 window.calculateSlotProgress = function(slotId) {
     if(FILTERED_SANTRI.length === 0) return { percent: 0, text: "0/0" };
     
