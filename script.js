@@ -654,26 +654,26 @@ window.changeDateView = function(direction) {
     const current = new Date(appState.date);
     current.setDate(current.getDate() + direction);
     
-    // Konversi ke string YYYY-MM-DD lokal
-    const offset = current.getTimezoneOffset() * 60000;
-    const nextDateStr = new Date(current.getTime() - offset).toISOString().split('T')[0];
-    
     // Ambil tanggal hari ini (Lokal)
     const today = new Date();
     const offsetToday = today.getTimezoneOffset() * 60000;
     const todayStr = new Date(today.getTime() - offsetToday).toISOString().split('T')[0];
 
+    // Format tanggal tujuan ke String YYYY-MM-DD
+    const offset = current.getTimezoneOffset() * 60000;
+    const nextDateStr = new Date(current.getTime() - offset).toISOString().split('T')[0];
+
     // Validasi: Cegah ke masa depan
     if (nextDateStr > todayStr) {
-        // Efek visual getar/merah jika memaksa (opsional, cukup toast saja)
         return window.showToast("Masa depan belum terjadi 🚫", "warning");
     }
 
     appState.date = nextDateStr;
     
+    // Update Tampilan & Input
     window.updateDateDisplay();
     window.updateDashboard();
-    window.showToast(`📅 Data ${window.formatDate(appState.date)}`, 'info');
+    window.showToast(`📅 ${window.formatDate(appState.date)}`, 'info');
 };
 
 window.updateDateDisplay = function() {
