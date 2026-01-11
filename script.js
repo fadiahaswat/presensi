@@ -1061,10 +1061,10 @@ window.drawDonutChart = function() {
     const ctx = canvas.getContext('2d');
     if(!ctx) return;
     
+    // --- 1. Setup Resolusi & Dimensi ---
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     
-    // Only resize if needed to prevent blur
     if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
@@ -1076,54 +1076,93 @@ window.drawDonutChart = function() {
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 10;
-
-    const percent = window.calculateGlobalStats();
-
+    
     ctx.clearRect(0, 0, width, height);
 
-    // Background Circle
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-    ctx.lineWidth = 15;
-    ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#334155' : '#f1f5f9';
-    ctx.lineCap = 'round';
-    ctx.stroke();
+    // --- 2. Hitung Total Data Harian ---
+    let stats = { h: 0, s: 0, i: 0, a: 0 };
+    let total = 0;
 
-    // Foreground Circle
-    const startAngle = -Math.PI / 2;
-    const endAngle = startAngle + ((percent / 100) * 2 * Math.PI);
-    
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-    ctx.lineWidth = 15;
-    
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    if(percent >= 80) {
-        gradient.addColorStop(0, '#34d399'); gradient.addColorStop(1, '#059669');
-    } else if (percent >= 60) {
-        gradient.addColorStop(0, '#fbbf24'); gradient.addColorStop(1, '#d97706');
-    } else {
-        gradient.addColorStop(0, '#f87171'); gradient.addColorStop(1, '#dc2626');
+    // Ambil data dari semua slot yang sudah diisi
+    if(appState.selectedClass) {
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            const sStats = window.calculateSlotStats(slot.id);
+            if(sStats.isFilled) {
+                stats.h += sStats.h;
+                stats.s += sStats.s;
+                stats.i += sStats.i;
+                stats.a += sStats.a;
+                total += sStats.total;
+            }
+        });
     }
-    
-    ctx.strokeStyle = gradient;
-    ctx.lineCap = 'round';
-    ctx.stroke();
 
-    // Text
+    // --- 3. Logika Penggambaran ---
+    
+    // Jika Data Kosong: Gambar lingkaran abu-abu polos
+    if (total === 0) {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#334155' : '#f1f5f9';
+        ctx.lineWidth = 15;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        
+        // Teks Default
+        drawCenterText(ctx, centerX, centerY, "0%", "Belum Ada Data");
+        return;
+    }
+
+    // Definisi Segmen (Warna sesuai kartu statistik)
+    const segments = [
+        { value: stats.h, color: '#10b981' }, // Emerald (Hadir)
+        { value: stats.s, color: '#f59e0b' }, // Amber (Sakit)
+        { value: stats.i, color: '#3b82f6' }, // Blue (Izin)
+        { value: stats.a, color: '#f43f5e' }  // Rose (Alpa)
+    ];
+
+    let startAngle = -Math.PI / 2; // Mulai dari arah jam 12
+
+    // Gambar Setiap Segmen
+    segments.forEach(seg => {
+        if(seg.value > 0) {
+            // Hitung besar sudut segmen berdasarkan proporsi data
+            const sliceAngle = (seg.value / total) * 2 * Math.PI;
+            const endAngle = startAngle + sliceAngle;
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+            ctx.strokeStyle = seg.color;
+            ctx.lineWidth = 15;
+            ctx.lineCap = 'butt'; // 'butt' agar sambungan antar warna rapi (tidak tumpul)
+            ctx.stroke();
+
+            // Geser titik mulai untuk segmen berikutnya
+            startAngle = endAngle;
+        }
+    });
+
+    // --- 4. Update Teks Tengah & UI ---
+    const percentHadir = Math.round((stats.h / total) * 100);
+    drawCenterText(ctx, centerX, centerY, `${percentHadir}%`, "Kehadiran");
+    
+    // Update teks kecil di pojok kanan kartu (HTML)
+    const statsText = document.getElementById('dash-stats-text');
+    if(statsText) statsText.textContent = `${percentHadir}% KEHADIRAN`;
+};
+
+// Helper untuk menggambar teks di tengah lingkaran
+function drawCenterText(ctx, x, y, mainText, subText) {
     ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#334155';
     ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${percent}%`, centerX, centerY);
+    ctx.fillText(mainText, x, y);
     
     ctx.font = '10px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText('Kehadiran', centerX, centerY + 20);
-    
-    const statsText = document.getElementById('dash-stats-text');
-    if(statsText) statsText.textContent = percent + "%";
-};
+    ctx.fillText(subText, x, y + 20);
+}
 
 // ==========================================
 // 9. TABS & NAVIGATION
