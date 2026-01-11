@@ -678,7 +678,18 @@ window.changeDateView = function(direction) {
 
 window.updateDateDisplay = function() {
     const el = document.getElementById('current-date-display');
-    if(el) el.textContent = window.formatDate(appState.date);
+    const input = document.getElementById('date-picker-input');
+    
+    if(el) {
+        // Format cantik: "Senin, 12 Jan 2025"
+        const formatted = window.formatDate(appState.date);
+        el.textContent = formatted;
+    }
+    
+    // Sinkronkan input hidden juga
+    if(input) {
+        input.value = appState.date;
+    }
 };
 
 window.formatDate = function(dateStr) {
