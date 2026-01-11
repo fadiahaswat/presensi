@@ -706,15 +706,16 @@ window.openDatePicker = function() {
 };
 
 window.handleDateChange = function(value) {
-    if(!value) return; // Cegah input kosong
+    if(!value) return;
 
-    const todayStr = window.getLocalDateStr();
+    const today = new Date();
+    const offsetToday = today.getTimezoneOffset() * 60000;
+    const todayStr = new Date(today.getTime() - offsetToday).toISOString().split('T')[0];
 
-    // Validasi String (Lebih Stabil)
     if (value > todayStr) {
         window.showToast("Tidak bisa memilih tanggal masa depan", "warning");
-        // Kembalikan input ke tanggal yang sedang aktif
-        document.getElementById('date-picker-input').value = appState.date; 
+        // Kembalikan value input ke state terakhir yang valid
+        document.getElementById('date-picker-input').value = appState.date;
         return;
     }
 
