@@ -671,13 +671,14 @@ window.openDatePicker = function() {
 };
 
 window.handleDateChange = function(value) {
-    const selected = new Date(value);
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    if(!value) return; // Cegah input kosong
 
-    if (selected > today) {
+    const todayStr = window.getLocalDateStr();
+
+    // Validasi String (Lebih Stabil)
+    if (value > todayStr) {
         window.showToast("Tidak bisa memilih tanggal masa depan", "warning");
-        // Reset ke hari ini atau tanggal sebelumnya
+        // Kembalikan input ke tanggal yang sedang aktif
         document.getElementById('date-picker-input').value = appState.date; 
         return;
     }
