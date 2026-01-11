@@ -322,75 +322,77 @@ window.renderSlotList = function() {
     container.innerHTML = '';
     const tpl = document.getElementById('tpl-slot-item');
     const isToday = (appState.date === window.getLocalDateStr());
-
-    // Gunakan DocumentFragment untuk performa
     const fragment = document.createDocumentFragment();
-
-    // Di dalam window.renderSlotList = function() { ...
 
     Object.values(SLOT_WAKTU).forEach(s => {
         const clone = tpl.content.cloneNode(true);
         const item = clone.querySelector('.slot-item');
         const access = window.isSlotAccessible(s.id, appState.date);
-        
-        // --- 1. Label & Waktu (Baru) ---
-        clone.querySelector('.slot-label').textContent = s.label;
-        
-        // Pastikan element .slot-time-range ada di template baru
-        const timeEl = clone.querySelector('.slot-time-range');
-        if(timeEl) timeEl.textContent = s.subLabel; // Mengambil "04:00 - 06:00" dari config
-
-        const iconBg = clone.querySelector('.slot-icon-bg');
-        const badge = clone.querySelector('.slot-status-badge');
-
-        // --- 2. Stats & Progress Bar (Baru) ---
         const stats = window.calculateSlotStats(s.id);
         
+        // 1. Terapkan Tema Unik per Sesi
+        // Hapus class default jika ada, lalu tambah gradient spesifik
+        item.classList.add(...s.style.gradient.split(' '));
+        item.classList.add(...s.style.border.split(' '));
+        item.classList.add(...s.style.text.split(' '));
+
+        // Set Warna Decorative Blob
+        const decor = clone.querySelector('.slot-decor');
+        if(decor) decor.classList.add(`bg-${s.theme}-400`); // emerald/orange/indigo/slate
+
+        // 2. Setup Icon Unik (Sun/Moon/etc)
+        const iconContainer = clone.querySelector('.slot-icon-bg');
+        const iconEl = clone.querySelector('.slot-icon');
+        
+        if(iconContainer) iconContainer.classList.add(...s.style.iconBg.split(' '));
+        if(iconEl) iconEl.setAttribute('data-lucide', s.style.icon);
+
+        // 3. Label & Data
+        clone.querySelector('.slot-label').textContent = s.label;
+        const timeEl = clone.querySelector('.slot-time-range');
+        if(timeEl) timeEl.textContent = s.subLabel;
+
         clone.querySelector('.slot-stat-h').textContent = stats.h;
         clone.querySelector('.slot-stat-s').textContent = stats.s;
         clone.querySelector('.slot-stat-i').textContent = stats.i;
         clone.querySelector('.slot-stat-a').textContent = stats.a;
 
-        // Hitung Persentase untuk Progress Bar
-        // (Pastikan FILTERED_SANTRI.length tidak 0 untuk menghindari bagi dengan 0)
+        // 4. Progress Bar Styling
         const totalSantri = FILTERED_SANTRI.length || 1; 
-        const filledCount = stats.total; // Total santri yang sudah diabsen (H+S+I+A)
+        const filledCount = stats.total;
         const percentage = Math.round((filledCount / totalSantri) * 100);
 
-        // Update UI Progress Bar
         const progressText = clone.querySelector('.slot-progress-text');
         const progressBar = clone.querySelector('.slot-progress-bar');
         
-        if(progressText) progressText.textContent = `${filledCount}/${totalSantri} (${percentage}%)`;
-        if(progressBar) progressBar.style.width = `${percentage}%`;
+        if(progressText) progressText.textContent = `${percentage}%`;
+        if(progressBar) {
+            progressBar.style.width = `${percentage}%`;
+            // Warna progress bar mengikuti tema
+            progressBar.classList.add(`bg-${s.theme}-500`); 
+        }
 
-        // --- 3. Logika Tampilan (Locked vs Unlocked) ---
+        // 5. Logic Locked/Unlocked
+        const badge = clone.querySelector('.slot-status-badge');
+        
         if (access.locked) {
-            item.classList.add('opacity-60', 'grayscale');
+            item.classList.remove(...s.style.gradient.split(' ')); // Hapus gradient cerah
+            item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); // Jadi abu-abu
+            
             let lockText = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
             if(access.reason === 'limit') lockText = 'Expired';
             
             badge.textContent = lockText;
-            badge.className = "text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-200 text-slate-500 border border-slate-300";
             
-            // Ubah icon jadi gembok jika terkunci
-            const iconEl = clone.querySelector('.slot-icon-bg i');
-            if(iconEl) iconEl.setAttribute('data-lucide', 'lock');
-
+            if(iconEl) iconEl.setAttribute('data-lucide', 'lock'); // Ganti icon jadi gembok
+            
             item.onclick = () => window.showToast(`🔒 Akses ${s.label} ${lockText}`, "error");
         } else {
-            // Beri warna background icon sesuai tema slot (emerald, orange, dll)
-            // Hapus bg-slate default dulu
-            iconBg.classList.remove('bg-slate-50', 'dark:bg-slate-800');
-            // Tambah class tema
-            iconBg.classList.add(`bg-${s.theme}-50`, `text-${s.theme}-600`, `dark:bg-${s.theme}-900/30`, `dark:text-${s.theme}-400`);
-            
             if (stats.isFilled) {
                 badge.textContent = "Selesai";
-                badge.className = "text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400 dark:border-emerald-800";
+                badge.className += " text-emerald-700 bg-emerald-100/80 border-emerald-200";
             } else {
                 badge.textContent = "Belum Diisi";
-                badge.className = "text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600";
             }
 
             item.onclick = () => {
