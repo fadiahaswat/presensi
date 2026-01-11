@@ -628,18 +628,21 @@ window.showToast = function(message, type = 'info') {
 };
 
 window.changeDateView = function(direction) {
-    const current = new Date(appState.date);
-    current.setDate(current.getDate() + direction);
+    const currentDateObj = new Date(appState.date);
+    currentDateObj.setDate(currentDateObj.getDate() + direction);
     
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    // Konversi hasil pindah tanggal ke String YYYY-MM-DD
+    const offset = currentDateObj.getTimezoneOffset() * 60000;
+    const nextDateStr = new Date(currentDateObj.getTime() - offset).toISOString().split('T')[0];
     
-    // Validasi: Jangan biarkan ke masa depan
-    if (current > today) {
+    const todayStr = window.getLocalDateStr();
+
+    // Validasi Sederhana (String Comparison)
+    if (nextDateStr > todayStr) {
         return window.showToast("Tidak bisa melihat masa depan", "warning");
     }
 
-    appState.date = current.toISOString().split('T')[0];
+    appState.date = nextDateStr;
     
     window.updateDateDisplay();
     window.updateDashboard();
