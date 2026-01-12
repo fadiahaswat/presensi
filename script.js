@@ -1388,7 +1388,15 @@ window.switchTab = function(tabName) {
     const targetTab = document.getElementById(`tab-${tabName}`);
     if (targetTab) targetTab.classList.remove('hidden');
     
-    // UPDATE BUTTON STYLE
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    const mainContent = document.getElementById('main-content');
+    if (tabName === 'home') mainContent.classList.remove('hidden');
+    else mainContent.classList.add('hidden');
+    
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) targetTab.classList.remove('hidden');
+
+    // Update Nav Style
     document.querySelectorAll('.nav-btn').forEach(btn => {
         if(btn.dataset.target === tabName) {
             btn.classList.add('active', 'text-emerald-500');
@@ -1399,14 +1407,20 @@ window.switchTab = function(tabName) {
         }
     });
 
-    if(tabName === 'home') window.updateDashboard();
-    else if(tabName === 'report') window.updateReportTab();
-    else if(tabName === 'profile') window.updateProfileStats();
-    
-    // --- TAMBAHAN BARU: LOAD ANALISIS ---
+    // --- LOGIC PER TAB ---
+    if(tabName === 'home') {
+        window.updateDashboard();
+    }
+    else if(tabName === 'report') {
+        window.updateReportTab(); // <-- Ini sekarang render Tabel Rekap
+    }
+    else if(tabName === 'profile') {
+        window.updateProfileStats();
+        window.renderTimesheetCalendar(); // <-- TAMBAHAN BARU
+    }
     else if(tabName === 'analysis') {
         window.populateAnalysisDropdown();
-        window.runAnalysis(); // Run jika sudah ada yang dipilih sebelumnya
+        window.runAnalysis();
     }
     
     if(window.lucide) window.lucide.createIcons();
