@@ -605,35 +605,41 @@
             <!-- Items Injected by JS -->
         </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-6 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-20 pointer-events-none">
-            <div class="mb-4">
-    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Aksi Cepat (Bulk)</p>
-    <div class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+        <div class="mb-4 animate-slide-up" style="animation-delay: 0.1s">
+    <div class="flex items-center justify-between mb-2 px-1">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aksi Cepat (Bulk)</p>
+        <button onclick="smartBulkAction('reset')" class="text-[10px] font-bold text-red-400 hover:text-red-500 underline decoration-red-200">Reset Sesi Ini</button>
+    </div>
+    
+    <div class="flex gap-2 overflow-x-auto pb-3 hide-scrollbar snap-x">
         
-        <button onclick="smartBulkAction('fardu', 'H')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800 active:scale-95 transition-transform flex items-center gap-1">
-            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Shalat Full
+        <button onclick="smartBulkAction('fardu', 'H')" class="snap-start flex-shrink-0 px-3 py-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800 active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i> Shalat Full
         </button>
 
-        <button onclick="smartBulkAction('kbm', 'Ya')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-800 active:scale-95 transition-transform flex items-center gap-1">
-            <i data-lucide="book-open" class="w-3.5 h-3.5"></i> KBM Hadir
+        <button onclick="smartBulkAction('kbm', 'Ya')" class="snap-start flex-shrink-0 px-3 py-2 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-800 active:scale-95 transition-transform flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="book-open" class="w-4 h-4"></i> KBM Hadir
         </button>
 
-        <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 self-center"></div>
+        <div class="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1 self-center flex-shrink-0"></div>
 
-        <button onclick="smartBulkAction('specific', 'tahajjud')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform">
+        <button onclick="smartBulkAction('specific', 'tahajjud')" class="snap-start flex-shrink-0 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform shadow-sm">
             Tahajjud
         </button>
         
-        <button onclick="smartBulkAction('specific', 'dhuha')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform">
+        <button onclick="smartBulkAction('specific', 'dhuha')" class="snap-start flex-shrink-0 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform shadow-sm">
             Dhuha
         </button>
 
-        <button onclick="smartBulkAction('reset')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold border border-slate-200 dark:border-slate-700 active:scale-95 transition-transform">
-            Reset Semua
+        <button onclick="smartBulkAction('specific', 'puasa')" class="snap-start flex-shrink-0 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform shadow-sm">
+            Puasa
+        </button>
+
+        <button onclick="smartBulkAction('specific', 'alkahfi')" class="snap-start flex-shrink-0 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform shadow-sm">
+            Al-Kahfi
         </button>
     </div>
 </div>
-        </div>
     </section>
 
     <!-- Modals -->
@@ -784,4 +790,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
