@@ -1591,5 +1591,122 @@ window.handleGantiPin = function() {
 window.exportToCSV = function() { alert("Gunakan tombol Export Excel di atas."); };
 window.printReport = function() { window.print(); };
 
+// ==========================================
+// FITUR PERIZINAN / SAKIT (DURASI)
+// ==========================================
+
+window.openPermitModal = function() {
+    if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
+    
+    const modal = document.getElementById('modal-permit');
+    const select = document.getElementById('permit-santri');
+    
+    // Populate Santri Dropdown
+    select.innerHTML = '';
+    FILTERED_SANTRI.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.nis || s.id;
+        opt.textContent = s.nama;
+        select.appendChild(opt);
+    });
+
+    // Set Default Dates (Hari ini)
+    const today = appState.date;
+    document.getElementById('permit-start').value = today;
+    document.getElementById('permit-end').value = today;
+    document.getElementById('permit-type').value = 'Sakit';
+    document.getElementById('permit-session').value = 'all';
+
+    window.renderPermitList();
+    if(modal) {
+        modal.classList.remove('hidden');
+        if(window.lucide) window.lucide.createIcons();
+    }
+};
+
+window.savePermit = function() {
+    const nis = document.getElementById('permit-santri').value;
+    const type = document.getElementById('permit-type').value;
+    const session = document.getElementById('permit-session').value;
+    const start = document.getElementById('permit-start').value;
+    const end = document.getElementById('permit-end').value;
+
+    if(!nis || !start || !end) return window.showToast("Lengkapi data formulir", "warning");
+    if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
+
+    const newPermit = {
+        id: Date.now().toString(),
+        nis,
+        type,
+        session,
+        start,
+        end,
+        timestamp: new Date().toISOString()
+    };
+
+    appState.permits.push(newPermit);
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    
+    window.showToast("Data izin berhasil disimpan", "success");
+    window.renderPermitList();
+    
+    // Refresh dashboard jika tanggal permit relevan dengan tampilan saat ini
+    if (appState.date >= start && appState.date <= end) {
+        window.updateDashboard(); 
+    }
+};
+
+window.deletePermit = function(id) {
+    if(!confirm("Hapus data izin ini?")) return;
+    appState.permits = appState.permits.filter(p => p.id !== id);
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    window.renderPermitList();
+    window.updateDashboard();
+    window.showToast("Data izin dihapus", "info");
+};
+
+window.renderPermitList = function() {
+    const container = document.getElementById('permit-list-container');
+    container.innerHTML = '';
+    
+    const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
+    const activePermits = appState.permits.filter(p => classNisList.includes(p.nis));
+
+    if(activePermits.length === 0) {
+        container.innerHTML = '<div class="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700"><p class="text-xs text-slate-400 font-bold">Belum ada data izin aktif</p></div>';
+        return;
+    }
+
+    activePermits.forEach(p => {
+        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === p.nis);
+        if(!santri) return;
+
+        const div = document.createElement('div');
+        div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
+        div.innerHTML = `
+            <div>
+                <p class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</p>
+                <div class="flex flex-wrap gap-2 mt-1.5">
+                    <span class="px-2 py-0.5 rounded-md ${p.type === 'Sakit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
+                    <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${window.formatDate(p.start).split(',')[1]} - ${window.formatDate(p.end).split(',')[1]}</span>
+                    ${p.session !== 'all' ? `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md uppercase">${p.session}</span>` : ''}
+                </div>
+            </div>
+            <button onclick="window.deletePermit('${p.id}')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        `;
+        container.appendChild(div);
+    });
+    if(window.lucide) window.lucide.createIcons();
+};
+
+window.checkActivePermit = function(nis, dateStr, slotId) {
+    return appState.permits.find(p => {
+        const isDateMatch = dateStr >= p.start && dateStr <= p.end;
+        const isSlotMatch = p.session === 'all' || p.session === slotId;
+        const isNisMatch = p.nis === String(nis);
+        return isNisMatch && isDateMatch && isSlotMatch;
+    });
+};
+
 // Start App
 window.onload = window.initApp;
