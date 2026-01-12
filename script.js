@@ -211,6 +211,26 @@ const STATUS_UI = {
 // ==========================================
 
 window.initApp = async function() {
+    // 1. CEK SESI GOOGLE (AUTO LOGIN)
+    const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
+    if(savedAuth) {
+        try {
+            const authData = JSON.parse(savedAuth);
+            // Langsung set kelas & profil
+            appState.selectedClass = authData.kelas;
+            appState.userProfile = authData.profile;
+            
+            // Bypass Login, langsung ke Main
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-main').classList.remove('hidden');
+            
+            // Notif sapaan
+            setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
+        } catch(e) {
+            localStorage.removeItem(APP_CONFIG.googleAuthKey); // Hapus jika rusak
+        }
+    }
+    
     const loadingEl = document.getElementById('view-loading');
     
     // Load Settings & Theme
