@@ -1260,6 +1260,7 @@ window.changeDateView = function(direction) {
     appState.date = nextDateStr;
     window.updateDateDisplay();
     window.updateDashboard();
+    window.fetchAttendanceFromSupabase();
     window.showToast(`📅 ${window.formatDate(appState.date)}`, 'info');
 };
 
