@@ -606,15 +606,13 @@
         </div>
 
         <div class="fixed bottom-0 left-0 right-0 p-6 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-20 pointer-events-none">
-            <div class="glass-card p-2 rounded-2xl flex gap-3 shadow-2xl pointer-events-auto">
-                <button onclick="handleBulkAction('alpa')" class="flex-1 py-3.5 rounded-xl bg-white dark:bg-slate-800 text-red-500 font-bold text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 hover:bg-red-50 active:scale-95 transition-all">
-                    <i data-lucide="x-circle" class="w-4 h-4"></i> Alpa Semua
-                </button>
-                <button onclick="handleBulkAction('reset')" class="flex-[1.5] py-3.5 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all">
-                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Hadir Semua
-                </button>
-            </div>
-        </div>
+    <div class="glass-card p-2 rounded-2xl shadow-2xl pointer-events-auto">
+        <button onclick="window.openBulkMenu()" class="w-full py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm shadow-lg flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.98] transition-all">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            Menu Aksi Massal
+        </button>
+    </div>
+</div>
     </section>
 
     <!-- Modals -->
@@ -765,3 +763,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
