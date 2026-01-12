@@ -7,7 +7,7 @@ window.classData = {}; // Variabel global penampung data kelas
 
 async function loadClassData() {
     try {
-        console.log("📥 Mengambil data Kelas...");
+        console.log("📥 Mengambil data Kelas & Email Musyrif...");
         
         // Cek Cache dulu agar cepat
         const cache = localStorage.getItem('cache_data_kelas');
@@ -25,13 +25,14 @@ async function loadClassData() {
         
         const rawData = await response.json();
         
-        // Konversi Array ke Object agar mudah dicari: { "1A": {wali: "...", musyrif: "..."}, ... }
+        // Konversi Array ke Object agar mudah dicari: { "1A": {wali: "...", musyrif: "...", email: "..."}, ... }
         window.classData = {};
         rawData.forEach(row => {
             if (row.kelas) {
                 window.classData[row.kelas] = {
                     wali: row.wali || "-",
-                    musyrif: row.musyrif || "-"
+                    musyrif: row.musyrif || "-",
+                    email: row.email || "" // <--- PENAMBAHAN PENTING DISINI
                 };
             }
         });
@@ -56,7 +57,11 @@ async function fetchClassBackground() {
         const newData = {};
         rawData.forEach(row => {
             if (row.kelas) {
-                newData[row.kelas] = { wali: row.wali || "-", musyrif: row.musyrif || "-" };
+                newData[row.kelas] = { 
+                    wali: row.wali || "-", 
+                    musyrif: row.musyrif || "-",
+                    email: row.email || "" // <--- JANGAN LUPA DISINI JUGA
+                };
             }
         });
         localStorage.setItem('cache_data_kelas', JSON.stringify(newData));
