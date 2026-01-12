@@ -2214,5 +2214,87 @@ window.renderTodayProblems = function() {
     if(window.lucide) window.lucide.createIcons();
 };
 
+window.renderTimesheetCalendar = function() {
+    const container = document.getElementById('timesheet-calendar');
+    const label = document.getElementById('timesheet-month-label');
+    if(!container) return;
+
+    container.innerHTML = '';
+    
+    // Header Hari (Sen-Min)
+    const daysHeader = ['Sen','Sel','Rab','Kam','Jum','Sab','Ahd'];
+    daysHeader.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'text-[9px] font-bold text-slate-400 py-2';
+        div.textContent = d;
+        container.appendChild(div);
+    });
+
+    const now = new Date();
+    // Gunakan tanggal dari appState jika ingin melihat bulan yang dipilih di dashboard, 
+    // atau gunakan bulan sekarang (Realtime). Kita gunakan bulan dari appState.date agar sinkron.
+    const currentViewDate = new Date(appState.date);
+    const year = currentViewDate.getFullYear();
+    const month = currentViewDate.getMonth();
+
+    // Set Label
+    const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    if(label) label.textContent = `${months[month]} ${year}`;
+
+    // Logika Kalender
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // Adjustment agar Senin = index 0 (JS default Minggu = 0)
+    let startDayIndex = firstDay.getDay() - 1; 
+    if(startDayIndex === -1) startDayIndex = 6; 
+
+    const totalDays = lastDay.getDate();
+
+    // Empty cells before start
+    for(let i=0; i<startDayIndex; i++) {
+        const div = document.createElement('div');
+        container.appendChild(div);
+    }
+
+    // Date cells
+    for(let d=1; d<=totalDays; d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        
+        // Cek Status Pengisian Data
+        const dayData = appState.attendanceData[dateStr];
+        let status = 'empty'; // empty, partial, full
+        
+        if(dayData) {
+            const filledSlots = Object.keys(dayData).length;
+            const totalSlots = Object.keys(SLOT_WAKTU).length; // 4 slot
+            
+            if(filledSlots === 0) status = 'empty';
+            else if(filledSlots >= totalSlots) status = 'full';
+            else status = 'partial';
+        }
+
+        // Style
+        let bgClass = 'bg-slate-100 text-slate-400 dark:bg-slate-700'; // Empty
+        if(status === 'full') bgClass = 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30';
+        else if(status === 'partial') bgClass = 'bg-amber-400 text-white shadow-lg shadow-amber-500/30';
+
+        // Highlight Hari Ini
+        const isToday = (dateStr === window.getLocalDateStr());
+        const borderClass = isToday ? 'ring-2 ring-indigo-500 ring-offset-2' : '';
+
+        const div = document.createElement('div');
+        div.className = `aspect-square flex items-center justify-center rounded-xl text-xs font-bold transition-all hover:scale-110 cursor-pointer ${bgClass} ${borderClass}`;
+        div.textContent = d;
+        div.onclick = () => {
+            // Klik tanggal di kalender -> Pindah tanggal dashboard
+            window.handleDateChange(dateStr);
+            window.switchTab('home');
+        };
+
+        container.appendChild(div);
+    }
+};
+
 // Start App
 window.onload = window.initApp;
