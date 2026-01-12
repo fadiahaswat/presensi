@@ -7,7 +7,7 @@
 const SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
 
 // 2. Ambil Key dari Tahap 3 (anon public)
-const SUPABASE_KEY = 'sb_publishable_ILIpnd3pziGDalb1qT0hJg_islHsPYn';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
 
 // 3. Nyalakan Mesin Supabase
 const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
