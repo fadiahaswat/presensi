@@ -1657,22 +1657,25 @@ window.openPermitModal = function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
     const modal = document.getElementById('modal-permit');
-    const container = document.getElementById('permit-santri-checklist');
     
-    // 1. Reset Form
+    // 1. Reset Form Tanggal ke Hari Ini
     const today = appState.date;
     document.getElementById('permit-start').value = today;
     document.getElementById('permit-end').value = today;
     document.getElementById('permit-type').value = 'Sakit';
     document.getElementById('permit-session').value = 'all';
-    document.getElementById('permit-search-santri').value = '';
-    document.getElementById('permit-selected-count').textContent = '0';
+    
+    // 2. Reset Pencarian
+    const searchInput = document.getElementById('permit-search-santri');
+    if(searchInput) searchInput.value = '';
+    
+    // 3. Render Checklist Santri
+    window.renderPermitChecklist(FILTERED_SANTRI);
+    window.updatePermitCount();
 
-    // 2. Render Checklist Santri
-    permitSantriList = FILTERED_SANTRI; // Simpan ref
-    window.renderPermitChecklist(permitSantriList);
-
+    // 4. Render List Izin yang sudah ada
     window.renderPermitList();
+    
     if(modal) {
         modal.classList.remove('hidden');
         if(window.lucide) window.lucide.createIcons();
