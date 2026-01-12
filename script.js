@@ -400,7 +400,7 @@ window.handleGoogleCallback = function(response) {
 
         // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
         // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        supabase.from('musyrif_profiles').upsert({
+        dbClient.from('musyrif_profiles').upsert({ // <--- GANTI JADI dbClient
             email: profile.email,
             name: profile.name,
             photo_url: profile.picture,
