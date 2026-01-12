@@ -65,6 +65,8 @@ let appState = {
     currentSlotId: 'shubuh',
     attendanceData: {},
     searchQuery: '',
+    analysisMode: 'daily', // daily, weekly, monthly, semester
+    analysisSantriId: null,
     filterProblemOnly: false,
     date: window.getLocalDateStr(),
     activityLog: [],
