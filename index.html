@@ -598,9 +598,23 @@
 
         <!-- Tab: Report -->
         <div id="tab-report" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
-    <div class="mb-6">
-        <h1 class="text-2xl font-black text-slate-800 dark:text-white">Rekap Harian</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Tabel detail presensi hari ini</p>
+    <div class="mb-4">
+        <h1 class="text-2xl font-black text-slate-800 dark:text-white">Rekap Presensi</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Data kehadiran santri</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 p-1.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-4 flex overflow-x-auto">
+        <button onclick="window.setReportMode('daily')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode" data-mode="daily">Hari Ini</button>
+        <button onclick="window.setReportMode('weekly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="weekly">Pekan</button>
+        <button onclick="window.setReportMode('monthly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="monthly">Bulan</button>
+        <button onclick="window.setReportMode('semester')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="semester">Semester</button>
+        <button onclick="window.setReportMode('yearly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="yearly">Tahun</button>
+    </div>
+
+    <div class="text-center mb-4">
+        <span id="report-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800">
+            -
+        </span>
     </div>
 
     <div class="grid grid-cols-2 gap-2 mb-4">
@@ -609,12 +623,6 @@
         </button>
         <button onclick="window.exportToExcel()" class="p-3 rounded-xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
             <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
-        </button>
-        <button onclick="window.viewRekapBulanan()" class="p-3 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-slate-500/20 active:scale-95 transition-all">
-            <i data-lucide="calendar" class="w-4 h-4"></i> Rekap Bulanan
-        </button>
-        <button onclick="window.printReport()" class="p-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 active:scale-95 transition-all">
-            <i data-lucide="printer" class="w-4 h-4"></i> Cetak PDF
         </button>
     </div>
 
@@ -636,10 +644,18 @@
             </table>
         </div>
         <div class="p-3 bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-400 text-center border-t border-slate-100 dark:border-slate-700">
-            *Nilai dihitung berdasarkan bobot kegiatan
+            *Nilai dihitung dari bobot kehadiran
         </div>
     </div>
 </div>
+
+<style>
+    .rpt-btn.active-mode {
+        background-color: #3b82f6; /* Blue 500 */
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+</style>
 
         <!-- Tab: Profile / Settings -->
         <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-5 pt-safe">
@@ -1057,6 +1073,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
