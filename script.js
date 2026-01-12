@@ -1256,12 +1256,16 @@ window.drawDonutChart = function() {
     const canvas = document.getElementById('weekly-chart');
     if(!canvas) return;
     
+    // --- FIX ERROR: Cek apakah canvas punya ukuran (tidak hidden) ---
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return; // Stop jika hidden/nol
+
     const ctx = canvas.getContext('2d');
     if(!ctx) return;
     
     // --- 1. Setup Resolusi Layar (Agar tidak buram) ---
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
+    
     if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
         canvas.width = rect.width * dpr;
         canvas.height = rect.height * dpr;
@@ -1272,8 +1276,11 @@ window.drawDonutChart = function() {
     const height = rect.height;
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(width, height) / 2 - 10;
     
+    // --- FIX ERROR: Pastikan radius tidak negatif ---
+    let radius = Math.min(width, height) / 2 - 10;
+    if (radius <= 0) radius = 0; // Safety prevent negative radius
+
     ctx.clearRect(0, 0, width, height);
 
     // --- 2. Hitung Data (Total & Rata-rata) ---
@@ -1295,31 +1302,31 @@ window.drawDonutChart = function() {
         });
     }
 
-    // --- 3. ISI ANGKA KE KOTAK LEGENDA (INILAH SOLUSINYA) ---
-    // Kita gunakan pembagi agar angka yang muncul adalah RATA-RATA (sesuai jumlah santri)
+    // --- 3. ISI ANGKA KE KOTAK LEGENDA ---
     const divider = activeSlots > 0 ? activeSlots : 1;
 
     const setLegend = (id, val) => {
         const el = document.getElementById(id);
-        if(el) el.textContent = val; // Mengganti teks "0" di HTML dengan nilai asli
+        if(el) el.textContent = val; 
     };
     
-    // Masukkan angka rata-rata ke HTML
     setLegend('legend-hadir', Math.round(stats.h / divider));
     setLegend('legend-sakit', Math.round(stats.s / divider));
     setLegend('legend-izin', Math.round(stats.i / divider));
     setLegend('legend-alpa', Math.round(stats.a / divider));
 
     // --- 4. Menggambar Grafik Lingkaran ---
-    if (totalPeristiwa === 0) {
-        // Jika Data Kosong: Gambar lingkaran abu-abu
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-        ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0';
-        ctx.lineWidth = 12;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        drawCenterText(ctx, centerX, centerY, "0%", "Belum Ada Data");
+    if (totalPeristiwa === 0 || radius === 0) {
+        // Jika Data Kosong atau Radius 0: Gambar lingkaran abu-abu (hanya jika radius > 0)
+        if(radius > 0) {
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0';
+            ctx.lineWidth = 12;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            drawCenterText(ctx, centerX, centerY, "0%", "Belum Ada Data");
+        }
         return;
     }
 
@@ -1335,7 +1342,6 @@ window.drawDonutChart = function() {
 
     segments.forEach(seg => {
         if(seg.value > 0) {
-            // Hitung besar sudut (proporsi dari total peristiwa)
             const sliceAngle = (seg.value / totalPeristiwa) * 2 * Math.PI;
             const endAngle = startAngle + sliceAngle;
 
@@ -1343,7 +1349,7 @@ window.drawDonutChart = function() {
             ctx.arc(centerX, centerY, radius, startAngle, endAngle);
             ctx.strokeStyle = seg.color;
             ctx.lineWidth = 14;
-            ctx.lineCap = 'butt'; // Agar sambungan warna rapi
+            ctx.lineCap = 'butt'; 
             ctx.stroke();
 
             startAngle = endAngle;
