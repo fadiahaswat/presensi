@@ -2919,5 +2919,60 @@ window.syncToSupabase = async function() {
     }
 };
 
+// --- FITUR SINKRONISASI (READ) ---
+window.fetchAttendanceFromSupabase = async function() {
+    const classId = appState.selectedClass;
+    const dateKey = appState.date;
+
+    if (!classId || !dateKey) return;
+
+    // Tampilkan indikator loading kecil (opsional) di console
+    console.log("🔄 Syncing from Cloud...");
+
+    try {
+        // 1. Ambil data dari tabel 'attendance' sesuai Kelas & Tanggal
+        const { data, error } = await dbClient
+            .from('attendance')
+            .select('*')
+            .eq('class_name', classId)
+            .eq('date', dateKey);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            // 2. Masukkan data dari Cloud ke State Aplikasi
+            if (!appState.attendanceData[dateKey]) {
+                appState.attendanceData[dateKey] = {};
+            }
+
+            data.forEach(row => {
+                // row.slot = 'shubuh', row.student_id = '12345', row.activity_data = {status:..., note:...}
+                if (!appState.attendanceData[dateKey][row.slot]) {
+                    appState.attendanceData[dateKey][row.slot] = {};
+                }
+                
+                // KITA TIMPA data lokal dengan data Cloud (Cloud is Truth)
+                appState.attendanceData[dateKey][row.slot][row.student_id] = row.activity_data;
+            });
+
+            // 3. Update LocalStorage agar sinkron untuk sesi berikutnya
+            localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
+
+            // 4. Refresh Tampilan Dashboard agar data muncul
+            window.renderSlotList();     // Refresh slot progress bar
+            window.updateQuickStats();   // Refresh angka statistik
+            window.drawDonutChart();     // Refresh grafik
+            window.renderTodayProblems();// Refresh list masalah
+            
+            console.log(`✅ Berhasil load ${data.length} data dari Supabase.`);
+        } else {
+            console.log("☁️ Tidak ada data di Cloud untuk tanggal ini (Murni Lokal/Kosong).");
+        }
+
+    } catch (err) {
+        console.error("Gagal ambil data Supabase:", err);
+    }
+};
+
 // Start App
 window.onload = window.initApp;
