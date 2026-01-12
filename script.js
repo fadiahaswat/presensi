@@ -1635,27 +1635,29 @@ window.printReport = function() { window.print(); };
 // FITUR PERIZINAN / SAKIT (DURASI)
 // ==========================================
 
+// --- FITUR PERIZINAN (UPDATED) ---
+
+// Variabel temp untuk filter
+let permitSantriList = [];
+
 window.openPermitModal = function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
     const modal = document.getElementById('modal-permit');
-    const select = document.getElementById('permit-santri');
+    const container = document.getElementById('permit-santri-checklist');
     
-    // Populate Santri Dropdown
-    select.innerHTML = '';
-    FILTERED_SANTRI.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.nis || s.id;
-        opt.textContent = s.nama;
-        select.appendChild(opt);
-    });
-
-    // Set Default Dates (Hari ini)
+    // 1. Reset Form
     const today = appState.date;
     document.getElementById('permit-start').value = today;
     document.getElementById('permit-end').value = today;
     document.getElementById('permit-type').value = 'Sakit';
     document.getElementById('permit-session').value = 'all';
+    document.getElementById('permit-search-santri').value = '';
+    document.getElementById('permit-selected-count').textContent = '0';
+
+    // 2. Render Checklist Santri
+    permitSantriList = FILTERED_SANTRI; // Simpan ref
+    window.renderPermitChecklist(permitSantriList);
 
     window.renderPermitList();
     if(modal) {
@@ -1664,33 +1666,73 @@ window.openPermitModal = function() {
     }
 };
 
+window.renderPermitChecklist = function(list) {
+    const container = document.getElementById('permit-santri-checklist');
+    container.innerHTML = '';
+
+    list.forEach(s => {
+        const id = s.nis || s.id;
+        const div = document.createElement('label');
+        div.className = 'flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500 transition-all group';
+        div.innerHTML = `
+            <input type="checkbox" name="permit_santri_select" value="${id}" onchange="window.updatePermitCount()" class="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 rounded-md cursor-pointer accent-emerald-500">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white select-none">${s.nama}</span>
+        `;
+        container.appendChild(div);
+    });
+};
+
+window.filterPermitSantri = function(val) {
+    const search = val.toLowerCase();
+    const filtered = FILTERED_SANTRI.filter(s => s.nama.toLowerCase().includes(search));
+    window.renderPermitChecklist(filtered);
+};
+
+window.updatePermitCount = function() {
+    const checked = document.querySelectorAll('input[name="permit_santri_select"]:checked').length;
+    document.getElementById('permit-selected-count').textContent = checked;
+};
+
 window.savePermit = function() {
-    const nis = document.getElementById('permit-santri').value;
+    // Ambil semua checkbox yang dicentang
+    const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]:checked');
+    const selectedNis = Array.from(checkboxes).map(cb => cb.value);
+
     const type = document.getElementById('permit-type').value;
     const session = document.getElementById('permit-session').value;
     const start = document.getElementById('permit-start').value;
     const end = document.getElementById('permit-end').value;
 
-    if(!nis || !start || !end) return window.showToast("Lengkapi data formulir", "warning");
-    if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
+    if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
+    if(!start || !end) return window.showToast("Lengkapi tanggal", "warning");
+    if(start > end) return window.showToast("Tanggal terbalik", "warning");
 
-    const newPermit = {
-        id: Date.now().toString(),
-        nis,
-        type,
-        session,
-        start,
-        end,
-        timestamp: new Date().toISOString()
-    };
+    // Loop untuk simpan per santri
+    let count = 0;
+    selectedNis.forEach(nis => {
+        const newPermit = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // ID Unik
+            nis: nis,
+            type,
+            session,
+            start,
+            end,
+            timestamp: new Date().toISOString()
+        };
+        appState.permits.push(newPermit);
+        count++;
+    });
 
-    appState.permits.push(newPermit);
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
     
-    window.showToast("Data izin berhasil disimpan", "success");
-    window.renderPermitList();
+    window.showToast(`${count} data izin berhasil disimpan`, "success");
+    window.renderPermitList(); // Refresh list bawah
+    window.updatePermitCount(); // Reset count UI
     
-    // Refresh dashboard jika tanggal permit relevan dengan tampilan saat ini
+    // Uncheck semua
+    checkboxes.forEach(cb => cb.checked = false);
+
+    // Refresh dashboard jika tanggal relevan
     if (appState.date >= start && appState.date <= end) {
         window.updateDashboard(); 
     }
