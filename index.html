@@ -597,44 +597,49 @@
 </style>
 
         <!-- Tab: Report -->
-        <div id="tab-report" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-6 pt-safe">
-            <header class="flex justify-between items-end mb-4">
-                <div>
-                    <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Laporan<br>Harian</h1>
-                </div>
-                <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100 dark:border-slate-700">
-                    <i data-lucide="clipboard-list" class="w-6 h-6"></i>
-                </div>
-            </header>
+        <div id="tab-report" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-black text-slate-800 dark:text-white">Rekap Harian</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Tabel detail presensi hari ini</p>
+    </div>
 
-            <div class="grid grid-cols-2 gap-3 no-print">
-                <button onclick="kirimLaporanWA()" class="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg shadow-emerald-500/20 flex flex-col items-center gap-2 hover:bg-emerald-600 active:scale-[0.98] transition-all">
-                    <i data-lucide="message-circle" class="w-6 h-6"></i>
-                    <span class="text-xs font-bold">Kirim WA</span>
-                </button>
-                <button onclick="exportToExcel()" class="p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all shadow-sm">
-                    <i data-lucide="file-spreadsheet" class="w-6 h-6 text-green-600"></i>
-                    <span class="text-xs font-bold">Unduh Excel</span>
-                </button>
-                <button onclick="viewRekapBulanan()" class="p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all shadow-sm">
-                    <i data-lucide="calendar-range" class="w-6 h-6 text-blue-500"></i>
-                    <span class="text-xs font-bold">Bulanan</span>
-                </button>
-                <button onclick="printReport()" class="p-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all shadow-sm">
-                    <i data-lucide="printer" class="w-6 h-6 text-slate-500"></i>
-                    <span class="text-xs font-bold">Cetak PDF</span>
-                </button>
-            </div>
+    <div class="grid grid-cols-2 gap-2 mb-4">
+        <button onclick="window.kirimLaporanWA()" class="p-3 rounded-xl bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+            <i data-lucide="message-circle" class="w-4 h-4"></i> Lapor WA
+        </button>
+        <button onclick="window.exportToExcel()" class="p-3 rounded-xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+            <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
+        </button>
+        <button onclick="window.viewRekapBulanan()" class="p-3 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-slate-500/20 active:scale-95 transition-all">
+            <i data-lucide="calendar" class="w-4 h-4"></i> Rekap Bulanan
+        </button>
+        <button onclick="window.printReport()" class="p-3 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 active:scale-95 transition-all">
+            <i data-lucide="printer" class="w-4 h-4"></i> Cetak PDF
+        </button>
+    </div>
 
-            <div class="h-px bg-slate-200 dark:bg-slate-700/50 my-2"></div>
-            
-            <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm px-1">
-                <i data-lucide="alert-octagon" class="w-4 h-4 text-red-500"></i> Masalah Hari Ini
-            </h3>
-            <div id="report-problem-list" class="space-y-3 pb-8">
-                <!-- Injected by JS -->
-            </div>
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-700/50 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                        <th class="p-3 font-bold w-8 text-center">No</th>
+                        <th class="p-3 font-bold min-w-[120px]">Nama Santri</th>
+                        <th class="p-3 font-bold text-center">Shalat</th>
+                        <th class="p-3 font-bold text-center">KBM</th>
+                        <th class="p-3 font-bold text-center">Sunnah</th>
+                        <th class="p-3 font-bold text-center">Nilai</th>
+                    </tr>
+                </thead>
+                <tbody id="daily-recap-tbody" class="text-xs divide-y divide-slate-100 dark:divide-slate-700">
+                    </tbody>
+            </table>
         </div>
+        <div class="p-3 bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-400 text-center border-t border-slate-100 dark:border-slate-700">
+            *Nilai dihitung berdasarkan bobot kegiatan
+        </div>
+    </div>
+</div>
 
         <!-- Tab: Profile / Settings -->
         <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-5 pt-safe">
@@ -1029,6 +1034,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
