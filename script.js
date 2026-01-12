@@ -2105,5 +2105,94 @@ window.renderBar = function(type, good, bad) {
     }
 };
 
+window.renderTodayProblems = function() {
+    const container = document.getElementById('dashboard-problem-list');
+    const badge = document.getElementById('problem-count-badge');
+    if(!container) return;
+
+    container.innerHTML = '';
+    
+    if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
+        container.innerHTML = '<div class="text-center py-4 text-xs text-slate-400">Pilih kelas dahulu</div>';
+        if(badge) badge.classList.add('hidden');
+        return;
+    }
+
+    const dateKey = appState.date;
+    const data = appState.attendanceData[dateKey];
+    let problems = [];
+
+    // Kumpulkan Data Masalah
+    if (data) {
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            if (data[slot.id]) {
+                FILTERED_SANTRI.forEach(s => {
+                    const id = String(s.nis || s.id);
+                    const st = data[slot.id][id]?.status?.shalat; // Cek status utama
+                    if (st === 'Alpa' || st === 'Sakit' || st === 'Izin') {
+                        problems.push({
+                            nama: s.nama,
+                            slot: slot.label,
+                            status: st,
+                            note: data[slot.id][id]?.note || '-',
+                            slotTheme: slot.theme
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Render Badge Count
+    if(badge) {
+        if(problems.length > 0) {
+            badge.textContent = `${problems.length} Kasus`;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // Render Empty State
+    if (problems.length === 0) {
+        container.innerHTML = `
+        <div class="glass-card p-4 rounded-2xl flex items-center justify-center gap-3 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30">
+            <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500"></i>
+            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Alhamdulillah, nihil masalah hari ini!</span>
+        </div>`;
+        if(window.lucide) window.lucide.createIcons();
+        return;
+    }
+
+    // Render List
+    const fragment = document.createDocumentFragment();
+    problems.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-start shadow-sm';
+        
+        // Warna status
+        let stClass = 'bg-slate-100 text-slate-600';
+        if(p.status === 'Sakit') stClass = 'bg-amber-100 text-amber-600';
+        else if(p.status === 'Izin') stClass = 'bg-blue-100 text-blue-600';
+        else if(p.status === 'Alpa') stClass = 'bg-red-100 text-red-600';
+
+        div.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-${p.slotTheme}-100 dark:bg-${p.slotTheme}-900/30 flex items-center justify-center text-${p.slotTheme}-600">
+                    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 dark:text-white text-xs">${p.nama}</h4>
+                    <p class="text-[10px] text-slate-500">${p.slot} • ${p.note !== '-' ? p.note : 'Tanpa Ket.'}</p>
+                </div>
+            </div>
+            <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase ${stClass}">${p.status}</span>
+        `;
+        fragment.appendChild(div);
+    });
+    container.appendChild(fragment);
+    if(window.lucide) window.lucide.createIcons();
+};
+
 // Start App
 window.onload = window.initApp;
