@@ -297,6 +297,24 @@
                 </div>
             </div>
 
+            <div class="animate-slide-up mb-4 mt-4" style="animation-delay: 0.25s">
+               <button onclick="window.openPermitModal()" class="w-full p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group relative overflow-hidden">
+                    <div class="absolute left-0 top-0 w-1 h-full bg-orange-500"></div>
+                    <div class="flex items-center gap-4">
+                         <div class="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                             <i data-lucide="calendar-clock" class="w-6 h-6"></i>
+                         </div>
+                         <div class="text-left">
+                             <h4 class="font-black text-slate-800 dark:text-white text-base leading-tight">Input Perizinan</h4>
+                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Sakit, Pulang, atau Izin dengan jangka waktu</p>
+                         </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </div>
+               </button>
+            </div>
+
             <!-- Quick Stats Grid -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 animate-slide-up" style="animation-delay: 0.3s">
     
@@ -660,6 +678,78 @@
         </div>
     </div>
 
+    <div id="modal-permit" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-6 animate-slide-up border border-white/10 shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="text-xl font-black text-slate-800 dark:text-white">Input Izin/Sakit</h3>
+                <p class="text-xs text-slate-500 mt-1">Atur ketidakhadiran berdurasi</p>
+            </div>
+            <button onclick="window.closeModal('modal-permit')" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4 overflow-y-auto pr-1 pb-4 hide-scrollbar">
+            <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-700">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Pilih Santri</label>
+                    <div class="relative">
+                        <select id="permit-santri" class="w-full p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500 appearance-none">
+                            </select>
+                        <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Status</label>
+                        <select id="permit-type" class="w-full p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                            <option value="Sakit">Sakit</option>
+                            <option value="Izin">Izin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sesi</label>
+                        <select id="permit-session" class="w-full p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                            <option value="all">Full Seharian</option>
+                            <option value="shubuh">Shubuh</option>
+                            <option value="ashar">Ashar</option>
+                            <option value="maghrib">Maghrib</option>
+                            <option value="isya">Isya</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai Tanggal</label>
+                        <input type="date" id="permit-start" class="w-full p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai Tanggal</label>
+                        <input type="date" id="permit-end" class="w-full p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <button onclick="window.savePermit()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Simpan Data
+                </button>
+            </div>
+
+            <div class="h-px bg-slate-200 dark:bg-slate-700 my-2"></div>
+
+            <div>
+                <h4 class="font-bold text-slate-800 dark:text-white text-sm mb-3 px-1 flex items-center gap-2">
+                    <i data-lucide="list-checks" class="w-4 h-4 text-slate-400"></i> Izin Aktif Kelas Ini
+                </h4>
+                <div id="permit-list-container" class="space-y-2 pb-6">
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <div id="modal-bulk-actions" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
     <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] p-6 animate-slide-up border border-white/10 shadow-2xl">
         <div class="flex justify-between items-center mb-6">
@@ -785,5 +875,6 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
