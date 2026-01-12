@@ -407,7 +407,7 @@
                 <div class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors group/item">
                     <div class="w-1.5 h-8 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"></div>
                     <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase group-hover:item:text-amber-500 transition-colors">Sakit</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase group-hover/item:text-amber-500 transition-colors">Sakit</p>
                         <p class="text-lg font-black text-slate-700 dark:text-slate-200 leading-none mt-0.5" id="legend-sakit">0</p>
                     </div>
                 </div>
@@ -415,7 +415,7 @@
                 <div class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group/item">
                     <div class="w-1.5 h-8 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"></div>
                     <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase group-hover:item:text-blue-500 transition-colors">Izin</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase group-hover/item:text-blue-500 transition-colors">Izin</p>
                         <p class="text-lg font-black text-slate-700 dark:text-slate-200 leading-none mt-0.5" id="legend-izin">0</p>
                     </div>
                 </div>
@@ -423,11 +423,14 @@
                 <div class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors group/item">
                     <div class="w-1.5 h-8 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"></div>
                     <div>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase group-hover:item:text-rose-500 transition-colors">Alpa</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase group-hover/item:text-rose-500 transition-colors">Alpa</p>
                         <p class="text-lg font-black text-slate-700 dark:text-slate-200 leading-none mt-0.5" id="legend-alpa">0</p>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
 
             <!-- All Slots List -->
             <div class="animate-slide-up pb-safe" style="animation-delay: 0.5s">
@@ -568,84 +571,51 @@
     </section>
 
     <!-- Attendance Input View -->
-    <section id="view-attendance" class="fixed inset-0 z-[60] bg-slate-50 dark:bg-[#0f172a] flex flex-col hidden transition-colors duration-300">
-    
-    <div class="glass-nav px-5 py-4 flex items-center justify-between shadow-sm z-30 sticky top-0 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 pt-safe">
-        <button onclick="closeAttendance()" class="group w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-50 active:scale-95 transition-all">
-            <i data-lucide="arrow-left" class="w-5 h-5 text-slate-700 dark:text-white group-hover:-translate-x-0.5 transition-transform"></i>
-        </button>
-        <div class="text-center">
-            <p class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Input Data</p>
-            <h2 id="att-slot-title" class="text-lg font-black text-slate-800 dark:text-white leading-none tracking-tight">Memuat...</h2>
-        </div>
-        <div id="save-indicator" class="w-10 h-10 flex items-center justify-center">
-            </div>
-    </div>
-
-    <div class="px-5 py-3 bg-slate-50 dark:bg-[#0f172a] z-20 sticky top-[73px] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)]">
-        <div class="relative group">
-            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none"></i>
-            <input type="text" id="att-search" oninput="handleSearch(this.value)" placeholder="Cari nama santri..." 
-                class="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-base text-slate-700 dark:text-white outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm">
-            
-            <button onclick="toggleProblemFilter()" id="btn-filter-problem" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-90">
-                <i data-lucide="filter" class="w-5 h-5"></i>
+    <section id="view-attendance" class="fixed inset-0 z-[60] bg-slate-50 dark:bg-[#0f172a] flex flex-col hidden transition-colors">
+        <div class="glass-nav px-5 py-4 flex items-center justify-between shadow-sm z-20 sticky top-0 pt-safe">
+            <button onclick="closeAttendance()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-50 transition-colors">
+                <i data-lucide="arrow-left" class="w-5 h-5 text-slate-700 dark:text-white"></i>
             </button>
-        </div>
-        
-        <div class="flex justify-between mt-3 px-2">
-            <span id="att-santri-count" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Memuat Data...</span>
-            <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Auto-Save Active
-            </span>
-        </div>
-    </div>
-
-    <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-48 space-y-3 scroll-smooth overscroll-contain">
+            <div class="text-center">
+                <p class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Input Data</p>
+                <h2 id="att-slot-title" class="text-lg font-black text-slate-800 dark:text-white leading-none">...</h2>
+            </div>
+            <div id="save-indicator" class="w-10 h-10 flex items-center justify-center">
+                <!-- Injected Icon by JS -->
+            </div>
         </div>
 
-        <div class="mb-4">
-    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Aksi Cepat</p>
-    <div id="bulk-actions-bar" class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar items-center">
-        <button onclick="smartBulkAction('fardu', 'Hadir', 'visible')" title="Set Shalat & Dzikir: Hadir (yang terlihat)"
-            class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800 active:scale-95 transition-all hover:ring-2 hover:ring-emerald-300/50 flex items-center gap-1">
-            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Shalat Hadir
-        </button>
+        <div class="px-5 py-3 bg-slate-50 dark:bg-[#0f172a] z-10 sticky top-[72px]">
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                <input type="text" id="att-search" oninput="handleSearch(this.value)" placeholder="Cari nama santri..." class="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-base text-slate-700 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-sm">
+                <button onclick="toggleProblemFilter()" id="btn-filter-problem" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                    <i data-lucide="filter" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="flex justify-between mt-3 px-2">
+                <span id="att-santri-count" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Memuat...</span>
+                <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Auto-Save
+                </span>
+            </div>
+        </div>
 
-        <button onclick="smartBulkAction('fardu', 'Alpa', 'visible')" title="Set Shalat: Alpa (yang terlihat)"
-            class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-800 active:scale-95 transition-all hover:ring-2 hover:ring-rose-300/50 flex items-center gap-1">
-            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Shalat Alpa
-        </button>
+        <div id="attendance-list-container" class="flex-1 overflow-y-auto p-4 pb-32 space-y-3 scroll-smooth">
+            <!-- Items Injected by JS -->
+        </div>
 
-        <button onclick="smartBulkAction('kbm', 'Hadir', 'visible')" title="Set KBM Asrama: Hadir (yang terlihat)"
-            class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-800 active:scale-95 transition-all hover:ring-2 hover:ring-blue-300/50 flex items-center gap-1">
-            <i data-lucide="book-open" class="w-3.5 h-3.5"></i> KBM Hadir
-        </button>
-
-        <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 self-center"></div>
-
-        <button onclick="smartBulkAction('specific', 'tahajjud', 'visible')" title="Set Tahajjud: Ya (yang terlihat)"
-            class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-all hover:ring-2 hover:ring-amber-300/50">
-        Tahajjud
-    </button>
-    
-    <button onclick="smartBulkAction('specific', 'dhuha', 'visible')" title="Set Dhuha: Ya (yang terlihat)"
-        class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-all hover:ring-2 hover:ring-amber-300/50">
-        Dhuha
-    </button>
-
-    <button onclick="smartBulkAction('reset', null, 'visible')" title="Reset data (yang terlihat)"
-        class="flex-shrink-0 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold border border-slate-200 dark:border-slate-700 active:scale-95 transition-all hover:ring-2 hover:ring-slate-300/50">
-        Reset
-    </button>
-
-    <div id="bulk-progress" class="ml-auto hidden flex items-center gap-2 pr-1">
-        <i data-lucide="loader" class="w-4 h-4 animate-spin text-emerald-500"></i>
-        <span class="text-[10px] font-bold text-slate-400">Memproses...</span>
-    </div>
-</div>
-    </div>
-</section>
+        <div class="fixed bottom-0 left-0 right-0 p-6 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-20 pointer-events-none">
+            <div class="glass-card p-2 rounded-2xl flex gap-3 shadow-2xl pointer-events-auto">
+                <button onclick="handleBulkAction('alpa')" class="flex-1 py-3.5 rounded-xl bg-white dark:bg-slate-800 text-red-500 font-bold text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 hover:bg-red-50 active:scale-95 transition-all">
+                    <i data-lucide="x-circle" class="w-4 h-4"></i> Alpa Semua
+                </button>
+                <button onclick="handleBulkAction('reset')" class="flex-[1.5] py-3.5 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Hadir Semua
+                </button>
+            </div>
+        </div>
+    </section>
 
     <!-- Modals -->
     <div id="modal-rekap" class="fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
