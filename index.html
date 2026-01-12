@@ -461,6 +461,129 @@
             </div>
         </div>
 
+        <div id="tab-analysis" class="tab-content hidden pb-32 pt-6 px-4 animate-fade-in">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 dark:text-white">Analisis Personal</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Evaluasi kinerja per santri</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
+            <i data-lucide="pie-chart" class="w-5 h-5"></i>
+        </div>
+    </div>
+
+    <div class="space-y-3 mb-6">
+        <div class="bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <select id="analysis-santri" onchange="window.runAnalysis()" class="w-full p-2 bg-transparent font-bold text-slate-700 dark:text-slate-200 outline-none text-sm">
+                <option value="">-- Pilih Santri --</option>
+                </select>
+        </div>
+
+        <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto">
+            <button onclick="window.setAnalysisMode('daily')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode" data-mode="daily">Harian</button>
+            <button onclick="window.setAnalysisMode('weekly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="weekly">Pekan</button>
+            <button onclick="window.setAnalysisMode('monthly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="monthly">Bulan</button>
+            <button onclick="window.setAnalysisMode('semester')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="semester">Semester</button>
+        </div>
+        
+        <div class="text-center">
+            <span id="analysis-date-range" class="text-xs font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1 rounded-full">
+                -
+            </span>
+        </div>
+    </div>
+
+    <div id="analysis-result" class="space-y-4 hidden">
+        
+        <div class="glass-card p-6 rounded-3xl text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-blue-500"></div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Kehadiran</p>
+            <h2 id="anl-total-score" class="text-5xl font-black text-slate-800 dark:text-white mb-2">0%</h2>
+            <p id="anl-verdict" class="text-sm font-bold text-emerald-500">Sangat Baik</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <i data-lucide="moon" class="w-4 h-4 text-emerald-500"></i> Shalat Fardhu
+                    </h3>
+                    <span id="anl-score-fardu" class="text-sm font-black text-emerald-600">0%</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Hadir</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-fardu-h" class="h-full bg-emerald-500 w-0"></div></div>
+                        <span id="txt-fardu-h" class="w-6 text-right font-bold">0</span>
+                    </div>
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Masalah</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-fardu-m" class="h-full bg-red-500 w-0"></div></div>
+                        <span id="txt-fardu-m" class="w-6 text-right font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i> KBM Asrama
+                    </h3>
+                    <span id="anl-score-kbm" class="text-sm font-black text-blue-600">0%</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Hadir</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-kbm-h" class="h-full bg-blue-500 w-0"></div></div>
+                        <span id="txt-kbm-h" class="w-6 text-right font-bold">0</span>
+                    </div>
+                     <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Masalah</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-kbm-m" class="h-full bg-red-500 w-0"></div></div>
+                        <span id="txt-kbm-m" class="w-6 text-right font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <i data-lucide="sun" class="w-4 h-4 text-amber-500"></i> Ibadah Sunnah
+                    </h3>
+                    <span id="anl-score-sunnah" class="text-sm font-black text-amber-600">0%</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Ya</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-sunnah-y" class="h-full bg-amber-500 w-0"></div></div>
+                        <span id="txt-sunnah-y" class="w-6 text-right font-bold">0</span>
+                    </div>
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Tidak</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-sunnah-t" class="h-full bg-slate-400 w-0"></div></div>
+                        <span id="txt-sunnah-t" class="w-6 text-right font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="analysis-empty" class="text-center py-20">
+        <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="search" class="w-8 h-8 text-slate-300"></i>
+        </div>
+        <h3 class="font-bold text-slate-400">Pilih Santri Terlebih Dahulu</h3>
+    </div>
+</div>
+
+<style>
+    .anl-btn.active-mode {
+        background-color: #6366f1; /* Indigo 500 */
+        color: white;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+</style>
+
         <!-- Tab: Report -->
         <div id="tab-report" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-6 pt-safe">
             <header class="flex justify-between items-end mb-4">
@@ -894,6 +1017,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
