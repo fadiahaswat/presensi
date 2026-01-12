@@ -570,22 +570,33 @@
         </div>
 
         <!-- Bottom Navigation Bar -->
-        <nav class="absolute bottom-6 left-6 right-6 z-50">
-            <div class="glass-nav rounded-[1.25rem] p-2 flex justify-around shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5 dark:ring-white/10">
-                <button onclick="switchTab('home')" class="nav-btn active flex-1 py-3.5 rounded-2xl flex flex-col items-center gap-1 transition-all relative overflow-hidden" data-target="home">
-                    <i data-lucide="home" class="w-6 h-6 text-slate-400 transition-colors relative z-10"></i>
-                    <div class="nav-indicator absolute inset-0 bg-emerald-500/10 opacity-0 scale-50 rounded-2xl transition-all duration-300 origin-center"></div>
-                </button>
-                <button onclick="switchTab('report')" class="nav-btn flex-1 py-3.5 rounded-2xl flex flex-col items-center gap-1 transition-all relative overflow-hidden" data-target="report">
-                    <i data-lucide="bar-chart-2" class="w-6 h-6 text-slate-400 transition-colors relative z-10"></i>
-                    <div class="nav-indicator absolute inset-0 bg-emerald-500/10 opacity-0 scale-50 rounded-2xl transition-all duration-300 origin-center"></div>
-                </button>
-                <button onclick="switchTab('profile')" class="nav-btn flex-1 py-3.5 rounded-2xl flex flex-col items-center gap-1 transition-all relative overflow-hidden" data-target="profile">
-                    <i data-lucide="user" class="w-6 h-6 text-slate-400 transition-colors relative z-10"></i>
-                    <div class="nav-indicator absolute inset-0 bg-emerald-500/10 opacity-0 scale-50 rounded-2xl transition-all duration-300 origin-center"></div>
-                </button>
-            </div>
-        </nav>
+        <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe z-50">
+    <div class="grid grid-cols-5 h-16 items-center px-2"> <button onclick="window.switchTab('home')" data-target="home" class="nav-btn active group flex flex-col items-center justify-center gap-1 text-emerald-500">
+            <i data-lucide="home" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
+            <span class="text-[10px] font-bold">Beranda</span>
+        </button>
+
+        <button onclick="window.switchTab('analysis')" data-target="analysis" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-indigo-500 transition-colors">
+            <i data-lucide="pie-chart" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
+            <span class="text-[10px] font-bold">Analisis</span>
+        </button>
+
+        <button onclick="window.switchTab('report')" data-target="report" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-blue-500 transition-colors">
+            <i data-lucide="file-bar-chart" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
+            <span class="text-[10px] font-bold">Laporan</span>
+        </button>
+        
+        <button onclick="window.switchTab('profile')" data-target="profile" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-purple-500 transition-colors">
+            <i data-lucide="user" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
+            <span class="text-[10px] font-bold">Profil</span>
+        </button>
+
+        <button onclick="window.handleLogout()" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-red-500 transition-colors">
+            <i data-lucide="log-out" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
+            <span class="text-[10px] font-bold">Keluar</span>
+        </button>
+    </div>
+</nav>
     </section>
 
     <!-- Attendance Input View -->
@@ -883,6 +894,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
