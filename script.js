@@ -2837,5 +2837,51 @@ window.verifyLocation = function() {
     });
 };
 
+// Fungsi Pengirim Paket ke Gudang (Supabase)
+window.syncToSupabase = async function() {
+    // Cek apakah ada data hari ini untuk dikirim
+    const dateKey = appState.date;
+    const slotId = appState.currentSlotId;
+    const classId = appState.selectedClass;
+
+    if (!dateKey || !slotId || !classId) return;
+
+    const dayData = appState.attendanceData[dateKey]?.[slotId];
+    if (!dayData) return;
+
+    // Ambil Email Musyrif yang sedang login (untuk info siapa yang ngisi)
+    const musyrifEmail = appState.userProfile ? appState.userProfile.email : 'manual-pin';
+
+    // Loop semua santri yang sudah diabsen hari ini
+    const updates = [];
+    Object.keys(dayData).forEach(studentId => {
+        const studentData = dayData[studentId];
+        
+        // Siapkan paket data
+        updates.push({
+            date: dateKey,
+            class_name: classId,
+            slot: slotId,
+            student_id: studentId,
+            activity_data: studentData, // Simpan status H/S/I beserta catatannya
+            musyrif_email: musyrifEmail
+        });
+    });
+
+    if (updates.length === 0) return;
+
+    // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
+    const { error } = await supabase
+        .from('attendance')
+        .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
+
+    if (error) {
+        console.error("Gagal kirim ke Supabase:", error);
+        // Jangan ganggu user dengan popup error terus menerus, cukup di console
+    } else {
+        console.log("✅ Data tersimpan di Awan (Supabase)");
+    }
+};
+
 // Start App
 window.onload = window.initApp;
