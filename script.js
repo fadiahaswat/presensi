@@ -541,13 +541,13 @@ window.renderAttendanceList = function() {
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay(); // 0-6
 
-    // Ensure Structure Exists
+    // Pastikan Struktur Data Ada
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
 
-    // Filter Logic
+    // Filter Pencarian
     const search = appState.searchQuery.toLowerCase();
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(search);
@@ -567,9 +567,10 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- LOGIKA PERIZINAN OTOMATIS ---
+        // 1. Cek apakah Santri ini punya Izin di DB
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
+        // Init data kosong jika belum ada
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya');
@@ -577,44 +578,49 @@ window.renderAttendanceList = function() {
         }
 
         const sData = dbSlot[id];
+        
+        // 2. LOGIKA UTAMA: APPLY atau RESET
+        const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
-        // LOGIKA 1: APPLY PERMIT (Jika Ada Izin Aktif)
         if (activePermit) {
+            // KASUS A: ADA IZIN AKTIF -> TIMPA STATUS
             slot.activities.forEach(act => {
-                // Fardu & KBM: Ikuti status izin (Sakit/Izin)
+                // Kategori: Fardu/KBM/Dependent -> Ikut Status Izin (S/I)
                 if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
                      sData.status[act.id] = activePermit.type; 
                 } 
-                // Sunnah dianggap Tidak mengerjakan (Strip)
+                // Kategori: Sunnah -> Dianggap Tidak Mengerjakan (-)
                 else if (act.category === 'sunnah') {
                      sData.status[act.id] = 'Tidak'; 
                 }
             });
-            // Tandai note sebagai Auto agar bisa dideteksi nanti
-            if (!sData.note || sData.note.includes('[Auto]') || sData.note === '-') {
+            
+            // Tulis Catatan Auto (sebagai penanda untuk reset nanti)
+            // Hanya tulis jika belum ada catatan manual user
+            if (!sData.note || sData.note === '-' || isAutoMarked) {
                 sData.note = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
             }
         } 
-        // LOGIKA 2: CLEANUP / RESET (Jika TIDAK ADA Izin Aktif tapi masih ada jejak Auto)
-        else {
-            if (sData.note && sData.note.includes('[Auto]')) {
-                // Berarti izinnya sudah dihapus, kembalikan ke DEFAULT
-                slot.activities.forEach(act => {
-                    sData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
-                });
-                sData.note = ''; // Hapus catatan auto
-            }
+        else if (isAutoMarked) {
+            // KASUS B: TIDAK ADA IZIN, TAPI ADA TANDA [Auto] -> RESET KE DEFAULT
+            // Ini artinya izin baru saja dihapus oleh user.
+            
+            slot.activities.forEach(act => {
+                // Kembalikan ke default (Hadir / Ya)
+                sData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
+            });
+            sData.note = ''; // Hapus catatan auto
         }
-        // --- END LOGIKA PERIZINAN ---
+        // KASUS C: Data manual user (biarkan apa adanya)
 
+        // --- Render UI Baris ---
         const clone = tplRow.content.cloneNode(true);
         
-        // Basic Info
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // Indikator Visual Permit
+        // Visual Badge jika Auto
         if (activePermit) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
@@ -622,7 +628,7 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // --- FIX ERROR DOMTokenList DISINI ---
+            // Highlight Baris (Fix Error TokenList)
             const rowEl = clone.querySelector('.santri-row');
             if(activePermit.type === 'Sakit') {
                 rowEl.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
@@ -633,7 +639,7 @@ window.renderAttendanceList = function() {
 
         const btnCont = clone.querySelector('.activity-container');
         
-        // Render Activity Buttons
+        // Render Tombol
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
@@ -648,8 +654,9 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
-            // Efek visual tombol jika otomatis (dikunci visual)
+            // Kunci Visual jika Otomatis
             if (activePermit) {
+                // Efek visual 'Locked' tapi masih bisa diklik untuk override manual
                 if(curr === activePermit.type || curr === 'Tidak') {
                     btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
                 }
@@ -659,7 +666,7 @@ window.renderAttendanceList = function() {
             btnCont.appendChild(bClone);
         });
 
-        // Notes
+        // Notes Setup
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
