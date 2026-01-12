@@ -356,6 +356,125 @@ window.updateDashboard = function() {
     window.renderTodayProblems(); // Pindahkan logic render masalah kesini
 };
 
+// ==========================================
+// FITUR STATUS LOKASI DASHBOARD
+// ==========================================
+
+window.updateLocationStatus = function() {
+    const card = document.getElementById('location-status-card');
+    
+    // Jika fitur dimatikan di config, sembunyikan kartu
+    if (!GEO_CONFIG.useGeofencing) {
+        if(card) card.classList.add('hidden');
+        return;
+    }
+    
+    if(card) card.classList.remove('hidden');
+    
+    // Ambil Elemen UI
+    const elLoading = document.getElementById('loc-loading');
+    const elDetails = document.getElementById('loc-details');
+    const elError = document.getElementById('loc-error');
+    
+    const elNearest = document.getElementById('loc-nearest-name');
+    const elDistance = document.getElementById('loc-distance');
+    const elBadge = document.getElementById('loc-badge');
+    const elMessage = document.getElementById('loc-message');
+    const elIcon = document.getElementById('loc-icon');
+    const elIconBg = document.getElementById('loc-icon-bg');
+
+    // Reset Tampilan ke Loading
+    if(elLoading) elLoading.classList.remove('hidden');
+    if(elDetails) elDetails.classList.add('hidden');
+    if(elError) elError.classList.add('hidden');
+    
+    // Cek Support Browser
+    if (!navigator.geolocation) {
+        if(elLoading) elLoading.classList.add('hidden');
+        if(elError) {
+            elError.classList.remove('hidden');
+            elError.innerHTML = '<p class="text-[10px] font-bold text-red-500">Browser tidak dukung GPS</p>';
+        }
+        return;
+    }
+
+    // Eksekusi GPS
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            
+            let nearestDist = Infinity;
+            let nearestName = "Tidak diketahui";
+            let isInside = false;
+
+            // 1. Cari Lokasi Terdekat dari Array GEO_CONFIG
+            GEO_CONFIG.locations.forEach(loc => {
+                const dist = window.getDistanceFromLatLonInMeters(userLat, userLng, loc.lat, loc.lng);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestName = loc.name;
+                }
+            });
+            
+            // 2. Cek apakah masuk radius
+            if (nearestDist <= GEO_CONFIG.maxRadiusMeters) {
+                isInside = true;
+            }
+
+            // 3. Update Tampilan
+            if(elLoading) elLoading.classList.add('hidden');
+            if(elDetails) elDetails.classList.remove('hidden');
+            
+            if(elNearest) elNearest.textContent = nearestName;
+            if(elDistance) elDistance.textContent = Math.round(nearestDist) + "m";
+            
+            if (isInside) {
+                // Tampilan HIJAU (Aman)
+                elBadge.textContent = "AMAN";
+                elBadge.className = "px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-100 text-emerald-600 border border-emerald-200";
+                
+                elMessage.innerHTML = `<span class="text-emerald-600 flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Posisi sesuai. Silakan isi presensi.</span>`;
+                
+                elIcon.setAttribute('data-lucide', 'map-pin');
+                elIcon.classList.remove('text-slate-400', 'text-red-500', 'text-amber-500');
+                elIcon.classList.add('text-emerald-500');
+                
+                elIconBg.classList.remove('bg-slate-100', 'bg-red-100', 'bg-amber-100');
+                elIconBg.classList.add('bg-emerald-100');
+            } else {
+                // Tampilan MERAH (Jauh)
+                elBadge.textContent = "JAUH";
+                elBadge.className = "px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-red-100 text-red-600 border border-red-200";
+                
+                const selisih = Math.round(nearestDist - GEO_CONFIG.maxRadiusMeters);
+                elMessage.innerHTML = `<span class="text-red-500 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Terlalu jauh ${selisih}m dari batas radius.</span>`;
+                
+                elIcon.setAttribute('data-lucide', 'map-pin-off');
+                elIcon.classList.remove('text-slate-400', 'text-emerald-500', 'text-amber-500');
+                elIcon.classList.add('text-red-500');
+                
+                elIconBg.classList.remove('bg-slate-100', 'bg-emerald-100', 'bg-amber-100');
+                elIconBg.classList.add('bg-red-100');
+            }
+            
+            if(window.lucide) window.lucide.createIcons();
+        },
+        (error) => {
+            if(elLoading) elLoading.classList.add('hidden');
+            if(elError) {
+                elError.classList.remove('hidden');
+                let msg = "Gagal deteksi lokasi.";
+                if(error.code === 1) msg = "Izin lokasi ditolak.";
+                else if(error.code === 2) msg = "Sinyal GPS lemah.";
+                else if(error.code === 3) msg = "Waktu GPS habis.";
+                elError.innerHTML = `<p class="text-[10px] font-bold text-red-500 leading-tight">${msg}</p>`;
+            }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+};
+
 window.renderSlotList = function() {
     const container = document.getElementById('dash-other-slots');
     if(!container) return;
