@@ -1386,19 +1386,26 @@ window.switchTab = function(tabName) {
     const targetTab = document.getElementById(`tab-${tabName}`);
     if (targetTab) targetTab.classList.remove('hidden');
     
+    // UPDATE BUTTON STYLE
     document.querySelectorAll('.nav-btn').forEach(btn => {
         if(btn.dataset.target === tabName) {
-            btn.classList.add('active');
-            btn.style.transform = 'scale(1.1)';
-            setTimeout(() => btn.style.transform = '', 200);
+            btn.classList.add('active', 'text-emerald-500');
+            btn.classList.remove('text-slate-400');
         } else {
-            btn.classList.remove('active');
+            btn.classList.remove('active', 'text-emerald-500');
+            btn.classList.add('text-slate-400');
         }
     });
 
     if(tabName === 'home') window.updateDashboard();
     else if(tabName === 'report') window.updateReportTab();
     else if(tabName === 'profile') window.updateProfileStats();
+    
+    // --- TAMBAHAN BARU: LOAD ANALISIS ---
+    else if(tabName === 'analysis') {
+        window.populateAnalysisDropdown();
+        window.runAnalysis(); // Run jika sudah ada yang dipilih sebelumnya
+    }
     
     if(window.lucide) window.lucide.createIcons();
 };
