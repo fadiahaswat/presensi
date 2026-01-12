@@ -1860,5 +1860,241 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
     });
 };
 
+// ==========================================
+// FITUR ANALISIS SANTRI (BARU)
+// ==========================================
+
+// 1. Setup Dropdown Santri saat buka tab Analysis
+window.populateAnalysisDropdown = function() {
+    const select = document.getElementById('analysis-santri');
+    if (!select) return;
+
+    // Simpan value lama jika ada
+    const oldVal = select.value;
+    
+    select.innerHTML = '<option value="">-- Pilih Santri --</option>';
+    
+    // Sort nama santri
+    const sorted = [...FILTERED_SANTRI].sort((a,b) => a.nama.localeCompare(b.nama));
+    
+    sorted.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.nis || s.id;
+        opt.textContent = s.nama;
+        select.appendChild(opt);
+    });
+
+    if(oldVal) select.value = oldVal;
+};
+
+// 2. Ganti Mode (Harian/Pekan/Bulan/Semester)
+window.setAnalysisMode = function(mode) {
+    appState.analysisMode = mode;
+    
+    // Update UI Button
+    document.querySelectorAll('.anl-btn').forEach(btn => {
+        if(btn.dataset.mode === mode) {
+            btn.classList.add('active-mode', 'text-white');
+            btn.classList.remove('text-slate-500');
+        } else {
+            btn.classList.remove('active-mode', 'text-white');
+            btn.classList.add('text-slate-500');
+        }
+    });
+
+    window.runAnalysis();
+};
+
+// 3. Helper: Mendapatkan Rentang Tanggal
+window.getDateRange = function(mode) {
+    const today = new Date(appState.date); // Gunakan tanggal dari Date Picker dashboard
+    let start = new Date(today);
+    let end = new Date(today);
+    let label = "";
+
+    if (mode === 'daily') {
+        label = window.formatDate(appState.date);
+    } 
+    else if (mode === 'weekly') {
+        const day = today.getDay(); // 0 (Sun) - 6 (Sat)
+        // Adjust agar Senin jadi hari pertama (Opsional, tergantung kebiasaan pondok)
+        // Disini asumsi Senin = start
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
+        start.setDate(diff);
+        end.setDate(start.getDate() + 6);
+        label = `${start.getDate()}/${start.getMonth()+1} - ${end.getDate()}/${end.getMonth()+1}/${end.getFullYear()}`;
+    } 
+    else if (mode === 'monthly') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        label = `${months[today.getMonth()]} ${today.getFullYear()}`;
+    } 
+    else if (mode === 'semester') {
+        // Semester 1: Jan - Jun, Semester 2: Jul - Des
+        if(today.getMonth() < 6) {
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 5, 30);
+            label = `Semester Ganjil (Jan-Jun ${today.getFullYear()})`;
+        } else {
+            start = new Date(today.getFullYear(), 6, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+            label = `Semester Genap (Jul-Des ${today.getFullYear()})`;
+        }
+    }
+
+    return { start, end, label };
+};
+
+// 4. ENGINE ANALISIS UTAMA
+window.runAnalysis = function() {
+    const santriId = document.getElementById('analysis-santri').value;
+    if(!santriId) {
+        document.getElementById('analysis-result').classList.add('hidden');
+        document.getElementById('analysis-empty').classList.remove('hidden');
+        return;
+    }
+
+    document.getElementById('analysis-result').classList.remove('hidden');
+    document.getElementById('analysis-empty').classList.add('hidden');
+
+    const range = window.getDateRange(appState.analysisMode);
+    document.getElementById('analysis-date-range').textContent = range.label;
+
+    // --- INIT COUNTERS ---
+    let stats = {
+        fardu: { h:0, m:0, total:0 }, // m = masalah (s/i/a)
+        kbm: { h:0, m:0, total:0 },
+        sunnah: { y:0, t:0, total:0 }
+    };
+
+    // --- LOOP DATES ---
+    // Loop dari start date sampai end date
+    let curr = new Date(range.start);
+    const end = new Date(range.end);
+    
+    // Safety break loop (max 366 days)
+    let loopGuard = 0;
+
+    while(curr <= end && loopGuard < 370) {
+        const dateKey = curr.toISOString().split('T')[0]; // YYYY-MM-DD (Local approx)
+        // Fix timezone offset issue for pure YYYY-MM-DD loop
+        // Gunakan string manipulation agar aman
+        const y = curr.getFullYear();
+        const m = String(curr.getMonth()+1).padStart(2,'0');
+        const d = String(curr.getDate()).padStart(2,'0');
+        const safeDateKey = `${y}-${m}-${d}`;
+
+        const dayData = appState.attendanceData[safeDateKey];
+        const dayNum = curr.getDay(); // 0-6
+
+        if (dayData) {
+            Object.values(SLOT_WAKTU).forEach(slot => {
+                const sData = dayData[slot.id]?.[santriId];
+                if(sData) {
+                    slot.activities.forEach(act => {
+                        // Skip jika kegiatan tidak ada di hari ini
+                        if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
+
+                        const st = sData.status[act.id];
+                        if(!st) return;
+
+                        // Logic Kategori
+                        if(act.category === 'fardu') {
+                            stats.fardu.total++;
+                            if(st === 'Hadir') stats.fardu.h++;
+                            else stats.fardu.m++;
+                        }
+                        else if(act.category === 'kbm') {
+                            stats.kbm.total++;
+                            if(st === 'Hadir') stats.kbm.h++;
+                            else stats.kbm.m++;
+                        }
+                        else if(act.category === 'sunnah' || act.category === 'dependent') {
+                            // Dependent (rawatib) kita anggap sunnah di analisis ini
+                            stats.sunnah.total++;
+                            if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
+                            else stats.sunnah.t++;
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Next Day
+        curr.setDate(curr.getDate() + 1);
+        loopGuard++;
+    }
+
+    // --- RENDER STATS ---
+    window.renderBar('fardu', stats.fardu.h, stats.fardu.m);
+    window.renderBar('kbm', stats.kbm.h, stats.kbm.m);
+    window.renderBar('sunnah', stats.sunnah.y, stats.sunnah.t); // y=Yes, t=No
+
+    // --- TOTAL SCORE ---
+    // Bobot: Fardu (50%), KBM (30%), Sunnah (20%)
+    const pctFardu = stats.fardu.total ? (stats.fardu.h / stats.fardu.total) * 100 : 0;
+    const pctKbm = stats.kbm.total ? (stats.kbm.h / stats.kbm.total) * 100 : 0;
+    const pctSunnah = stats.sunnah.total ? (stats.sunnah.y / stats.sunnah.total) * 100 : 0;
+
+    let totalScore = 0;
+    let divider = 0;
+    
+    if(stats.fardu.total) { totalScore += pctFardu * 0.5; divider += 0.5; }
+    if(stats.kbm.total) { totalScore += pctKbm * 0.3; divider += 0.3; }
+    if(stats.sunnah.total) { totalScore += pctSunnah * 0.2; divider += 0.2; }
+
+    const finalScore = divider ? Math.round(totalScore / divider) : 0;
+    
+    document.getElementById('anl-total-score').textContent = `${finalScore}%`;
+    
+    // Teks Kesimpulan
+    const elVerdict = document.getElementById('anl-verdict');
+    if(finalScore >= 90) { elVerdict.textContent = "Mumtaz (Sangat Baik)"; elVerdict.className = "text-sm font-bold text-emerald-500"; }
+    else if(finalScore >= 75) { elVerdict.textContent = "Jayyid (Baik)"; elVerdict.className = "text-sm font-bold text-blue-500"; }
+    else if(finalScore >= 60) { elVerdict.textContent = "Maqbul (Cukup)"; elVerdict.className = "text-sm font-bold text-amber-500"; }
+    else { elVerdict.textContent = "Naqis (Kurang)"; elVerdict.className = "text-sm font-bold text-red-500"; }
+
+    // Persentase Kategori
+    document.getElementById('anl-score-fardu').textContent = Math.round(pctFardu) + '%';
+    document.getElementById('anl-score-kbm').textContent = Math.round(pctKbm) + '%';
+    document.getElementById('anl-score-sunnah').textContent = Math.round(pctSunnah) + '%';
+};
+
+// 5. Render Bar Helper
+window.renderBar = function(type, good, bad) {
+    const total = good + bad;
+    if(total === 0) {
+        document.getElementById(`bar-${type}-h`).style.width = '0%';
+        document.getElementById(`txt-${type}-h`).textContent = '0';
+        // Untuk Sunnah id nya beda (y/t) tapi kita mapping manual disini biar gampang
+        if(type === 'sunnah') {
+             document.getElementById(`bar-${type}-y`).style.width = '0%';
+             document.getElementById(`txt-${type}-y`).textContent = '0';
+             document.getElementById(`bar-${type}-t`).style.width = '0%';
+             document.getElementById(`txt-${type}-t`).textContent = '0';
+        } else {
+             document.getElementById(`bar-${type}-m`).style.width = '0%';
+             document.getElementById(`txt-${type}-m`).textContent = '0';
+        }
+        return;
+    }
+
+    const pctGood = (good / total) * 100;
+    const pctBad = (bad / total) * 100;
+
+    if(type === 'sunnah') {
+        document.getElementById(`bar-${type}-y`).style.width = `${pctGood}%`;
+        document.getElementById(`txt-${type}-y`).textContent = good;
+        document.getElementById(`bar-${type}-t`).style.width = `${pctBad}%`;
+        document.getElementById(`txt-${type}-t`).textContent = bad;
+    } else {
+        document.getElementById(`bar-${type}-h`).style.width = `${pctGood}%`;
+        document.getElementById(`txt-${type}-h`).textContent = good;
+        document.getElementById(`bar-${type}-m`).style.width = `${pctBad}%`;
+        document.getElementById(`txt-${type}-m`).textContent = bad;
+    }
+};
+
 // Start App
 window.onload = window.initApp;
