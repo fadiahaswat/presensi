@@ -560,7 +560,6 @@ window.renderAttendanceList = function() {
 
     document.getElementById('att-santri-count').textContent = `${list.length} Santri`;
 
-    // Templates
     const tplRow = document.getElementById('tpl-santri-row');
     const tplBtn = document.getElementById('tpl-activity-btn');
     const fragment = document.createDocumentFragment();
@@ -568,14 +567,36 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // Init Empty Data
+        // --- LOGIKA PERIZINAN OTOMATIS (BARU) ---
+        const activePermit = window.checkActivePermit(id, dateKey, slot.id);
+        
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya');
             dbSlot[id] = { status: defStatus, note: '' };
         }
-        
+
         const sData = dbSlot[id];
+
+        // AUTO-FILL Status jika ada Permit Aktif
+        if (activePermit) {
+            slot.activities.forEach(act => {
+                // Shalat & KBM ikut status izin
+                if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
+                     sData.status[act.id] = activePermit.type; 
+                } 
+                // Sunnah dianggap Tidak mengerjakan
+                else if (act.category === 'sunnah') {
+                     sData.status[act.id] = 'Tidak';
+                }
+            });
+            // Auto Note jika kosong
+            if (!sData.note || sData.note === '-') {
+                sData.note = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
+            }
+        }
+        // --- END LOGIKA PERIZINAN ---
+
         const clone = tplRow.content.cloneNode(true);
         
         // Basic Info
@@ -583,25 +604,40 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
+        // Indikator Visual Permit
+        if (activePermit) {
+            const nameEl = clone.querySelector('.santri-name');
+            const badge = document.createElement('span');
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${activePermit.type === 'Sakit' ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`;
+            badge.textContent = activePermit.type;
+            nameEl.appendChild(badge);
+            
+            // Highlight baris agar terlihat beda
+            clone.querySelector('.santri-row').classList.add(activePermit.type === 'Sakit' ? 'ring-1 ring-amber-200 bg-amber-50/30' : 'ring-1 ring-blue-200 bg-blue-50/30');
+        }
+
         const btnCont = clone.querySelector('.activity-container');
         
         // Render Activity Buttons
         slot.activities.forEach(act => {
-            // Filter Hari (Misal Puasa Senin Kamis)
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
             const bClone = tplBtn.content.cloneNode(true);
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
             
-            const defaultVal = act.type === 'mandator' ? 'Hadir' : 'Ya';
-            const curr = sData.status[act.id] || defaultVal;
+            const curr = sData.status[act.id];
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
             btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
             btn.textContent = ui.label;
             lbl.textContent = act.label;
-            
+
+            // Efek visual tombol jika otomatis
+            if (activePermit) {
+                if(curr === activePermit.type) btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+            }
+
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
             btnCont.appendChild(bClone);
         });
