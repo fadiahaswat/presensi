@@ -225,29 +225,9 @@ const STATUS_UI = {
 // ==========================================
 
 window.initApp = async function() {
-    // 1. CEK SESI GOOGLE (AUTO LOGIN)
-    const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
-    if(savedAuth) {
-        try {
-            const authData = JSON.parse(savedAuth);
-            // Langsung set kelas & profil
-            appState.selectedClass = authData.kelas;
-            appState.userProfile = authData.profile;
-            
-            // Bypass Login, langsung ke Main
-            document.getElementById('view-login').classList.add('hidden');
-            document.getElementById('view-main').classList.remove('hidden');
-            
-            // Notif sapaan
-            setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
-        } catch(e) {
-            localStorage.removeItem(APP_CONFIG.googleAuthKey); // Hapus jika rusak
-        }
-    }
-    
     const loadingEl = document.getElementById('view-loading');
     
-    // Load Settings & Theme
+    // 1. Load Settings & LocalStorage Data (Presensi Harian)
     try {
         const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
         if(savedSettings) {
@@ -255,33 +235,31 @@ window.initApp = async function() {
             if(appState.settings.darkMode) document.documentElement.classList.add('dark');
         }
 
-        // Load Main Data
         const savedData = localStorage.getItem(APP_CONFIG.storageKey);
         if(savedData) appState.attendanceData = JSON.parse(savedData);
 
         const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
         if(savedLog) appState.activityLog = JSON.parse(savedLog);
-    } catch (e) {
-        console.error("Storage Error:", e);
-        localStorage.clear(); // Extreme recovery if JSON corrupt
-    }
-
-    // TAMBAHKAN INI DI DALAM initApp (setelah load settings):
-    try {
-        appState.permits = []; // Init array
+        
+        // Load Izin
+        appState.permits = [];
         const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
         if(savedPermits) appState.permits = JSON.parse(savedPermits);
-    } catch(e) { console.error("Permit load fail", e); }
 
-    // Determine Logic
+    } catch (e) {
+        console.error("Storage Error:", e);
+    }
+
+    // 2. Determine Logic Waktu Shalat
     appState.currentSlotId = window.determineCurrentSlot();
 
-    // Fetch External Data
+    // 3. FETCH DATA EXTERNAL (KELAS & SANTRI) DULU!
     try {
         if (!window.loadClassData || !window.loadSantriData) {
             throw new Error("Library data belum termuat.");
         }
 
+        // Tunggu sampai data selesai diambil
         const [kelasData, santriData] = await Promise.all([
             window.loadClassData(),
             window.loadSantriData()
@@ -292,13 +270,58 @@ window.initApp = async function() {
 
         window.populateClassDropdown();
         
+        // Hilangkan Loading Screen
         if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
+
+        // ============================================================
+        // 4. BARU CEK AUTO LOGIN (Setelah Data Tersedia)
+        // ============================================================
+        const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
+        
+        if(savedAuth) {
+            try {
+                const authData = JSON.parse(savedAuth);
+                
+                // A. Restore State
+                appState.selectedClass = authData.kelas;
+                appState.userProfile = authData.profile;
+                
+                // B. PENTING: ISI ULANG FILTERED_SANTRI!
+                // Ini yang sebelumnya hilang, makanya data kosong saat refresh
+                FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
+                    const sKelas = String(s.kelas || s.rombel || "").trim();
+                    return sKelas === appState.selectedClass;
+                }).sort((a,b) => a.nama.localeCompare(b.nama));
+
+                // C. Cek apakah kelas masih valid
+                if(FILTERED_SANTRI.length === 0) {
+                    throw new Error("Data kelas tidak ditemukan/kosong");
+                }
+
+                // D. Bypass Login & Masuk Dashboard
+                document.getElementById('view-login').classList.add('hidden');
+                document.getElementById('view-main').classList.remove('hidden');
+                
+                // E. Update UI Dashboard & Profil dengan data yang sudah diload
+                window.updateDashboard(); 
+                window.updateProfileInfo();
+                
+                setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
+
+            } catch(e) {
+                console.error("Auto-login error:", e);
+                localStorage.removeItem(APP_CONFIG.googleAuthKey); // Hapus sesi korup
+                // Tetap di halaman login
+            }
+        }
+        // ============================================================
 
     } catch (e) {
         window.showToast("Gagal memuat data: " + e.message, 'error');
+        if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
     }
 
-    // Start UI
+    // 5. Start UI Clocks
     window.startClock();
     window.updateDateDisplay();
     if(window.lucide) window.lucide.createIcons();
