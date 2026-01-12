@@ -10,7 +10,7 @@ const SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ILIpnd3pziGDalb1qT0hJg_islHsPYn';
 
 // 3. Nyalakan Mesin Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 console.log("Supabase Siap!");
 
