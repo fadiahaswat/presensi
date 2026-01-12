@@ -315,23 +315,30 @@ window.handleLogin = function() {
     if(!kelas) return alert("Pilih kelas dulu!");
     if(pin !== savedPin) return alert("PIN Salah!");
 
-    // FILTER DATA (Lebih robust terhadap struktur data yang mungkin berbeda)
-    appState.selectedClass = kelas;
-    FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
-        const sKelas = String(s.kelas || s.rombel || "").trim();
-        return sKelas === kelas;
-    }).sort((a,b) => a.nama.localeCompare(b.nama));
+    // Simpan kelas sementara
+    appState.tempClass = kelas;
 
-    if(FILTERED_SANTRI.length === 0) alert("Data santri kosong untuk kelas ini.");
-
-    document.getElementById('view-login').classList.add('hidden');
-    document.getElementById('view-main').classList.remove('hidden');
+    // Tampilkan Modal Google
+    const modal = document.getElementById('modal-google-auth');
+    document.getElementById('lbl-google-class').textContent = kelas;
     
-    window.updateDashboard();
-    window.updateProfileInfo();
-    
-    const pinInput = document.getElementById('login-pin');
-    if(pinInput) pinInput.value = "";
+    if(modal) {
+        modal.classList.remove('hidden');
+        
+        // Render Tombol Google
+        if(window.google) {
+            google.accounts.id.initialize({
+                client_id: APP_CONFIG.googleClientId,
+                callback: window.handleGoogleCallback
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("google-btn-container"),
+                { theme: "outline", size: "large", type: "standard" }
+            );
+        } else {
+            alert("Gagal memuat Google. Cek koneksi internet.");
+        }
+    }
 };
 
 window.handleLogout = function() {
