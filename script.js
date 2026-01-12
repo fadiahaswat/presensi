@@ -8,7 +8,9 @@ const APP_CONFIG = {
     permitKey: 'musyrif_permits_db', // <-- TAMBAHAN BARU
     pinDefault: '1234',
     activityLogKey: 'musyrif_activity_log',
-    settingsKey: 'musyrif_settings'
+    settingsKey: 'musyrif_settings',
+    googleAuthKey: 'musyrif_google_session', // Key penyimpanan sesi
+    googleClientId: '694043281368-cqf9tji9rsv2k2gtfu7pbicdsc1gcvk7.apps.googleusercontent.com' // <-- PASTE CLIENT ID DARI TAHAP 1
 };
 
 // ==========================================
