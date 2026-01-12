@@ -605,16 +605,33 @@
             <!-- Items Injected by JS -->
         </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-6 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-20 pointer-events-none">
-            <div class="glass-card p-2 rounded-2xl flex gap-3 shadow-2xl pointer-events-auto">
-                <button onclick="handleBulkAction('alpa')" class="flex-1 py-3.5 rounded-xl bg-white dark:bg-slate-800 text-red-500 font-bold text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 hover:bg-red-50 active:scale-95 transition-all">
-                    <i data-lucide="x-circle" class="w-4 h-4"></i> Alpa Semua
-                </button>
-                <button onclick="handleBulkAction('reset')" class="flex-[1.5] py-3.5 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 hover:bg-emerald-600 active:scale-95 transition-all">
-                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Hadir Semua
-                </button>
-            </div>
-        </div>
+        <div class="mb-4">
+    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Aksi Cepat</p>
+    <div class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+        
+        <button onclick="smartBulkAction('fardu', 'H')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800 active:scale-95 transition-transform flex items-center gap-1">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Shalat Fardhu
+        </button>
+
+        <button onclick="smartBulkAction('kbm', 'Ya')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-800 active:scale-95 transition-transform flex items-center gap-1">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i> KBM Asrama
+        </button>
+
+        <div class="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 self-center"></div>
+
+        <button onclick="smartBulkAction('specific', 'tahajjud')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform">
+            Tahajjud
+        </button>
+        
+        <button onclick="smartBulkAction('specific', 'dhuha')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-200 dark:border-amber-800 active:scale-95 transition-transform">
+            Dhuha
+        </button>
+
+        <button onclick="smartBulkAction('reset')" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold border border-slate-200 dark:border-slate-700 active:scale-95 transition-transform">
+            Reset Semua
+        </button>
+    </div>
+</div>
     </section>
 
     <!-- Modals -->
@@ -765,6 +782,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
