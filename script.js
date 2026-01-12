@@ -2884,7 +2884,7 @@ window.syncToSupabase = async function() {
     if (updates.length === 0) return;
 
     // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
-    const { error } = await supabase
+    const { error } = await dbClient // <--- GANTI JADI dbClientsupabase
         .from('attendance')
         .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
 
