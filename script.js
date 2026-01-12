@@ -1211,27 +1211,35 @@ window.kirimLaporanWA = function() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
 };
 
-window.showToast = function(message, type = 'info') {
+// Update parameter ke-3 (isPersistent) agar toast tidak hilang otomatis jika perlu
+window.showToast = function(message, type = 'info', isPersistent = false) {
     if(!appState.settings.notifications) return;
     
     const container = document.getElementById('toast-container');
     if(!container) return;
     
     const toast = document.createElement('div');
-    toast.className = `${UI_COLORS[type] || UI_COLORS.info} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-[slideUp_0.3s_ease-out] mb-3`;
+    toast.className = `${UI_COLORS[type] || UI_COLORS.info} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-[slideUp_0.3s_ease-out] mb-3 z-[100]`;
     toast.innerHTML = `
-        <i data-lucide="${type === 'success' ? 'check-circle' : 'info'}" class="w-5 h-5"></i>
-        <span class="font-bold">${message}</span>
+        <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info'}" class="w-5 h-5"></i>
+        <span class="font-bold text-xs">${message}</span>
     `;
     
     container.appendChild(toast);
     if(window.lucide) window.lucide.createIcons();
     
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    if (!isPersistent) {
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-20px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    } else {
+        // Hapus otomatis setelah 10 detik just in case agar tidak nyangkut
+        setTimeout(() => toast.remove(), 10000);
+    }
+    
+    return toast;
 };
 
 window.toggleDarkMode = function() {
