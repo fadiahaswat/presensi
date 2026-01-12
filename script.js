@@ -2379,5 +2379,68 @@ window.renderTimesheetCalendar = function() {
     }
 };
 
+// --- LOGIKA LAPORAN REKAP ---
+
+// 1. Set Mode Laporan
+window.setReportMode = function(mode) {
+    appState.reportMode = mode;
+    
+    // Update UI Button
+    document.querySelectorAll('.rpt-btn').forEach(btn => {
+        if(btn.dataset.mode === mode) {
+            btn.classList.add('active-mode', 'text-white');
+            btn.classList.remove('text-slate-500');
+        } else {
+            btn.classList.remove('active-mode', 'text-white');
+            btn.classList.add('text-slate-500');
+        }
+    });
+
+    window.updateReportTab(); // Refresh tabel
+};
+
+// 2. Helper Range Tanggal (Update support Yearly)
+window.getReportDateRange = function(mode) {
+    const today = new Date(appState.date);
+    let start = new Date(today);
+    let end = new Date(today);
+    let label = "";
+
+    if (mode === 'daily') {
+        label = window.formatDate(appState.date);
+    } 
+    else if (mode === 'weekly') {
+        const day = today.getDay(); 
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
+        start.setDate(diff);
+        end.setDate(start.getDate() + 6);
+        label = `${start.getDate()}/${start.getMonth()+1} - ${end.getDate()}/${end.getMonth()+1}/${end.getFullYear()}`;
+    } 
+    else if (mode === 'monthly') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+        label = `${months[today.getMonth()]} ${today.getFullYear()}`;
+    } 
+    else if (mode === 'semester') {
+        if(today.getMonth() < 6) {
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 5, 30);
+            label = `Sem. Ganjil ${today.getFullYear()}`;
+        } else {
+            start = new Date(today.getFullYear(), 6, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+            label = `Sem. Genap ${today.getFullYear()}`;
+        }
+    }
+    else if (mode === 'yearly') {
+        start = new Date(today.getFullYear(), 0, 1);
+        end = new Date(today.getFullYear(), 11, 31);
+        label = `Tahun ${today.getFullYear()}`;
+    }
+
+    return { start, end, label };
+};
+
 // Start App
 window.onload = window.initApp;
