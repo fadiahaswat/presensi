@@ -341,6 +341,63 @@ window.handleLogin = function() {
     }
 };
 
+window.handleGoogleCallback = function(response) {
+    try {
+        const profile = window.parseJwt(response.credential);
+        const userEmail = profile.email;
+        const targetClass = appState.tempClass;
+
+        // 1. AMBIL DATA KELAS DARI VARIABLE GLOBAL (yang diload data-kelas.js)
+        // Pastikan variabelnya window.classData (sesuai data-kelas.js Anda)
+        const classInfo = window.classData[targetClass];
+
+        if (!classInfo) {
+            return window.showToast("Data kelas tidak ditemukan.", "error");
+        }
+
+        // 2. VALIDASI EMAIL (KEAMANAN UTAMA)
+        // Jika di sheet kolom email kosong, kita tolak demi keamanan
+        if (!classInfo.email) {
+            return window.showToast("Admin belum mendaftarkan email untuk kelas ini.", "warning");
+        }
+
+        // Bandingkan (kecilkan huruf biar aman)
+        if (classInfo.email.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+            return window.showToast("AKSES DITOLAK! Email Anda tidak terdaftar untuk kelas ini.", "error");
+        }
+
+        // 3. JIKA LOLOS -> SIMPAN SESI
+        const authData = {
+            kelas: targetClass,
+            profile: profile,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(APP_CONFIG.googleAuthKey, JSON.stringify(authData));
+        
+        // 4. Masuk Dashboard
+        appState.selectedClass = targetClass;
+        appState.userProfile = profile;
+        
+        // Filter Santri Ulang (Sesuai kelas)
+        FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
+            const sKelas = String(s.kelas || s.rombel || "").trim();
+            return sKelas === targetClass;
+        }).sort((a,b) => a.nama.localeCompare(b.nama));
+
+        window.closeModal('modal-google-auth');
+        document.getElementById('view-login').classList.add('hidden');
+        document.getElementById('view-main').classList.remove('hidden');
+        
+        window.updateDashboard();
+        window.updateProfileInfo();
+        window.showToast("Login Berhasil!", "success");
+
+    } catch (e) {
+        console.error(e);
+        window.showToast("Gagal memproses login Google.", "error");
+    }
+};
+
 window.handleLogout = function() {
     appState.selectedClass = null;
     document.getElementById('view-main').classList.add('hidden');
