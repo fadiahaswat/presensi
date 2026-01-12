@@ -287,35 +287,34 @@ window.initApp = async function() {
                 appState.userProfile = authData.profile;
                 
                 // B. PENTING: ISI ULANG FILTERED_SANTRI!
-                // Ini yang sebelumnya hilang, makanya data kosong saat refresh
                 FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
                     const sKelas = String(s.kelas || s.rombel || "").trim();
                     return sKelas === appState.selectedClass;
                 }).sort((a,b) => a.nama.localeCompare(b.nama));
 
-                // C. Cek apakah kelas masih valid
-                if(FILTERED_SANTRI.length === 0) {
-                    throw new Error("Data kelas tidak ditemukan/kosong");
-                }
+                if(FILTERED_SANTRI.length === 0) throw new Error("Data kelas kosong");
 
                 // D. Bypass Login & Masuk Dashboard
                 document.getElementById('view-login').classList.add('hidden');
                 document.getElementById('view-main').classList.remove('hidden');
                 
-                // E. Update UI Dashboard & Profil dengan data yang sudah diload
+                // E. Update UI Dashboard
                 window.updateDashboard(); 
                 window.updateProfileInfo();
                 
+                // F. [BARU] SINKRONISASI DATA DARI CLOUD!
+                // Ini kuncinya: Begitu masuk, langsung tarik data terbaru dari Supabase
+                window.fetchAttendanceFromSupabase(); 
+
                 setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
 
             } catch(e) {
                 console.error("Auto-login error:", e);
-                localStorage.removeItem(APP_CONFIG.googleAuthKey); // Hapus sesi korup
-                // Tetap di halaman login
+                localStorage.removeItem(APP_CONFIG.googleAuthKey);
             }
         }
         // ============================================================
-
+        
     } catch (e) {
         window.showToast("Gagal memuat data: " + e.message, 'error');
         if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
