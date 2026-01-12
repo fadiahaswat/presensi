@@ -693,31 +693,31 @@
         </div>
 
         <!-- Bottom Navigation Bar -->
-        <nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe z-50">
-    <div class="grid grid-cols-5 h-16 items-center px-2"> <button onclick="window.switchTab('home')" data-target="home" class="nav-btn active group flex flex-col items-center justify-center gap-1 text-emerald-500">
-            <i data-lucide="home" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
-            <span class="text-[10px] font-bold">Beranda</span>
-        </button>
+        <nav class="fixed bottom-6 left-4 right-4 z-50 max-w-md mx-auto animate-slide-up" style="animation-delay: 0.5s">
+    <div class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-white/40 dark:border-slate-700/50 p-2">
+        <div class="grid grid-cols-4 items-center">
+            
+            <button onclick="window.switchTab('home')" data-target="home" class="nav-btn active group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
+                <div class="absolute inset-0 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
+                <i data-lucide="home" class="w-6 h-6 text-slate-400 group-[.active]:text-emerald-500 transition-colors relative z-10"></i>
+            </button>
 
-        <button onclick="window.switchTab('analysis')" data-target="analysis" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-indigo-500 transition-colors">
-            <i data-lucide="pie-chart" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
-            <span class="text-[10px] font-bold">Analisis</span>
-        </button>
+            <button onclick="window.switchTab('analysis')" data-target="analysis" class="nav-btn group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
+                <div class="absolute inset-0 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
+                <i data-lucide="pie-chart" class="w-6 h-6 text-slate-400 group-[.active]:text-indigo-500 transition-colors relative z-10"></i>
+            </button>
 
-        <button onclick="window.switchTab('report')" data-target="report" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-blue-500 transition-colors">
-            <i data-lucide="file-bar-chart" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
-            <span class="text-[10px] font-bold">Laporan</span>
-        </button>
-        
-        <button onclick="window.switchTab('profile')" data-target="profile" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-purple-500 transition-colors">
-            <i data-lucide="user" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
-            <span class="text-[10px] font-bold">Profil</span>
-        </button>
+            <button onclick="window.switchTab('report')" data-target="report" class="nav-btn group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
+                <div class="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
+                <i data-lucide="file-bar-chart" class="w-6 h-6 text-slate-400 group-[.active]:text-blue-500 transition-colors relative z-10"></i>
+            </button>
+            
+            <button onclick="window.switchTab('profile')" data-target="profile" class="nav-btn group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
+                <div class="absolute inset-0 bg-purple-500/10 dark:bg-purple-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
+                <i data-lucide="user" class="w-6 h-6 text-slate-400 group-[.active]:text-purple-500 transition-colors relative z-10"></i>
+            </button>
 
-        <button onclick="window.handleLogout()" class="nav-btn group flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-red-500 transition-colors">
-            <i data-lucide="log-out" class="w-6 h-6 transition-transform group-hover:scale-110"></i>
-            <span class="text-[10px] font-bold">Keluar</span>
-        </button>
+        </div>
     </div>
 </nav>
     </section>
@@ -1017,6 +1017,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
