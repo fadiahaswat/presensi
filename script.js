@@ -1522,89 +1522,109 @@ window.exportToCSV = function() { alert("Gunakan tombol Export Excel di atas.");
 window.printReport = function() { window.print(); };
 
 window.smartBulkAction = function(type, value) {
+    // 1. Ambil Data Dasar
     const santriList = FILTERED_SANTRI;
     const currentSlotId = appState.currentSlotId;
+    
+    // Pastikan CONFIG slot ada
+    if (!SLOT_WAKTU || !SLOT_WAKTU[currentSlotId]) {
+        return window.showToast("Error: Konfigurasi sesi tidak ditemukan", "error");
+    }
     const slotConfig = SLOT_WAKTU[currentSlotId];
     
-    // Konfirmasi untuk Reset
-    if(type === 'reset' && !confirm("Reset data presensi sesi ini?")) return;
+    // Konfirmasi Reset
+    if(type === 'reset' && !confirm("Yakin ingin menghapus SEMUA data presensi di sesi ini?")) return;
 
+    let successCount = 0; // Untuk tracking apakah ada data yg berubah
+
+    // 2. Loop Setiap Santri
     santriList.forEach(santri => {
-        // Pastikan struktur data ada
-        if (!appState.attendanceData[appState.date]) appState.attendanceData[appState.date] = {};
-        if (!appState.attendanceData[appState.date][currentSlotId]) appState.attendanceData[appState.date][currentSlotId] = {};
+        // --- SAFE INIT START (PENTING BIAR GAK NGEBUG) ---
+        if (!appState.attendanceData[appState.date]) {
+            appState.attendanceData[appState.date] = {};
+        }
+        if (!appState.attendanceData[appState.date][currentSlotId]) {
+            appState.attendanceData[appState.date][currentSlotId] = {};
+        }
+        
+        // Buat objek santri jika belum ada
         if (!appState.attendanceData[appState.date][currentSlotId][santri.id]) {
             appState.attendanceData[appState.date][currentSlotId][santri.id] = { status: {} };
         }
         
         const santriData = appState.attendanceData[appState.date][currentSlotId][santri.id];
-        
+        if(!santriData.status) santriData.status = {};
+        // --- SAFE INIT END ---
+
+
         // --- LOGIKA UTAMA ---
 
         if (type === 'reset') {
-            // HAPUS SEMUA
+            // Hapus entry data santri
             delete appState.attendanceData[appState.date][currentSlotId][santri.id];
+            successCount++;
         } 
         
         else if (type === 'fardu') {
-            // 1. Set Shalat Wajib -> Hadir
-            // Cari activity yg category='fardu' (biasanya id='shalat')
+            // A. Set Shalat Fardu
             const farduAct = slotConfig.activities.find(a => a.category === 'fardu');
             if(farduAct) {
                 santriData.status[farduAct.id] = value; // 'H'
+                
+                // B. Set Sunnah Linked (Dzikir/Rawatib)
+                const linkedVal = (value === 'H') ? 'Ya' : 'Tidak';
+                slotConfig.activities.forEach(act => {
+                    if (act.category === 'sunnah_linked') {
+                        santriData.status[act.id] = linkedVal;
+                    }
+                });
+                successCount++;
             }
-
-            // 2. AUTO-FILL Sunnah Linked (Dzikir/Qabliyah/Bakdiyah)
-            // Jika Shalat = Hadir, maka Sunnah Linked = Ya
-            // Jika Shalat != Hadir (S/I/A), maka Sunnah Linked = Tidak
-            const linkedVal = (value === 'H') ? 'Ya' : 'Tidak';
-            
-            slotConfig.activities.forEach(act => {
-                if (act.category === 'sunnah_linked') {
-                    santriData.status[act.id] = linkedVal;
-                }
-            });
         }
         
         else if (type === 'kbm') {
-            // Set semua kegiatan kategori KBM -> 'Ya' / 'Hadir'
+            // Set KBM (Cek showOnDays)
+            const day = new Date(appState.date).getDay();
+            let kbmFound = false;
+            
             slotConfig.activities.forEach(act => {
                 if (act.category === 'kbm') {
-                    // Cek apakah hari ini jadwalnya (showOnDays)
-                    const day = new Date(appState.date).getDay();
                     if (!act.showOnDays || act.showOnDays.includes(day)) {
                         santriData.status[act.id] = value; // 'Ya'
+                        kbmFound = true;
                     }
                 }
             });
+            if(kbmFound) successCount++;
         }
         
         else if (type === 'specific') {
-            // Toggle / Set spesifik (Tahajjud/Dhuha/Puasa)
-            // Kita buat logic: Jika belum ada -> Ya. Jika sudah Ya -> Tidak. (Toggle massal)
-            // TAPI, lebih aman "Force Ya" untuk bulk. Kalau mau batalin manual aja.
-            // Value di sini adalah activityId (misal 'tahajjud')
-            
-            // Cek apakah activity ini ada di slot sekarang
+            // Cek dulu: Apakah kegiatan ini ADA di sesi sekarang?
+            // (Misal: Jangan izinkan 'Tahajjud' dicentang pas sesi 'Maghrib')
             const actExists = slotConfig.activities.find(a => a.id === value);
             
-            // Khusus Dhuha/Tahajjud/Puasa -> Set 'Ya'
             if(actExists) {
-                 santriData.status[value] = 'Ya';
+                 santriData.status[value] = 'Ya'; // Force 'Ya' untuk semua
+                 successCount++;
             }
         }
     });
 
-    // Refresh UI & Notif
+    // 3. Feedback ke User
     window.renderAttendanceList();
     
-    let msg = "";
-    if(type === 'fardu') msg = "✅ Shalat & Dzikir diset Hadir";
-    else if(type === 'kbm') msg = "📚 Pembelajaran diset Hadir";
-    else if(type === 'reset') msg = "↺ Data di-reset";
-    else msg = `✅ ${value} ditandai`;
-    
-    window.showToast(msg, 'success');
+    if (successCount === 0 && type === 'specific') {
+        // Jika user klik tombol (misal Tahajjud) tapi gak ada efek
+        window.showToast(`Kegiatan '${value}' tidak tersedia di sesi ${slotConfig.label}`, "warning");
+    } else {
+        let msg = "";
+        if(type === 'fardu') msg = "✅ Shalat Wajib & Dzikir diisi Hadir";
+        else if(type === 'kbm') msg = "📚 Pembelajaran diisi Hadir";
+        else if(type === 'reset') msg = "↺ Data sesi ini dikosongkan";
+        else msg = `✅ ${value} berhasil dicentang`;
+        
+        window.showToast(msg, 'success');
+    }
 };
 
 // Start App
