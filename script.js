@@ -84,74 +84,107 @@ let FILTERED_SANTRI = [];
 // ==========================================
 const SLOT_WAKTU = {
     shubuh: { 
-        id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', 
+        id: 'shubuh', 
+        label: 'Shubuh', 
+        subLabel: '04:00 - 06:00', 
+        theme: 'emerald', 
         startHour: 4, 
-        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'sunrise', // Ikon Matahari Terbit
+            icon: 'sunrise', 
             gradient: 'from-emerald-50 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/20',
             border: 'hover:border-emerald-300 dark:hover:border-emerald-700',
             text: 'text-emerald-700 dark:text-emerald-300',
             iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-200'
         },
         activities: [
-            { id: 'shalat', label: 'Shubuh', type: 'mandator' },
-            { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah' },
-            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator' },
-            { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah' },
-            { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' },
-            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [0] }
-    ]},
+            // --- 1. Shalat Fardu (Utama) ---
+            { id: 'shalat', label: 'Shubuh', type: 'mandator', category: 'fardu' },
+
+            // --- 2. Sunnah Linked (Mengikuti Shalat) ---
+            { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah', category: 'sunnah_linked' },
+            { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah', category: 'sunnah_linked' },
+
+            // --- 3. KBM Asrama (Default Hadir) ---
+            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', category: 'kbm' },
+            { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [0] }, // Ahad
+
+            // --- 4. Sunnah Independent (Default Tidak) ---
+            { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah', category: 'sunnah_independent' }
+        ]
+    },
+
     ashar: { 
-        id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', 
+        id: 'ashar', 
+        label: 'Ashar', 
+        subLabel: '15:00 - 17:00', 
+        theme: 'orange', 
         startHour: 15,
-        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'sun', // Ikon Matahari Terik
+            icon: 'sun', 
             gradient: 'from-orange-50 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/20',
             border: 'hover:border-orange-300 dark:hover:border-orange-700',
             text: 'text-orange-700 dark:text-orange-300',
             iconBg: 'bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-200'
         },
         activities: [
-            { id: 'shalat', label: 'Ashar', type: 'mandator' },
-            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah' }
-    ]},
+            { id: 'shalat', label: 'Ashar', type: 'mandator', category: 'fardu' },
+            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah', category: 'sunnah_linked' }
+        ]
+    },
+
     maghrib: { 
-        id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', 
+        id: 'maghrib', 
+        label: 'Maghrib', 
+        subLabel: '18:00 - 19:00', 
+        theme: 'indigo', 
         startHour: 18,
-        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'sunset', // Ikon Matahari Terbenam
+            icon: 'sunset', 
             gradient: 'from-indigo-50 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/20',
             border: 'hover:border-indigo-300 dark:hover:border-indigo-700',
             text: 'text-indigo-700 dark:text-indigo-300',
             iconBg: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-800 dark:text-indigo-200'
         },
         activities: [
-            { id: 'shalat', label: 'Maghrib', type: 'mandator' },
-            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
-            { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] },
-            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [3] },
-            { id: 'vocabularies', label: 'Vocab', type: 'mandator', showOnDays: [1, 2] },
-            { id: 'puasa', label: 'Puasa', type: 'sunnah' }
-    ]},
+            // --- Fardu ---
+            { id: 'shalat', label: 'Maghrib', type: 'mandator', category: 'fardu' },
+
+            // --- Sunnah Linked ---
+            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'sunnah_linked' },
+            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah', category: 'sunnah_linked' },
+
+            // --- KBM Asrama ---
+            { id: 'tahsin', label: 'Tahsin', type: 'mandator', category: 'kbm', showOnDays: [4, 5] }, // Kamis, Jumat
+            { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [3] }, // Rabu
+            { id: 'vocabularies', label: 'Vocab', type: 'mandator', category: 'kbm', showOnDays: [1, 2] }, // Senin, Selasa
+
+            // --- Sunnah Independent ---
+            { id: 'dhuha', label: 'Dhuha', type: 'sunnah', category: 'sunnah_independent' }, // <-- FITUR BARU
+            { id: 'puasa', label: 'Puasa', type: 'sunnah', category: 'sunnah_independent' }
+        ]
+    },
+
     isya: { 
-        id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', 
+        id: 'isya', 
+        label: 'Isya', 
+        subLabel: '19:00 - 21:00', 
+        theme: 'slate', 
         startHour: 19,
-        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'moon', // Ikon Bulan
+            icon: 'moon', 
             gradient: 'from-slate-50 to-blue-100 dark:from-slate-800 dark:to-blue-900/40',
             border: 'hover:border-blue-300 dark:hover:border-blue-700',
             text: 'text-slate-700 dark:text-slate-300',
             iconBg: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
         },
         activities: [
-            { id: 'shalat', label: 'Isya', type: 'mandator' },
-            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
-            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] }
-    ]}
+            { id: 'shalat', label: 'Isya', type: 'mandator', category: 'fardu' },
+            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'sunnah_linked' },
+            
+            // Al-Kahfi hanya muncul hari Kamis (Malam Jumat)
+            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', category: 'sunnah_independent', showOnDays: [4] }
+        ]
+    }
 };
 
 const STATUS_UI = {
