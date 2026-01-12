@@ -1413,84 +1413,104 @@ window.switchTab = function(tabName) {
 };
 
 window.updateReportTab = function() {
-    const container = document.getElementById('report-problem-list');
-    if (!container) return;
+    const tbody = document.getElementById('daily-recap-tbody');
+    if(!tbody) return;
     
-    container.innerHTML = window.getSkeletonHTML(3);
+    tbody.innerHTML = '';
     
-    setTimeout(() => {
-        container.innerHTML = '';
+    if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-xs text-slate-400">Pilih kelas terlebih dahulu</td></tr>';
+        return;
+    }
+
+    const dateKey = appState.date;
+    const dayData = appState.attendanceData[dateKey] || {};
+    const slots = Object.values(SLOT_WAKTU);
+
+    // Helper hitung skor santri
+    const calculateScore = (id) => {
+        let totalPoint = 0;
+        let totalMax = 0;
+
+        slots.forEach(slot => {
+            const sData = dayData[slot.id]?.[id];
+            if(!sData) return;
+            
+            slot.activities.forEach(act => {
+                const st = sData.status[act.id];
+                let weight = 0;
+                // Bobot: Fardu=3, KBM=2, Sunnah=1
+                if(act.category === 'fardu') weight = 3;
+                else if(act.category === 'kbm') weight = 2;
+                else weight = 1;
+
+                totalMax += weight;
+                if(st === 'Hadir' || st === 'Ya') totalPoint += weight;
+                else if(st === 'Sakit' || st === 'Izin') totalPoint += (weight * 0.5); // S/I dapat setengah
+            });
+        });
+        return totalMax === 0 ? 0 : Math.round((totalPoint / totalMax) * 100);
+    };
+
+    const fragment = document.createDocumentFragment();
+
+    FILTERED_SANTRI.forEach((s, idx) => {
+        const id = String(s.nis || s.id);
+        const score = calculateScore(id);
         
-        if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
-            container.innerHTML = '<div class="text-center py-12"><i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i><p class="text-slate-400 font-bold">Belum ada data laporan</p></div>';
-            if(window.lucide) window.lucide.createIcons();
-            return;
-        }
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors";
+
+        // Kolom Shalat (Fardu saja yang ditampilkan ringkas)
+        let shalatBadges = '';
+        ['shubuh', 'ashar', 'maghrib', 'isya'].forEach(sid => {
+            const st = dayData[sid]?.[id]?.status?.shalat;
+            let color = 'bg-slate-100 text-slate-300'; // Default/Belum diisi
+            let label = sid[0].toUpperCase();
+
+            if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
+            else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
+            else if(st === 'Sakit' || st === 'Izin') color = 'bg-amber-100 text-amber-600';
+            
+            shalatBadges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black" title="${sid}: ${st||'-'}">${label}</span>`;
+        });
+
+        // Kolom KBM & Sunnah (Hitung jumlah Hadir/Ya)
+        let kbmCount = 0;
+        let sunnahCount = 0;
         
-        const dateKey = appState.date;
-        const data = appState.attendanceData[dateKey];
-        
-        if (!data) {
-            container.innerHTML = '<div class="text-center py-12"><i data-lucide="calendar-x" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i><p class="text-slate-400 font-bold">Belum ada data untuk hari ini</p></div>';
-            if(window.lucide) window.lucide.createIcons();
-            return;
-        }
-        
-        let problems = [];
-        Object.values(SLOT_WAKTU).forEach(slot => {
-            if (data[slot.id]) {
-                FILTERED_SANTRI.forEach(s => {
-                    const id = String(s.nis || s.id);
-                    const status = data[slot.id][id]?.status?.shalat;
-                    if (status === 'Alpa' || status === 'Sakit' || status === 'Izin') {
-                        problems.push({
-                            nama: s.nama,
-                            slot: slot.label,
-                            status: status,
-                            note: data[slot.id][id]?.note || '-',
-                            slotTheme: slot.theme
-                        });
+        slots.forEach(slot => {
+            const sData = dayData[slot.id]?.[id];
+            if(sData) {
+                slot.activities.forEach(act => {
+                    if(sData.status[act.id] === 'Hadir' || sData.status[act.id] === 'Ya') {
+                        if(act.category === 'kbm') kbmCount++;
+                        else if(act.category === 'sunnah' || act.category === 'dependent') sunnahCount++;
                     }
                 });
             }
         });
-        
-        if (problems.length === 0) {
-            container.innerHTML = '<div class="text-center py-12"><i data-lucide="party-popper" class="w-16 h-16 mx-auto mb-4 text-emerald-500"></i><p class="text-emerald-600 dark:text-emerald-400 font-black text-xl">Tidak ada masalah kehadiran hari ini 🎉</p><p class="text-slate-400 text-sm mt-2">Semua santri hadir lengkap</p></div>';
-            if(window.lucide) window.lucide.createIcons();
-            return;
-        }
-        
-        const fragment = document.createDocumentFragment();
-        problems.forEach((p, idx) => {
-            const statusClass = STATUS_UI[p.status]?.class || '';
-            const div = document.createElement('div');
-            div.className = 'glass-card p-4 rounded-2xl opacity-0 animate-[slideUp_0.3s_ease-out] hover:scale-[1.02] transition-all';
-            div.style.animationDelay = `${idx * 50}ms`;
-            div.style.animationFillMode = 'forwards';
-            div.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-${p.slotTheme}-100 dark:bg-${p.slotTheme}-900/30 flex items-center justify-center flex-shrink-0">
-                            <i data-lucide="alert-triangle" class="w-5 h-5 text-${p.slotTheme}-600"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 dark:text-white">${p.nama}</h4>
-                            <p class="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                                <i data-lucide="clock" class="w-3 h-3"></i> ${p.slot}
-                            </p>
-                        </div>
-                    </div>
-                    <span class="px-3 py-1 rounded-lg text-xs font-bold ${statusClass}">${p.status}</span>
-                </div>
-                ${p.note !== '-' ? `<div class="mt-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-l-4 border-amber-500"><p class="text-xs text-slate-600 dark:text-slate-400 italic">"${p.note}"</p></div>` : ''}
-            `;
-            fragment.appendChild(div);
-        });
-        
-        container.appendChild(fragment);
-        if(window.lucide) window.lucide.createIcons();
-    }, 300);
+
+        // Warna Score
+        let scoreColor = 'text-red-500';
+        if(score >= 85) scoreColor = 'text-emerald-500';
+        else if(score >= 70) scoreColor = 'text-blue-500';
+        else if(score >= 50) scoreColor = 'text-amber-500';
+
+        tr.innerHTML = `
+            <td class="p-3 text-center text-slate-500">${idx + 1}</td>
+            <td class="p-3">
+                <div class="font-bold text-slate-700 dark:text-slate-200">${s.nama}</div>
+            </td>
+            <td class="p-3"><div class="flex justify-center gap-1">${shalatBadges}</div></td>
+            <td class="p-3 text-center font-bold text-slate-600 dark:text-slate-400">${kbmCount}</td>
+            <td class="p-3 text-center font-bold text-slate-600 dark:text-slate-400">${sunnahCount}</td>
+            <td class="p-3 text-center font-black ${scoreColor}">${score}</td>
+        `;
+        fragment.appendChild(tr);
+    });
+
+    tbody.appendChild(fragment);
 };
 
 window.getSkeletonHTML = function(count) {
