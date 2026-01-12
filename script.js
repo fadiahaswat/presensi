@@ -409,7 +409,7 @@ window.renderSlotList = function() {
         const badge = clone.querySelector('.slot-status-badge');
         
         if (access.locked) {
-            item.classList.remove(...s.style.gradient.split(' ')); // Hapus gradient cerah
+            item.classList.remove(...s.style.gradient.split('')); // Hapus gradient cerah
             item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); // Jadi abu-abu
             
             let lockText = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
@@ -618,7 +618,10 @@ window.renderAttendanceList = function() {
         
         const sData = dbSlot[id];
         const clone = tplRow.content.cloneNode(true);
-        
+        // Tag row dengan ID untuk target bulk "visible"
+        const rowEl = clone.querySelector('.santri-row');
+        if (rowEl) rowEl.dataset.id = id;
+
         // Basic Info
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
@@ -712,7 +715,6 @@ window.toggleStatus = function(id, actId, type) {
     }
 
     window.saveData();
-    window.renderAttendanceList();
 };
 
 window.handleBulkAction = function(type) {
@@ -759,6 +761,16 @@ window.toggleProblemFilter = function() {
 window.handleSearch = function(val) {
     appState.searchQuery = val;
     window.renderAttendanceList();
+};
+
+// Tambah helper indikator proses bulk
+window.setBulkProcessing = function(isBusy) {
+    const bar = document.getElementById('bulk-actions-bar');
+    if (!bar) return;
+    bar.classList.toggle('pointer-events-none', isBusy);
+    const prog = document.getElementById('bulk-progress');
+    if (prog) prog.classList.toggle('hidden', !isBusy);
+    bar.querySelectorAll('button').forEach(btn => btn.classList.toggle('opacity-50', isBusy));
 };
 
 // ==========================================
@@ -1541,136 +1553,90 @@ window.handleGantiPin = function() {
 window.exportToCSV = function() { alert("Gunakan tombol Export Excel di atas."); };
 window.printReport = function() { window.print(); };
 
-window.smartBulkAction = function(type, param) {
-    // 1. Validasi & Setup Awal
+window.smartBulkAction = function(type, value, scope = 'all') {
     const currentSlotId = appState.currentSlotId;
-    if (!SLOT_WAKTU || !SLOT_WAKTU[currentSlotId]) {
+    const slotConfig = SLOT_WAKTU[currentSlotId];
+    if (!slotConfig) {
         return window.showToast("Error: Konfigurasi sesi tidak ditemukan", "error");
     }
 
-    const santriList = FILTERED_SANTRI;
-    const slotConfig = SLOT_WAKTU[currentSlotId];
-    const currentDay = new Date(appState.date).getDay();
+    // Konfirmasi untuk Reset
+    if (type === 'reset' && !confirm("Reset data presensi sesi ini?")) return;
+
+    // Tentukan target: semua atau yang terlihat (hasil filter/pencarian)
+    const useVisible = scope === 'visible';
+    const targetIds = useVisible
+        ? Array.from(document.querySelectorAll('#attendance-list-container .santri-row'))
+            .map(el => el.dataset.id)
+            .filter(Boolean)
+        : FILTERED_SANTRI.map(s => String(s.nis || s.id));
+
+    window.setBulkProcessing(true);
+
+    // Pastikan struktur slot ada
     const dateKey = appState.date;
+    if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    if (!appState.attendanceData[dateKey][currentSlotId]) appState.attendanceData[dateKey][currentSlotId] = {};
 
-    // Konfirmasi jika Reset
-    if(type === 'reset' && !confirm("Yakin ingin menghapus SEMUA data presensi di sesi ini?")) return;
+    const day = new Date(appState.date).getDay();
 
-    let successCount = 0;
-
-    // Pastikan struktur database hari ini ada
-    if (!appState.attendanceData[dateKey]) {
-        appState.attendanceData[dateKey] = {};
-    }
-    if (!appState.attendanceData[dateKey][currentSlotId]) {
-        appState.attendanceData[dateKey][currentSlotId] = {};
-    }
-    
-    const dbSlot = appState.attendanceData[dateKey][currentSlotId];
-
-    // 2. Loop Semua Santri
-    santriList.forEach(santri => {
-        // [PENTING] Gunakan logika ID yang konsisten dengan bagian Render/Login
-        const id = String(santri.nis || santri.id); 
-
-        // Inisialisasi Data Kosong jika belum ada
-        if (!dbSlot[id]) {
-            const defStatus = {};
-            slotConfig.activities.forEach(a => {
-                // Default value logic
-                if (a.type === 'mandator') defStatus[a.id] = 'Hadir';
-                else if (a.category === 'sunnah_linked') defStatus[a.id] = 'Ya';
-                else defStatus[a.id] = 'Tidak'; 
-            });
-            dbSlot[id] = { status: defStatus, note: '' };
-        }
-        
-        const santriData = dbSlot[id];
-        
-        // --- LOGIKA AKSI ---
-
-        // A. RESET
+    targetIds.forEach(id => {
+        // RESET: hapus entri santri dari slot
         if (type === 'reset') {
-            delete dbSlot[id]; // Hapus entry santri ini dari slot
-            successCount++;
-        } 
-        
-        // B. SHALAT FULL (FARDU)
-        else if (type === 'fardu') {
-            // Mapping parameter 'H' dari HTML menjadi 'Hadir' untuk Database
-            const statusValue = (param === 'H' || param === 'Hadir') ? 'Hadir' : param;
+            delete appState.attendanceData[dateKey][currentSlotId][id];
+            return;
+        }
 
+        // Inisialisasi jika belum ada
+        if (!appState.attendanceData[dateKey][currentSlotId][id]) {
+            appState.attendanceData[dateKey][currentSlotId][id] = { status: {}, note: '' };
+        }
+        const santriData = appState.attendanceData[dateKey][currentSlotId][id];
+
+        if (type === 'fardu') {
             const farduAct = slotConfig.activities.find(a => a.category === 'fardu');
-            if(farduAct) {
-                santriData.status[farduAct.id] = statusValue;
-                
-                // Logika Sunnah Linked (Qabliyah/Badiyah/Dzikir)
-                // Jika Hadir -> Sunnah 'Ya', Jika Tidak Hadir -> Sunnah 'Tidak'
-                const linkedStatus = (statusValue === 'Hadir') ? 'Ya' : 'Tidak';
-                
+            if (farduAct) {
+                const farduStatus = (value === 'H' || value === 'Hadir') ? 'Hadir' : value;
+                santriData.status[farduAct.id] = farduStatus;
+
+                // Sunnah linked mengikuti shalat
+                const linkedVal = (farduStatus === 'Hadir') ? 'Ya' : 'Tidak';
                 slotConfig.activities.forEach(act => {
-                    if (act.category === 'sunnah_linked') {
-                        santriData.status[act.id] = linkedStatus;
-                    }
+                    if (act.category === 'sunnah_linked') santriData.status[act.id] = linkedVal;
                 });
-                successCount++;
             }
-        } 
-        
-        // C. KBM (PELAJARAN)
+        }
         else if (type === 'kbm') {
-            // Mapping param 'Ya'/'Tidak' atau 'Hadir'/'Alpa' tergantung tipe kegiatannya
-            // Tapi biasanya bulk KBM memaksa Hadir semua.
-            
-            let kbmFound = false;
             slotConfig.activities.forEach(act => {
                 if (act.category === 'kbm') {
-                    // Cek hari (misal conversation cuma ahad)
-                    if (!act.showOnDays || act.showOnDays.includes(currentDay)) {
-                        const val = (act.type === 'mandator') ? 'Hadir' : 'Ya'; // Paksa hadir
-                        santriData.status[act.id] = val;
-                        kbmFound = true;
+                    if (!act.showOnDays || act.showOnDays.includes(day)) {
+                        santriData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
                     }
                 }
             });
-            if(kbmFound) successCount++;
-        } 
-        
-        // D. SPECIFIC (SUNNAH TERTENTU)
+        }
         else if (type === 'specific') {
-            // Param disini adalah ID activity, misal: 'tahajjud'
-            const actId = param; 
-            const actExists = slotConfig.activities.find(a => a.id === actId);
-            
-            if(actExists) {
-                // Cek ketersediaan hari
-                if(!actExists.showOnDays || actExists.showOnDays.includes(currentDay)) {
-                    // Toggle Logic: Kalau mau bulk selalu "Ya", set 'Ya'.
-                    // Kalau tipe mandator set 'Hadir', kalau sunnah set 'Ya'
-                    const val = (actExists.type === 'mandator') ? 'Hadir' : 'Ya';
-                    santriData.status[actId] = val;
-                    successCount++;
+            const actExists = slotConfig.activities.find(a => a.id === value);
+            if (actExists) {
+                if (!actExists.showOnDays || actExists.showOnDays.includes(day)) {
+                    santriData.status[value] = actExists.type === 'mandator' ? 'Hadir' : 'Ya';
                 }
             }
         }
     });
 
-    // 3. Simpan & Render Ulang
-    window.saveData(); // [PENTING] Jangan lupa ini
+    window.saveData();
     window.renderAttendanceList();
-    
-    // 4. Feedback User
-    if (successCount === 0 && type !== 'reset') {
-        window.showToast(`Tidak ada kegiatan yang cocok untuk hari ini`, "warning");
-    } else {
-        let msg = "";
-        if(type === 'fardu') msg = "✅ Semua santri ditandai SHALAT";
-        else if(type === 'kbm') msg = "📚 Semua santri ditandai HADIR KBM";
-        else if(type === 'reset') msg = "↺ Data sesi ini berhasil di-RESET";
-        else msg = `✅ ${param} berhasil dicentang untuk semua`;
-        
-        window.showToast(msg, 'success');
-    }
+    window.setBulkProcessing(false);
+
+    let msg = "";
+    if (type === 'fardu') {
+        msg = (value === 'Hadir') ? "✅ Shalat & Dzikir diset Hadir" : `⚠️ Shalat diset ${value}`;
+    } else if (type === 'kbm') msg = "📚 Pembelajaran diset Hadir";
+    else if (type === 'reset') msg = "↺ Data di-reset";
+    else msg = `✅ ${value} ditandai`;
+
+    window.showToast(msg, 'success');
 };
 
 // Start App
