@@ -683,7 +683,7 @@
         <div class="flex justify-between items-center mb-4">
             <div>
                 <h3 class="text-xl font-black text-slate-800 dark:text-white">Input Izin/Sakit</h3>
-                <p class="text-xs text-slate-500 mt-1">Pilih santri dan durasi izin</p>
+                <p class="text-xs text-slate-500 mt-1">Pilih santri (bisa banyak) dan durasi</p>
             </div>
             <button onclick="window.closeModal('modal-permit')" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
@@ -694,18 +694,18 @@
             
             <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl border border-slate-100 dark:border-slate-700">
                 <div class="mb-3">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Cari & Pilih Santri</label>
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cari & Pilih Santri</label>
+                        <span class="text-[10px] font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md"><span id="permit-selected-count">0</span> Dipilih</span>
+                    </div>
                     <div class="relative">
                         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                        <input type="text" id="permit-search-santri" oninput="window.filterPermitSantri(this.value)" placeholder="Ketik nama..." class="w-full pl-10 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500 transition-all">
+                        <input type="text" id="permit-search-santri" oninput="window.filterPermitSantri(this.value)" placeholder="Ketik nama santri..." class="w-full pl-10 pr-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500 transition-all">
                     </div>
                 </div>
 
                 <div id="permit-santri-checklist" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                     </div>
-                <div class="mt-2 text-[10px] text-slate-400 font-bold text-right">
-                    <span id="permit-selected-count">0</span> Santri Dipilih
-                </div>
             </div>
 
             <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 space-y-3">
@@ -883,6 +883,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
