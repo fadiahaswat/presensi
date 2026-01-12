@@ -11,6 +11,26 @@ const APP_CONFIG = {
     settingsKey: 'musyrif_settings'
 };
 
+// ==========================================
+// KONFIGURASI LOKASI (GEOFENCING)
+// ==========================================
+const GEO_CONFIG = {
+    useGeofencing: true, // Set ke false jika ingin mematikan fitur ini sementara
+    maxRadiusMeters: 200, // Radius toleransi dalam meter (misal: 50 meter)
+    locations: [
+        { 
+            name: "Titik 1 (Masjid Jami' Mu'allimin)", 
+            lat: -7.807757309250455, // GANTI DENGAN KOORDINAT ASLI
+            lng: 110.35091531948025 // GANTI DENGAN KOORDINAT ASLI
+        },
+        { 
+            name: "Titik 2 (Misal: Masjid Hajah Yuliana)", 
+            lat: -7.807337010430911, // GANTI DENGAN KOORDINAT ASLI
+            lng: 110.26653812830205 // GANTI DENGAN KOORDINAT ASLI
+        }
+    ]
+};
+
 const UI_COLORS = {
     info: 'bg-blue-500',
     success: 'bg-emerald-500',
