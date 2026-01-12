@@ -24,7 +24,17 @@ const GEO_CONFIG = {
             lng: 110.35091531948025 // GANTI DENGAN KOORDINAT ASLI
         },
         { 
-            name: "Titik 2 (Misal: Masjid Hajah Yuliana)", 
+            name: "Titik 2 (Aula Asrama 10)", 
+            lat: -7.807645469455366,  // GANTI DENGAN KOORDINAT ASLI
+            lng: 110.35180282962452 // GANTI DENGAN KOORDINAT ASLI
+        },
+        { 
+            name: "Titik 3 (Aula Asrama 8)", 
+            lat: -7.806781091907755,  // GANTI DENGAN KOORDINAT ASLI
+            lng: 110.34871697299599 // GANTI DENGAN KOORDINAT ASLI
+        },
+        { 
+            name: "Titik 4 (Misal: Masjid Hajah Yuliana)", 
             lat: -7.807337010430911, // GANTI DENGAN KOORDINAT ASLI
             lng: 110.26653812830205 // GANTI DENGAN KOORDINAT ASLI
         }
