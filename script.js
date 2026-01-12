@@ -1,6 +1,20 @@
 // File: script.js
 
 // ==========================================
+// KONEKSI SUPABASE (GUDANG DATA)
+// ==========================================
+// 1. Ambil URL dari Tahap 3 (Project URL)
+const SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
+
+// 2. Ambil Key dari Tahap 3 (anon public)
+const SUPABASE_KEY = 'sb_publishable_ILIpnd3pziGDalb1qT0hJg_islHsPYn';
+
+// 3. Nyalakan Mesin Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+console.log("Supabase Siap!");
+
+// ==========================================
 // CONFIG & CONSTANTS
 // ==========================================
 const APP_CONFIG = {
