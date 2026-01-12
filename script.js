@@ -354,6 +354,8 @@ window.updateDashboard = function() {
     if(window.lucide) window.lucide.createIcons();
 
     window.renderTodayProblems(); // Pindahkan logic render masalah kesini
+
+    window.updateLocationStatus();
 };
 
 // ==========================================
