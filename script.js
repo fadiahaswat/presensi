@@ -5,6 +5,7 @@
 // ==========================================
 const APP_CONFIG = {
     storageKey: 'musyrif_app_v5_fix',
+    permitKey: 'musyrif_permits_db', // <-- TAMBAHAN BARU
     pinDefault: '1234',
     activityLogKey: 'musyrif_activity_log',
     settingsKey: 'musyrif_settings'
