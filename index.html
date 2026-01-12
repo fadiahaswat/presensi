@@ -297,6 +297,48 @@
                 </div>
             </div>
 
+            <div id="location-status-card" class="mb-4 hidden animate-slide-up" style="animation-delay: 0.2s">
+    <div class="p-5 rounded-[2rem] bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
+        <div class="flex items-start gap-4">
+            <div id="loc-icon-bg" class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 transition-all duration-500">
+                <i id="loc-icon" data-lucide="map-pin" class="w-7 h-7 text-slate-400 transition-colors duration-500"></i>
+            </div>
+            
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start">
+                    <h4 class="font-black text-slate-800 dark:text-white text-base">Lokasi Anda</h4>
+                    <button onclick="window.updateLocationStatus()" class="p-1.5 -mr-1 -mt-1 rounded-full text-slate-300 hover:text-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <div id="loc-loading" class="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                    <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                    Mencari koordinat GPS...
+                </div>
+                
+                <div id="loc-error" class="hidden mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800/30">
+                    <p class="text-[10px] font-bold text-red-500 leading-tight">GPS tidak aktif / Izin ditolak.</p>
+                </div>
+
+                <div id="loc-details" class="hidden mt-1">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Titik Terdekat</p>
+                    <p id="loc-nearest-name" class="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">Menghitung...</p>
+                    
+                    <div class="flex items-center gap-2 mt-2">
+                        <span id="loc-distance" class="text-2xl font-black text-slate-800 dark:text-white tracking-tight">0m</span>
+                        <span id="loc-badge" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200 dark:border-slate-600">Check</span>
+                    </div>
+                    
+                    <p id="loc-message" class="text-[10px] text-slate-400 mt-2 leading-tight font-medium border-t border-slate-100 dark:border-slate-700 pt-2">
+                        Pastikan berada dalam radius absen.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
             <div class="animate-slide-up mb-4 mt-4" style="animation-delay: 0.25s">
                <button onclick="window.openPermitModal()" class="w-full p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group relative overflow-hidden">
                     <div class="absolute left-0 top-0 w-1 h-full bg-orange-500"></div>
@@ -1073,6 +1115,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
