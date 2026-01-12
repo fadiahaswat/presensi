@@ -660,7 +660,89 @@ window.toggleStatus = function(id, actId, type) {
     window.renderAttendanceList();
 };
 
-window.handleBulkAction = function(type) {
+// Fungsi untuk membuka Modal Menu Bulk (Akan dipanggil dari HTML)
+window.openBulkMenu = function() {
+    const modal = document.getElementById('modal-bulk-actions');
+    if(modal) {
+        modal.classList.remove('hidden');
+        window.generateBulkButtons(); // Generate tombol sesuai slot aktif
+    }
+};
+
+// Fungsi generate tombol dinamis berdasarkan kegiatan yang ada di slot saat ini
+window.generateBulkButtons = function() {
+    const container = document.getElementById('bulk-actions-content');
+    const slot = SLOT_WAKTU[appState.currentSlotId];
+    const currentDay = new Date(appState.date).getDay();
+    
+    container.innerHTML = '';
+    
+    // Cek ketersediaan kategori di slot ini
+    const acts = slot.activities.filter(a => !a.showOnDays || a.showOnDays.includes(currentDay));
+    const hasFardu = acts.some(a => a.category === 'fardu');
+    const hasKbm = acts.some(a => a.category === 'kbm');
+    const sunnahActs = acts.filter(a => a.category === 'sunnah');
+
+    let html = '';
+
+    // 1. Bagian Shalat Fardu (Otomatis handle dependent: Qabliyah/Badiyah/Dzikir)
+    if(hasFardu) {
+        html += `
+        <div class="mb-4">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Shalat & Rawatib</p>
+            <div class="flex gap-2">
+                <button onclick="window.applyBulkAction('fardu', 'Hadir')" class="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/30 active:scale-95 transition-all">
+                    Hadir Semua
+                </button>
+                <button onclick="window.applyBulkAction('fardu', 'Alpa')" class="flex-1 py-3 rounded-xl bg-red-100 text-red-600 font-bold text-xs border border-red-200 active:scale-95 transition-all">
+                    Alpa Semua
+                </button>
+            </div>
+            <p class="text-[9px] text-slate-400 mt-1.5 italic">*Dzikir & Rawatib akan menyesuaikan status shalat.</p>
+        </div>`;
+    }
+
+    // 2. Bagian KBM Asrama
+    if(hasKbm) {
+        html += `
+        <div class="mb-4">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Pembelajaran Asrama</p>
+            <div class="flex gap-2">
+                <button onclick="window.applyBulkAction('kbm', 'Hadir')" class="flex-1 py-3 rounded-xl bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
+                    Hadir Semua
+                </button>
+                <button onclick="window.applyBulkAction('kbm', 'Alpa')" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 active:scale-95 transition-all">
+                    Kosongkan
+                </button>
+            </div>
+        </div>`;
+    }
+
+    // 3. Bagian Sunnah Spesifik (Tahajjud, Dhuha, dll)
+    if(sunnahActs.length > 0) {
+        html += `<div class="mb-2"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ibadah Sunnah</p><div class="grid grid-cols-2 gap-2">`;
+        
+        sunnahActs.forEach(act => {
+            html += `
+            <div class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">${act.label}</span>
+                </div>
+                <div class="flex gap-1">
+                    <button onclick="window.applyBulkAction('specific', 'Ya', '${act.id}')" class="flex-1 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors">Ya</button>
+                    <button onclick="window.applyBulkAction('specific', 'Tidak', '${act.id}')" class="flex-1 py-1.5 rounded-lg bg-slate-200 text-slate-500 text-[10px] font-bold hover:bg-slate-300 transition-colors">Tdk</button>
+                </div>
+            </div>`;
+        });
+        
+        html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+};
+
+// Logika Eksekusi Bulk Action
+window.applyBulkAction = function(targetCategory, value, specificId = null) {
     const slotId = appState.currentSlotId;
     const dateKey = appState.date;
     const slot = SLOT_WAKTU[slotId];
@@ -678,19 +760,34 @@ window.handleBulkAction = function(type) {
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
-            if(type === 'alpa') {
-                dbSlot[id].status[act.id] = act.type === 'mandator' ? 'Alpa' : 'Tidak';
-            } else {
-                dbSlot[id].status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
+            // LOGIKA 1: Fardu & Dependent (Ikut Shalat)
+            if (targetCategory === 'fardu') {
+                if (act.category === 'fardu') {
+                    dbSlot[id].status[act.id] = value; // Hadir / Alpa
+                } 
+                else if (act.category === 'dependent') {
+                    // Jika Shalat Hadir -> Dependent = Ya
+                    // Jika Shalat Alpa/Sakit -> Dependent = Tidak
+                    dbSlot[id].status[act.id] = (value === 'Hadir') ? 'Ya' : 'Tidak';
+                }
+            }
+
+            // LOGIKA 2: KBM Asrama
+            else if (targetCategory === 'kbm' && act.category === 'kbm') {
+                dbSlot[id].status[act.id] = value; // Hadir / Alpa
+            }
+
+            // LOGIKA 3: Specific Sunnah (Dhuha, Tahajjud, dll)
+            else if (targetCategory === 'specific' && act.id === specificId) {
+                dbSlot[id].status[act.id] = value; // Ya / Tidak
             }
         });
     });
     
     window.saveData();
     window.renderAttendanceList();
-    
-    const msg = type === 'alpa' ? "Semua santri ditandai Alpa" : "Semua santri ditandai Hadir";
-    window.showToast(msg, type === 'alpa' ? 'warning' : 'success');
+    window.showToast('Data berhasil diperbarui secara massal', 'success');
+    window.closeModal('modal-bulk-actions');
 };
 
 window.toggleProblemFilter = function() {
