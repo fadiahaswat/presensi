@@ -1376,8 +1376,10 @@ function drawCenterText(ctx, x, y, mainText, subText) {
 // ==========================================
 
 window.switchTab = function(tabName) {
+    // 1. Sembunyikan semua konten tab
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     
+    // 2. Atur visibilitas Main Content (Dashboard)
     const mainContent = document.getElementById('main-content');
     if (tabName === 'home') {
         mainContent.classList.remove('hidden');
@@ -1385,18 +1387,11 @@ window.switchTab = function(tabName) {
         mainContent.classList.add('hidden');
     }
     
-    const targetTab = document.getElementById(`tab-${tabName}`);
-    if (targetTab) targetTab.classList.remove('hidden');
-    
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    const mainContent = document.getElementById('main-content');
-    if (tabName === 'home') mainContent.classList.remove('hidden');
-    else mainContent.classList.add('hidden');
-    
+    // 3. Tampilkan Tab Target (Laporan/Profil/Analisis)
     const targetTab = document.getElementById(`tab-${tabName}`);
     if (targetTab) targetTab.classList.remove('hidden');
 
-    // Update Nav Style
+    // 4. Update Style Tombol Navigasi
     document.querySelectorAll('.nav-btn').forEach(btn => {
         if(btn.dataset.target === tabName) {
             btn.classList.add('active', 'text-emerald-500');
@@ -1407,22 +1402,23 @@ window.switchTab = function(tabName) {
         }
     });
 
-    // --- LOGIC PER TAB ---
+    // 5. Jalankan Logika Spesifik per Tab
     if(tabName === 'home') {
         window.updateDashboard();
     }
     else if(tabName === 'report') {
-        window.updateReportTab(); // <-- Ini sekarang render Tabel Rekap
+        window.updateReportTab(); 
     }
     else if(tabName === 'profile') {
         window.updateProfileStats();
-        window.renderTimesheetCalendar(); // <-- TAMBAHAN BARU
+        window.renderTimesheetCalendar(); 
     }
     else if(tabName === 'analysis') {
         window.populateAnalysisDropdown();
         window.runAnalysis();
     }
     
+    // 6. Refresh Icon Lucide
     if(window.lucide) window.lucide.createIcons();
 };
 
