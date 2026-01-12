@@ -459,6 +459,18 @@
                     <!-- Slot Items injected by JS -->
                 </div>
             </div>
+
+            <div class="mt-6 mb-24 animate-slide-up" style="animation-delay: 0.3s">
+    <div class="flex items-center justify-between mb-3 px-1">
+        <h3 class="font-black text-slate-800 dark:text-white text-lg flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>
+            Perhatian Hari Ini
+        </h3>
+        <span id="problem-count-badge" class="px-2 py-0.5 rounded-md bg-red-100 text-red-600 text-[10px] font-bold hidden">0 Santri</span>
+    </div>
+    <div id="dashboard-problem-list" class="space-y-2">
+        </div>
+</div>            
         </div>
 
         <div id="tab-analysis" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
@@ -1017,6 +1029,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
