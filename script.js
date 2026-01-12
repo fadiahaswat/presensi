@@ -188,6 +188,13 @@ window.initApp = async function() {
         localStorage.clear(); // Extreme recovery if JSON corrupt
     }
 
+    // TAMBAHKAN INI DI DALAM initApp (setelah load settings):
+    try {
+        appState.permits = []; // Init array
+        const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
+        if(savedPermits) appState.permits = JSON.parse(savedPermits);
+    } catch(e) { console.error("Permit load fail", e); }
+
     // Determine Logic
     appState.currentSlotId = window.determineCurrentSlot();
 
