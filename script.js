@@ -1684,15 +1684,16 @@ window.openPermitModal = function() {
 
 window.renderPermitChecklist = function(list) {
     const container = document.getElementById('permit-santri-checklist');
+    if(!container) return;
     container.innerHTML = '';
 
     list.forEach(s => {
-        const id = s.nis || s.id;
+        const id = String(s.nis || s.id);
         const div = document.createElement('label');
-        div.className = 'flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500 transition-all group';
+        div.className = 'flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500 transition-all group select-none';
         div.innerHTML = `
             <input type="checkbox" name="permit_santri_select" value="${id}" onchange="window.updatePermitCount()" class="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 rounded-md cursor-pointer accent-emerald-500">
-            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white select-none">${s.nama}</span>
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white">${s.nama}</span>
         `;
         container.appendChild(div);
     });
@@ -1706,11 +1707,12 @@ window.filterPermitSantri = function(val) {
 
 window.updatePermitCount = function() {
     const checked = document.querySelectorAll('input[name="permit_santri_select"]:checked').length;
-    document.getElementById('permit-selected-count').textContent = checked;
+    const el = document.getElementById('permit-selected-count');
+    if(el) el.textContent = checked;
 };
 
 window.savePermit = function() {
-    // Ambil semua checkbox yang dicentang
+    // Ambil santri yang dicentang
     const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]:checked');
     const selectedNis = Array.from(checkboxes).map(cb => cb.value);
 
@@ -1721,9 +1723,9 @@ window.savePermit = function() {
 
     if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
     if(!start || !end) return window.showToast("Lengkapi tanggal", "warning");
-    if(start > end) return window.showToast("Tanggal terbalik", "warning");
+    if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
 
-    // Loop untuk simpan per santri
+    // Simpan data per santri
     let count = 0;
     selectedNis.forEach(nis => {
         const newPermit = {
@@ -1741,26 +1743,41 @@ window.savePermit = function() {
 
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
     
-    window.showToast(`${count} data izin berhasil disimpan`, "success");
-    window.renderPermitList(); // Refresh list bawah
-    window.updatePermitCount(); // Reset count UI
+    window.showToast(`${count} izin berhasil disimpan`, "success");
+    window.renderPermitList(); 
     
-    // Uncheck semua
+    // Uncheck semua setelah simpan
     checkboxes.forEach(cb => cb.checked = false);
+    window.updatePermitCount();
 
     // Refresh dashboard jika tanggal relevan
     if (appState.date >= start && appState.date <= end) {
-        window.updateDashboard(); 
+        window.renderAttendanceList(); 
+        window.updateDashboard();
     }
 };
 
 window.deletePermit = function(id) {
-    if(!confirm("Hapus data izin ini?")) return;
+    if(!confirm("Hapus data izin ini? Status akan dikembalikan ke default.")) return;
+    
     appState.permits = appState.permits.filter(p => p.id !== id);
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    
     window.renderPermitList();
-    window.updateDashboard();
     window.showToast("Data izin dihapus", "info");
+    
+    // Trigger re-render untuk menjalankan logika RESET
+    window.renderAttendanceList();
+    window.updateDashboard();
+};
+
+window.checkActivePermit = function(nis, dateStr, slotId) {
+    return appState.permits.find(p => {
+        const isDateMatch = dateStr >= p.start && dateStr <= p.end;
+        const isSlotMatch = p.session === 'all' || p.session === slotId;
+        const isNisMatch = p.nis === String(nis);
+        return isNisMatch && isDateMatch && isSlotMatch;
+    });
 };
 
 window.renderPermitList = function() {
