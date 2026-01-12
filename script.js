@@ -581,15 +581,17 @@ window.renderAttendanceList = function() {
         // AUTO-FILL Status jika ada Permit Aktif
         if (activePermit) {
             slot.activities.forEach(act => {
-                // Shalat & KBM ikut status izin
-                if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
+                // Fardu & KBM: Ikuti status izin (Sakit/Izin)
+                if (act.category === 'fardu' || act.category === 'kbm') {
                      sData.status[act.id] = activePermit.type; 
                 } 
-                // Sunnah dianggap Tidak mengerjakan
-                else if (act.category === 'sunnah') {
-                     sData.status[act.id] = 'Tidak';
+                // Sunnah & Dependent (Dzikir/Qabliyah): Jadi Strip (Tidak)
+                // Ini menjawab poin nomor 2 Anda
+                else if (act.category === 'sunnah' || act.category === 'dependent') {
+                     sData.status[act.id] = 'Tidak'; 
                 }
             });
+            
             // Auto Note jika kosong
             if (!sData.note || sData.note === '-') {
                 sData.note = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
@@ -612,11 +614,10 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // --- FIX ERROR HERE: Gunakan spread operator (...) dengan split(' ') ---
+            // Highlight Baris
             const rowClasses = activePermit.type === 'Sakit' 
                 ? 'ring-1 ring-amber-200 bg-amber-50/30' 
                 : 'ring-1 ring-blue-200 bg-blue-50/30';
-            
             clone.querySelector('.santri-row').classList.add(...rowClasses.split(' '));
         }
 
@@ -639,7 +640,10 @@ window.renderAttendanceList = function() {
 
             // Efek visual tombol jika otomatis
             if (activePermit) {
-                if(curr === activePermit.type) btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+                // Kunci visual tombol agar terlihat statusnya dikontrol otomatis
+                if(curr === activePermit.type || curr === 'Tidak') {
+                    btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+                }
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
