@@ -1425,98 +1425,170 @@ window.switchTab = function(tabName) {
 
 window.updateReportTab = function() {
     const tbody = document.getElementById('daily-recap-tbody');
+    const rangeLabel = document.getElementById('report-date-range');
+    
     if(!tbody) return;
     
     tbody.innerHTML = '';
     
+    // Update Label Tanggal
+    const range = window.getReportDateRange(appState.reportMode);
+    if(rangeLabel) rangeLabel.textContent = range.label;
+
     if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-xs text-slate-400">Pilih kelas terlebih dahulu</td></tr>';
         return;
     }
 
-    const dateKey = appState.date;
-    const dayData = appState.attendanceData[dateKey] || {};
-    const slots = Object.values(SLOT_WAKTU);
+    // --- AGGREGATION LOGIC ---
+    // Kita hitung statistik untuk SETIAP santri dalam rentang tanggal
+    const santriStats = {}; // { nis: { fardu: {h:0, m:0}, kbm: {h:0}, score: 0 } }
 
-    // Helper hitung skor santri
-    const calculateScore = (id) => {
-        let totalPoint = 0;
-        let totalMax = 0;
+    FILTERED_SANTRI.forEach(s => {
+        santriStats[s.nis || s.id] = { 
+            fardu: { h:0, total:0 }, 
+            kbm: { h:0, total:0 }, 
+            sunnah: { y:0, total:0 },
+            scoreTotal: 0,
+            scoreMax: 0
+        };
+    });
 
-        slots.forEach(slot => {
-            const sData = dayData[slot.id]?.[id];
-            if(!sData) return;
-            
-            slot.activities.forEach(act => {
-                const st = sData.status[act.id];
-                let weight = 0;
-                // Bobot: Fardu=3, KBM=2, Sunnah=1
-                if(act.category === 'fardu') weight = 3;
-                else if(act.category === 'kbm') weight = 2;
-                else weight = 1;
+    let curr = new Date(range.start);
+    const end = new Date(range.end);
+    let loopGuard = 0;
 
-                totalMax += weight;
-                if(st === 'Hadir' || st === 'Ya') totalPoint += weight;
-                else if(st === 'Sakit' || st === 'Izin') totalPoint += (weight * 0.5); // S/I dapat setengah
+    // Loop setiap hari dalam rentang
+    while(curr <= end && loopGuard < 370) {
+        const y = curr.getFullYear();
+        const m = String(curr.getMonth()+1).padStart(2,'0');
+        const d = String(curr.getDate()).padStart(2,'0');
+        const dateKey = `${y}-${m}-${d}`;
+        const dayNum = curr.getDay();
+
+        const dayData = appState.attendanceData[dateKey]; // Ambil data hari itu
+
+        if (dayData) {
+            Object.values(SLOT_WAKTU).forEach(slot => {
+                // Loop semua santri
+                FILTERED_SANTRI.forEach(s => {
+                    const id = String(s.nis || s.id);
+                    const sData = dayData[slot.id]?.[id];
+                    const stats = santriStats[id];
+
+                    if(sData) {
+                        slot.activities.forEach(act => {
+                            if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
+                            
+                            const st = sData.status[act.id];
+                            let weight = 0;
+                            let point = 0;
+
+                            // Tentukan Bobot
+                            if(act.category === 'fardu') weight = 3;
+                            else if(act.category === 'kbm') weight = 2;
+                            else weight = 1;
+
+                            // Hitung Point
+                            if(st === 'Hadir' || st === 'Ya') point = weight;
+                            else if(st === 'Sakit' || st === 'Izin') point = weight * 0.5;
+                            else point = 0;
+
+                            // Akumulasi Score Global
+                            stats.scoreTotal += point;
+                            stats.scoreMax += weight;
+
+                            // Akumulasi Kategori
+                            if(act.category === 'fardu') {
+                                stats.fardu.total++;
+                                if(st === 'Hadir') stats.fardu.h++;
+                            } else if(act.category === 'kbm') {
+                                stats.kbm.total++;
+                                if(st === 'Hadir') stats.kbm.h++;
+                            } else {
+                                stats.sunnah.total++;
+                                if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
+                            }
+                        });
+                    }
+                });
             });
-        });
-        return totalMax === 0 ? 0 : Math.round((totalPoint / totalMax) * 100);
-    };
+        }
+        curr.setDate(curr.getDate() + 1);
+        loopGuard++;
+    }
 
+    // --- RENDER TABLE ---
     const fragment = document.createDocumentFragment();
 
     FILTERED_SANTRI.forEach((s, idx) => {
         const id = String(s.nis || s.id);
-        const score = calculateScore(id);
+        const stats = santriStats[id];
+        
+        // Final Score Calculation
+        const finalScore = stats.scoreMax === 0 ? 0 : Math.round((stats.scoreTotal / stats.scoreMax) * 100);
         
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors";
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-50 dark:border-slate-700/50";
 
-        // Kolom Shalat (Fardu saja yang ditampilkan ringkas)
-        let shalatBadges = '';
-        ['shubuh', 'ashar', 'maghrib', 'isya'].forEach(sid => {
-            const st = dayData[sid]?.[id]?.status?.shalat;
-            let color = 'bg-slate-100 text-slate-300'; // Default/Belum diisi
-            let label = sid[0].toUpperCase();
+        // Logic Tampilan Kolom (Beda Daily vs Period)
+        let shalatCol, kbmCol, sunnahCol;
 
-            if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
-            else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
-            else if(st === 'Sakit' || st === 'Izin') color = 'bg-amber-100 text-amber-600';
+        if (appState.reportMode === 'daily') {
+            // MODE HARIAN: Tampilkan Badge S/A/I untuk Shalat
+            const dateKey = appState.date;
+            const dayData = appState.attendanceData[dateKey] || {};
             
-            shalatBadges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black" title="${sid}: ${st||'-'}">${label}</span>`;
-        });
+            let badges = '';
+            ['shubuh', 'ashar', 'maghrib', 'isya'].forEach(sid => {
+                const st = dayData[sid]?.[id]?.status?.shalat;
+                let color = 'bg-slate-100 text-slate-300';
+                let label = sid[0].toUpperCase();
+                if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
+                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
+                else if(st === 'Sakit' || st === 'Izin') color = 'bg-amber-100 text-amber-600';
+                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black">${label}</span>`;
+            });
+            shalatCol = `<div class="flex justify-center gap-1">${badges}</div>`;
+            kbmCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.kbm.h}</span>`;
+            sunnahCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.sunnah.y}</span>`;
+        } 
+        else {
+            // MODE PERIODE (Mingguan/Bulanan): Tampilkan Persentase
+            const pctFardu = stats.fardu.total ? Math.round((stats.fardu.h / stats.fardu.total)*100) : 0;
+            const pctKbm = stats.kbm.total ? Math.round((stats.kbm.h / stats.kbm.total)*100) : 0;
+            const pctSunnah = stats.sunnah.total ? Math.round((stats.sunnah.y / stats.sunnah.total)*100) : 0;
 
-        // Kolom KBM & Sunnah (Hitung jumlah Hadir/Ya)
-        let kbmCount = 0;
-        let sunnahCount = 0;
-        
-        slots.forEach(slot => {
-            const sData = dayData[slot.id]?.[id];
-            if(sData) {
-                slot.activities.forEach(act => {
-                    if(sData.status[act.id] === 'Hadir' || sData.status[act.id] === 'Ya') {
-                        if(act.category === 'kbm') kbmCount++;
-                        else if(act.category === 'sunnah' || act.category === 'dependent') sunnahCount++;
-                    }
-                });
-            }
-        });
+            // Helper visual bar kecil
+            const makeBar = (pct, color) => `
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] font-bold ${pct<60?'text-red-500':'text-slate-600'}">${pct}%</span>
+                    <div class="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full ${color}" style="width: ${pct}%"></div>
+                    </div>
+                </div>`;
 
-        // Warna Score
+            shalatCol = makeBar(pctFardu, 'bg-emerald-500');
+            kbmCol = makeBar(pctKbm, 'bg-blue-500');
+            sunnahCol = makeBar(pctSunnah, 'bg-amber-500');
+        }
+
+        // Warna Score Akhir
         let scoreColor = 'text-red-500';
-        if(score >= 85) scoreColor = 'text-emerald-500';
-        else if(score >= 70) scoreColor = 'text-blue-500';
-        else if(score >= 50) scoreColor = 'text-amber-500';
+        if(finalScore >= 85) scoreColor = 'text-emerald-500';
+        else if(finalScore >= 70) scoreColor = 'text-blue-500';
+        else if(finalScore >= 50) scoreColor = 'text-amber-500';
 
         tr.innerHTML = `
-            <td class="p-3 text-center text-slate-500">${idx + 1}</td>
+            <td class="p-3 text-center text-slate-500 text-[10px] font-bold">${idx + 1}</td>
             <td class="p-3">
-                <div class="font-bold text-slate-700 dark:text-slate-200">${s.nama}</div>
+                <div class="font-bold text-slate-700 dark:text-slate-200 text-xs">${s.nama}</div>
+                ${appState.reportMode !== 'daily' ? `<div class="text-[9px] text-slate-400 mt-0.5">Total Point: ${stats.scoreTotal}</div>` : ''}
             </td>
-            <td class="p-3"><div class="flex justify-center gap-1">${shalatBadges}</div></td>
-            <td class="p-3 text-center font-bold text-slate-600 dark:text-slate-400">${kbmCount}</td>
-            <td class="p-3 text-center font-bold text-slate-600 dark:text-slate-400">${sunnahCount}</td>
-            <td class="p-3 text-center font-black ${scoreColor}">${score}</td>
+            <td class="p-3 text-center align-middle">${shalatCol}</td>
+            <td class="p-3 text-center align-middle">${kbmCol}</td>
+            <td class="p-3 text-center align-middle">${sunnahCol}</td>
+            <td class="p-3 text-center font-black ${scoreColor} text-sm">${finalScore}</td>
         `;
         fragment.appendChild(tr);
     });
