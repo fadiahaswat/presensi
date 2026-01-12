@@ -1546,20 +1546,20 @@ window.smartBulkAction = function(type, value) {
     const santriList = FILTERED_SANTRI;
     const currentSlotId = appState.currentSlotId;
     
-    // Pastikan CONFIG slot ada
     if (!SLOT_WAKTU || !SLOT_WAKTU[currentSlotId]) {
         return window.showToast("Error: Konfigurasi sesi tidak ditemukan", "error");
     }
     const slotConfig = SLOT_WAKTU[currentSlotId];
+    const currentDay = new Date(appState.date).getDay();
     
-    // Konfirmasi Reset
     if(type === 'reset' && !confirm("Yakin ingin menghapus SEMUA data presensi di sesi ini?")) return;
 
-    let successCount = 0; // Untuk tracking apakah ada data yg berubah
+    let successCount = 0;
 
     // 2. Loop Setiap Santri
     santriList.forEach(santri => {
-        // --- SAFE INIT START (PENTING BIAR GAK NGEBUG) ---
+        // --- SAFE INIT (DIPERBAIKI) ---
+        // Pastikan struktur data siap
         if (!appState.attendanceData[appState.date]) {
             appState.attendanceData[appState.date] = {};
         }
@@ -1567,31 +1567,35 @@ window.smartBulkAction = function(type, value) {
             appState.attendanceData[appState.date][currentSlotId] = {};
         }
         
-        // Buat objek santri jika belum ada
+        // Jika data santri belum ada, buat dengan DEFAULT yang BENAR
         if (!appState.attendanceData[appState.date][currentSlotId][santri.id]) {
-            appState.attendanceData[appState.date][currentSlotId][santri.id] = { status: {} };
+            const defStatus = {};
+            slotConfig.activities.forEach(a => {
+                if (a.type === 'mandator') defStatus[a.id] = 'Hadir';
+                else if (a.category === 'sunnah_linked') defStatus[a.id] = 'Ya';
+                else defStatus[a.id] = 'Tidak'; // Tahajjud/Dhuha default Tidak
+            });
+            appState.attendanceData[appState.date][currentSlotId][santri.id] = { status: defStatus };
         }
         
         const santriData = appState.attendanceData[appState.date][currentSlotId][santri.id];
         if(!santriData.status) santriData.status = {};
-        // --- SAFE INIT END ---
+        // --- END SAFE INIT ---
 
 
-        // --- LOGIKA UTAMA ---
+        // --- LOGIKA UTAMA (Sama seperti sebelumnya) ---
 
         if (type === 'reset') {
-            // Hapus entry data santri
             delete appState.attendanceData[appState.date][currentSlotId][santri.id];
             successCount++;
         } 
         
         else if (type === 'fardu') {
-            // A. Set Shalat Fardu
             const farduAct = slotConfig.activities.find(a => a.category === 'fardu');
             if(farduAct) {
                 santriData.status[farduAct.id] = value; // 'H'
                 
-                // B. Set Sunnah Linked (Dzikir/Rawatib)
+                // Linked Sunnah ikut Fardu
                 const linkedVal = (value === 'H') ? 'Ya' : 'Tidak';
                 slotConfig.activities.forEach(act => {
                     if (act.category === 'sunnah_linked') {
@@ -1603,14 +1607,11 @@ window.smartBulkAction = function(type, value) {
         }
         
         else if (type === 'kbm') {
-            // Set KBM (Cek showOnDays)
-            const day = new Date(appState.date).getDay();
             let kbmFound = false;
-            
             slotConfig.activities.forEach(act => {
                 if (act.category === 'kbm') {
-                    if (!act.showOnDays || act.showOnDays.includes(day)) {
-                        santriData.status[act.id] = value; // 'Ya'
+                    if (!act.showOnDays || act.showOnDays.includes(currentDay)) {
+                        santriData.status[act.id] = value;
                         kbmFound = true;
                     }
                 }
@@ -1619,30 +1620,28 @@ window.smartBulkAction = function(type, value) {
         }
         
         else if (type === 'specific') {
-            // Cek dulu: Apakah kegiatan ini ADA di sesi sekarang?
-            // (Misal: Jangan izinkan 'Tahajjud' dicentang pas sesi 'Maghrib')
             const actExists = slotConfig.activities.find(a => a.id === value);
-            
             if(actExists) {
-                 santriData.status[value] = 'Ya'; // Force 'Ya' untuk semua
-                 successCount++;
+                // Cek hari untuk sunnah spesifik (misal al-kahfi cuma kamis)
+                if(!actExists.showOnDays || actExists.showOnDays.includes(currentDay)) {
+                    santriData.status[value] = 'Ya'; 
+                    successCount++;
+                }
             }
         }
     });
 
-    // 3. Feedback ke User
+    // 3. Feedback
     window.renderAttendanceList();
     
     if (successCount === 0 && type === 'specific') {
-        // Jika user klik tombol (misal Tahajjud) tapi gak ada efek
-        window.showToast(`Kegiatan '${value}' tidak tersedia di sesi ${slotConfig.label}`, "warning");
-    } else {
+        window.showToast(`Kegiatan '${value}' tidak tersedia hari ini`, "warning");
+    } else if (successCount > 0) {
         let msg = "";
         if(type === 'fardu') msg = "✅ Shalat Wajib & Dzikir diisi Hadir";
         else if(type === 'kbm') msg = "📚 Pembelajaran diisi Hadir";
         else if(type === 'reset') msg = "↺ Data sesi ini dikosongkan";
         else msg = `✅ ${value} berhasil dicentang`;
-        
         window.showToast(msg, 'success');
     }
 };
