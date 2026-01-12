@@ -84,107 +84,74 @@ let FILTERED_SANTRI = [];
 // ==========================================
 const SLOT_WAKTU = {
     shubuh: { 
-        id: 'shubuh', 
-        label: 'Shubuh', 
-        subLabel: '04:00 - 06:00', 
-        theme: 'emerald', 
+        id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', 
         startHour: 4, 
+        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'sunrise', 
+            icon: 'sunrise', // Ikon Matahari Terbit
             gradient: 'from-emerald-50 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/20',
             border: 'hover:border-emerald-300 dark:hover:border-emerald-700',
             text: 'text-emerald-700 dark:text-emerald-300',
             iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-200'
         },
         activities: [
-            // --- 1. Shalat Fardu (Utama) ---
-            { id: 'shalat', label: 'Shubuh', type: 'mandator', category: 'fardu' },
-
-            // --- 2. Sunnah Linked (Mengikuti Shalat) ---
-            { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah', category: 'sunnah_linked' },
-            { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah', category: 'sunnah_linked' },
-
-            // --- 3. KBM Asrama (Default Hadir) ---
-            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', category: 'kbm' },
-            { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [0] }, // Ahad
-
-            // --- 4. Sunnah Independent (Default Tidak) ---
-            { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah', category: 'sunnah_independent' }
-        ]
-    },
-
+            { id: 'shalat', label: 'Shubuh', type: 'mandator' },
+            { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah' },
+            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator' },
+            { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah' },
+            { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah' },
+            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [0] }
+    ]},
     ashar: { 
-        id: 'ashar', 
-        label: 'Ashar', 
-        subLabel: '15:00 - 17:00', 
-        theme: 'orange', 
+        id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', 
         startHour: 15,
+        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'sun', 
+            icon: 'sun', // Ikon Matahari Terik
             gradient: 'from-orange-50 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/20',
             border: 'hover:border-orange-300 dark:hover:border-orange-700',
             text: 'text-orange-700 dark:text-orange-300',
             iconBg: 'bg-orange-100 text-orange-600 dark:bg-orange-800 dark:text-orange-200'
         },
         activities: [
-            { id: 'shalat', label: 'Ashar', type: 'mandator', category: 'fardu' },
-            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah', category: 'sunnah_linked' }
-        ]
-    },
-
+            { id: 'shalat', label: 'Ashar', type: 'mandator' },
+            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah' }
+    ]},
     maghrib: { 
-        id: 'maghrib', 
-        label: 'Maghrib', 
-        subLabel: '18:00 - 19:00', 
-        theme: 'indigo', 
+        id: 'maghrib', label: 'Maghrib', subLabel: '18:00 - 19:00', theme: 'indigo', 
         startHour: 18,
+        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'sunset', 
+            icon: 'sunset', // Ikon Matahari Terbenam
             gradient: 'from-indigo-50 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/20',
             border: 'hover:border-indigo-300 dark:hover:border-indigo-700',
             text: 'text-indigo-700 dark:text-indigo-300',
             iconBg: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-800 dark:text-indigo-200'
         },
         activities: [
-            // --- Fardu ---
-            { id: 'shalat', label: 'Maghrib', type: 'mandator', category: 'fardu' },
-
-            // --- Sunnah Linked ---
-            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'sunnah_linked' },
-            { id: 'dzikir_petang', label: 'Dzikir', type: 'sunnah', category: 'sunnah_linked' },
-
-            // --- KBM Asrama ---
-            { id: 'tahsin', label: 'Tahsin', type: 'mandator', category: 'kbm', showOnDays: [4, 5] }, // Kamis, Jumat
-            { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [3] }, // Rabu
-            { id: 'vocabularies', label: 'Vocab', type: 'mandator', category: 'kbm', showOnDays: [1, 2] }, // Senin, Selasa
-
-            // --- Sunnah Independent ---
-            { id: 'dhuha', label: 'Dhuha', type: 'sunnah', category: 'sunnah_independent' }, // <-- FITUR BARU
-            { id: 'puasa', label: 'Puasa', type: 'sunnah', category: 'sunnah_independent' }
-        ]
-    },
-
+            { id: 'shalat', label: 'Maghrib', type: 'mandator' },
+            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
+            { id: 'tahsin', label: 'Tahsin', type: 'mandator', showOnDays: [4, 5] },
+            { id: 'conversation', label: 'Conver', type: 'mandator', showOnDays: [3] },
+            { id: 'vocabularies', label: 'Vocab', type: 'mandator', showOnDays: [1, 2] },
+            { id: 'puasa', label: 'Puasa', type: 'sunnah' }
+    ]},
     isya: { 
-        id: 'isya', 
-        label: 'Isya', 
-        subLabel: '19:00 - 21:00', 
-        theme: 'slate', 
+        id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', 
         startHour: 19,
+        // --- CONFIG TEMA BARU ---
         style: {
-            icon: 'moon', 
+            icon: 'moon', // Ikon Bulan
             gradient: 'from-slate-50 to-blue-100 dark:from-slate-800 dark:to-blue-900/40',
             border: 'hover:border-blue-300 dark:hover:border-blue-700',
             text: 'text-slate-700 dark:text-slate-300',
             iconBg: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
         },
         activities: [
-            { id: 'shalat', label: 'Isya', type: 'mandator', category: 'fardu' },
-            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'sunnah_linked' },
-            
-            // Al-Kahfi hanya muncul hari Kamis (Malam Jumat)
-            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', category: 'sunnah_independent', showOnDays: [4] }
-        ]
-    }
+            { id: 'shalat', label: 'Isya', type: 'mandator' },
+            { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah' },
+            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', showOnDays: [4] }
+    ]}
 };
 
 const STATUS_UI = {
@@ -409,7 +376,7 @@ window.renderSlotList = function() {
         const badge = clone.querySelector('.slot-status-badge');
         
         if (access.locked) {
-            item.classList.remove(...s.style.gradient.split('')); // Hapus gradient cerah
+            item.classList.remove(...s.style.gradient.split(' ')); // Hapus gradient cerah
             item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); // Jadi abu-abu
             
             let lockText = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
@@ -595,33 +562,16 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- PERBAIKAN LOGIKA DEFAULT DISINI ---
+        // Init Empty Data
         if(!dbSlot[id]) {
             const defStatus = {};
-            slot.activities.forEach(a => {
-                // 1. Mandator (Fardu/KBM) -> Default Hadir
-                if (a.type === 'mandator') {
-                    defStatus[a.id] = 'Hadir'; 
-                } 
-                // 2. Sunnah Linked (Dzikir/Rawatib) -> Default Ya
-                else if (a.category === 'sunnah_linked') {
-                    defStatus[a.id] = 'Ya';
-                }
-                // 3. Sunnah Independent (Tahajjud/Dhuha) -> Default Tidak
-                else {
-                    defStatus[a.id] = 'Tidak';
-                }
-            });
+            slot.activities.forEach(a => defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya');
             dbSlot[id] = { status: defStatus, note: '' };
         }
-        // ----------------------------------------
         
         const sData = dbSlot[id];
         const clone = tplRow.content.cloneNode(true);
-        // Tag row dengan ID untuk target bulk "visible"
-        const rowEl = clone.querySelector('.santri-row');
-        if (rowEl) rowEl.dataset.id = id;
-
+        
         // Basic Info
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
@@ -631,21 +581,15 @@ window.renderAttendanceList = function() {
         
         // Render Activity Buttons
         slot.activities.forEach(act => {
-            // Filter Hari
+            // Filter Hari (Misal Puasa Senin Kamis)
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
             const bClone = tplBtn.content.cloneNode(true);
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
             
-            // Logic ambil value: Jika undefined, fallback ke logic default yang sama
-            let curr = sData.status[act.id];
-            if (!curr) {
-                 if (act.type === 'mandator') curr = 'Hadir';
-                 else if (act.category === 'sunnah_linked') curr = 'Ya';
-                 else curr = 'Tidak';
-            }
-
+            const defaultVal = act.type === 'mandator' ? 'Hadir' : 'Ya';
+            const curr = sData.status[act.id] || defaultVal;
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
             btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
@@ -715,6 +659,7 @@ window.toggleStatus = function(id, actId, type) {
     }
 
     window.saveData();
+    window.renderAttendanceList();
 };
 
 window.handleBulkAction = function(type) {
@@ -761,16 +706,6 @@ window.toggleProblemFilter = function() {
 window.handleSearch = function(val) {
     appState.searchQuery = val;
     window.renderAttendanceList();
-};
-
-// Tambah helper indikator proses bulk
-window.setBulkProcessing = function(isBusy) {
-    const bar = document.getElementById('bulk-actions-bar');
-    if (!bar) return;
-    bar.classList.toggle('pointer-events-none', isBusy);
-    const prog = document.getElementById('bulk-progress');
-    if (prog) prog.classList.toggle('hidden', !isBusy);
-    bar.querySelectorAll('button').forEach(btn => btn.classList.toggle('opacity-50', isBusy));
 };
 
 // ==========================================
@@ -1552,92 +1487,6 @@ window.handleGantiPin = function() {
 
 window.exportToCSV = function() { alert("Gunakan tombol Export Excel di atas."); };
 window.printReport = function() { window.print(); };
-
-window.smartBulkAction = function(type, value, scope = 'all') {
-    const currentSlotId = appState.currentSlotId;
-    const slotConfig = SLOT_WAKTU[currentSlotId];
-    if (!slotConfig) {
-        return window.showToast("Error: Konfigurasi sesi tidak ditemukan", "error");
-    }
-
-    // Konfirmasi untuk Reset
-    if (type === 'reset' && !confirm("Reset data presensi sesi ini?")) return;
-
-    // Tentukan target: semua atau yang terlihat (hasil filter/pencarian)
-    const useVisible = scope === 'visible';
-    const targetIds = useVisible
-        ? Array.from(document.querySelectorAll('#attendance-list-container .santri-row'))
-            .map(el => el.dataset.id)
-            .filter(Boolean)
-        : FILTERED_SANTRI.map(s => String(s.nis || s.id));
-
-    window.setBulkProcessing(true);
-
-    // Pastikan struktur slot ada
-    const dateKey = appState.date;
-    if (!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
-    if (!appState.attendanceData[dateKey][currentSlotId]) appState.attendanceData[dateKey][currentSlotId] = {};
-
-    const day = new Date(appState.date).getDay();
-
-    targetIds.forEach(id => {
-        // RESET: hapus entri santri dari slot
-        if (type === 'reset') {
-            delete appState.attendanceData[dateKey][currentSlotId][id];
-            return;
-        }
-
-        // Inisialisasi jika belum ada
-        if (!appState.attendanceData[dateKey][currentSlotId][id]) {
-            appState.attendanceData[dateKey][currentSlotId][id] = { status: {}, note: '' };
-        }
-        const santriData = appState.attendanceData[dateKey][currentSlotId][id];
-
-        if (type === 'fardu') {
-            const farduAct = slotConfig.activities.find(a => a.category === 'fardu');
-            if (farduAct) {
-                const farduStatus = (value === 'H' || value === 'Hadir') ? 'Hadir' : value;
-                santriData.status[farduAct.id] = farduStatus;
-
-                // Sunnah linked mengikuti shalat
-                const linkedVal = (farduStatus === 'Hadir') ? 'Ya' : 'Tidak';
-                slotConfig.activities.forEach(act => {
-                    if (act.category === 'sunnah_linked') santriData.status[act.id] = linkedVal;
-                });
-            }
-        }
-        else if (type === 'kbm') {
-            slotConfig.activities.forEach(act => {
-                if (act.category === 'kbm') {
-                    if (!act.showOnDays || act.showOnDays.includes(day)) {
-                        santriData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
-                    }
-                }
-            });
-        }
-        else if (type === 'specific') {
-            const actExists = slotConfig.activities.find(a => a.id === value);
-            if (actExists) {
-                if (!actExists.showOnDays || actExists.showOnDays.includes(day)) {
-                    santriData.status[value] = actExists.type === 'mandator' ? 'Hadir' : 'Ya';
-                }
-            }
-        }
-    });
-
-    window.saveData();
-    window.renderAttendanceList();
-    window.setBulkProcessing(false);
-
-    let msg = "";
-    if (type === 'fardu') {
-        msg = (value === 'Hadir') ? "✅ Shalat & Dzikir diset Hadir" : `⚠️ Shalat diset ${value}`;
-    } else if (type === 'kbm') msg = "📚 Pembelajaran diset Hadir";
-    else if (type === 'reset') msg = "↺ Data di-reset";
-    else msg = `✅ ${value} ditandai`;
-
-    window.showToast(msg, 'success');
-};
 
 // Start App
 window.onload = window.initApp;
