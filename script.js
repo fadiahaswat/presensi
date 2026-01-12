@@ -321,6 +321,8 @@ window.updateDashboard = function() {
     window.updateQuickStats();
     window.drawDonutChart();
     if(window.lucide) window.lucide.createIcons();
+
+    window.renderTodayProblems(); // Pindahkan logic render masalah kesini
 };
 
 window.renderSlotList = function() {
