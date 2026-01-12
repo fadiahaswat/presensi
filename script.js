@@ -398,6 +398,19 @@ window.handleGoogleCallback = function(response) {
             return sKelas === targetClass;
         }).sort((a,b) => a.nama.localeCompare(b.nama));
 
+        // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
+        // Kita simpan data musyrif ke tabel 'musyrif_profiles'
+        supabase.from('musyrif_profiles').upsert({
+            email: profile.email,
+            name: profile.name,
+            photo_url: profile.picture,
+            last_login: new Date().toISOString()
+        }, { onConflict: 'email' }).then(({ error }) => {
+            if(error) console.error("Gagal simpan profil:", error);
+            else console.log("Profil Musyrif tersimpan di Cloud");
+        });
+        // -------------------------------------------
+
         window.closeModal('modal-google-auth');
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-main').classList.remove('hidden');
