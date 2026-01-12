@@ -1285,6 +1285,7 @@ window.handleDateChange = function(value) {
     appState.date = value;
     window.updateDateDisplay();
     window.updateDashboard();
+    window.fetchAttendanceFromSupabase();
     window.showToast('Tanggal berhasil diubah', 'success');
 };
 
