@@ -595,12 +595,26 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // Init Empty Data
+        // --- PERBAIKAN LOGIKA DEFAULT DISINI ---
         if(!dbSlot[id]) {
             const defStatus = {};
-            slot.activities.forEach(a => defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya');
+            slot.activities.forEach(a => {
+                // 1. Mandator (Fardu/KBM) -> Default Hadir
+                if (a.type === 'mandator') {
+                    defStatus[a.id] = 'Hadir'; 
+                } 
+                // 2. Sunnah Linked (Dzikir/Rawatib) -> Default Ya
+                else if (a.category === 'sunnah_linked') {
+                    defStatus[a.id] = 'Ya';
+                }
+                // 3. Sunnah Independent (Tahajjud/Dhuha) -> Default Tidak
+                else {
+                    defStatus[a.id] = 'Tidak';
+                }
+            });
             dbSlot[id] = { status: defStatus, note: '' };
         }
+        // ----------------------------------------
         
         const sData = dbSlot[id];
         const clone = tplRow.content.cloneNode(true);
@@ -614,15 +628,21 @@ window.renderAttendanceList = function() {
         
         // Render Activity Buttons
         slot.activities.forEach(act => {
-            // Filter Hari (Misal Puasa Senin Kamis)
+            // Filter Hari
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
             const bClone = tplBtn.content.cloneNode(true);
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
             
-            const defaultVal = act.type === 'mandator' ? 'Hadir' : 'Ya';
-            const curr = sData.status[act.id] || defaultVal;
+            // Logic ambil value: Jika undefined, fallback ke logic default yang sama
+            let curr = sData.status[act.id];
+            if (!curr) {
+                 if (act.type === 'mandator') curr = 'Hadir';
+                 else if (act.category === 'sunnah_linked') curr = 'Ya';
+                 else curr = 'Tidak';
+            }
+
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
             btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
