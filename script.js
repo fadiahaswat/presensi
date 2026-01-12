@@ -578,23 +578,31 @@ window.renderAttendanceList = function() {
 
         const sData = dbSlot[id];
 
-        // AUTO-FILL Status jika ada Permit Aktif
+        // LOGIKA 1: APPLY PERMIT (Jika Ada Izin Aktif)
         if (activePermit) {
             slot.activities.forEach(act => {
                 // Fardu & KBM: Ikuti status izin (Sakit/Izin)
-                if (act.category === 'fardu' || act.category === 'kbm') {
+                if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
                      sData.status[act.id] = activePermit.type; 
                 } 
-                // Sunnah & Dependent (Dzikir/Qabliyah): Jadi Strip (Tidak)
-                // Ini menjawab poin nomor 2 Anda
-                else if (act.category === 'sunnah' || act.category === 'dependent') {
+                // Sunnah dianggap Tidak mengerjakan (Strip)
+                else if (act.category === 'sunnah') {
                      sData.status[act.id] = 'Tidak'; 
                 }
             });
-            
-            // Auto Note jika kosong
-            if (!sData.note || sData.note === '-') {
+            // Tandai note sebagai Auto agar bisa dideteksi nanti
+            if (!sData.note || sData.note.includes('[Auto]') || sData.note === '-') {
                 sData.note = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
+            }
+        } 
+        // LOGIKA 2: CLEANUP / RESET (Jika TIDAK ADA Izin Aktif tapi masih ada jejak Auto)
+        else {
+            if (sData.note && sData.note.includes('[Auto]')) {
+                // Berarti izinnya sudah dihapus, kembalikan ke DEFAULT
+                slot.activities.forEach(act => {
+                    sData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
+                });
+                sData.note = ''; // Hapus catatan auto
             }
         }
         // --- END LOGIKA PERIZINAN ---
@@ -614,11 +622,13 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // Highlight Baris
-            const rowClasses = activePermit.type === 'Sakit' 
-                ? 'ring-1 ring-amber-200 bg-amber-50/30' 
-                : 'ring-1 ring-blue-200 bg-blue-50/30';
-            clone.querySelector('.santri-row').classList.add(...rowClasses.split(' '));
+            // --- FIX ERROR DOMTokenList DISINI ---
+            const rowEl = clone.querySelector('.santri-row');
+            if(activePermit.type === 'Sakit') {
+                rowEl.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+            } else {
+                rowEl.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
+            }
         }
 
         const btnCont = clone.querySelector('.activity-container');
@@ -638,9 +648,8 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
-            // Efek visual tombol jika otomatis
+            // Efek visual tombol jika otomatis (dikunci visual)
             if (activePermit) {
-                // Kunci visual tombol agar terlihat statusnya dikontrol otomatis
                 if(curr === activePermit.type || curr === 'Tidak') {
                     btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
                 }
