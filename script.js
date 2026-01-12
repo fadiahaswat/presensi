@@ -567,7 +567,7 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- LOGIKA PERIZINAN OTOMATIS (BARU) ---
+        // --- LOGIKA PERIZINAN OTOMATIS ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         if(!dbSlot[id]) {
@@ -612,8 +612,12 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // Highlight baris agar terlihat beda
-            clone.querySelector('.santri-row').classList.add(activePermit.type === 'Sakit' ? 'ring-1 ring-amber-200 bg-amber-50/30' : 'ring-1 ring-blue-200 bg-blue-50/30');
+            // --- FIX ERROR HERE: Gunakan spread operator (...) dengan split(' ') ---
+            const rowClasses = activePermit.type === 'Sakit' 
+                ? 'ring-1 ring-amber-200 bg-amber-50/30' 
+                : 'ring-1 ring-blue-200 bg-blue-50/30';
+            
+            clone.querySelector('.santri-row').classList.add(...rowClasses.split(' '));
         }
 
         const btnCont = clone.querySelector('.activity-container');
