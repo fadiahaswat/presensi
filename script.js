@@ -547,8 +547,7 @@ window.renderAttendanceList = function() {
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     
-    // FLAG PENTING: Untuk mendeteksi apakah ada perubahan otomatis
-    let hasAutoChanges = false;
+    let hasAutoChanges = false; // Flag untuk auto-save
 
     // Filter Logic
     const search = appState.searchQuery.toLowerCase();
@@ -573,61 +572,73 @@ window.renderAttendanceList = function() {
         // --- LOGIKA PERIZINAN OTOMATIS ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
-        // Init Empty Data jika belum ada
+        // Init Empty Data
         if(!dbSlot[id]) {
             const defStatus = {};
-            slot.activities.forEach(a => defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya');
+            slot.activities.forEach(a => {
+                // Default awal banget (saat data kosong)
+                if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; // Default Tahajjud/Dhuha = Tidak
+                else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
+            });
             dbSlot[id] = { status: defStatus, note: '' };
         }
 
         const sData = dbSlot[id];
-        // Cek apakah data ini sebelumnya disentuh oleh sistem otomatis
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
-        // KASUS 1: ADA IZIN AKTIF (APPLY)
-        if (activePermit) {
-            let rowChanged = false;
-            slot.activities.forEach(act => {
-                let targetStatus = '';
-                
-                // Tentukan target status
-                if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
-                     targetStatus = activePermit.type; 
-                } else if (act.category === 'sunnah') {
-                     targetStatus = 'Tidak';
-                }
+        // LOGIKA BARU UNTUK MENENTUKAN STATUS TARGET
+        slot.activities.forEach(act => {
+            let targetStatus = null;
 
-                // Hanya update jika status berbeda (agar efisien)
-                if (sData.status[act.id] !== targetStatus) {
-                    sData.status[act.id] = targetStatus;
-                    rowChanged = true;
+            // KASUS 1: ADA IZIN AKTIF (APPLY)
+            if (activePermit) {
+                // Fardu & KBM -> Ikut Status Izin (S/I)
+                if (act.category === 'fardu' || act.category === 'kbm') {
+                    targetStatus = activePermit.type; 
+                } 
+                // Semua Sunnah (Murni & Dependent) -> Jadi Strip (Tidak)
+                // Karena kalau sakit/izin pasti tidak shalat sunnah/dzikir di masjid
+                else {
+                    targetStatus = 'Tidak'; 
                 }
-            });
-
-            // Update Note jika belum ada atau berbeda
-            const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
-            if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
-                sData.note = autoNote;
-                rowChanged = true;
+            }
+            // KASUS 2: TIDAK ADA IZIN, TAPI BEKAS AUTO (RESET/CLEANUP)
+            else if (isAutoMarked) {
+                // Kembalikan ke DEFAULT masing-masing kategori
+                if (act.category === 'sunnah') {
+                    targetStatus = 'Tidak'; // Tahajjud/Dhuha defaultnya Tidak
+                } else if (act.category === 'fardu' || act.category === 'kbm') {
+                    targetStatus = 'Hadir'; // Shalat/Belajar defaultnya Hadir
+                } else {
+                    targetStatus = 'Ya'; // Dzikir/Rawatib defaultnya Ya (Asumsi shalat hadir)
+                }
             }
 
-            if(rowChanged) hasAutoChanges = true;
-        } 
-        // KASUS 2: TIDAK ADA IZIN, TAPI BEKAS AUTO (RESET/CLEANUP)
-        else if (isAutoMarked) {
-            slot.activities.forEach(act => {
-                // Reset ke default
-                sData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
-            });
-            sData.note = ''; // Hapus catatan auto
-            hasAutoChanges = true; // Tandai ada perubahan agar di-save
+            // Eksekusi Perubahan (Jika ada target)
+            if (targetStatus !== null && sData.status[act.id] !== targetStatus) {
+                sData.status[act.id] = targetStatus;
+                hasAutoChanges = true;
+            }
+        });
+
+        // Update Note (Catatan)
+        if (activePermit) {
+            const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
+            // Hanya tulis jika note kosong atau berbeda dari autoNote yang seharusnya
+            if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
+                sData.note = autoNote;
+                hasAutoChanges = true;
+            }
+        } else if (isAutoMarked) {
+            // Hapus note [Auto] saat reset
+            sData.note = '';
+            hasAutoChanges = true;
         }
         // --- END LOGIKA PERIZINAN ---
 
-        // Render UI
+        // Render UI Baris
         const clone = tplRow.content.cloneNode(true);
         
-        // Basic Info
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
@@ -640,7 +651,6 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // Highlight Baris (Safe Selector)
             const rowEl = clone.querySelector('.santri-row') || clone.firstElementChild;
             if(rowEl) {
                 if(activePermit.type === 'Sakit') {
@@ -668,10 +678,9 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
-            // Efek visual tombol jika otomatis
+            // Efek visual tombol jika otomatis (Locked look)
             if (activePermit) {
                 if(curr === activePermit.type || curr === 'Tidak') {
-                    // Gunakan teknik split untuk classList.add agar aman
                     btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
                 }
             }
@@ -680,7 +689,7 @@ window.renderAttendanceList = function() {
             btnCont.appendChild(bClone);
         });
 
-        // Notes
+        // Notes UI
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
@@ -695,12 +704,9 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
-    // --- BUG FIX: SAVE DATA IF CHANGED ---
-    // Jika tadi ada proses Apply atau Reset otomatis, simpan perubahannya permanen ke DB
+    // Auto-Save jika ada perubahan status otomatis
     if(hasAutoChanges) {
         window.saveData(); 
-        // Opsional: Update statistik dashboard agar angka di chart langsung berubah
-        // window.updateQuickStats(); // (Boleh diaktifkan jika perlu)
     }
 };
 
