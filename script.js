@@ -66,6 +66,7 @@ let appState = {
     attendanceData: {},
     searchQuery: '',
     analysisMode: 'daily', // daily, weekly, monthly, semester
+    reportMode: 'daily', // daily, weekly, monthly, semester, yearly <-- BARU
     analysisSantriId: null,
     filterProblemOnly: false,
     date: window.getLocalDateStr(),
