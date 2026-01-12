@@ -724,7 +724,7 @@ window.toggleStatus = function(id, actId, type) {
     const curr = sData.status[actId];
     let next = 'Hadir';
 
-    // Cycle Status Logic
+    // 1. Tentukan Status Berikutnya (Cycle)
     if(type === 'mandator') {
         if(curr === 'Hadir') next = 'Sakit';
         else if(curr === 'Sakit') next = 'Izin';
@@ -734,25 +734,39 @@ window.toggleStatus = function(id, actId, type) {
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
     }
     
+    // Simpan status baru
     sData.status[actId] = next;
     
-    // --- DEPENDENCY LOGIC (BUG FIX) ---
-    // Jika Shalat (induk) berubah, pengaruhi kegiatan sunnah
+    // 2. LOGIKA DEPENDENCY (Jika Shalat Berubah)
     if(actId === 'shalat') {
         const activities = SLOT_WAKTU[slotId].activities;
         const isNonHadir = ['Sakit', 'Izin', 'Alpa'].includes(next);
 
         activities.forEach(act => {
-            if (act.id === 'shalat') return;
+            if (act.id === 'shalat') return; // Skip diri sendiri
 
-            // Jika Shalat tidak hadir, maka sunnah juga dianggap tidak/sakit
+            // KASUS A: Shalat jadi S/I/A (Tidak Hadir)
+            // Semua kegiatan lain ikut "Sakit/Izin" atau "Tidak"
             if (isNonHadir) {
-                sData.status[act.id] = act.type === 'mandator' ? next : 'Tidak';
+                if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/A
+                else sData.status[act.id] = 'Tidak'; // Sunnah/Dependent jadi Strip (-)
             } 
-            // Jika Shalat kembali Hadir, sunnah kembali ke default 'Ya' atau 'Hadir'
-            // (Opsional: bisa dibiarkan status terakhirnya, tapi reset lebih aman)
+            
+            // KASUS B: Shalat kembali jadi H (Hadir)
+            // --- PERBAIKAN DISINI ---
             else if (next === 'Hadir') {
-                sData.status[act.id] = act.type === 'mandator' ? 'Hadir' : 'Ya';
+                // 1. KBM (Wajib) -> Kembali ke Hadir
+                if (act.category === 'kbm' || act.category === 'fardu') {
+                    sData.status[act.id] = 'Hadir';
+                }
+                // 2. Dependent (Dzikir/Rawatib) -> Kembali ke Ya (karena shalat hadir)
+                else if (act.category === 'dependent') {
+                    sData.status[act.id] = 'Ya';
+                }
+                // 3. Sunnah Murni (Tahajjud/Dhuha) -> Tetap Tidak (Defaultnya)
+                else if (act.category === 'sunnah') {
+                    sData.status[act.id] = 'Tidak'; 
+                }
             }
         });
     }
