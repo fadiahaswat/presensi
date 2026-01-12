@@ -534,7 +534,8 @@ window.calculateGlobalStats = function() {
 // 5. ATTENDANCE ACTIONS
 // ==========================================
 
-window.openAttendance = function() {
+window.openAttendance = async function() {
+    // 1. Cek Kunci Waktu (Logic Lama)
     const access = window.isSlotAccessible(appState.currentSlotId, appState.date);
     if (access.locked) {
         let msg = "Akses ditolak.";
@@ -544,6 +545,21 @@ window.openAttendance = function() {
         return window.showToast(msg, 'warning');
     }
 
+    // 2. CEK LOKASI (LOGIC BARU)
+    if (GEO_CONFIG.useGeofencing) {
+        try {
+            await window.verifyLocation();
+            window.showToast("Lokasi Terverifikasi ✅", "success");
+        } catch (errorMsg) {
+            window.showToast("🚫 Akses Ditolak: " + errorMsg, "error");
+            
+            // Log aktivitas percobaan akses ilegal (Opsional)
+            window.logActivity("Akses Ditolak", `Gagal GPS: ${errorMsg}`);
+            return; // STOP! Jangan buka halaman absen
+        }
+    }
+
+    // 3. Buka Halaman Absen (Logic Lama)
     document.getElementById('view-main').classList.add('hidden');
     document.getElementById('view-attendance').classList.remove('hidden');
     
