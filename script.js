@@ -439,6 +439,8 @@ window.handleGoogleCallback = function(response) {
         
         window.updateDashboard();
         window.updateProfileInfo();
+        // [BARU] Tarik data Supabase saat login sukses
+        window.fetchAttendanceFromSupabase();
         window.showToast("Login Berhasil!", "success");
 
     } catch (e) {
