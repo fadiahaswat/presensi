@@ -2482,5 +2482,78 @@ window.getReportDateRange = function(mode) {
     return { start, end, label };
 };
 
+// --- FITUR GEOFENCING ---
+
+// Rumus Haversine untuk menghitung jarak antar 2 koordinat (dalam meter)
+window.getDistanceFromLatLonInMeters = function(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Radius bumi dalam meter
+    const dLat = window.deg2rad(lat2 - lat1);
+    const dLon = window.deg2rad(lon2 - lon1);
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(window.deg2rad(lat1)) * Math.cos(window.deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c; // Jarak dalam meter
+    return d;
+};
+
+window.deg2rad = function(deg) {
+    return deg * (Math.PI/180);
+};
+
+// Fungsi Utama Verifikasi Lokasi (Async)
+window.verifyLocation = function() {
+    return new Promise((resolve, reject) => {
+        if (!GEO_CONFIG.useGeofencing) {
+            resolve(true); // Bypass jika fitur dimatikan
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            reject("Browser tidak mendukung GPS.");
+            return;
+        }
+
+        // Tampilkan loading toast manual karena proses GPS bisa 1-5 detik
+        const toastId = window.showToast("📡 Sedang memeriksa lokasi GPS...", "info", true); 
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                let isInside = false;
+                let nearestDist = 9999999;
+
+                // Cek jarak ke setiap titik target
+                GEO_CONFIG.locations.forEach(loc => {
+                    const dist = window.getDistanceFromLatLonInMeters(userLat, userLng, loc.lat, loc.lng);
+                    if (dist < nearestDist) nearestDist = dist;
+                    
+                    if (dist <= GEO_CONFIG.maxRadiusMeters) {
+                        isInside = true;
+                    }
+                });
+
+                // Hapus toast loading (logika hapus toast perlu penyesuaian sedikit jika showToast return ID, 
+                // tapi untuk simplisitas kita biarkan tertimpa toast baru)
+
+                if (isInside) {
+                    resolve(true);
+                } else {
+                    reject(`Lokasi Anda terlalu jauh (${Math.round(nearestDist)}m). Harap mendekat ke titik absen.`);
+                }
+            },
+            (error) => {
+                let msg = "Gagal mendeteksi lokasi.";
+                if(error.code === 1) msg = "Izin lokasi ditolak. Aktifkan GPS browser.";
+                else if(error.code === 2) msg = "Sinyal GPS tidak ditemukan.";
+                else if(error.code === 3) msg = "Waktu deteksi GPS habis.";
+                reject(msg);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    });
+};
+
 // Start App
 window.onload = window.initApp;
