@@ -48,3 +48,12 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
         return this;
     };
 }
+
+// Determine current prayer slot based on time
+window.determineCurrentSlot = function() {
+    const h = new Date().getHours();
+    if (h >= 19) return 'isya';
+    if (h >= 18) return 'maghrib';
+    if (h >= 15) return 'ashar';
+    return 'shubuh';
+};

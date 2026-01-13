@@ -5,20 +5,21 @@
 // KONEKSI SUPABASE (GUDANG DATA)
 // ==========================================
 // 1. Ambil URL dari Tahap 3 (Project URL)
-const SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
+window.SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
 
 // 2. Ambil Key dari Tahap 3 (anon public)
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
+window.SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
 
 // 3. Nyalakan Mesin Supabase
-const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-console.log("Supabase Siap!");
+if (window.supabase) {
+    window.dbClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+    console.log("Supabase Siap!");
+}
 
 // ==========================================
 // CONFIG & CONSTANTS
 // ==========================================
-const APP_CONFIG = {
+window.APP_CONFIG = {
     storageKey: 'musyrif_app_v5_fix',
     permitKey: 'musyrif_permits_db',
     pinDefault: '1234',
@@ -31,7 +32,7 @@ const APP_CONFIG = {
 // ==========================================
 // KONFIGURASI LOKASI (GEOFENCING)
 // ==========================================
-const GEO_CONFIG = {
+window.GEO_CONFIG = {
     useGeofencing: true,
     maxRadiusMeters: 200,
     locations: [
@@ -58,7 +59,7 @@ const GEO_CONFIG = {
     ]
 };
 
-const UI_COLORS = {
+window.UI_COLORS = {
     info: 'bg-blue-500',
     success: 'bg-emerald-500',
     warning: 'bg-amber-500',

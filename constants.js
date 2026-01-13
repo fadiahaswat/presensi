@@ -4,7 +4,7 @@
 // ==========================================
 // SLOT & STATUS CONFIGURATION
 // ==========================================
-const SLOT_WAKTU = {
+window.SLOT_WAKTU = {
     shubuh: { 
         id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', 
         startHour: 4, 
@@ -73,7 +73,7 @@ const SLOT_WAKTU = {
     ]}
 };
 
-const STATUS_UI = {
+window.STATUS_UI = {
     'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
     'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
     'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },

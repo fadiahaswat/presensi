@@ -4,7 +4,7 @@
 // ==========================================
 // STATE MANAGEMENT
 // ==========================================
-let appState = {
+window.appState = {
     selectedClass: null,
     currentSlotId: 'shubuh',
     attendanceData: {},
@@ -23,6 +23,6 @@ let appState = {
 };
 
 // DATA STORE
-let MASTER_SANTRI = [];
-let MASTER_KELAS = {};
-let FILTERED_SANTRI = [];
+window.MASTER_SANTRI = [];
+window.MASTER_KELAS = {};
+window.FILTERED_SANTRI = [];
