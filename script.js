@@ -2408,7 +2408,6 @@ window.runAnalysis = function() {
     let loopGuard = 0;
 
     while(curr <= end && loopGuard < 370) {
-        const dateKey = curr.toISOString().split('T')[0]; // YYYY-MM-DD (Local approx)
         // Fix timezone offset issue for pure YYYY-MM-DD loop
         // Gunakan string manipulation agar aman
         const y = curr.getFullYear();
