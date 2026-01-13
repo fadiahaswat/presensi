@@ -3465,11 +3465,13 @@ window.saveEvent = async function() {
         window.resetEventForm();
         window.loadEventList();
         
-        // Refresh tampilan modal utama jika terbuka
-        const hcModal = document.getElementById('modal-homecoming');
-        if(hcModal && !hcModal.classList.contains('hidden')) {
-            window.openHomecomingModal(); 
+                // UPDATE BAGIAN INI:
+        const hcView = document.getElementById('view-homecoming');
+        if(hcView && !hcView.classList.contains('hidden')) {
+            window.openHomecomingView(); // Refresh halaman view
         }
+        
+        // ----------------------------------------------------
     }
 };
 
