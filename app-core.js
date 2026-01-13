@@ -86,6 +86,9 @@ window.initApp = async function() {
                 // F. [BARU] SINKRONISASI DATA DARI CLOUD!
                 // Ini kuncinya: Begitu masuk, langsung tarik data terbaru dari Supabase
                 window.fetchAttendanceFromSupabase(); 
+                
+                // G. Load homecoming data in background
+                if(window.loadHomecomingData) window.loadHomecomingData();
 
                 setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
 
@@ -222,6 +225,8 @@ window.handleGoogleCallback = function(response) {
         window.updateProfileInfo();
         // [BARU] Tarik data Supabase saat login sukses
         window.fetchAttendanceFromSupabase();
+        // Load homecoming data
+        if(window.loadHomecomingData) window.loadHomecomingData();
         window.showToast("Login Berhasil!", "success");
 
     } catch (e) {
@@ -555,7 +560,7 @@ window.updateProfileInfo = function() {
 
 // Fungsi Terpusat untuk menghitung statistik per slot
 window.calculateSlotStats = function(slotId, customDate = null) {
-    const stats = { h: 0, s: 0, i: 0, a: 0, total: 0, isFilled: false };
+    const stats = { h: 0, s: 0, i: 0, a: 0, p: 0, total: 0, isFilled: false };
     
     if (FILTERED_SANTRI.length === 0) return stats;
     
@@ -573,6 +578,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
             if (status === 'Hadir') stats.h++;
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin') stats.i++;
+            else if (status === 'Pulang') stats.p++;
             else if (status === 'Alpa') stats.a++;
             stats.total++;
         }
@@ -680,6 +686,14 @@ window.renderAttendanceList = function() {
         // --- LOGIKA PERIZINAN OTOMATIS ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
+        // --- LOGIKA PERPULANGAN (HOMECOMING) ---
+        let isPulang = false;
+        try {
+            isPulang = window.isStudentPulang && window.isStudentPulang(id, dateKey);
+        } catch (e) {
+            console.error('Error checking Pulang status:', e);
+        }
+        
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -694,10 +708,23 @@ window.renderAttendanceList = function() {
 
         slot.activities.forEach(act => {
             let targetStatus = null;
+            
+            // Priority 1: Active permit (Sakit/Izin)
             if (activePermit) {
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
-            } else if (isAutoMarked) {
+            } 
+            // Priority 2: Pulang status
+            else if (isPulang) {
+                // For mandatory activities (fardu/kbm), set to 'Pulang'
+                if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Pulang';
+                // For dependent activities (qabliyah, ba'diyah, dzikir), set to 'Pulang'
+                else if (act.category === 'dependent') targetStatus = 'Pulang';
+                // For optional activities (sunnah), set to 'Tidak' (strip)
+                else if (act.category === 'sunnah') targetStatus = 'Tidak';
+            }
+            // Priority 3: Previously auto-marked (reset to default)
+            else if (isAutoMarked) {
                 if (act.category === 'sunnah') targetStatus = 'Tidak';
                 else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
                 else targetStatus = 'Ya';
@@ -709,8 +736,15 @@ window.renderAttendanceList = function() {
             }
         });
 
+        // Update auto-note
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
+            if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
+                sData.note = autoNote;
+                hasAutoChanges = true;
+            }
+        } else if (isPulang) {
+            const autoNote = `[Auto] Pulang`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
@@ -740,6 +774,17 @@ window.renderAttendanceList = function() {
                 if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
                 else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
             }
+        } else if (isPulang) {
+            const nameEl = clone.querySelector('.santri-name');
+            const badge = document.createElement('span');
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.textContent = 'Pulang';
+            nameEl.appendChild(badge);
+            
+            // Visual highlight baris
+            if(rowElement) {
+                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+            }
         }
 
         const btnCont = clone.querySelector('.activity-container');
@@ -760,6 +805,8 @@ window.renderAttendanceList = function() {
 
             if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
                 btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+            } else if (isPulang && (curr === 'Pulang' || curr === 'Tidak')) {
+                btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400');
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
@@ -799,7 +846,8 @@ window.toggleStatus = function(id, actId, type) {
     if(type === 'mandator') {
         if(curr === 'Hadir') next = 'Sakit';
         else if(curr === 'Sakit') next = 'Izin';
-        else if(curr === 'Izin') next = 'Alpa';
+        else if(curr === 'Izin') next = 'Pulang';
+        else if(curr === 'Pulang') next = 'Alpa';
         else next = 'Hadir';
     } else {
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
@@ -811,20 +859,20 @@ window.toggleStatus = function(id, actId, type) {
     // 2. LOGIKA DEPENDENCY (Jika Shalat Berubah)
     if(actId === 'shalat') {
         const activities = SLOT_WAKTU[slotId].activities;
-        const isNonHadir = ['Sakit', 'Izin', 'Alpa'].includes(next);
+        const isNonHadir = ['Sakit', 'Izin', 'Alpa', 'Pulang'].includes(next);
 
         activities.forEach(act => {
             if (act.id === 'shalat') return; // Skip diri sendiri
 
-            // KASUS A: Shalat jadi S/I/A (Tidak Hadir)
-            // Semua kegiatan lain ikut "Sakit/Izin" atau "Tidak"
+            // KASUS A: Shalat jadi S/I/P/A (Tidak Hadir)
+            // Semua kegiatan lain ikut "Sakit/Izin/Pulang" atau "Tidak"
             if (isNonHadir) {
-                if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/A
-                else sData.status[act.id] = 'Tidak'; // Sunnah/Dependent jadi Strip (-)
+                if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/P/A
+                else if(act.category === 'dependent' && next === 'Pulang') sData.status[act.id] = 'Pulang'; // Rawatib ikut Pulang
+                else sData.status[act.id] = 'Tidak'; // Sunnah jadi Strip (-)
             } 
             
             // KASUS B: Shalat kembali jadi H (Hadir)
-            // --- PERBAIKAN DISINI ---
             else if (next === 'Hadir') {
                 // 1. KBM (Wajib) -> Kembali ke Hadir
                 if (act.category === 'kbm' || act.category === 'fardu') {
@@ -1324,7 +1372,7 @@ window.updateQuickStats = function() {
     if(!appState.selectedClass) return;
     
     // Inisialisasi variabel penghitung
-    let stats = { h: 0, s: 0, i: 0, a: 0 };
+    let stats = { h: 0, s: 0, i: 0, a: 0, p: 0 };
     let activeSlots = 0; // Untuk menghitung berapa sesi yang sudah diisi data
 
     Object.values(SLOT_WAKTU).forEach(slot => {
@@ -1336,6 +1384,7 @@ window.updateQuickStats = function() {
              stats.s += slotStats.s;
              stats.i += slotStats.i;
              stats.a += slotStats.a;
+             stats.p += slotStats.p || 0;
              activeSlots++;
          }
     });
@@ -1346,9 +1395,10 @@ window.updateQuickStats = function() {
     
     // Tampilkan hasil RATA-RATA (dibulatkan dengan Math.round)
     // Sehingga angkanya kembali ke skala jumlah santri (misal: 30), bukan akumulasi (120)
+    // Count Pulang together with Izin for display purposes
     document.getElementById('stat-hadir').textContent = Math.round(stats.h / divider);
     document.getElementById('stat-sakit').textContent = Math.round(stats.s / divider);
-    document.getElementById('stat-izin').textContent = Math.round(stats.i / divider);
+    document.getElementById('stat-izin').textContent = Math.round((stats.i + stats.p) / divider);
     document.getElementById('stat-alpa').textContent = Math.round(stats.a / divider);
 };
 
@@ -1386,7 +1436,7 @@ window.drawDonutChart = function() {
     ctx.clearRect(0, 0, width, height);
 
     // --- 2. Hitung Data (Total & Rata-rata) ---
-    let stats = { h: 0, s: 0, i: 0, a: 0 };
+    let stats = { h: 0, s: 0, i: 0, a: 0, p: 0 };
     let totalPeristiwa = 0; // Total insiden (misal: 60 kejadian dari 2 sesi)
     let activeSlots = 0;    // Jumlah sesi yang sudah diisi (misal: 2 sesi)
 
@@ -1398,6 +1448,7 @@ window.drawDonutChart = function() {
                 stats.s += sStats.s;
                 stats.i += sStats.i;
                 stats.a += sStats.a;
+                stats.p += sStats.p || 0;
                 totalPeristiwa += sStats.total;
                 activeSlots++;
             }
@@ -1414,7 +1465,7 @@ window.drawDonutChart = function() {
     
     setLegend('legend-hadir', Math.round(stats.h / divider));
     setLegend('legend-sakit', Math.round(stats.s / divider));
-    setLegend('legend-izin', Math.round(stats.i / divider));
+    setLegend('legend-izin', Math.round((stats.i + stats.p) / divider)); // Combine Izin + Pulang
     setLegend('legend-alpa', Math.round(stats.a / divider));
 
     // --- 4. Menggambar Grafik Lingkaran ---
@@ -1436,7 +1487,7 @@ window.drawDonutChart = function() {
     const segments = [
         { value: stats.h, color: '#10b981' }, // Emerald (Hadir)
         { value: stats.s, color: '#f59e0b' }, // Amber (Sakit)
-        { value: stats.i, color: '#3b82f6' }, // Blue (Izin)
+        { value: stats.i + stats.p, color: '#3b82f6' }, // Blue (Izin + Pulang)
         { value: stats.a, color: '#f43f5e' }  // Rose (Alpa)
     ];
 
