@@ -3285,6 +3285,10 @@ window.saveExtendHomecoming = function() {
 // ==========================================
 
 window.openHomecomingModal = function() {
+    // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
+    console.warn('openHomecomingModal is deprecated. Use openPermitView with type "Pulang" instead.');
+    return;
+    
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
     const modal = document.getElementById('modal-homecoming');
@@ -4289,6 +4293,11 @@ window.loadHomecomingData = async function() {
 
 // 1. Buka View Halaman Penuh
 window.openHomecomingView = async function() {
+    // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
+    console.warn('openHomecomingView is deprecated. Use openPermitView with type "Pulang" instead.');
+    window.showToast("Perpulangan sekarang dikelola melalui Input Perizinan dengan memilih tipe 'Pulang'", "info");
+    return;
+    
     if(!appState.selectedClass) return window.showToast("Pilih kelas dulu!", "warning");
     
     // Ganti View (Main -> Homecoming)
