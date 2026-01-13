@@ -3071,5 +3071,184 @@ window.checkScheduledNotifications = function() {
     }
 };
 
+// ==========================================
+// FITUR GESTURE (SWIPE & HOLD) - SUPER ABSEN
+// ==========================================
+
+window.enableSwipeAndHold = function(element, studentId) {
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+    let holdTimer = null;
+    let isHolding = false;
+    const threshold = 100; // Jarak geser minimal (pixel) untuk trigger aksi
+
+    // Element Background (Layer warna)
+    // Kita buat layer ini secara dinamis jika belum ada
+    let bgLayer = element.parentElement.querySelector('.swipe-bg-layer');
+    if (!bgLayer) {
+        bgLayer = document.createElement('div');
+        bgLayer.className = 'swipe-bg-layer rounded-2xl'; // samakan rounded
+        element.parentElement.insertBefore(bgLayer, element);
+    }
+
+    // --- 1. TOUCH START ---
+    element.addEventListener('touchstart', (e) => {
+        // Jangan trigger jika user menekan tombol activity/notes
+        if (e.target.closest('button') || e.target.closest('input')) return;
+
+        startX = e.touches[0].clientX;
+        isDragging = true;
+        element.style.transition = 'none'; // Matikan transisi saat drag agar responsif
+
+        // Mulai Timer Hold (Tekan Lama 800ms)
+        isHolding = false;
+        holdTimer = setTimeout(() => {
+            if (!isDragging) return; // Batal jika user mulai menggeser
+            isHolding = true;
+            element.classList.add('holding-animation'); // Efek visual
+            
+            // Haptic Feedback (Getar) jika HP support
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            // Trigger Aksi HOLD (IZIN)
+            setTimeout(() => {
+                const note = prompt("📝 Masukkan Keterangan IZIN:");
+                if (note !== null) { // Jika tidak cancel
+                    window.quickUpdateStatus(studentId, 'Izin', note || 'Izin (Manual)');
+                }
+                resetPosition();
+            }, 100); 
+        }, 800);
+    }, { passive: true });
+
+    // --- 2. TOUCH MOVE ---
+    element.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        
+        currentX = e.touches[0].clientX;
+        const diff = currentX - startX;
+
+        // Jika user menggeser, batalkan Hold Timer
+        if (Math.abs(diff) > 10) {
+            clearTimeout(holdTimer);
+            if (isHolding) return; // Jika sudah terlanjur hold, jangan geser
+        }
+
+        // Batasi scroll vertikal jika sedang swipe horizontal
+        // (Opsional, browser modern biasanya pintar menanganinya)
+
+        // Gerakkan kartu
+        element.style.transform = `translateX(${diff}px)`;
+
+        // Update Warna Background
+        if (diff > 0) {
+            // Geser Kanan -> SAKIT (Kuning/Amber)
+            bgLayer.style.backgroundColor = '#f59e0b'; 
+            bgLayer.innerHTML = '<span class="flex items-center gap-2"><i data-lucide="thermometer" class="w-5 h-5"></i> SAKIT</span> <span></span>';
+            bgLayer.style.opacity = Math.min(diff / threshold, 1);
+        } else {
+            // Geser Kiri -> ALPA (Merah)
+            bgLayer.style.backgroundColor = '#ef4444';
+            bgLayer.innerHTML = '<span></span> <span class="flex items-center gap-2">ALPA <i data-lucide="x-circle" class="w-5 h-5"></i></span>';
+            bgLayer.style.opacity = Math.min(Math.abs(diff) / threshold, 1);
+        }
+        
+        if(window.lucide) window.lucide.createIcons();
+    }, { passive: true });
+
+    // --- 3. TOUCH END ---
+    element.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        clearTimeout(holdTimer);
+        element.classList.remove('holding-animation');
+        element.style.transition = 'transform 0.3s ease-out'; // Hidupkan animasi balik
+
+        const diff = currentX - startX;
+
+        // Cek apakah geseran cukup jauh?
+        if (diff > threshold) {
+            // --- AKSI SWIPE KANAN (SAKIT) ---
+            // Geser kartu sampai habis dulu biar keren
+            element.style.transform = `translateX(120%)`; 
+            setTimeout(() => {
+                const note = prompt("🤒 Masukkan Keterangan SAKIT:");
+                if (note !== null) {
+                    window.quickUpdateStatus(studentId, 'Sakit', note || 'Sakit (Manual)');
+                } else {
+                    resetPosition(); // Batal
+                }
+            }, 100);
+
+        } else if (diff < -threshold) {
+            // --- AKSI SWIPE KIRI (ALPA) ---
+            element.style.transform = `translateX(-120%)`;
+            setTimeout(() => {
+                if(confirm("❌ Tandai sebagai ALPA?")) {
+                    window.quickUpdateStatus(studentId, 'Alpa', '');
+                } else {
+                    resetPosition();
+                }
+            }, 100);
+
+        } else {
+            // Batal (Kembali ke posisi awal)
+            resetPosition();
+        }
+    });
+
+    function resetPosition() {
+        element.style.transform = 'translateX(0)';
+        setTimeout(() => {
+            bgLayer.style.opacity = '0';
+        }, 300);
+    }
+};
+
+// Fungsi Eksekusi Update Status Cepat
+window.quickUpdateStatus = function(studentId, statusType, noteText) {
+    const slotId = appState.currentSlotId;
+    const dateKey = appState.date;
+    const slot = SLOT_WAKTU[slotId];
+
+    if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    if(!appState.attendanceData[dateKey][slotId]) appState.attendanceData[dateKey][slotId] = {};
+    
+    // Pastikan objek santri ada
+    if(!appState.attendanceData[dateKey][slotId][studentId]) {
+        appState.attendanceData[dateKey][slotId][studentId] = { status: {}, note: '' };
+    }
+
+    const sData = appState.attendanceData[dateKey][slotId][studentId];
+
+    // 1. Update Status Utama (Shalat/Activity Utama)
+    // Biasanya yang diabsen adalah shalat/kegiatan utama di slot itu
+    // Kita cari activity type 'mandator' (wajib) atau 'fardu'
+    
+    slot.activities.forEach(act => {
+        // Logika: Jika Sakit/Izin/Alpa, maka Shalat & KBM ikut status itu.
+        // Sunnah jadi 'Tidak' (strip)
+        
+        if (act.category === 'fardu' || act.category === 'kbm') {
+            sData.status[act.id] = statusType;
+        } else {
+            sData.status[act.id] = 'Tidak'; // Sunnah otomatis tidak
+        }
+    });
+
+    // 2. Update Catatan jika ada
+    if (noteText) {
+        // Tambahkan timestamp kecil agar tahu ini inputan baru
+        const time = new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+        sData.note = `[${time}] ${noteText}`;
+    }
+
+    // 3. Simpan & Refresh
+    window.saveData();
+    window.renderAttendanceList();
+    window.showToast(`Status ${statusType} berhasil disimpan`, 'success');
+};
+
 // Start App
 window.onload = window.initApp;
