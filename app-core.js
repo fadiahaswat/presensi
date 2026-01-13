@@ -692,9 +692,19 @@ window.renderAttendanceList = function() {
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
+        // Check both localStorage-based and Supabase-based homecoming systems
         let isPulang = false;
+        let homecomingInfo = null;
         try {
-            isPulang = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
+            // First check localStorage homecoming (new system)
+            homecomingInfo = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
+            if (homecomingInfo) {
+                isPulang = true;
+            } 
+            // Then check Supabase homecoming (old system) if new system doesn't have data
+            else if (window.isStudentPulang) {
+                isPulang = window.isStudentPulang(id, dateKey);
+            }
         } catch (e) {
             console.error('Error checking Pulang status:', e);
         }
@@ -752,8 +762,8 @@ window.renderAttendanceList = function() {
                 hasAutoChanges = true;
             }
         } else if (isPulang) {
-            const homecoming = window.checkActiveHomecoming(id, dateKey);
-            const autoNote = homecoming ? `[Auto] Pulang ke ${homecoming.city}` : `[Auto] Pulang`;
+            // Use info from localStorage homecoming if available, otherwise use default
+            const autoNote = homecomingInfo && homecomingInfo.city ? `[Auto] Pulang ke ${homecomingInfo.city}` : `[Auto] Pulang`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
