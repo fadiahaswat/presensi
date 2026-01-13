@@ -422,7 +422,7 @@ window.handleGoogleCallback = function(response) {
 
         // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
         // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        dbClient.from('musyrif_profiles').upsert({ // <--- GANTI JADI dbClient
+        dbClient.from('musyrif_profiles').upsert({
             email: profile.email,
             name: profile.name,
             photo_url: profile.picture,
@@ -2868,7 +2868,7 @@ window.syncToSupabase = async function() {
     if (updates.length === 0) return;
 
     // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
-    const { error } = await dbClient // <--- GANTI JADI dbClientsupabase
+    const { error } = await dbClient
         .from('attendance')
         .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
 
