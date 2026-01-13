@@ -2387,13 +2387,21 @@ window.renderPermitViewList = function() {
         const endDate = p.end_date || p.end;
         const status = p.status || p.type;
         
-        const canEdit = (p.type === 'Sakit' && status === 'Sakit') || (p.type === 'Izin' && status !== 'Datang');
+        const canEdit = (p.type === 'Sakit' && status === 'Sakit') || (p.type === 'Izin' && status !== 'Datang') || (p.type === 'Pulang' && status !== 'Datang');
         
         let dateDisplay = '';
         if (p.type === 'Sakit') {
             dateDisplay = `Mulai ${window.formatDate(startDate).split(',')[1]}`;
             if (status === 'Sembuh' && p.recovered_date) {
                 dateDisplay += ` • Sembuh ${window.formatDate(p.recovered_date).split(',')[1]}`;
+            }
+        } else if (p.type === 'Pulang') {
+            dateDisplay = `${window.formatDate(startDate).split(',')[1]} - ${window.formatDate(endDate).split(',')[1]}`;
+            if (p.end_time) {
+                dateDisplay += ` (${p.end_time})`;
+            }
+            if (status === 'Datang' && p.arrival_date) {
+                dateDisplay += ` • Kembali ${window.formatDate(p.arrival_date).split(',')[1]}`;
             }
         } else {
             dateDisplay = `${window.formatDate(startDate).split(',')[1]} - ${window.formatDate(endDate).split(',')[1]}`;
@@ -2406,15 +2414,22 @@ window.renderPermitViewList = function() {
         if (status === 'Sakit') statusBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
         else if (status === 'Sembuh') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         else if (status === 'Izin') statusBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+        else if (status === 'Pulang') statusBadgeClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
         else if (status === 'Datang') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         else if (status === 'Alpa') statusBadgeClass = 'bg-red-50 text-red-700 border-red-200';
         
         let description = '';
         if (p.illness_type) {
             description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="activity" class="w-3 h-3"></i> ${p.illness_type}</span>`;
+        } else if (p.event_name) {
+            description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${p.event_name}</span>`;
         } else if (p.reason) {
             description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i> ${p.reason}</span>`;
         }
+
+        let typeColor = 'bg-blue-100 text-blue-700';
+        if (p.type === 'Sakit') typeColor = 'bg-amber-100 text-amber-700';
+        else if (p.type === 'Pulang') typeColor = 'bg-indigo-100 text-indigo-700';
 
         const div = document.createElement('div');
         div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
@@ -2422,7 +2437,7 @@ window.renderPermitViewList = function() {
             <div class="flex-1">
                 <p class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</p>
                 <div class="flex flex-wrap gap-2 mt-1.5">
-                    <span class="px-2 py-0.5 rounded-md ${p.type === 'Sakit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
+                    <span class="px-2 py-0.5 rounded-md ${typeColor} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
                     <span class="px-2 py-0.5 rounded-md ${statusBadgeClass} font-bold text-[10px] border">${status}</span>
                     ${description}
                     <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateDisplay}</span>
@@ -2731,8 +2746,8 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
                 return dateStr >= startDate && dateStr < p.recovered_date;
             }
             return false;
-        } else {
-            // IZIN LOGIC (Fixed duration)
+        } else if (p.type === 'Izin' || p.type === 'Pulang') {
+            // IZIN & PULANG LOGIC (Fixed duration)
             if (p.status === 'Datang') {
                 // Student has returned - permit no longer active
                 return false;
@@ -2742,7 +2757,7 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
             const isDateMatch = dateStr >= startDate && dateStr <= endDate;
             if (!isDateMatch) {
                 // Date is after end_date - check for auto-Alpa
-                if (dateStr > endDate && p.status === 'Izin') {
+                if (dateStr > endDate && (p.status === 'Izin' || p.status === 'Pulang')) {
                     // Auto-transition to Alpa
                     p.status = 'Alpa';
                     // Save the update
@@ -2754,6 +2769,8 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
             
             return true;
         }
+        
+        return false;
     });
     
     return permit;
@@ -2793,8 +2810,8 @@ window.openEditPermitModal = function(permitId) {
         const today = window.getLocalDateStr();
         document.getElementById('edit-permit-recovery-date').value = today;
         document.getElementById('edit-permit-recovery-session').value = 'all';
-    } else {
-        // Show arrival date input
+    } else if (permit.type === 'Izin' || permit.type === 'Pulang') {
+        // Show arrival date input for both Izin and Pulang
         document.getElementById('edit-permit-sakit-section').classList.add('hidden');
         document.getElementById('edit-permit-izin-section').classList.remove('hidden');
         
