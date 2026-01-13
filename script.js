@@ -3404,44 +3404,56 @@ window.resetEventForm = function() {
 // LOGIKA KEDATANGAN OTOMATIS
 // ==========================================
 
+// 2. Fungsi Cek Kedatangan Otomatis (Versi Final & Timezone Fix)
 window.checkArrivalAuto = function() {
     if (!hcState.activeEvent) return;
-
-    // 1. Ambil Waktu Sekarang
+    
     const now = new Date();
     
-    // 2. Ambil Waktu Deadline dari Event
-    // Format: Tanggal Akhir (YYYY-MM-DD) + Jam Deadline (HH:MM:SS)
+    // Gabungkan Tanggal & Jam Deadline agar akurat
+    // Asumsi: Jam deadline diinput dalam WIB, Browser user juga WIB
     const deadlineStr = `${hcState.activeEvent.end_date}T${hcState.activeEvent.deadline_time}`;
     const deadline = new Date(deadlineStr);
-
-    // 3. Bandingkan
+    
     const isLate = now > deadline;
     
-    // 4. Update UI Hasil
+    // Ambil Elemen UI
     const resultBox = document.getElementById('hc-auto-result');
     const resultText = document.getElementById('hc-result-text');
+    const hiddenInput = document.getElementById('hc-final-status');
+    const dropdown = document.getElementById('hc-edit-arrival');
     const reasonBox = document.getElementById('hc-late-reason-box');
-    const statusInput = document.getElementById('hc-final-status');
 
-    resultBox.classList.remove('hidden');
-    
+    // Tampilkan Box Hasil
+    if(resultBox) resultBox.classList.remove('hidden');
+
     if (isLate) {
-        // HITUNG SELISIH WAKTU
+        // Hitung Keterlambatan
         const diffMs = now - deadline;
         const diffHrs = Math.floor(diffMs / 3600000);
-        const diffMins = Math.round(((diffMs % 3600000) / 60000));
-
-        resultText.innerHTML = `<span class="text-red-500">TERLAMBAT ${diffHrs}J ${diffMins}M</span>`;
-        statusInput.value = 'Terlambat';
-        reasonBox.classList.remove('hidden'); // Tampilkan pilihan alasan
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
         
-        // Getar HP tanda bahaya
+        if(resultText) resultText.innerHTML = `<span class="text-red-500">TERLAMBAT ${diffHrs}J ${diffMins}M</span>`;
+        
+        // Update Hidden Input & Dropdown
+        if(hiddenInput) hiddenInput.value = 'Terlambat';
+        if(dropdown) dropdown.value = 'Terlambat';
+        
+        // Munculkan Input Alasan
+        if(reasonBox) reasonBox.classList.remove('hidden');
+        
+        // Efek Getar HP
         if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        
     } else {
-        resultText.innerHTML = `<span class="text-emerald-500">TEPAT WAKTU ✅</span>`;
-        statusInput.value = 'Tepat Waktu';
-        reasonBox.classList.add('hidden'); // Sembunyikan alasan
+        // Tepat Waktu
+        if(resultText) resultText.innerHTML = `<span class="text-emerald-500">TEPAT WAKTU (AMAN) ✅</span>`;
+        
+        if(hiddenInput) hiddenInput.value = 'Tepat Waktu';
+        if(dropdown) dropdown.value = 'Tepat Waktu';
+        
+        // Sembunyikan Input Alasan
+        if(reasonBox) reasonBox.classList.add('hidden');
         
         if(navigator.vibrate) navigator.vibrate(50);
     }
