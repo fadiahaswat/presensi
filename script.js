@@ -2248,15 +2248,6 @@ window.deletePermit = function(id) {
     window.updateDashboard();
 };
 
-window.checkActivePermit = function(nis, dateStr, slotId) {
-    return appState.permits.find(p => {
-        const isDateMatch = dateStr >= p.start && dateStr <= p.end;
-        const isSlotMatch = p.session === 'all' || p.session === slotId;
-        const isNisMatch = p.nis === String(nis);
-        return isNisMatch && isDateMatch && isSlotMatch;
-    });
-};
-
 window.renderPermitList = function() {
     const container = document.getElementById('permit-list-container');
     container.innerHTML = '';
