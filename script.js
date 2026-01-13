@@ -3062,199 +3062,207 @@ window.checkScheduledNotifications = function() {
 // FITUR GESTURE (SWIPE & HOLD) - ENHANCED
 // ==========================================
 
+// ==========================================
+// iOS STYLE GESTURE (SWIPE & HOLD)
+// ==========================================
+
 window.enableSwipeAndHold = function(element, studentId) {
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
     let holdTimer = null;
-    let isHolding = false; // Flag apakah aksi hold sudah tereksekusi
-    
-    // Konfigurasi Sensitivitas
-    const threshold = 100; // Jarak minimal geser untuk aksi (pixel)
-    const maxDrag = 150;   // Jarak maksimal visual geser (agar tidak bablas)
+    let isHolding = false;
+    let hasVibrated = false; // Mencegah getar berulang
 
-    // 1. Siapkan Layer Background Dinamis
+    // Thresholds
+    const ACTION_THRESHOLD = 85; // Jarak geser untuk trigger (px)
+    const FULL_SWIPE_THRESHOLD = 200; // Jarak geser penuh (px)
+
+    // 1. Setup Layer Belakang
     let bgLayer = element.parentElement.querySelector('.swipe-bg-layer');
-    
-    // Kita reset konten bgLayer agar ikonnya baru & segar
     if (!bgLayer) {
         bgLayer = document.createElement('div');
         bgLayer.className = 'swipe-bg-layer';
         element.parentElement.insertBefore(bgLayer, element);
     }
-    
-    // Masukkan Ikon Kiri (Sakit) & Kanan (Alpa)
+
+    // Masukkan Ikon Kiri & Kanan
     bgLayer.innerHTML = `
-        <div class="swipe-icon-wrapper icon-left text-amber-100">
+        <div class="swipe-icon-container icon-left">
             <i data-lucide="thermometer"></i>
             <span>SAKIT</span>
         </div>
-        <div class="swipe-icon-wrapper icon-right text-rose-100">
+        <div class="swipe-icon-container icon-right">
             <i data-lucide="x-circle"></i>
             <span>ALPA</span>
         </div>
     `;
     
-    // Cache referensi elemen ikon untuk performa
-    const iconLeft = bgLayer.querySelector('.icon-left');   // Untuk Swipe ke Kanan (Muncul di kiri)
-    const iconRight = bgLayer.querySelector('.icon-right'); // Untuk Swipe ke Kiri (Muncul di kanan)
+    // Cache Elements
+    const iconLeft = bgLayer.querySelector('.icon-left');
+    const iconRight = bgLayer.querySelector('.icon-right');
 
-    // --- EVENT: TOUCH START ---
+    // --- TOUCH START ---
     element.addEventListener('touchstart', (e) => {
-        // Abaikan jika menyentuh tombol/input
+        // Ignore buttons/inputs
         if (e.target.closest('button') || e.target.closest('input')) return;
 
         startX = e.touches[0].clientX;
         isDragging = true;
         isHolding = false;
+        hasVibrated = false;
         
-        // Matikan transisi CSS saat dragging agar responsif mengikuti jari (1:1)
-        element.style.transition = 'none';
+        element.style.transition = 'none'; // Direct tracking
+        element.classList.add('is-pressing'); // Efek tekan
 
-        // Efek Pressing (Mengecil)
-        element.classList.add('is-pressing');
-
-        // Timer Hold (Tekan Lama)
+        // Timer Hold (Haptic Touch)
         holdTimer = setTimeout(() => {
-            if (!isDragging) return; // Batal jika user sudah menggeser
+            if (!isDragging || Math.abs(currentX - startX) > 10) return;
             
             isHolding = true;
-            isDragging = false; // Stop logic drag
+            isDragging = false;
             
-            // Efek Visual Trigger
+            // Trigger Visual
             element.classList.remove('is-pressing');
-            element.classList.add('holding-trigger');
+            if (navigator.vibrate) navigator.vibrate(50); // Haptic Pop
             
-            // Getaran HP
-            if (navigator.vibrate) navigator.vibrate(50);
+            // Animasi 'Pop' kecil
+            element.animate([
+                { transform: 'scale(0.95)' },
+                { transform: 'scale(1.02)' },
+                { transform: 'scale(1)' }
+            ], { duration: 300, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' });
 
-            // Eksekusi Aksi HOLD (IZIN)
+            // Action
             setTimeout(() => {
-                const note = prompt("📝 Masukkan Keterangan IZIN:");
-                
-                // Bersihkan efek visual
-                element.classList.remove('holding-trigger');
-                
-                if (note !== null) {
-                    window.quickUpdateStatus(studentId, 'Izin', note || 'Izin (Manual)');
-                }
+                const note = prompt("📝 Keterangan IZIN:");
+                if (note !== null) window.quickUpdateStatus(studentId, 'Izin', note || 'Izin');
             }, 100);
-        }, 600); // Waktu tekan: 600ms (lebih cepat dari sebelumnya biar responsif)
+        }, 500); // 500ms standar iOS
 
     }, { passive: true });
 
-    // --- EVENT: TOUCH MOVE ---
+    // --- TOUCH MOVE ---
     element.addEventListener('touchmove', (e) => {
         if (!isDragging || isHolding) return;
         
         currentX = e.touches[0].clientX;
         const diff = currentX - startX;
 
-        // Jika jari bergerak > 10px, batalkan Hold
+        // Cancel Hold if moving
         if (Math.abs(diff) > 10) {
             clearTimeout(holdTimer);
-            element.classList.remove('is-pressing'); // Batalkan efek tekan
+            element.classList.remove('is-pressing');
         }
 
-        // Hitung Progress Geser (0.0 sampai 1.0)
-        // Kita gunakan rumus logaritmik agar geseran terasa "berat" saat makin jauh (Elastic)
-        const resistance = 0.5; // Faktor pemberat
-        const translateX = diff * resistance; // Geser kartu lebih pelan dari jari
-        
-        // Batasi geseran visual maksimal
-        const clampedTranslate = Math.max(Math.min(translateX, maxDrag), -maxDrag);
-        
-        element.style.transform = `translateX(${clampedTranslate}px)`;
+        // Logic Resistance (Karet Gelang)
+        // Semakin jauh, semakin berat ditarik
+        const resistance = 1 - Math.min(Math.abs(diff) / 1000, 0.5); 
+        const translateX = diff * resistance; // Smooth drag
 
-        // Logika Visual Background & Ikon
-        const progress = Math.min(Math.abs(diff) / threshold, 1); // 0 -> 1
-        
+        element.style.transform = `translateX(${translateX}px)`;
+
+        // --- UPDATE VISUAL BACKGROUND ---
         if (diff > 0) {
-            // ---> GESER KANAN (SAKIT)
-            bgLayer.style.backgroundColor = `rgba(245, 158, 11, ${progress})`; // Amber
+            // ---> SWIPE KANAN (SAKIT - ORANGE)
+            bgLayer.style.backgroundColor = '#FF9500'; // iOS Orange
+            bgLayer.style.justifyContent = 'flex-start'; // Icon di kiri
             
-            // Animasi Ikon: Muncul, Membesar, dan Berputar sedikit
+            // Reveal Logic
+            const progress = Math.min(diff / ACTION_THRESHOLD, 1);
+            
             iconLeft.style.opacity = progress;
-            iconLeft.style.transform = `scale(${0.5 + (progress * 0.7)})`; // 0.5 -> 1.2
-            
-            iconRight.style.opacity = '0'; // Sembunyikan lawan
+            iconLeft.style.transform = `scale(${0.5 + (progress * 0.5)})`; // Scale up
+            iconRight.style.opacity = '0';
+
+            // Haptic Snap saat lewat threshold
+            if (diff > ACTION_THRESHOLD && !hasVibrated) {
+                if (navigator.vibrate) navigator.vibrate(15); // Light tick
+                hasVibrated = true;
+            } else if (diff < ACTION_THRESHOLD) {
+                hasVibrated = false;
+            }
 
         } else {
-            // <--- GESER KIRI (ALPA)
-            bgLayer.style.backgroundColor = `rgba(244, 63, 94, ${progress})`; // Rose
+            // <--- SWIPE KIRI (ALPA - MERAH)
+            bgLayer.style.backgroundColor = '#FF3B30'; // iOS Red
+            bgLayer.style.justifyContent = 'flex-end'; // Icon di kanan
             
-            // Animasi Ikon
+            const progress = Math.min(Math.abs(diff) / ACTION_THRESHOLD, 1);
+            
             iconRight.style.opacity = progress;
-            iconRight.style.transform = `scale(${0.5 + (progress * 0.7)})`;
-            
+            iconRight.style.transform = `scale(${0.5 + (progress * 0.5)})`;
             iconLeft.style.opacity = '0';
+
+            if (Math.abs(diff) > ACTION_THRESHOLD && !hasVibrated) {
+                if (navigator.vibrate) navigator.vibrate(15);
+                hasVibrated = true;
+            } else if (Math.abs(diff) < ACTION_THRESHOLD) {
+                hasVibrated = false;
+            }
         }
 
     }, { passive: true });
 
-    // --- EVENT: TOUCH END ---
+    // --- TOUCH END ---
     element.addEventListener('touchend', (e) => {
         if (!isDragging) return;
-        
         isDragging = false;
         clearTimeout(holdTimer);
-        
-        // Kembalikan Style
         element.classList.remove('is-pressing');
-        element.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; // Efek membal (bouncy) saat lepas
         
+        // Kembalikan animasi pegas
+        element.style.transition = 'transform 0.5s cubic-bezier(0.32, 0.72, 0, 1)';
+
         const diff = currentX - startX;
 
-        // Cek Threshold Aksi
-        if (diff > threshold) {
-            // --- AKSI: SAKIT (KANAN) ---
-            // Lempar kartu ke kanan habis
-            element.style.transform = `translateX(${window.innerWidth}px)`;
+        // EKSEKUSI AKSI
+        if (diff > ACTION_THRESHOLD) {
+            // SAKIT (KANAN)
+            element.style.transform = `translateX(${window.innerWidth}px)`; // Fly away
             
             setTimeout(() => {
-                const note = prompt("🤒 Masukkan Keterangan SAKIT:");
+                const note = prompt("🤒 Keterangan SAKIT:");
                 if (note !== null) {
-                    window.quickUpdateStatus(studentId, 'Sakit', note || 'Sakit (Manual)');
+                    window.quickUpdateStatus(studentId, 'Sakit', note || 'Sakit');
                 } else {
                     resetPosition(); // Batal
                 }
             }, 200);
 
-        } else if (diff < -threshold) {
-            // --- AKSI: ALPA (KIRI) ---
-            // Lempar kartu ke kiri habis
-            element.style.transform = `translateX(-${window.innerWidth}px)`;
+        } else if (diff < -ACTION_THRESHOLD) {
+            // ALPA (KIRI)
+            element.style.transform = `translateX(-${window.innerWidth}px)`; // Fly away
             
-            // Getar Peringatan
-            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+            // Getar lebih kuat untuk Alpa (Bahaya)
+            if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
 
             setTimeout(() => {
-                if(confirm(`❌ Tandai ALPA untuk santri ini?`)) {
+                if(confirm("❌ Tandai ALPA?")) {
                     window.quickUpdateStatus(studentId, 'Alpa', '');
                 } else {
                     resetPosition();
                 }
-            }, 100);
+            }, 200);
 
         } else {
-            // Batal (Geser tidak cukup jauh) -> Balik ke tengah
+            // BATAL (Balik ke posisi awal)
             resetPosition();
         }
     });
 
     function resetPosition() {
         element.style.transform = 'translateX(0)';
-        // Reset background pelan-pelan
+        // Hilangkan icon pelan-pelan
         setTimeout(() => {
-            bgLayer.style.backgroundColor = 'transparent';
             iconLeft.style.opacity = '0';
             iconRight.style.opacity = '0';
-        }, 200);
+        }, 300);
     }
     
-    // Inisialisasi Icon Lucide di dalam layer baru
     if(window.lucide) window.lucide.createIcons();
 };
+
 
 // Fungsi Eksekusi Update Status Cepat
 window.quickUpdateStatus = function(studentId, statusType, noteText) {
