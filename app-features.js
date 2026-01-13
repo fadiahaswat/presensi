@@ -3028,6 +3028,61 @@ let hcState = {
     filter: 'all' // all, Pulang, Mukim
 };
 
+// Helper function to check if student is currently "Pulang"
+window.isStudentPulang = function(studentId, dateKey) {
+    // Check if there's an active homecoming event
+    if (!hcState.activeEvent) return false;
+    
+    // Check if the date is within the homecoming event period
+    const checkDate = new Date(dateKey);
+    const startDate = new Date(hcState.activeEvent.start_date);
+    const endDate = new Date(hcState.activeEvent.end_date);
+    
+    // If current date is not within event period, return false
+    if (checkDate < startDate || checkDate > endDate) return false;
+    
+    // Check student's homecoming status
+    const log = hcState.logs[studentId];
+    return log && log.status === 'Pulang';
+};
+
+// Load homecoming data in background (called at app startup)
+window.loadHomecomingData = async function() {
+    try {
+        // A. Ambil Event Aktif
+        const { data: events } = await dbClient
+            .from('homecoming_events')
+            .select('*')
+            .eq('is_active', true)
+            .limit(1);
+            
+        if(!events || events.length === 0) {
+            hcState.activeEvent = null;
+            hcState.logs = {};
+            return;
+        }
+        
+        hcState.activeEvent = events[0];
+
+        // B. Ambil Data Logs
+        const { data: logs } = await dbClient
+            .from('homecoming_logs')
+            .select('*')
+            .eq('event_id', hcState.activeEvent.id);
+            
+        hcState.logs = {};
+        if(logs) {
+            logs.forEach(log => {
+                hcState.logs[log.student_id] = log;
+            });
+        }
+    } catch (e) {
+        console.error("Error loading homecoming data:", e);
+        hcState.activeEvent = null;
+        hcState.logs = {};
+    }
+};
+
 // 1. Buka Modal & Load Data
 /* =========================================
    FITUR PERPULANGAN (VIEW MODE)
@@ -3045,54 +3100,29 @@ window.openHomecomingView = async function() {
     document.getElementById('hc-view-title').textContent = "Memuat...";
     document.getElementById('hc-list-container').innerHTML = getSkeletonHTML(5); // Pakai skeleton yang sudah ada
     
-    try {
-        // A. Ambil Event Aktif
-        const { data: events } = await dbClient
-            .from('homecoming_events')
-            .select('*')
-            .eq('is_active', true)
-            .limit(1);
-            
-        if(!events || events.length === 0) {
-            document.getElementById('hc-view-title').textContent = "Tidak Ada Event";
-            document.getElementById('hc-view-date').textContent = "-";
-            document.getElementById('hc-list-container').innerHTML = `
-                <div class="text-center py-12">
-                    <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i data-lucide="calendar-off" class="w-8 h-8 text-slate-300"></i>
-                    </div>
-                    <p class="text-sm font-bold text-slate-400">Belum ada jadwal perpulangan aktif.</p>
-                    <button onclick="window.manageEvents()" class="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold">Buat Jadwal</button>
-                </div>`;
-            if(window.lucide) window.lucide.createIcons();
-            return;
-        }
-        
-        hcState.activeEvent = events[0];
-        document.getElementById('hc-view-title').textContent = hcState.activeEvent.title;
-        document.getElementById('hc-view-date').textContent = `${window.formatDate(hcState.activeEvent.start_date)} - ${window.formatDate(hcState.activeEvent.end_date)}`;
-
-        // B. Ambil Data Logs
-        const { data: logs } = await dbClient
-            .from('homecoming_logs')
-            .select('*')
-            .eq('event_id', hcState.activeEvent.id);
-            
-        hcState.logs = {};
-        if(logs) {
-            logs.forEach(log => {
-                hcState.logs[log.student_id] = log;
-            });
-        }
-
-        // C. Render List
-        window.renderHomecomingList();
-
-    } catch (e) {
-        console.error(e);
-        window.showToast("Gagal memuat data", "error");
-        document.getElementById('hc-view-title').textContent = "Error";
+    // Reload fresh data
+    await window.loadHomecomingData();
+    
+    if(!hcState.activeEvent) {
+        document.getElementById('hc-view-title').textContent = "Tidak Ada Event";
+        document.getElementById('hc-view-date').textContent = "-";
+        document.getElementById('hc-list-container').innerHTML = `
+            <div class="text-center py-12">
+                <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="calendar-off" class="w-8 h-8 text-slate-300"></i>
+                </div>
+                <p class="text-sm font-bold text-slate-400">Belum ada jadwal perpulangan aktif.</p>
+                <button onclick="window.manageEvents()" class="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold">Buat Jadwal</button>
+            </div>`;
+        if(window.lucide) window.lucide.createIcons();
+        return;
     }
+    
+    document.getElementById('hc-view-title').textContent = hcState.activeEvent.title;
+    document.getElementById('hc-view-date').textContent = `${window.formatDate(hcState.activeEvent.start_date)} - ${window.formatDate(hcState.activeEvent.end_date)}`;
+
+    // C. Render List
+    window.renderHomecomingList();
 };
 
 // 2. Tutup View (Kembali ke Dashboard)

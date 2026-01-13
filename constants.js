@@ -79,5 +79,6 @@ window.STATUS_UI = {
     'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
     'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
     'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
+    'Pulang': { class: 'bg-indigo-100 text-indigo-600 border-indigo-300', label: 'P' },
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };

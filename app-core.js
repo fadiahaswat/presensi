@@ -86,6 +86,9 @@ window.initApp = async function() {
                 // F. [BARU] SINKRONISASI DATA DARI CLOUD!
                 // Ini kuncinya: Begitu masuk, langsung tarik data terbaru dari Supabase
                 window.fetchAttendanceFromSupabase(); 
+                
+                // G. Load homecoming data in background
+                if(window.loadHomecomingData) window.loadHomecomingData();
 
                 setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
 
@@ -222,6 +225,8 @@ window.handleGoogleCallback = function(response) {
         window.updateProfileInfo();
         // [BARU] Tarik data Supabase saat login sukses
         window.fetchAttendanceFromSupabase();
+        // Load homecoming data
+        if(window.loadHomecomingData) window.loadHomecomingData();
         window.showToast("Login Berhasil!", "success");
 
     } catch (e) {
@@ -680,6 +685,9 @@ window.renderAttendanceList = function() {
         // --- LOGIKA PERIZINAN OTOMATIS ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
+        // --- LOGIKA PERPULANGAN (HOMECOMING) ---
+        const isPulang = window.isStudentPulang && window.isStudentPulang(id, dateKey);
+        
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -694,10 +702,23 @@ window.renderAttendanceList = function() {
 
         slot.activities.forEach(act => {
             let targetStatus = null;
+            
+            // Priority 1: Active permit (Sakit/Izin)
             if (activePermit) {
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
-            } else if (isAutoMarked) {
+            } 
+            // Priority 2: Pulang status
+            else if (isPulang) {
+                // For mandatory activities (fardu/kbm), set to 'Pulang'
+                if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Pulang';
+                // For dependent activities (qabliyah, ba'diyah, dzikir), set to 'Pulang'
+                else if (act.category === 'dependent') targetStatus = 'Pulang';
+                // For optional activities (sunnah), set to 'Tidak' (strip)
+                else if (act.category === 'sunnah') targetStatus = 'Tidak';
+            }
+            // Priority 3: Previously auto-marked (reset to default)
+            else if (isAutoMarked) {
                 if (act.category === 'sunnah') targetStatus = 'Tidak';
                 else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
                 else targetStatus = 'Ya';
@@ -709,8 +730,15 @@ window.renderAttendanceList = function() {
             }
         });
 
+        // Update auto-note
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
+            if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
+                sData.note = autoNote;
+                hasAutoChanges = true;
+            }
+        } else if (isPulang) {
+            const autoNote = `[Auto] Pulang`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
@@ -740,6 +768,17 @@ window.renderAttendanceList = function() {
                 if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
                 else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
             }
+        } else if (isPulang) {
+            const nameEl = clone.querySelector('.santri-name');
+            const badge = document.createElement('span');
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.textContent = 'Pulang';
+            nameEl.appendChild(badge);
+            
+            // Visual highlight baris
+            if(rowElement) {
+                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+            }
         }
 
         const btnCont = clone.querySelector('.activity-container');
@@ -760,6 +799,8 @@ window.renderAttendanceList = function() {
 
             if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
                 btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+            } else if (isPulang && (curr === 'Pulang' || curr === 'Tidak')) {
+                btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400');
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
@@ -799,7 +840,8 @@ window.toggleStatus = function(id, actId, type) {
     if(type === 'mandator') {
         if(curr === 'Hadir') next = 'Sakit';
         else if(curr === 'Sakit') next = 'Izin';
-        else if(curr === 'Izin') next = 'Alpa';
+        else if(curr === 'Izin') next = 'Pulang';
+        else if(curr === 'Pulang') next = 'Alpa';
         else next = 'Hadir';
     } else {
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
@@ -811,20 +853,20 @@ window.toggleStatus = function(id, actId, type) {
     // 2. LOGIKA DEPENDENCY (Jika Shalat Berubah)
     if(actId === 'shalat') {
         const activities = SLOT_WAKTU[slotId].activities;
-        const isNonHadir = ['Sakit', 'Izin', 'Alpa'].includes(next);
+        const isNonHadir = ['Sakit', 'Izin', 'Alpa', 'Pulang'].includes(next);
 
         activities.forEach(act => {
             if (act.id === 'shalat') return; // Skip diri sendiri
 
-            // KASUS A: Shalat jadi S/I/A (Tidak Hadir)
-            // Semua kegiatan lain ikut "Sakit/Izin" atau "Tidak"
+            // KASUS A: Shalat jadi S/I/P/A (Tidak Hadir)
+            // Semua kegiatan lain ikut "Sakit/Izin/Pulang" atau "Tidak"
             if (isNonHadir) {
-                if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/A
-                else sData.status[act.id] = 'Tidak'; // Sunnah/Dependent jadi Strip (-)
+                if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/P/A
+                else if(act.category === 'dependent' && next === 'Pulang') sData.status[act.id] = 'Pulang'; // Rawatib ikut Pulang
+                else sData.status[act.id] = 'Tidak'; // Sunnah jadi Strip (-)
             } 
             
             // KASUS B: Shalat kembali jadi H (Hadir)
-            // --- PERBAIKAN DISINI ---
             else if (next === 'Hadir') {
                 // 1. KBM (Wajib) -> Kembali ke Hadir
                 if (act.category === 'kbm' || act.category === 'fardu') {
