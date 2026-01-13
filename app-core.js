@@ -767,7 +767,7 @@ window.renderAttendanceList = function() {
             if (activePermit.illness_type) {
                 permitDetail = ` (${activePermit.illness_type})`;
             } else if (activePermit.event_name) {
-                permitDetail = ` - ${activePermit.event_name}`;
+                permitDetail = ` (${activePermit.event_name})`;
             } else if (activePermit.reason) {
                 permitDetail = ` (${activePermit.reason})`;
             }

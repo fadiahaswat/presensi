@@ -2283,6 +2283,10 @@ window.filterPermitViewSantri = function(val) {
 };
 
 window.toggleAllPermitViewSantri = function(checked) {
+    if (typeof checked !== 'boolean') {
+        console.error('toggleAllPermitViewSantri: checked parameter must be a boolean');
+        return;
+    }
     const checkboxes = document.querySelectorAll('input[name="permit_view_santri_select"]');
     checkboxes.forEach(cb => cb.checked = checked);
 };
@@ -2312,7 +2316,7 @@ window.savePermitFromView = function() {
         if(!reason) return window.showToast("Alasan izin harus diisi", "warning");
     } else if (type === 'Pulang') {
         if(!end) return window.showToast("Sampai tanggal harus diisi untuk Pulang", "warning");
-        if(!endTime) return window.showToast("Sampai jam harus diisi untuk Pulang", "warning");
+        if(!endTime) return window.showToast("Jam akhir kepulangan harus diisi untuk tipe Pulang", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
         if(!eventName) return window.showToast("Nama event perpulangan harus diisi", "warning");
     }
@@ -4295,7 +4299,17 @@ window.loadHomecomingData = async function() {
 window.openHomecomingView = async function() {
     // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
     console.warn('openHomecomingView is deprecated. Use openPermitView with type "Pulang" instead.');
-    window.showToast("Perpulangan sekarang dikelola melalui Input Perizinan dengan memilih tipe 'Pulang'", "info");
+    window.showToast("Perpulangan sekarang dikelola melalui Input Perizinan", "info");
+    
+    // Redirect to Permit View and pre-select Pulang
+    window.openPermitView();
+    setTimeout(() => {
+        const typeSelect = document.getElementById('permit-view-type');
+        if (typeSelect) {
+            typeSelect.value = 'Pulang';
+            window.togglePermitViewFields();
+        }
+    }, 100);
     return;
     
     if(!appState.selectedClass) return window.showToast("Pilih kelas dulu!", "warning");
