@@ -3317,11 +3317,6 @@ window.saveHcStudent = async function() {
     }
 };
 
-window.syncHomecoming = function() {
-    window.openHomecomingModal(); // Refresh data dari server
-    window.showToast("Data disinkronkan", "info");
-};
-
 // ==========================================
 // MANAJEMEN EVENT (PERBAIKAN FULL)
 // ==========================================
