@@ -327,31 +327,13 @@
                          </div>
                          <div class="text-left">
                              <h4 class="font-black text-slate-800 dark:text-white text-base leading-tight">Input Perizinan</h4>
-                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Sakit, Pulang, atau Izin dengan jangka waktu</p>
+                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Sakit, Izin, atau Pulang</p>
                          </div>
                     </div>
                     <div class="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
                         <i data-lucide="arrow-right" class="w-5 h-5"></i>
                     </div>
                </button>
-            </div>
-
-            <div class="animate-slide-up mb-4" style="animation-delay: 0.3s">
-                <button onclick="window.openHomecomingView()" class="w-full p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group relative overflow-hidden">
-                    <div class="absolute left-0 top-0 w-1 h-full bg-indigo-500"></div>
-                    <div class="flex items-center gap-4">
-                         <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                             <i data-lucide="bus" class="w-6 h-6"></i>
-                         </div>
-                         <div class="text-left">
-                             <h4 class="font-black text-slate-800 dark:text-white text-base leading-tight">Perpulangan Santri</h4>
-                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Input data santri pulang dengan durasi</p>
-                         </div>
-                    </div>
-                    <div class="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
-                    </div>
-                </button>
             </div>
 
             <!-- Quick Stats Grid -->
@@ -884,7 +866,7 @@
             
             <div class="text-center">
                 <p class="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">Manajemen</p>
-                <h2 class="text-lg font-black text-slate-800 dark:text-white leading-none">Perizinan & Sakit</h2>
+                <h2 class="text-lg font-black text-slate-800 dark:text-white leading-none">Perizinan</h2>
             </div>
 
             <div class="w-10 h-10"></div>
@@ -905,6 +887,7 @@
                             <select id="permit-view-type" onchange="window.togglePermitViewFields()" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                                 <option value="Sakit">Sakit</option>
                                 <option value="Izin">Izin</option>
+                                <option value="Pulang">Pulang</option>
                             </select>
                         </div>
                         <div>
@@ -951,21 +934,49 @@
                         </datalist>
                     </div>
 
+                    <!-- Pulang Fields (shown when Pulang is selected) -->
+                    <div id="permit-view-pulang-container" class="hidden space-y-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sesi Pulang</label>
+                            <select id="permit-view-pulang-session" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                                <option value="all">Full Seharian</option>
+                                <option value="shubuh">Shubuh</option>
+                                <option value="ashar">Ashar</option>
+                                <option value="maghrib">Maghrib</option>
+                                <option value="isya">Isya</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Nama Event Perpulangan</label>
+                            <input type="text" id="permit-view-event-name" placeholder="Contoh: Liburan Maulid, Liburan Semester..." class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+
                     <div class="grid gap-3">
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai</label>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai Tanggal</label>
                                 <input type="date" id="permit-view-start" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                             </div>
                             <div id="permit-view-end-container">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai</label>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai Tanggal</label>
                                 <input type="date" id="permit-view-end" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                             </div>
+                        </div>
+                        <div id="permit-view-end-time-container" class="hidden">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai Jam</label>
+                            <input type="time" id="permit-view-end-time" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                         </div>
                     </div>
 
                     <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Pilih Santri</label>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pilih Anak</label>
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" id="permit-view-select-all" onchange="window.toggleAllPermitViewSantri(this.checked)" class="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500">
+                                <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Pilih Semua</span>
+                            </label>
+                        </div>
                         <input type="text" id="permit-view-search" onkeyup="window.filterPermitViewSantri(this.value)" placeholder="Cari nama santri..." class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500 mb-2">
                         <div id="permit-view-santri-list" class="max-h-48 overflow-y-auto space-y-1 p-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
                             <!-- Populated by JS -->
