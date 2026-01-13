@@ -757,8 +757,33 @@ window.renderAttendanceList = function() {
 
         // Update auto-note di renderAttendanceList
         if (activePermit) {
-            const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
-            if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
+            // Build auto-note with illness/reason if available
+            let permitDetail = '';
+            if (activePermit.illness_type) {
+                permitDetail = ` (${activePermit.illness_type})`;
+            } else if (activePermit.reason) {
+                permitDetail = ` (${activePermit.reason})`;
+            }
+            
+            // Handle different statuses
+            let autoNote = '';
+            if (activePermit.type === 'Sakit') {
+                if (activePermit.status === 'Sakit') {
+                    autoNote = `[Auto] Sakit sejak ${window.formatDate(activePermit.start_date || activePermit.start).split(',')[1]}${permitDetail}`;
+                } else if (activePermit.status === 'Sembuh' && activePermit.recovered_date) {
+                    autoNote = `[Auto] Sembuh mulai ${window.formatDate(activePermit.recovered_date).split(',')[1]}`;
+                }
+            } else {
+                // Izin
+                const endDate = activePermit.end_date || activePermit.end;
+                if (activePermit.status === 'Alpa') {
+                    autoNote = `[Auto] Alpa (Izin s/d ${window.formatDate(endDate).split(',')[1]} terlampaui)${permitDetail}`;
+                } else {
+                    autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(endDate).split(',')[1]}${permitDetail}`;
+                }
+            }
+            
+            if (autoNote && (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote))) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
             }
