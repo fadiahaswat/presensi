@@ -868,15 +868,13 @@ window.renderAttendanceList = function() {
     
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const dateKey = appState.date;
-    const currentDay = new Date(appState.date).getDay(); // 0-6
+    const currentDay = new Date(appState.date).getDay();
 
-    // Ensure Structure Exists
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
-    
-    let hasAutoChanges = false; // Flag untuk auto-save
+    let hasAutoChanges = false;
 
     // Filter Logic
     const search = appState.searchQuery.toLowerCase();
@@ -901,7 +899,6 @@ window.renderAttendanceList = function() {
         // --- LOGIKA PERIZINAN OTOMATIS ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
-        // Init Empty Data
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -914,7 +911,6 @@ window.renderAttendanceList = function() {
         const sData = dbSlot[id];
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
-        // LOGIKA BARU UNTUK MENENTUKAN STATUS TARGET
         slot.activities.forEach(act => {
             let targetStatus = null;
             if (activePermit) {
@@ -932,7 +928,6 @@ window.renderAttendanceList = function() {
             }
         });
 
-        // Update Note
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
@@ -944,15 +939,10 @@ window.renderAttendanceList = function() {
             hasAutoChanges = true;
         }
 
-        // Render UI Baris
+        // Render UI Baris (Standar)
         const clone = tplRow.content.cloneNode(true);
-        const rowElement = clone.querySelector('.santri-row'); // Ambil elemen kartu
+        const rowElement = clone.querySelector('.santri-row'); // Ambil element untuk styling
 
-        // --- SIAPKAN WRAPPER ---
-        const wrapper = document.createElement('div');
-        wrapper.className = 'swipe-wrapper mb-3'; 
-        
-        // --- ISI DATA KE KARTU (SEBELUM DIPINDAH KE WRAPPER) ---
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
@@ -964,6 +954,7 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
+            // Visual highlight baris (optional)
             if(rowElement) {
                 if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
                 else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
@@ -1003,20 +994,12 @@ window.renderAttendanceList = function() {
         };
         clone.querySelector('.btn-edit-note').onclick = () => noteBox.classList.toggle('hidden');
 
-        // --- PENTING: URUTAN INI JANGAN DITUKAR ---
-        // 1. Masukkan kartu ke wrapper dulu
-        wrapper.appendChild(clone); 
-        
-        // 2. BARU aktifkan swipe (karena sekarang rowElement sudah punya parent yaitu wrapper)
-        window.enableSwipeAndHold(rowElement, id);
-        
-        // 3. Masukkan wrapper ke list utama
-        fragment.appendChild(wrapper); 
+        // Langsung append clone (Tanpa Wrapper Swipe)
+        fragment.appendChild(clone);
     });
 
     container.appendChild(fragment);
     
-    // Auto-Save jika ada perubahan status otomatis
     if(hasAutoChanges) {
         window.saveData(); 
     }
