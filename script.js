@@ -3349,5 +3349,84 @@ window.resetEventForm = function() {
     document.getElementById('evt-deadline').value = '';
 };
 
+// ==========================================
+// LOGIKA KEDATANGAN OTOMATIS
+// ==========================================
+
+window.checkArrivalAuto = function() {
+    if (!hcState.activeEvent) return;
+
+    // 1. Ambil Waktu Sekarang
+    const now = new Date();
+    
+    // 2. Ambil Waktu Deadline dari Event
+    // Format: Tanggal Akhir (YYYY-MM-DD) + Jam Deadline (HH:MM:SS)
+    const deadlineStr = `${hcState.activeEvent.end_date}T${hcState.activeEvent.deadline_time}`;
+    const deadline = new Date(deadlineStr);
+
+    // 3. Bandingkan
+    const isLate = now > deadline;
+    
+    // 4. Update UI Hasil
+    const resultBox = document.getElementById('hc-auto-result');
+    const resultText = document.getElementById('hc-result-text');
+    const reasonBox = document.getElementById('hc-late-reason-box');
+    const statusInput = document.getElementById('hc-final-status');
+
+    resultBox.classList.remove('hidden');
+    
+    if (isLate) {
+        // HITUNG SELISIH WAKTU
+        const diffMs = now - deadline;
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.round(((diffMs % 3600000) / 60000));
+
+        resultText.innerHTML = `<span class="text-red-500">TERLAMBAT ${diffHrs}J ${diffMins}M</span>`;
+        statusInput.value = 'Terlambat';
+        reasonBox.classList.remove('hidden'); // Tampilkan pilihan alasan
+        
+        // Getar HP tanda bahaya
+        if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    } else {
+        resultText.innerHTML = `<span class="text-emerald-500">TEPAT WAKTU ✅</span>`;
+        statusInput.value = 'Tepat Waktu';
+        reasonBox.classList.add('hidden'); // Sembunyikan alasan
+        
+        if(navigator.vibrate) navigator.vibrate(50);
+    }
+};
+
+// Update Fungsi Save Existing untuk Handle Auto Status
+const originalSaveHc = window.saveHcStudent;
+
+window.saveHcStudent = async function() {
+    const status = document.getElementById('hc-edit-status').value;
+    
+    // Jika statusnya PULANG, kita ambil data dari hasil scan otomatis
+    if (status === 'Pulang') {
+        const finalStatus = document.getElementById('hc-final-status').value;
+        const arrivalInput = document.getElementById('hc-edit-arrival');
+        
+        // Jika user sudah klik scan, pakai hasil scan
+        if (finalStatus) {
+            arrivalInput.value = finalStatus; 
+            
+            // Jika terlambat, tambahkan catatan alasan ke database
+            if(finalStatus === 'Terlambat') {
+                const reason = document.getElementById('hc-late-reason').value;
+                // Kita simpan alasan ini (perlu kolom catatan di DB, atau gabung ke kota_tujuan sementara jika malas ubah DB)
+                // Idealnya update DB structure: alter table homecoming_logs add column catatan text;
+                // Disini kita simpan ke object logs local dulu
+                const studentId = document.getElementById('hc-edit-id').value;
+                if(!hcState.logs[studentId]) hcState.logs[studentId] = {};
+                hcState.logs[studentId].catatan = reason; 
+            }
+        }
+    }
+    
+    // Panggil fungsi simpan asli
+    await originalSaveHc();
+};
+
 // Start App
 window.onload = window.initApp;
