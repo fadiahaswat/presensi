@@ -3048,14 +3048,21 @@ let hcState = {
 };
 
 // 1. Buka Modal & Load Data
-window.openHomecomingModal = async function() {
+/* =========================================
+   FITUR PERPULANGAN (VIEW MODE)
+   ========================================= */
+
+// 1. Buka View Halaman Penuh
+window.openHomecomingView = async function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas dulu!", "warning");
     
-    const modal = document.getElementById('modal-homecoming');
-    if(modal) modal.classList.remove('hidden');
+    // Ganti View (Main -> Homecoming)
+    document.getElementById('view-main').classList.add('hidden');
+    document.getElementById('view-homecoming').classList.remove('hidden');
     
-    // Tampilkan Loading
-    document.getElementById('hc-modal-title').textContent = "Memuat Data...";
+    // Reset/Loading State
+    document.getElementById('hc-view-title').textContent = "Memuat...";
+    document.getElementById('hc-list-container').innerHTML = getSkeletonHTML(5); // Pakai skeleton yang sudah ada
     
     try {
         // A. Ambil Event Aktif
@@ -3066,16 +3073,25 @@ window.openHomecomingModal = async function() {
             .limit(1);
             
         if(!events || events.length === 0) {
-            document.getElementById('hc-modal-title').textContent = "Tidak ada Event";
-            document.getElementById('hc-list-container').innerHTML = '<div class="text-center p-8 text-slate-400 text-xs">Belum ada acara perpulangan aktif.</div>';
+            document.getElementById('hc-view-title').textContent = "Tidak Ada Event";
+            document.getElementById('hc-view-date').textContent = "-";
+            document.getElementById('hc-list-container').innerHTML = `
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="calendar-off" class="w-8 h-8 text-slate-300"></i>
+                    </div>
+                    <p class="text-sm font-bold text-slate-400">Belum ada jadwal perpulangan aktif.</p>
+                    <button onclick="window.manageEvents()" class="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold">Buat Jadwal</button>
+                </div>`;
+            if(window.lucide) window.lucide.createIcons();
             return;
         }
         
         hcState.activeEvent = events[0];
-        document.getElementById('hc-modal-title').textContent = hcState.activeEvent.title;
-        document.getElementById('hc-modal-date').textContent = `${window.formatDate(hcState.activeEvent.start_date)} - ${window.formatDate(hcState.activeEvent.end_date)}`;
+        document.getElementById('hc-view-title').textContent = hcState.activeEvent.title;
+        document.getElementById('hc-view-date').textContent = `${window.formatDate(hcState.activeEvent.start_date)} - ${window.formatDate(hcState.activeEvent.end_date)}`;
 
-        // B. Ambil Data Logs (Status Santri)
+        // B. Ambil Data Logs
         const { data: logs } = await dbClient
             .from('homecoming_logs')
             .select('*')
@@ -3093,11 +3109,19 @@ window.openHomecomingModal = async function() {
 
     } catch (e) {
         console.error(e);
-        window.showToast("Gagal memuat data perpulangan", "error");
+        window.showToast("Gagal memuat data", "error");
+        document.getElementById('hc-view-title').textContent = "Error";
     }
 };
 
-// 2. Render List Santri
+// 2. Tutup View (Kembali ke Dashboard)
+window.closeHomecomingView = function() {
+    document.getElementById('view-homecoming').classList.add('hidden');
+    document.getElementById('view-main').classList.remove('hidden');
+    window.updateDashboard(); // Optional: Refresh dashboard
+};
+
+// 3. Render List (Update UI agar lebih rapi di View)
 window.renderHomecomingList = function() {
     const container = document.getElementById('hc-list-container');
     const search = document.getElementById('hc-search').value.toLowerCase();
@@ -3108,7 +3132,7 @@ window.renderHomecomingList = function() {
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        const log = hcState.logs[id] || { status: 'Mukim' }; // Default Mukim
+        const log = hcState.logs[id] || { status: 'Mukim' };
         
         // Hitung Statistik
         if(log.status === 'Pulang') countPulang++; else countMukim++;
@@ -3117,63 +3141,75 @@ window.renderHomecomingList = function() {
         if(hcState.filter !== 'all' && log.status !== hcState.filter) return;
         if(!s.nama.toLowerCase().includes(search)) return;
 
-        // Tentukan Warna & Icon
+        // Styling
         const isPulang = log.status === 'Pulang';
-        const bgClass = isPulang ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100';
+        const cardClass = isPulang 
+            ? 'bg-white dark:bg-slate-800 border-l-4 border-l-indigo-500' 
+            : 'bg-white dark:bg-slate-800 border-l-4 border-l-slate-200 dark:border-l-slate-700';
+            
+        // Icon & Info
         const iconInfo = isPulang 
-            ? `<div class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold"><i data-lucide="bus" class="w-3 h-3"></i> ${log.kota_tujuan || 'Pulang'}</div>`
-            : `<div class="flex items-center gap-1 text-[10px] text-slate-400 font-bold"><i data-lucide="home" class="w-3 h-3"></i> Mukim</div>`;
+            ? `<div class="flex items-center gap-1.5 text-[10px] text-indigo-600 font-bold mt-1 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded w-fit">
+                 <i data-lucide="bus" class="w-3 h-3"></i> ${log.kota_tujuan || 'Pulang'}
+               </div>`
+            : `<div class="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold mt-1 bg-slate-50 dark:bg-slate-700 px-2 py-1 rounded w-fit">
+                 <i data-lucide="home" class="w-3 h-3"></i> Mukim di Pondok
+               </div>`;
         
-        // Status Kedatangan (Jika Pulang)
+        // Badge Kedatangan
         let arrivalBadge = '';
         if(isPulang) {
-            if(log.status_kedatangan === 'Tepat Waktu') arrivalBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-bold">Sudah Tiba</span>';
-            else if(log.status_kedatangan === 'Terlambat') arrivalBadge = '<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">Terlambat</span>';
-            else arrivalBadge = '<span class="text-[9px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-bold">Belum Tiba</span>';
+            if(log.status_kedatangan === 'Tepat Waktu') arrivalBadge = '<div class="absolute top-3 right-3 text-emerald-500"><i data-lucide="check-circle-2" class="w-5 h-5"></i></div>';
+            else if(log.status_kedatangan === 'Terlambat') arrivalBadge = '<div class="absolute top-3 right-3 text-red-500"><i data-lucide="alert-circle" class="w-5 h-5"></i></div>';
+            else arrivalBadge = '<div class="absolute top-3 right-3 text-slate-300"><i data-lucide="clock" class="w-5 h-5"></i></div>';
         }
 
         const div = document.createElement('div');
-        div.className = `p-3 rounded-2xl border ${bgClass} flex justify-between items-center cursor-pointer active:scale-95 transition-transform`;
-        div.onclick = () => window.openHcEdit(id); // Klik untuk edit
+        div.className = `${cardClass} p-4 rounded-xl shadow-sm border-y border-r border-slate-100 dark:border-slate-700 relative active:scale-[0.98] transition-transform cursor-pointer`;
+        div.onclick = () => window.openHcEdit(id);
         
         div.innerHTML = `
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-500">
                     ${s.nama.substring(0,2).toUpperCase()}
                 </div>
                 <div>
-                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-800">${s.nama}</h4>
-                    <div class="flex gap-2 mt-0.5">${iconInfo}</div>
+                    <h4 class="font-bold text-slate-800 dark:text-white text-sm line-clamp-1">${s.nama}</h4>
+                    <p class="text-[10px] text-slate-400">${s.asrama || s.kelas}</p>
+                    ${iconInfo}
                 </div>
             </div>
-            <div>${arrivalBadge}</div>
+            ${arrivalBadge}
         `;
         container.appendChild(div);
     });
 
-    // Update Angka Statistik Header
+    // Update Angka Statistik
     document.getElementById('hc-stat-mukim').textContent = countMukim;
     document.getElementById('hc-stat-pulang').textContent = countPulang;
     
     if(window.lucide) window.lucide.createIcons();
 };
 
-// 3. Filter Tab Helper
+// 4. Update Tab UI (Filter)
 window.filterHcList = function(type) {
     hcState.filter = type;
-    
-    // Update UI Tab Active
     document.querySelectorAll('.hc-tab').forEach(btn => {
         if(btn.dataset.filter === type) {
-            btn.classList.remove('bg-transparent', 'text-slate-500');
-            btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-slate-800', 'dark:text-white');
+            btn.classList.remove('text-slate-400', 'hover:bg-slate-50');
+            btn.classList.add('bg-indigo-50', 'text-indigo-600', 'shadow-sm');
         } else {
-            btn.classList.add('bg-transparent', 'text-slate-500');
-            btn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-slate-800', 'dark:text-white');
+            btn.classList.add('text-slate-400', 'hover:bg-slate-50');
+            btn.classList.remove('bg-indigo-50', 'text-indigo-600', 'shadow-sm');
         }
     });
-    
     window.renderHomecomingList();
+};
+
+// 5. Update tombol Sync agar refresh halaman View
+window.syncHomecoming = function() {
+    window.openHomecomingView(); 
+    window.showToast("Data disinkronkan", "info");
 };
 
 // 4. Edit Santri
