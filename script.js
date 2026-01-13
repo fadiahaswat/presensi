@@ -2408,8 +2408,8 @@ window.runAnalysis = function() {
     let loopGuard = 0;
 
     while(curr <= end && loopGuard < 370) {
-        // Fix timezone offset issue for pure YYYY-MM-DD loop
-        // Gunakan string manipulation agar aman
+        // Generate safe date key (YYYY-MM-DD) using local time components
+        // to avoid timezone issues with toISOString()
         const y = curr.getFullYear();
         const m = String(curr.getMonth()+1).padStart(2,'0');
         const d = String(curr.getDate()).padStart(2,'0');
