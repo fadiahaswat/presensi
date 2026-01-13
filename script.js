@@ -967,6 +967,17 @@ window.renderAttendanceList = function() {
 
         // Render UI Baris
         const clone = tplRow.content.cloneNode(true);
+
+        // --- [TAMBAHAN BARU] PASANG GESTURE DISINI ---
+        const rowElement = clone.querySelector('.santri-row'); // Ini elemen kartunya
+        // Tambahkan wrapper class agar CSS relative positioning berfungsi
+        const wrapper = document.createElement('div');
+        wrapper.className = 'swipe-wrapper mb-3'; // mb-3 untuk jarak antar kartu
+        
+        // Pindahkan isi clone ke dalam wrapper nanti saat append
+        // Kita modifikasi cara append di bawah
+        window.enableSwipeAndHold(rowElement, id);
+        // ---------------------------------------------
         
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
@@ -1028,7 +1039,8 @@ window.renderAttendanceList = function() {
         };
         clone.querySelector('.btn-edit-note').onclick = () => noteBox.classList.toggle('hidden');
 
-        fragment.appendChild(clone);
+        wrapper.appendChild(clone); // Masukkan clone (isi kartu) ke wrapper
+        fragment.appendChild(wrapper); // Masukkan wrapper ke fragment
     });
 
     container.appendChild(fragment);
