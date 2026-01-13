@@ -3514,9 +3514,9 @@ window.activateEvent = async function(id) {
         window.showToast("Event berhasil diaktifkan!", "success");
         
         // Auto refresh halaman utama juga
-        const hcModal = document.getElementById('modal-homecoming');
-        if(hcModal && !hcModal.classList.contains('hidden')) {
-            window.openHomecomingModal(); 
+        const hcView = document.getElementById('view-homecoming');
+        if(hcView && !hcView.classList.contains('hidden')) {
+            window.openHomecomingView(); // Refresh halaman view
         }
     }
 };
