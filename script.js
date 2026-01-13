@@ -3182,6 +3182,12 @@ window.openHcEdit = function(studentId) {
     if(!santri) return;
 
     const log = hcState.logs[studentId] || {};
+
+        // Di dalam window.openHcEdit (Baris ~1572)
+    const arrivalEl = document.getElementById('hc-edit-arrival');
+    if(arrivalEl) {
+        arrivalEl.value = log.status_kedatangan || 'Belum';
+    }
     
     document.getElementById('modal-hc-edit').classList.remove('hidden');
     document.getElementById('hc-edit-name').textContent = santri.nama;
