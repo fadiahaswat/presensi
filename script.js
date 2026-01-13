@@ -3402,7 +3402,7 @@ window.checkArrivalAuto = function() {
     }
 };
 
-// Ganti logika wrapper di baris 1735+ dengan ini:
+// GANTI BAGIAN PALING BAWAH script.js DENGAN INI:
 
 const originalSaveHc = window.saveHcStudent;
 
@@ -3410,34 +3410,65 @@ window.saveHcStudent = async function() {
     const status = document.getElementById('hc-edit-status').value;
     
     if (status === 'Pulang') {
-        // Ambil hasil scan otomatis dari hidden input (jika user melakukan scan)
         const autoStatus = document.getElementById('hc-final-status').value;
-        const arrivalSelect = document.getElementById('hc-edit-arrival'); // Sekarang elemen ini sudah ada di HTML baru
+        const arrivalInput = document.getElementById('hc-edit-arrival');
         
-        // Jika user melakukan scan, prioritaskan hasil scan ke dropdown
-        if (autoStatus && arrivalSelect) {
-            arrivalSelect.value = autoStatus; 
-            
-            // Handle Alasan Terlambat
-            if(autoStatus === 'Terlambat') {
-                const reason = document.getElementById('hc-late-reason').value;
-                const studentId = document.getElementById('hc-edit-id').value;
+        // 1. Jika user melakukan scan otomatis, update dropdown
+        if (autoStatus && arrivalInput) {
+            // Hanya update jika user belum mengubahnya manual (opsional)
+            arrivalInput.value = autoStatus; 
+        }
+
+        // 2. Handle Alasan Terlambat (Simpan di Kota agar aman dari error DB)
+        if (arrivalInput && arrivalInput.value === 'Terlambat') {
+            const reasonBox = document.getElementById('hc-late-reason');
+            if (reasonBox) {
+                const reason = reasonBox.value;
+                const cityInput = document.getElementById('hc-edit-city');
                 
-                // Pastikan object logs ada
-                if(!hcState.logs[studentId]) hcState.logs[studentId] = { student_id: studentId };
-                
-                // KITA PINJAM FIELD 'kota_tujuan' untuk menyimpan alasan sementara 
-                // jika DB belum ada kolom catatan. Format: "Kota (Alasan: ...)"
-                let currentCity = document.getElementById('hc-edit-city').value;
-                if(!currentCity.includes('(Alasan:')) {
-                     document.getElementById('hc-edit-city').value = `${currentCity} (Alasan: ${reason})`;
+                // Tambahkan alasan ke teks kota jika belum ada
+                if (cityInput && !cityInput.value.includes('(Alasan:')) {
+                    cityInput.value = `${cityInput.value} (Alasan: ${reason})`;
                 }
             }
         }
     }
     
-    // Panggil fungsi simpan asli yang akan membaca value dari dropdown 'hc-edit-arrival'
+    // Panggil fungsi asli
     await originalSaveHc();
+};
+
+// Update fungsi checkArrivalAuto agar mengupdate dropdown juga
+window.checkArrivalAuto = function() {
+    if (!hcState.activeEvent) return;
+    
+    const now = new Date();
+    // PERBAIKAN TIMEZONE: Pastikan deadline dibaca benar
+    // Sederhananya: bandingkan timestamp
+    const deadlineStr = `${hcState.activeEvent.end_date}T${hcState.activeEvent.deadline_time}`;
+    const deadline = new Date(deadlineStr);
+    
+    const isLate = now > deadline;
+    const resultText = document.getElementById('hc-result-text');
+    const resultBox = document.getElementById('hc-auto-result');
+    const hiddenInput = document.getElementById('hc-final-status');
+    const dropdown = document.getElementById('hc-edit-arrival'); // Ambil dropdown
+    const reasonBox = document.getElementById('hc-late-reason-box');
+
+    resultBox.classList.remove('hidden');
+
+    if (isLate) {
+        const diffHrs = Math.floor((now - deadline) / 3600000);
+        resultText.innerHTML = `<span class="text-red-500">TERLAMBAT ${diffHrs} JAM</span>`;
+        hiddenInput.value = 'Terlambat';
+        if(dropdown) dropdown.value = 'Terlambat'; // Auto update dropdown
+        if(reasonBox) reasonBox.classList.remove('hidden');
+    } else {
+        resultText.innerHTML = `<span class="text-emerald-500">TEPAT WAKTU ✅</span>`;
+        hiddenInput.value = 'Tepat Waktu';
+        if(dropdown) dropdown.value = 'Tepat Waktu'; // Auto update dropdown
+        if(reasonBox) reasonBox.classList.add('hidden');
+    }
 };
 
 // Start App
