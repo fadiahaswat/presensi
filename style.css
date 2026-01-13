@@ -61,3 +61,54 @@ body { -webkit-tap-highlight-color: transparent; }
 
 /* Progress Bar Transition */
 .progress-bar { transition: width 0.5s ease-in-out; }
+
+/* --- SWIPE ACTIONS STYLES --- */
+.swipe-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem; /* Sesuaikan dengan rounded kartu */
+}
+
+/* Layer warna di belakang kartu */
+.swipe-bg-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    color: white;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+/* Isi Kartu (yang akan bergerak) */
+.santri-row {
+    position: relative;
+    z-index: 10;
+    background: white; /* Penting agar background layer tertutup */
+    transition: transform 0.1s ease-out; /* Animasi halus saat drag */
+    will-change: transform;
+}
+
+/* Dark mode fix */
+.dark .santri-row {
+    background: #1e293b; /* slate-800 */
+}
+
+/* Indikator Hold (Tekan Lama) */
+.holding-animation {
+    animation: pulseHold 0.8s infinite;
+    transform: scale(0.98);
+    border-color: #3b82f6 !important; /* Blue ring */
+}
+
+@keyframes pulseHold {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
