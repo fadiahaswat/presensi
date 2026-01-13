@@ -2138,6 +2138,7 @@ window.startClock = function() {
             const secEl = document.getElementById('dash-clock-sec');
             if(secEl) secEl.textContent = String(now.getSeconds()).padStart(2, '0');
         }
+        window.checkScheduledNotifications();    
     };
     updateClock();
     setInterval(updateClock, 1000);
