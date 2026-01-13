@@ -232,9 +232,9 @@
                     </div>
             
                     <div class="flex items-center gap-2">
-                        <button onclick="window.showToast('Tidak ada notifikasi baru', 'info')" class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-200 transition-all shadow-sm active:scale-95 relative group">
+                        <button onclick="window.requestNotificationPermission()" class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:border-emerald-200 transition-all shadow-sm active:scale-95 relative group">
                             <i data-lucide="bell" class="w-5 h-5"></i>
-                            <span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
+                            <span id="notif-badge" class="hidden absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
                         </button>
             
                         <div onclick="switchTab('profile')" class="flex items-center gap-2 pl-1 pr-1 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm cursor-pointer hover:border-emerald-200 transition-all active:scale-95">
@@ -1133,6 +1133,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
