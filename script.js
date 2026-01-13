@@ -3396,35 +3396,41 @@ window.checkArrivalAuto = function() {
     }
 };
 
-// Update Fungsi Save Existing untuk Handle Auto Status
+// Ganti logika wrapper di baris 1735+ dengan ini:
+
 const originalSaveHc = window.saveHcStudent;
 
 window.saveHcStudent = async function() {
     const status = document.getElementById('hc-edit-status').value;
     
-    // Jika statusnya PULANG, kita ambil data dari hasil scan otomatis
     if (status === 'Pulang') {
-        const finalStatus = document.getElementById('hc-final-status').value;
-        const arrivalInput = document.getElementById('hc-edit-arrival');
+        // Ambil hasil scan otomatis dari hidden input (jika user melakukan scan)
+        const autoStatus = document.getElementById('hc-final-status').value;
+        const arrivalSelect = document.getElementById('hc-edit-arrival'); // Sekarang elemen ini sudah ada di HTML baru
         
-        // Jika user sudah klik scan, pakai hasil scan
-        if (finalStatus) {
-            arrivalInput.value = finalStatus; 
+        // Jika user melakukan scan, prioritaskan hasil scan ke dropdown
+        if (autoStatus && arrivalSelect) {
+            arrivalSelect.value = autoStatus; 
             
-            // Jika terlambat, tambahkan catatan alasan ke database
-            if(finalStatus === 'Terlambat') {
+            // Handle Alasan Terlambat
+            if(autoStatus === 'Terlambat') {
                 const reason = document.getElementById('hc-late-reason').value;
-                // Kita simpan alasan ini (perlu kolom catatan di DB, atau gabung ke kota_tujuan sementara jika malas ubah DB)
-                // Idealnya update DB structure: alter table homecoming_logs add column catatan text;
-                // Disini kita simpan ke object logs local dulu
                 const studentId = document.getElementById('hc-edit-id').value;
-                if(!hcState.logs[studentId]) hcState.logs[studentId] = {};
-                hcState.logs[studentId].catatan = reason; 
+                
+                // Pastikan object logs ada
+                if(!hcState.logs[studentId]) hcState.logs[studentId] = { student_id: studentId };
+                
+                // KITA PINJAM FIELD 'kota_tujuan' untuk menyimpan alasan sementara 
+                // jika DB belum ada kolom catatan. Format: "Kota (Alasan: ...)"
+                let currentCity = document.getElementById('hc-edit-city').value;
+                if(!currentCity.includes('(Alasan:')) {
+                     document.getElementById('hc-edit-city').value = `${currentCity} (Alasan: ${reason})`;
+                }
             }
         }
     }
     
-    // Panggil fungsi simpan asli
+    // Panggil fungsi simpan asli yang akan membaca value dari dropdown 'hc-edit-arrival'
     await originalSaveHc();
 };
 
