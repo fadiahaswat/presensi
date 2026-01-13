@@ -1104,18 +1104,24 @@
         </select>
     </div>
     
-    <div>
+    <div class="pt-2">
         <label class="text-[10px] font-bold text-slate-400 uppercase">Status Kedatangan</label>
-        <select id="hc-edit-arrival" class="w-full p-3 mt-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none">
+        <select id="hc-edit-arrival" class="w-full p-3 mt-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 font-bold text-sm">
             <option value="Belum">⏳ Belum Tiba</option>
             <option value="Tepat Waktu">✅ Tepat Waktu</option>
             <option value="Terlambat">❌ Terlambat</option>
         </select>
     </div>
 
-    <div class="pt-4 border-t border-slate-100 dark:border-slate-700">
-         <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Cek Otomatis</h4>
+    <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+         <button type="button" onclick="window.checkArrivalAuto()" class="w-full py-3 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-100 border border-indigo-200">
+             <i data-lucide="clock" class="w-4 h-4"></i> Cek Waktu Sekarang
+         </button>
+         <div id="hc-auto-result" class="hidden mt-2 p-2 text-center text-xs font-bold">
+             <span id="hc-result-text"></span>
+             <input type="hidden" id="hc-final-status"> 
          </div>
+    </div>
 </div>
 
             <div class="flex gap-2 mt-4">
@@ -1311,6 +1317,7 @@
     
 </body>
 </html>
+
 
 
 
