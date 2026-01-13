@@ -560,7 +560,7 @@ window.updateProfileInfo = function() {
 
 // Fungsi Terpusat untuk menghitung statistik per slot
 window.calculateSlotStats = function(slotId, customDate = null) {
-    const stats = { h: 0, s: 0, i: 0, a: 0, total: 0, isFilled: false };
+    const stats = { h: 0, s: 0, i: 0, a: 0, p: 0, total: 0, isFilled: false };
     
     if (FILTERED_SANTRI.length === 0) return stats;
     
@@ -578,6 +578,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
             if (status === 'Hadir') stats.h++;
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin') stats.i++;
+            else if (status === 'Pulang') stats.p++;
             else if (status === 'Alpa') stats.a++;
             stats.total++;
         }
@@ -1366,7 +1367,7 @@ window.updateQuickStats = function() {
     if(!appState.selectedClass) return;
     
     // Inisialisasi variabel penghitung
-    let stats = { h: 0, s: 0, i: 0, a: 0 };
+    let stats = { h: 0, s: 0, i: 0, a: 0, p: 0 };
     let activeSlots = 0; // Untuk menghitung berapa sesi yang sudah diisi data
 
     Object.values(SLOT_WAKTU).forEach(slot => {
@@ -1378,6 +1379,7 @@ window.updateQuickStats = function() {
              stats.s += slotStats.s;
              stats.i += slotStats.i;
              stats.a += slotStats.a;
+             stats.p += slotStats.p || 0;
              activeSlots++;
          }
     });
@@ -1388,9 +1390,10 @@ window.updateQuickStats = function() {
     
     // Tampilkan hasil RATA-RATA (dibulatkan dengan Math.round)
     // Sehingga angkanya kembali ke skala jumlah santri (misal: 30), bukan akumulasi (120)
+    // Count Pulang together with Izin for display purposes
     document.getElementById('stat-hadir').textContent = Math.round(stats.h / divider);
     document.getElementById('stat-sakit').textContent = Math.round(stats.s / divider);
-    document.getElementById('stat-izin').textContent = Math.round(stats.i / divider);
+    document.getElementById('stat-izin').textContent = Math.round((stats.i + stats.p) / divider);
     document.getElementById('stat-alpa').textContent = Math.round(stats.a / divider);
 };
 
@@ -1428,7 +1431,7 @@ window.drawDonutChart = function() {
     ctx.clearRect(0, 0, width, height);
 
     // --- 2. Hitung Data (Total & Rata-rata) ---
-    let stats = { h: 0, s: 0, i: 0, a: 0 };
+    let stats = { h: 0, s: 0, i: 0, a: 0, p: 0 };
     let totalPeristiwa = 0; // Total insiden (misal: 60 kejadian dari 2 sesi)
     let activeSlots = 0;    // Jumlah sesi yang sudah diisi (misal: 2 sesi)
 
@@ -1440,6 +1443,7 @@ window.drawDonutChart = function() {
                 stats.s += sStats.s;
                 stats.i += sStats.i;
                 stats.a += sStats.a;
+                stats.p += sStats.p || 0;
                 totalPeristiwa += sStats.total;
                 activeSlots++;
             }
@@ -1456,7 +1460,7 @@ window.drawDonutChart = function() {
     
     setLegend('legend-hadir', Math.round(stats.h / divider));
     setLegend('legend-sakit', Math.round(stats.s / divider));
-    setLegend('legend-izin', Math.round(stats.i / divider));
+    setLegend('legend-izin', Math.round((stats.i + stats.p) / divider)); // Combine Izin + Pulang
     setLegend('legend-alpa', Math.round(stats.a / divider));
 
     // --- 4. Menggambar Grafik Lingkaran ---
@@ -1478,7 +1482,7 @@ window.drawDonutChart = function() {
     const segments = [
         { value: stats.h, color: '#10b981' }, // Emerald (Hadir)
         { value: stats.s, color: '#f59e0b' }, // Amber (Sakit)
-        { value: stats.i, color: '#3b82f6' }, // Blue (Izin)
+        { value: stats.i + stats.p, color: '#3b82f6' }, // Blue (Izin + Pulang)
         { value: stats.a, color: '#f43f5e' }  // Rose (Alpa)
     ];
 

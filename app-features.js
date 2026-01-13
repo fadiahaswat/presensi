@@ -2423,18 +2423,18 @@ window.runAnalysis = function() {
                         // Logic Kategori
                         if(act.category === 'fardu') {
                             stats.fardu.total++;
-                            if(st === 'Hadir') stats.fardu.h++;
+                            if(st === 'Hadir' || st === 'Pulang') stats.fardu.h++;
                             else stats.fardu.m++;
                         }
                         else if(act.category === 'kbm') {
                             stats.kbm.total++;
-                            if(st === 'Hadir') stats.kbm.h++;
+                            if(st === 'Hadir' || st === 'Pulang') stats.kbm.h++;
                             else stats.kbm.m++;
                         }
                         else if(act.category === 'sunnah' || act.category === 'dependent') {
                             // Dependent (rawatib) kita anggap sunnah di analisis ini
                             stats.sunnah.total++;
-                            if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
+                            if(st === 'Ya' || st === 'Hadir' || st === 'Pulang') stats.sunnah.y++;
                             else stats.sunnah.t++;
                         }
                     });
