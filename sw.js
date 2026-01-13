@@ -1,4 +1,4 @@
-const CACHE_NAME = 'musyrif-app-v5';
+const CACHE_NAME = 'musyrif-app-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
