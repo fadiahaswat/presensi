@@ -3209,25 +3209,62 @@ window.toggleHcInputs = function() {
     else group.classList.add('hidden');
 };
 
-// 5. Simpan Data Santri
+// 1. Fungsi Simpan Data Santri (Versi Final & Bersih)
 window.saveHcStudent = async function() {
     const studentId = document.getElementById('hc-edit-id').value;
     const status = document.getElementById('hc-edit-status').value;
     
-    // Update Local State dulu biar cepat
-    if(!hcState.logs[studentId]) hcState.logs[studentId] = { student_id: studentId, event_id: hcState.activeEvent.id };
+    // Inisialisasi object log jika belum ada di state lokal
+    if(!hcState.logs[studentId]) {
+        hcState.logs[studentId] = { 
+            student_id: studentId, 
+            event_id: hcState.activeEvent.id 
+        };
+    }
     
-    const log = hcState.logs[studentId];
+    // Copy object agar tidak merusak referensi langsung sebelum sukses
+    const log = { ...hcState.logs[studentId] };
     log.status = status;
     
+    // --- LOGIKA KHUSUS STATUS PULANG ---
     if(status === 'Pulang') {
         log.kota_tujuan = document.getElementById('hc-edit-city').value;
         log.transportasi = document.getElementById('hc-edit-transport').value;
-        log.status_kedatangan = document.getElementById('hc-edit-arrival').value;
+        
+        // Cek Input Kedatangan (Prioritas: Input Manual > Auto Scan)
+        const manualArrival = document.getElementById('hc-edit-arrival').value;
+        const autoStatus = document.getElementById('hc-final-status').value;
+        
+        // Gunakan hasil scan jika user baru saja melakukan scan dan belum ubah manual
+        // Atau default ke apa yang dipilih di dropdown
+        log.status_kedatangan = manualArrival;
+
+        // --- LOGIKA PENYIMPANAN ALASAN TERLAMBAT ---
+        // Jika statusnya terlambat, kita cek apakah ada alasan yang dipilih
+        if (log.status_kedatangan === 'Terlambat') {
+            const reasonBox = document.getElementById('hc-late-reason');
+            if (reasonBox && reasonBox.value) {
+                const reason = reasonBox.value;
+                // Hack: Simpan alasan di dalam teks 'kota_tujuan' agar tersimpan di DB
+                // Format: "Surabaya (Alasan: Macet)"
+                if (log.kota_tujuan && !log.kota_tujuan.includes('(Alasan:')) {
+                    log.kota_tujuan = `${log.kota_tujuan} (Alasan: ${reason})`;
+                }
+            }
+        }
     } else {
-        // Reset jika jadi Mukim
+        // Reset data jika status diubah jadi Mukim
         log.kota_tujuan = null;
+        log.transportasi = null;
         log.status_kedatangan = 'Belum';
+    }
+
+    // Tampilkan Loading pada tombol
+    const btnSave = document.querySelector('#modal-hc-edit button.bg-indigo-500');
+    const originalText = btnSave ? btnSave.textContent : 'Simpan';
+    if(btnSave) {
+        btnSave.textContent = "Menyimpan...";
+        btnSave.disabled = true;
     }
 
     // Kirim ke Supabase
@@ -3235,13 +3272,21 @@ window.saveHcStudent = async function() {
         .from('homecoming_logs')
         .upsert(log, { onConflict: 'event_id, student_id' });
         
+    // Kembalikan Tombol
+    if(btnSave) {
+        btnSave.textContent = originalText;
+        btnSave.disabled = false;
+    }
+
     if(error) {
-        window.showToast("Gagal simpan ke database", "error");
         console.error(error);
+        window.showToast("Gagal simpan: " + error.message, "error");
     } else {
-        window.showToast("Data tersimpan", "success");
+        // Sukses: Update State Lokal & UI
+        hcState.logs[studentId] = log; // Update state asli
+        window.showToast("Data tersimpan ✅", "success");
         document.getElementById('modal-hc-edit').classList.add('hidden');
-        window.renderHomecomingList();
+        window.renderHomecomingList(); // Refresh list
     }
 };
 
