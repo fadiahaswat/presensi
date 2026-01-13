@@ -876,23 +876,26 @@ window.renderAttendanceList = function() {
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
 
+    // 1. Pastikan struktur data slot tersedia
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Filter Logic
+    // 2. Filter List Santri (Pencarian & Filter Masalah)
     const search = appState.searchQuery.toLowerCase();
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(search);
         if(appState.filterProblemOnly) {
             const st = dbSlot[String(s.nis || s.id)]?.status?.shalat;
-            return matchName && (st === 'Alpa' || st === 'Sakit' || st === 'Izin');
+            // Filter masalah: Alpa, Sakit, Izin, atau Pulang
+            return matchName && (st === 'Alpa' || st === 'Sakit' || st === 'Izin' || st === 'Pulang');
         }
         return matchName;
     });
 
+    // Update counter jumlah santri
     document.getElementById('att-santri-count').textContent = `${list.length} Santri`;
 
     const tplRow = document.getElementById('tpl-santri-row');
@@ -902,9 +905,11 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- LOGIKA PERIZINAN OTOMATIS ---
-        const activePermit = window.checkActivePermit(id, dateKey, slot.id);
+        // --- CEK STATUS OTOMATIS (PERIZINAN & PERPULANGAN) ---
+        const activePermit = window.checkActivePermit(id, dateKey, slot.id); // Cek Izin/Sakit
+        const activeHomecoming = window.checkActiveHomecoming(id, dateKey);   // Cek Pulang [BARU]
         
+        // Inisialisasi data jika belum ada
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -917,56 +922,113 @@ window.renderAttendanceList = function() {
         const sData = dbSlot[id];
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
+        // --- LOOP AKTIVITAS UNTUK PENENTUAN STATUS ---
         slot.activities.forEach(act => {
             let targetStatus = null;
+
+            // A. PRIORITAS 1: IZIN / SAKIT (Existing)
             if (activePermit) {
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
-            } else if (isAutoMarked) {
+            } 
+            // B. PRIORITAS 2: PULANG (Homecoming) [BARU & PENTING]
+            else if (activeHomecoming) {
+                // Kegiatan Wajib (Shalat, KBM, Dependent) -> Status 'Pulang'
+                if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
+                    targetStatus = 'Pulang';
+                } 
+                // Kegiatan Sunnah -> Status 'Tidak' (Strip)
+                else {
+                    targetStatus = 'Tidak';
+                }
+            }
+            // C. PRIORITAS 3: BERSIHKAN STATUS AUTO LAMA
+            // Jika sebelumnya ditandai auto, tapi sekarang tidak ada permit/homecoming, kembalikan ke default
+            else if (isAutoMarked) {
                 if (act.category === 'sunnah') targetStatus = 'Tidak';
                 else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
                 else targetStatus = 'Ya';
             }
 
+            // EKSEKUSI PENGUNCIAN STATUS (LOCKING)
+            // Jika targetStatus terdeteksi, PAKSA status di database mengikuti targetStatus
             if (targetStatus !== null && sData.status[act.id] !== targetStatus) {
                 sData.status[act.id] = targetStatus;
                 hasAutoChanges = true;
             }
         });
 
+        // --- UPDATE CATATAN OTOMATIS (AUTO NOTE) ---
         if (activePermit) {
-            const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
+            // Note untuk Sakit/Izin
+            let permitDetail = '';
+            if (activePermit.illness_type) permitDetail = ` (${activePermit.illness_type})`;
+            else if (activePermit.reason) permitDetail = ` (${activePermit.reason})`;
+            
+            let autoNote = '';
+            if (activePermit.type === 'Sakit') {
+                 autoNote = `[Auto] Sakit${permitDetail}`;
+            } else {
+                 const endDate = activePermit.end_date || activePermit.end;
+                 autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(endDate).split(',')[1]}${permitDetail}`;
+            }
+
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
             }
-        } else if (isAutoMarked) {
+        } 
+        else if (activeHomecoming) {
+            // Note untuk Pulang [BARU]
+            const cityName = activeHomecoming.city || 'Pulang';
+            const autoNote = `[Auto] Pulang ke ${cityName}`;
+            
+            if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
+                sData.note = autoNote;
+                hasAutoChanges = true;
+            }
+        } 
+        else if (isAutoMarked) {
+            // Hapus note auto jika status sudah normal
             sData.note = '';
             hasAutoChanges = true;
         }
 
-        // Render UI Baris (Standar)
+        // --- RENDER TAMPILAN (UI) ---
         const clone = tplRow.content.cloneNode(true);
-        const rowElement = clone.querySelector('.santri-row'); // Ambil element untuk styling
+        const rowElement = clone.querySelector('.santri-row'); // Element baris utama
 
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
+        
+        const nameEl = clone.querySelector('.santri-name');
 
+        // BADGE & HIGHLIGHT: IZIN / SAKIT
         if (activePermit) {
-            const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
             badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${activePermit.type === 'Sakit' ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`;
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // Visual highlight baris (optional)
             if(rowElement) {
                 if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
                 else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
             }
+        } 
+        // BADGE & HIGHLIGHT: PULANG [BARU]
+        else if (activeHomecoming) {
+            const badge = document.createElement('span');
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.textContent = "PULANG";
+            nameEl.appendChild(badge);
+
+            if(rowElement) {
+                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+            }
         }
 
+        // RENDER TOMBOL AKTIVITAS
         const btnCont = clone.querySelector('.activity-container');
         
         slot.activities.forEach(act => {
@@ -983,14 +1045,18 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
+            // Visual Ring pada tombol jika status otomatis aktif
             if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
                 btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+            } else if (activeHomecoming && (curr === 'Pulang' || curr === 'Tidak')) {
+                btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400'); // Ring warna Indigo untuk Pulang
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
             btnCont.appendChild(bClone);
         });
 
+        // INPUT CATATAN
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
@@ -1000,12 +1066,12 @@ window.renderAttendanceList = function() {
         };
         clone.querySelector('.btn-edit-note').onclick = () => noteBox.classList.toggle('hidden');
 
-        // Langsung append clone (Tanpa Wrapper Swipe)
         fragment.appendChild(clone);
     });
 
     container.appendChild(fragment);
     
+    // Simpan otomatis jika ada perubahan status massal (Auto locking)
     if(hasAutoChanges) {
         window.saveData(); 
     }
