@@ -2185,6 +2185,25 @@ window.updatePermitCount = function() {
     if(el) el.textContent = checked;
 };
 
+window.togglePermitEndDate = function() {
+    const type = document.getElementById('permit-type').value;
+    const endContainer = document.getElementById('permit-end-container');
+    const infoText = document.getElementById('permit-info-text');
+    
+    if (type === 'Sakit') {
+        // Hide end date for Sakit
+        if (endContainer) endContainer.classList.add('hidden');
+        if (infoText) {
+            infoText.classList.remove('hidden');
+            if(window.lucide) window.lucide.createIcons();
+        }
+    } else {
+        // Show end date for Izin
+        if (endContainer) endContainer.classList.remove('hidden');
+        if (infoText) infoText.classList.add('hidden');
+    }
+};
+
 window.savePermit = function() {
     // Ambil santri yang dicentang
     const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]:checked');
@@ -2196,8 +2215,16 @@ window.savePermit = function() {
     const end = document.getElementById('permit-end').value;
 
     if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
-    if(!start || !end) return window.showToast("Lengkapi tanggal", "warning");
-    if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
+    if(!start) return window.showToast("Tanggal mulai harus diisi", "warning");
+    
+    // Validasi berbeda untuk Sakit dan Izin
+    if(type === 'Sakit') {
+        // Sakit tidak perlu end_date
+    } else {
+        // Izin harus punya end_date
+        if(!end) return window.showToast("Tanggal selesai harus diisi untuk Izin", "warning");
+        if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
+    }
 
     // Simpan data per santri
     let count = 0;
@@ -2207,17 +2234,28 @@ window.savePermit = function() {
             nis: nis,
             type,
             session,
-            start,
-            end,
+            start_date: start,  // Changed from 'start' to 'start_date'
             timestamp: new Date().toISOString()
         };
+        
+        // Set status dan fields sesuai tipe
+        if(type === 'Sakit') {
+            newPermit.status = 'Sakit';
+            newPermit.recovered_date = null;
+            // Sakit tidak punya end_date
+        } else {
+            newPermit.status = 'Izin';
+            newPermit.end_date = end;  // Changed from 'end' to 'end_date'
+            newPermit.arrival_date = null;
+        }
+        
         appState.permits.push(newPermit);
         count++;
     });
 
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
     
-    window.showToast(`${count} izin berhasil disimpan`, "success");
+    window.showToast(`${count} ${type} berhasil disimpan`, "success");
     window.renderPermitList(); 
     
     // Uncheck semua setelah simpan
@@ -2225,7 +2263,8 @@ window.savePermit = function() {
     window.updatePermitCount();
 
     // Refresh dashboard jika tanggal relevan
-    if (appState.date >= start && appState.date <= end) {
+    const checkDate = type === 'Sakit' ? start : end;
+    if (appState.date >= start && appState.date <= (checkDate || start)) {
         window.renderAttendanceList(); 
         window.updateDashboard();
     }
@@ -2261,18 +2300,52 @@ window.renderPermitList = function() {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === p.nis);
         if(!santri) return;
 
+        // Handle backward compatibility
+        const startDate = p.start_date || p.start;
+        const endDate = p.end_date || p.end;
+        const status = p.status || p.type; // Default to type if no status
+        
+        // Determine if permit can be edited (not yet "Sembuh" or "Datang")
+        const canEdit = (p.type === 'Sakit' && status === 'Sakit') || (p.type === 'Izin' && status !== 'Datang');
+        
+        // Build date display
+        let dateDisplay = '';
+        if (p.type === 'Sakit') {
+            dateDisplay = `Mulai ${window.formatDate(startDate).split(',')[1]}`;
+            if (status === 'Sembuh' && p.recovered_date) {
+                dateDisplay += ` • Sembuh ${window.formatDate(p.recovered_date).split(',')[1]}`;
+            }
+        } else {
+            dateDisplay = `${window.formatDate(startDate).split(',')[1]} - ${window.formatDate(endDate).split(',')[1]}`;
+            if (status === 'Datang' && p.arrival_date) {
+                dateDisplay += ` • Kembali ${window.formatDate(p.arrival_date).split(',')[1]}`;
+            }
+        }
+        
+        // Status badge color
+        let statusBadgeClass = '';
+        if (status === 'Sakit') statusBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+        else if (status === 'Sembuh') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        else if (status === 'Izin') statusBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+        else if (status === 'Datang') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        else if (status === 'Alpa') statusBadgeClass = 'bg-red-50 text-red-700 border-red-200';
+
         const div = document.createElement('div');
         div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
         div.innerHTML = `
-            <div>
+            <div class="flex-1">
                 <p class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</p>
                 <div class="flex flex-wrap gap-2 mt-1.5">
                     <span class="px-2 py-0.5 rounded-md ${p.type === 'Sakit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
-                    <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${window.formatDate(p.start).split(',')[1]} - ${window.formatDate(p.end).split(',')[1]}</span>
+                    <span class="px-2 py-0.5 rounded-md ${statusBadgeClass} font-bold text-[10px] border">${status}</span>
+                    <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateDisplay}</span>
                     ${p.session !== 'all' ? `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md uppercase">${p.session}</span>` : ''}
                 </div>
             </div>
-            <button onclick="window.deletePermit('${p.id}')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <div class="flex gap-2 ml-2">
+                ${canEdit ? `<button onclick="window.openEditPermitModal('${p.id}')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"><i data-lucide="edit-2" class="w-4 h-4"></i></button>` : ''}
+                <button onclick="window.deletePermit('${p.id}')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
         `;
         container.appendChild(div);
     });
@@ -2280,12 +2353,160 @@ window.renderPermitList = function() {
 };
 
 window.checkActivePermit = function(nis, dateStr, slotId) {
-    return appState.permits.find(p => {
-        const isDateMatch = dateStr >= p.start && dateStr <= p.end;
-        const isSlotMatch = p.session === 'all' || p.session === slotId;
+    const permit = appState.permits.find(p => {
         const isNisMatch = p.nis === String(nis);
-        return isNisMatch && isDateMatch && isSlotMatch;
+        if (!isNisMatch) return false;
+        
+        const isSlotMatch = p.session === 'all' || p.session === slotId;
+        if (!isSlotMatch) return false;
+        
+        // Handle backward compatibility for old permits
+        const startDate = p.start_date || p.start;
+        const endDate = p.end_date || p.end;
+        
+        if (p.type === 'Sakit') {
+            // SAKIT LOGIC
+            if (p.status === 'Sakit') {
+                // Active sick leave - check if current date is after start date
+                return dateStr >= startDate;
+            } else if (p.status === 'Sembuh' && p.recovered_date) {
+                // Recovered - only active BEFORE recovery date
+                return dateStr >= startDate && dateStr < p.recovered_date;
+            }
+            return false;
+        } else {
+            // IZIN LOGIC (Fixed duration)
+            if (p.status === 'Datang') {
+                // Student has returned - permit no longer active
+                return false;
+            }
+            
+            // Check if within permit date range
+            const isDateMatch = dateStr >= startDate && dateStr <= endDate;
+            if (!isDateMatch) {
+                // Date is after end_date - check for auto-Alpa
+                if (dateStr > endDate && p.status === 'Izin') {
+                    // Auto-transition to Alpa
+                    p.status = 'Alpa';
+                    // Save the update
+                    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+                    return true; // Still return permit but status is now Alpa
+                }
+                return false;
+            }
+            
+            return true;
+        }
     });
+    
+    return permit;
+};
+
+// ==========================================
+// EDIT PERMIT FUNCTIONS (NEW)
+// ==========================================
+
+window.openEditPermitModal = function(permitId) {
+    const permit = appState.permits.find(p => p.id === permitId);
+    if (!permit) return;
+    
+    const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === permit.nis);
+    if (!santri) return;
+    
+    // Open modal
+    const modal = document.getElementById('modal-edit-permit');
+    if (!modal) {
+        console.error('Modal edit permit not found');
+        return;
+    }
+    
+    // Set permit ID in hidden field
+    document.getElementById('edit-permit-id').value = permitId;
+    
+    // Update modal title and info
+    document.getElementById('edit-permit-santri-name').textContent = santri.nama;
+    document.getElementById('edit-permit-type-display').textContent = permit.type;
+    
+    // Setup form based on type
+    if (permit.type === 'Sakit') {
+        // Show recovery date input
+        document.getElementById('edit-permit-sakit-section').classList.remove('hidden');
+        document.getElementById('edit-permit-izin-section').classList.add('hidden');
+        
+        const today = window.getLocalDateStr();
+        document.getElementById('edit-permit-recovery-date').value = today;
+        document.getElementById('edit-permit-recovery-session').value = 'all';
+    } else {
+        // Show arrival date input
+        document.getElementById('edit-permit-sakit-section').classList.add('hidden');
+        document.getElementById('edit-permit-izin-section').classList.remove('hidden');
+        
+        const today = window.getLocalDateStr();
+        document.getElementById('edit-permit-arrival-date').value = today;
+        document.getElementById('edit-permit-arrival-session').value = 'all';
+    }
+    
+    modal.classList.remove('hidden');
+    if(window.lucide) window.lucide.createIcons();
+};
+
+window.saveEditPermit = function() {
+    const permitId = document.getElementById('edit-permit-id').value;
+    const permit = appState.permits.find(p => p.id === permitId);
+    if (!permit) return;
+    
+    if (permit.type === 'Sakit') {
+        // Update to Sembuh
+        const recoveryDate = document.getElementById('edit-permit-recovery-date').value;
+        const recoverySession = document.getElementById('edit-permit-recovery-session').value;
+        
+        if (!recoveryDate) {
+            return window.showToast("Pilih tanggal sembuh", "warning");
+        }
+        
+        // Validate recovery date is not before start date
+        const startDate = permit.start_date || permit.start;
+        if (recoveryDate < startDate) {
+            return window.showToast("Tanggal sembuh tidak boleh sebelum tanggal mulai sakit", "warning");
+        }
+        
+        permit.status = 'Sembuh';
+        permit.recovered_date = recoveryDate;
+        permit.session = recoverySession; // Update session if needed
+        
+        window.showToast("Status diubah: Sembuh", "success");
+    } else {
+        // Update to Datang
+        const arrivalDate = document.getElementById('edit-permit-arrival-date').value;
+        const arrivalSession = document.getElementById('edit-permit-arrival-session').value;
+        
+        if (!arrivalDate) {
+            return window.showToast("Pilih tanggal datang", "warning");
+        }
+        
+        // Validate arrival date is not before start date
+        const startDate = permit.start_date || permit.start;
+        if (arrivalDate < startDate) {
+            return window.showToast("Tanggal datang tidak boleh sebelum tanggal mulai izin", "warning");
+        }
+        
+        permit.status = 'Datang';
+        permit.arrival_date = arrivalDate;
+        permit.session = arrivalSession; // Update session if needed
+        
+        window.showToast("Status diubah: Datang", "success");
+    }
+    
+    // Save to localStorage
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    
+    // Close modal
+    document.getElementById('modal-edit-permit').classList.add('hidden');
+    
+    // Refresh displays
+    window.renderPermitList();
+    window.renderAttendanceList();
+    window.updateDashboard();
 };
 
 // ==========================================
@@ -2372,8 +2593,10 @@ window.saveHomecoming = function() {
             nis: nis,
             city: city || 'Pulang',
             transport: transport,
-            start,
-            end,
+            start_date: start,  // Changed from 'start' to 'start_date'
+            end_date: end,      // Changed from 'end' to 'end_date'
+            status: 'Pulang',   // NEW: Initial status
+            arrival_date: null, // NEW: Will be set when student returns
             timestamp: new Date().toISOString()
         };
         appState.homecomings.push(newHomecoming);
@@ -2447,11 +2670,38 @@ window.renderHomecomingList = function() {
 };
 
 window.checkActiveHomecoming = function(nis, dateStr) {
-    return appState.homecomings.find(h => {
-        const isDateMatch = dateStr >= h.start && dateStr <= h.end;
+    const homecoming = appState.homecomings.find(h => {
         const isNisMatch = h.nis === String(nis);
-        return isNisMatch && isDateMatch;
+        if (!isNisMatch) return false;
+        
+        // Handle backward compatibility
+        const startDate = h.start_date || h.start;
+        const endDate = h.end_date || h.end;
+        const status = h.status || 'Pulang'; // Default to Pulang if no status
+        
+        // If student has already returned, homecoming is not active
+        if (status === 'Datang') {
+            return false;
+        }
+        
+        // Check if within homecoming date range
+        const isDateMatch = dateStr >= startDate && dateStr <= endDate;
+        if (!isDateMatch) {
+            // Date is after end_date - check for auto-Alpa
+            if (dateStr > endDate && status === 'Pulang') {
+                // Auto-transition to Alpa
+                h.status = 'Alpa';
+                // Save the update
+                localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(appState.homecomings));
+                return true; // Still return homecoming but status is now Alpa
+            }
+            return false;
+        }
+        
+        return true;
     });
+    
+    return homecoming;
 };
 
 // ==========================================
