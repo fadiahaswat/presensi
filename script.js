@@ -3379,7 +3379,13 @@ window.editEvent = async function(id) {
         document.getElementById('evt-title').value = data.title;
         document.getElementById('evt-start').value = data.start_date;
         document.getElementById('evt-end').value = data.end_date;
-        document.getElementById('evt-deadline').value = data.deadline_time;
+        
+        // PERBAIKAN: Tambahkan fallback "|| ''" agar tidak undefined
+        // Kita juga ambil 5 karakter pertama (HH:mm) jaga-jaga jika formatnya HH:mm:ss
+        let timeVal = data.deadline_time || '';
+        if(timeVal.length > 5) timeVal = timeVal.substring(0, 5);
+        
+        document.getElementById('evt-deadline').value = timeVal;
     }
 };
 
