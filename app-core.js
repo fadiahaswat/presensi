@@ -302,6 +302,11 @@ window.updateDashboard = function() {
     if(window.lucide) window.lucide.createIcons();
 
     window.renderTodayProblems(); // Pindahkan logic render masalah kesini
+    
+    // 5. Render Active Permits Section (NEW)
+    if (window.renderDashboardActivePermits) {
+        window.renderDashboardActivePermits();
+    }
 
     window.updateLocationStatus();
 };
