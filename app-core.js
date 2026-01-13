@@ -714,22 +714,29 @@ window.renderAttendanceList = function() {
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
             } 
-            // Priority 2: Pulang status
+            // Priority 2: Logika Pulang (PERBAIKAN DISINI)
             else if (isPulang) {
-                // For mandatory activities (fardu/kbm), set to 'Pulang'
-                if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Pulang';
-                // For dependent activities (qabliyah, ba'diyah, dzikir), set to 'Pulang'
-                else if (act.category === 'dependent') targetStatus = 'Pulang';
-                // For optional activities (sunnah), set to 'Tidak' (strip)
-                else if (act.category === 'sunnah') targetStatus = 'Tidak';
+                // Kegiatan Wajib (Shalat Fardu & KBM) jadi 'Pulang' (P)
+                if (act.category === 'fardu' || act.category === 'kbm') {
+                    targetStatus = 'Pulang';
+                }
+                // Kegiatan yang nempel dengan shalat (Rawatib/Dzikir) jadi 'Pulang' (P)
+                else if (act.category === 'dependent') {
+                    targetStatus = 'Pulang';
+                }
+                // Ibadah Sunnah Mandiri (Tahajjud, Puasa, Dhuha, Kahfi) jadi Strip (-)
+                else if (act.category === 'sunnah') {
+                    targetStatus = 'Tidak';
+                }
             }
-            // Priority 3: Previously auto-marked (reset to default)
+            // Priority 3: Reset jika sebelumnya Auto tapi sekarang sudah tidak Pulang/Izin
             else if (isAutoMarked) {
                 if (act.category === 'sunnah') targetStatus = 'Tidak';
                 else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
                 else targetStatus = 'Ya';
             }
-
+        
+            // Eksekusi perubahan status jika targetStatus ditemukan
             if (targetStatus !== null && sData.status[act.id] !== targetStatus) {
                 sData.status[act.id] = targetStatus;
                 hasAutoChanges = true;
