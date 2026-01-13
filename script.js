@@ -3037,5 +3037,212 @@ window.checkScheduledNotifications = function() {
     }
 };
 
+// ==========================================
+// FITUR PERPULANGAN (HOMECOMING)
+// ==========================================
+
+let hcState = {
+    activeEvent: null,
+    logs: {}, // { student_id: { status: 'Pulang', city: '...', ... } }
+    filter: 'all' // all, Pulang, Mukim
+};
+
+// 1. Buka Modal & Load Data
+window.openHomecomingModal = async function() {
+    if(!appState.selectedClass) return window.showToast("Pilih kelas dulu!", "warning");
+    
+    const modal = document.getElementById('modal-homecoming');
+    if(modal) modal.classList.remove('hidden');
+    
+    // Tampilkan Loading
+    document.getElementById('hc-modal-title').textContent = "Memuat Data...";
+    
+    try {
+        // A. Ambil Event Aktif
+        const { data: events } = await dbClient
+            .from('homecoming_events')
+            .select('*')
+            .eq('is_active', true)
+            .limit(1);
+            
+        if(!events || events.length === 0) {
+            document.getElementById('hc-modal-title').textContent = "Tidak ada Event";
+            document.getElementById('hc-list-container').innerHTML = '<div class="text-center p-8 text-slate-400 text-xs">Belum ada acara perpulangan aktif.</div>';
+            return;
+        }
+        
+        hcState.activeEvent = events[0];
+        document.getElementById('hc-modal-title').textContent = hcState.activeEvent.title;
+        document.getElementById('hc-modal-date').textContent = `${window.formatDate(hcState.activeEvent.start_date)} - ${window.formatDate(hcState.activeEvent.end_date)}`;
+
+        // B. Ambil Data Logs (Status Santri)
+        const { data: logs } = await dbClient
+            .from('homecoming_logs')
+            .select('*')
+            .eq('event_id', hcState.activeEvent.id);
+            
+        hcState.logs = {};
+        if(logs) {
+            logs.forEach(log => {
+                hcState.logs[log.student_id] = log;
+            });
+        }
+
+        // C. Render List
+        window.renderHomecomingList();
+
+    } catch (e) {
+        console.error(e);
+        window.showToast("Gagal memuat data perpulangan", "error");
+    }
+};
+
+// 2. Render List Santri
+window.renderHomecomingList = function() {
+    const container = document.getElementById('hc-list-container');
+    const search = document.getElementById('hc-search').value.toLowerCase();
+    container.innerHTML = '';
+    
+    let countMukim = 0;
+    let countPulang = 0;
+
+    FILTERED_SANTRI.forEach(s => {
+        const id = String(s.nis || s.id);
+        const log = hcState.logs[id] || { status: 'Mukim' }; // Default Mukim
+        
+        // Hitung Statistik
+        if(log.status === 'Pulang') countPulang++; else countMukim++;
+
+        // Filter Logic
+        if(hcState.filter !== 'all' && log.status !== hcState.filter) return;
+        if(!s.nama.toLowerCase().includes(search)) return;
+
+        // Tentukan Warna & Icon
+        const isPulang = log.status === 'Pulang';
+        const bgClass = isPulang ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100';
+        const iconInfo = isPulang 
+            ? `<div class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold"><i data-lucide="bus" class="w-3 h-3"></i> ${log.kota_tujuan || 'Pulang'}</div>`
+            : `<div class="flex items-center gap-1 text-[10px] text-slate-400 font-bold"><i data-lucide="home" class="w-3 h-3"></i> Mukim</div>`;
+        
+        // Status Kedatangan (Jika Pulang)
+        let arrivalBadge = '';
+        if(isPulang) {
+            if(log.status_kedatangan === 'Tepat Waktu') arrivalBadge = '<span class="text-[9px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-bold">Sudah Tiba</span>';
+            else if(log.status_kedatangan === 'Terlambat') arrivalBadge = '<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">Terlambat</span>';
+            else arrivalBadge = '<span class="text-[9px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-bold">Belum Tiba</span>';
+        }
+
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-2xl border ${bgClass} flex justify-between items-center cursor-pointer active:scale-95 transition-transform`;
+        div.onclick = () => window.openHcEdit(id); // Klik untuk edit
+        
+        div.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500">
+                    ${s.nama.substring(0,2).toUpperCase()}
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-800">${s.nama}</h4>
+                    <div class="flex gap-2 mt-0.5">${iconInfo}</div>
+                </div>
+            </div>
+            <div>${arrivalBadge}</div>
+        `;
+        container.appendChild(div);
+    });
+
+    // Update Angka Statistik Header
+    document.getElementById('hc-stat-mukim').textContent = countMukim;
+    document.getElementById('hc-stat-pulang').textContent = countPulang;
+    
+    if(window.lucide) window.lucide.createIcons();
+};
+
+// 3. Filter Tab Helper
+window.filterHcList = function(type) {
+    hcState.filter = type;
+    
+    // Update UI Tab Active
+    document.querySelectorAll('.hc-tab').forEach(btn => {
+        if(btn.dataset.filter === type) {
+            btn.classList.remove('bg-transparent', 'text-slate-500');
+            btn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-slate-800', 'dark:text-white');
+        } else {
+            btn.classList.add('bg-transparent', 'text-slate-500');
+            btn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-slate-800', 'dark:text-white');
+        }
+    });
+    
+    window.renderHomecomingList();
+};
+
+// 4. Edit Santri
+window.openHcEdit = function(studentId) {
+    const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === studentId);
+    if(!santri) return;
+
+    const log = hcState.logs[studentId] || {};
+    
+    document.getElementById('modal-hc-edit').classList.remove('hidden');
+    document.getElementById('hc-edit-name').textContent = santri.nama;
+    document.getElementById('hc-edit-id').value = studentId;
+    
+    // Set Value Form
+    document.getElementById('hc-edit-status').value = log.status || 'Mukim';
+    document.getElementById('hc-edit-city').value = log.kota_tujuan || '';
+    document.getElementById('hc-edit-transport').value = log.transportasi || 'Jemputan';
+    document.getElementById('hc-edit-arrival').value = log.status_kedatangan || 'Belum';
+    
+    window.toggleHcInputs();
+};
+
+window.toggleHcInputs = function() {
+    const status = document.getElementById('hc-edit-status').value;
+    const group = document.getElementById('hc-input-group');
+    if(status === 'Pulang') group.classList.remove('hidden');
+    else group.classList.add('hidden');
+};
+
+// 5. Simpan Data Santri
+window.saveHcStudent = async function() {
+    const studentId = document.getElementById('hc-edit-id').value;
+    const status = document.getElementById('hc-edit-status').value;
+    
+    // Update Local State dulu biar cepat
+    if(!hcState.logs[studentId]) hcState.logs[studentId] = { student_id: studentId, event_id: hcState.activeEvent.id };
+    
+    const log = hcState.logs[studentId];
+    log.status = status;
+    
+    if(status === 'Pulang') {
+        log.kota_tujuan = document.getElementById('hc-edit-city').value;
+        log.transportasi = document.getElementById('hc-edit-transport').value;
+        log.status_kedatangan = document.getElementById('hc-edit-arrival').value;
+    } else {
+        // Reset jika jadi Mukim
+        log.kota_tujuan = null;
+        log.status_kedatangan = 'Belum';
+    }
+
+    // Kirim ke Supabase
+    const { error } = await dbClient
+        .from('homecoming_logs')
+        .upsert(log, { onConflict: 'event_id, student_id' });
+        
+    if(error) {
+        window.showToast("Gagal simpan ke database", "error");
+        console.error(error);
+    } else {
+        window.showToast("Data tersimpan", "success");
+        document.getElementById('modal-hc-edit').classList.add('hidden');
+        window.renderHomecomingList();
+    }
+};
+
+window.syncHomecoming = function() {
+    window.openHomecomingModal(); // Refresh data dari server
+    window.showToast("Data disinkronkan", "info");
+};
+
 // Start App
 window.onload = window.initApp;
