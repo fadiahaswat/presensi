@@ -2202,7 +2202,7 @@ window.savePermit = function() {
     let count = 0;
     selectedNis.forEach(nis => {
         const newPermit = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // ID Unik
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 7), // ID Unik
             nis: nis,
             type,
             session,
@@ -2367,7 +2367,7 @@ window.saveHomecoming = function() {
     let count = 0;
     selectedNis.forEach(nis => {
         const newHomecoming = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // ID Unik
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 7), // ID Unik
             nis: nis,
             city: city || 'Pulang',
             transport: transport,

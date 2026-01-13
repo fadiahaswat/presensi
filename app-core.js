@@ -692,7 +692,8 @@ window.renderAttendanceList = function() {
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
-        // Check both localStorage-based and Supabase-based homecoming systems
+        // Priority: localStorage homecoming (new modal system) > Supabase homecoming (old event system)
+        // This allows both systems to coexist. The modal-based system takes priority when data exists.
         let isPulang = false;
         let homecomingInfo = null;
         try {
