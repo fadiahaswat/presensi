@@ -62,53 +62,85 @@ body { -webkit-tap-highlight-color: transparent; }
 /* Progress Bar Transition */
 .progress-bar { transition: width 0.5s ease-in-out; }
 
-/* --- SWIPE ACTIONS STYLES --- */
+/* =========================================
+   SUPER SWIPE & HOLD STYLES (UPDATED)
+   ========================================= */
+
 .swipe-wrapper {
     position: relative;
-    overflow: hidden;
-    border-radius: 1rem; /* Sesuaikan dengan rounded kartu */
+    overflow: visible; /* Biar shadow tidak terpotong */
+    /* border-radius dihandle di JS/HTML */
 }
 
-/* Layer warna di belakang kartu */
+/* Layer Belakang (Background Aksi) */
 .swipe-bg-layer {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 2rem;
-    font-weight: 800;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    color: white;
+    padding: 0 2.5rem; /* Jarak icon dari pinggir */
+    border-radius: 1.5rem; /* Sesuaikan dengan rounded-3xl kartu */
     z-index: 0;
-    opacity: 0;
-    transition: opacity 0.2s;
+    transition: background-color 0.2s ease;
 }
 
-/* Isi Kartu (yang akan bergerak) */
+/* Style untuk Ikon di Background */
+.swipe-icon-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    opacity: 0;
+    transform: scale(0.5); /* Awalnya kecil */
+    transition: opacity 0.1s, transform 0.1s; /* Transisi instan saat drag */
+    font-weight: 800;
+    font-size: 0.75rem; /* Text size */
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.swipe-icon-wrapper i {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 4px;
+    stroke-width: 3px;
+}
+
+/* Kartu Santri (Foreground) */
 .santri-row {
     position: relative;
     z-index: 10;
-    background: white; /* Penting agar background layer tertutup */
-    transition: transform 0.1s ease-out; /* Animasi halus saat drag */
+    background: white; 
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), scale 0.2s ease; /* Animasi smooth balik */
     will-change: transform;
+    /* Shadow agar terpisah dari background */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
-/* Dark mode fix */
 .dark .santri-row {
-    background: #1e293b; /* slate-800 */
+    background: #1e293b; 
+    border-color: #334155;
 }
 
-/* Indikator Hold (Tekan Lama) */
-.holding-animation {
-    animation: pulseHold 0.8s infinite;
-    transform: scale(0.98);
-    border-color: #3b82f6 !important; /* Blue ring */
+/* --- EFEK HOLD (TEKAN LAMA) --- */
+
+/* Saat ditekan (sebelum timer habis) */
+.santri-row.is-pressing {
+    transform: scale(0.96) !important; /* Kartu mengecil sedikit */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important; /* Ring fokus halus */
 }
 
-@keyframes pulseHold {
-    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+/* Saat timer hold selesai (Trigger) */
+.santri-row.holding-trigger {
+    animation: popSuccess 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5) !important;
+}
+
+@keyframes popSuccess {
+    0% { transform: scale(0.96); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
 }
