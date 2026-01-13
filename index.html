@@ -1133,8 +1133,21 @@
     <script src="data-santri.js"></script>
     <script src="santri-manager.js"></script>
     <script src="script.js"></script>
+
+    <script>
+        // Mendaftarkan Service Worker agar aplikasi bisa di-install & jalan offline
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker terdaftar!', reg))
+                    .catch(err => console.log('Gagal daftar SW:', err));
+            });
+        }
+    </script>
+    
 </body>
 </html>
+
 
 
 
