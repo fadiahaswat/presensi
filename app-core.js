@@ -709,34 +709,33 @@ window.renderAttendanceList = function() {
         slot.activities.forEach(act => {
             let targetStatus = null;
             
-            // Priority 1: Active permit (Sakit/Izin)
+            // 1. PRIORITAS UTAMA: Cek Izin (Sakit/Izin)
             if (activePermit) {
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
             } 
-            // Priority 2: Logika Pulang (PERBAIKAN DISINI)
+            // 2. PRIORITAS KEDUA: Cek Pulang (Homecoming) - MENGIKUTI LOGIKA IZIN
             else if (isPulang) {
-                // Kegiatan Wajib (Shalat Fardu & KBM) jadi 'Pulang' (P)
-                if (act.category === 'fardu' || act.category === 'kbm') {
-                    targetStatus = 'Pulang';
-                }
-                // Kegiatan yang nempel dengan shalat (Rawatib/Dzikir) jadi 'Tidak' (-)
-                // Kegiatan Sunnah Mandiri (Tahajjud, Puasa, Dhuha, Kahfi) jadi 'Tidak' (-)
-                else if (act.category === 'dependent' || act.category === 'sunnah') {
-                    targetStatus = 'Tidak';
+                // Shalat Fardu, KBM, dan Dzikir/Rawatib (Dependent) menjadi 'Pulang'
+                if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
+                    targetStatus = 'Pulang'; 
+                } 
+                // Ibadah Sunnah Mandiri (Tahajjud, Puasa, Kahfi) menjadi Strip '-'
+                else if (act.category === 'sunnah') {
+                    targetStatus = 'Tidak'; 
                 }
             }
-            // Priority 3: Reset jika sebelumnya Auto tapi sekarang sudah tidak Pulang/Izin
+            // 3. PRIORITAS KETIGA: Reset jika sebelumnya Auto tapi sekarang sudah tidak Pulang/Izin
             else if (isAutoMarked) {
                 if (act.category === 'sunnah') targetStatus = 'Tidak';
                 else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
                 else targetStatus = 'Ya';
             }
         
-            // Eksekusi perubahan status jika targetStatus ditemukan
+            // Terapkan perubahan ke data santri jika ada target status baru
             if (targetStatus !== null && sData.status[act.id] !== targetStatus) {
                 sData.status[act.id] = targetStatus;
-                hasAutoChanges = true;
+                hasAutoChanges = true; // Memicu window.saveData() di akhir fungsi
             }
         });
 
