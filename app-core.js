@@ -27,6 +27,11 @@ window.initApp = async function() {
         const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
         if(savedPermits) appState.permits = JSON.parse(savedPermits);
 
+        // Load Homecoming
+        appState.homecomings = [];
+        const savedHomecomings = localStorage.getItem(APP_CONFIG.homecomingKey);
+        if(savedHomecomings) appState.homecomings = JSON.parse(savedHomecomings);
+
     } catch (e) {
         console.error("Storage Error:", e);
     }
@@ -689,7 +694,7 @@ window.renderAttendanceList = function() {
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
         let isPulang = false;
         try {
-            isPulang = window.isStudentPulang && window.isStudentPulang(id, dateKey);
+            isPulang = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
         } catch (e) {
             console.error('Error checking Pulang status:', e);
         }
@@ -747,7 +752,8 @@ window.renderAttendanceList = function() {
                 hasAutoChanges = true;
             }
         } else if (isPulang) {
-            const autoNote = `[Auto] Pulang`;
+            const homecoming = window.checkActiveHomecoming(id, dateKey);
+            const autoNote = homecoming ? `[Auto] Pulang ke ${homecoming.city}` : `[Auto] Pulang`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;

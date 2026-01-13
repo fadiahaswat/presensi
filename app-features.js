@@ -246,6 +246,11 @@ window.initApp = async function() {
         const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
         if(savedPermits) appState.permits = JSON.parse(savedPermits);
 
+        // Load Homecoming
+        appState.homecomings = [];
+        const savedHomecomings = localStorage.getItem(APP_CONFIG.homecomingKey);
+        if(savedHomecomings) appState.homecomings = JSON.parse(savedHomecomings);
+
     } catch (e) {
         console.error("Storage Error:", e);
     }
@@ -2279,6 +2284,172 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
         const isSlotMatch = p.session === 'all' || p.session === slotId;
         const isNisMatch = p.nis === String(nis);
         return isNisMatch && isDateMatch && isSlotMatch;
+    });
+};
+
+// ==========================================
+// FITUR PERPULANGAN MANAGEMENT (LIKE PERIZINAN)
+// ==========================================
+
+window.openHomecomingModal = function() {
+    if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
+    
+    const modal = document.getElementById('modal-homecoming');
+    
+    // 1. Reset Form Tanggal ke Hari Ini
+    const today = appState.date;
+    document.getElementById('homecoming-start').value = today;
+    document.getElementById('homecoming-end').value = today;
+    document.getElementById('homecoming-city').value = '';
+    document.getElementById('homecoming-transport').value = 'Jemputan';
+    
+    // 2. Reset Pencarian
+    const searchInput = document.getElementById('homecoming-search-santri');
+    if(searchInput) searchInput.value = '';
+    
+    // 3. Render Checklist Santri
+    window.renderHomecomingChecklist(FILTERED_SANTRI);
+    window.updateHomecomingCount();
+
+    // 4. Render List Perpulangan yang sudah ada
+    window.renderHomecomingList();
+    
+    if(modal) {
+        modal.classList.remove('hidden');
+        if(window.lucide) window.lucide.createIcons();
+    }
+};
+
+window.renderHomecomingChecklist = function(list) {
+    const container = document.getElementById('homecoming-santri-checklist');
+    if(!container) return;
+    container.innerHTML = '';
+
+    list.forEach(s => {
+        const id = String(s.nis || s.id);
+        const div = document.createElement('label');
+        div.className = 'flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer hover:border-indigo-500 transition-all group select-none';
+        div.innerHTML = `
+            <input type="checkbox" name="homecoming_santri_select" value="${id}" onchange="window.updateHomecomingCount()" class="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500 rounded-md cursor-pointer accent-indigo-500">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white">${s.nama}</span>
+        `;
+        container.appendChild(div);
+    });
+};
+
+window.filterHomecomingSantri = function(val) {
+    const search = val.toLowerCase();
+    const filtered = FILTERED_SANTRI.filter(s => s.nama.toLowerCase().includes(search));
+    window.renderHomecomingChecklist(filtered);
+};
+
+window.updateHomecomingCount = function() {
+    const checked = document.querySelectorAll('input[name="homecoming_santri_select"]:checked').length;
+    const el = document.getElementById('homecoming-selected-count');
+    if(el) el.textContent = checked;
+};
+
+window.saveHomecoming = function() {
+    // Ambil santri yang dicentang
+    const checkboxes = document.querySelectorAll('input[name="homecoming_santri_select"]:checked');
+    const selectedNis = Array.from(checkboxes).map(cb => cb.value);
+
+    const city = document.getElementById('homecoming-city').value;
+    const transport = document.getElementById('homecoming-transport').value;
+    const start = document.getElementById('homecoming-start').value;
+    const end = document.getElementById('homecoming-end').value;
+
+    if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
+    if(!start || !end) return window.showToast("Lengkapi tanggal", "warning");
+    if(start > end) return window.showToast("Tanggal mulai tidak boleh > kembali", "warning");
+
+    // Simpan data per santri
+    let count = 0;
+    selectedNis.forEach(nis => {
+        const newHomecoming = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // ID Unik
+            nis: nis,
+            city: city || 'Pulang',
+            transport: transport,
+            start,
+            end,
+            timestamp: new Date().toISOString()
+        };
+        appState.homecomings.push(newHomecoming);
+        count++;
+    });
+
+    localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(appState.homecomings));
+    
+    window.showToast(`${count} data perpulangan berhasil disimpan`, "success");
+    window.renderHomecomingList(); 
+    
+    // Uncheck semua setelah simpan
+    checkboxes.forEach(cb => cb.checked = false);
+    window.updateHomecomingCount();
+
+    // Refresh dashboard jika tanggal relevan
+    if (appState.date >= start && appState.date <= end) {
+        window.renderAttendanceList(); 
+        window.updateDashboard();
+    }
+};
+
+window.deleteHomecoming = function(id) {
+    if(!confirm("Hapus data perpulangan ini? Status akan dikembalikan ke default.")) return;
+    
+    appState.homecomings = appState.homecomings.filter(h => h.id !== id);
+    localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(appState.homecomings));
+    
+    window.renderHomecomingList();
+    window.showToast("Data perpulangan dihapus", "info");
+    
+    // Trigger re-render untuk menjalankan logika RESET
+    window.renderAttendanceList();
+    window.updateDashboard();
+};
+
+window.renderHomecomingList = function() {
+    const container = document.getElementById('homecoming-list-container');
+    container.innerHTML = '';
+    
+    const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
+    const activeHomecomings = appState.homecomings.filter(h => classNisList.includes(h.nis));
+
+    if(activeHomecomings.length === 0) {
+        container.innerHTML = '<div class="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700"><p class="text-xs text-slate-400 font-bold">Belum ada data perpulangan aktif</p></div>';
+        return;
+    }
+
+    activeHomecomings.forEach(h => {
+        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === h.nis);
+        if(!santri) return;
+
+        const div = document.createElement('div');
+        div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
+        div.innerHTML = `
+            <div class="flex-1 min-w-0">
+                <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${santri.nama}</h4>
+                <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">🚌 ${h.city}</span>
+                    <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md">${h.transport}</span>
+                    <span class="text-[10px] font-bold text-slate-400">${window.formatDate(h.start)} - ${window.formatDate(h.end)}</span>
+                </div>
+            </div>
+            <button onclick="window.deleteHomecoming('${h.id}')" class="ml-3 p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors shrink-0">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        `;
+        container.appendChild(div);
+    });
+    if(window.lucide) window.lucide.createIcons();
+};
+
+window.checkActiveHomecoming = function(nis, dateStr) {
+    return appState.homecomings.find(h => {
+        const isDateMatch = dateStr >= h.start && dateStr <= h.end;
+        const isNisMatch = h.nis === String(nis);
+        return isNisMatch && isDateMatch;
     });
 };
 
