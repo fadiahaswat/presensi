@@ -739,7 +739,7 @@ window.renderAttendanceList = function() {
             }
         });
 
-        // Update auto-note
+        // Update auto-note di renderAttendanceList
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
