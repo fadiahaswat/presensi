@@ -687,7 +687,12 @@ window.renderAttendanceList = function() {
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
-        const isPulang = window.isStudentPulang && window.isStudentPulang(id, dateKey);
+        let isPulang = false;
+        try {
+            isPulang = window.isStudentPulang && window.isStudentPulang(id, dateKey);
+        } catch (e) {
+            console.error('Error checking Pulang status:', e);
+        }
         
         if(!dbSlot[id]) {
             const defStatus = {};

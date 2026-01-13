@@ -3033,17 +3033,23 @@ window.isStudentPulang = function(studentId, dateKey) {
     // Check if there's an active homecoming event
     if (!hcState.activeEvent) return false;
     
-    // Check if the date is within the homecoming event period
-    const checkDate = new Date(dateKey);
-    const startDate = new Date(hcState.activeEvent.start_date);
-    const endDate = new Date(hcState.activeEvent.end_date);
-    
-    // If current date is not within event period, return false
-    if (checkDate < startDate || checkDate > endDate) return false;
-    
-    // Check student's homecoming status
-    const log = hcState.logs[studentId];
-    return log && log.status === 'Pulang';
+    try {
+        // Normalize date strings to YYYY-MM-DD format for comparison
+        // dateKey is already in YYYY-MM-DD format from appState.date
+        const checkDateStr = dateKey;
+        const startDateStr = hcState.activeEvent.start_date; // Should be YYYY-MM-DD from DB
+        const endDateStr = hcState.activeEvent.end_date;     // Should be YYYY-MM-DD from DB
+        
+        // Simple string comparison works for YYYY-MM-DD format
+        if (checkDateStr < startDateStr || checkDateStr > endDateStr) return false;
+        
+        // Check student's homecoming status
+        const log = hcState.logs[studentId];
+        return log && log.status === 'Pulang';
+    } catch (e) {
+        console.error('Error in isStudentPulang:', e);
+        return false;
+    }
 };
 
 // Load homecoming data in background (called at app startup)
