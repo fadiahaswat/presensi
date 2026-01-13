@@ -2189,6 +2189,8 @@ window.togglePermitEndDate = function() {
     const type = document.getElementById('permit-type').value;
     const endContainer = document.getElementById('permit-end-container');
     const infoText = document.getElementById('permit-info-text');
+    const illnessContainer = document.getElementById('permit-illness-container');
+    const reasonContainer = document.getElementById('permit-reason-container');
     
     if (type === 'Sakit') {
         // Hide end date for Sakit
@@ -2197,10 +2199,16 @@ window.togglePermitEndDate = function() {
             infoText.classList.remove('hidden');
             if(window.lucide) window.lucide.createIcons();
         }
+        // Show illness input, hide reason input
+        if (illnessContainer) illnessContainer.classList.remove('hidden');
+        if (reasonContainer) reasonContainer.classList.add('hidden');
     } else {
         // Show end date for Izin
         if (endContainer) endContainer.classList.remove('hidden');
         if (infoText) infoText.classList.add('hidden');
+        // Hide illness input, show reason input
+        if (illnessContainer) illnessContainer.classList.add('hidden');
+        if (reasonContainer) reasonContainer.classList.remove('hidden');
     }
 };
 
@@ -2213,6 +2221,8 @@ window.savePermit = function() {
     const session = document.getElementById('permit-session').value;
     const start = document.getElementById('permit-start').value;
     const end = document.getElementById('permit-end').value;
+    const illness = document.getElementById('permit-illness').value.trim();
+    const reason = document.getElementById('permit-reason').value.trim();
 
     if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
     if(!start) return window.showToast("Tanggal mulai harus diisi", "warning");
@@ -2220,10 +2230,12 @@ window.savePermit = function() {
     // Validasi berbeda untuk Sakit dan Izin
     if(type === 'Sakit') {
         // Sakit tidak perlu end_date
+        if(!illness) return window.showToast("Keterangan sakit harus diisi", "warning");
     } else {
         // Izin harus punya end_date
         if(!end) return window.showToast("Tanggal selesai harus diisi untuk Izin", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
+        if(!reason) return window.showToast("Alasan izin harus diisi", "warning");
     }
 
     // Simpan data per santri
@@ -2242,11 +2254,13 @@ window.savePermit = function() {
         if(type === 'Sakit') {
             newPermit.status = 'Sakit';
             newPermit.recovered_date = null;
+            newPermit.illness_type = illness;  // NEW: Simpan keterangan sakit
             // Sakit tidak punya end_date
         } else {
             newPermit.status = 'Izin';
             newPermit.end_date = end;  // Changed from 'end' to 'end_date'
             newPermit.arrival_date = null;
+            newPermit.reason = reason;  // NEW: Simpan alasan izin
         }
         
         appState.permits.push(newPermit);
@@ -2329,6 +2343,14 @@ window.renderPermitList = function() {
         else if (status === 'Izin') statusBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
         else if (status === 'Datang') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         else if (status === 'Alpa') statusBadgeClass = 'bg-red-50 text-red-700 border-red-200';
+        
+        // Build description (illness or reason)
+        let description = '';
+        if (p.illness_type) {
+            description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="activity" class="w-3 h-3"></i> ${p.illness_type}</span>`;
+        } else if (p.reason) {
+            description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i> ${p.reason}</span>`;
+        }
 
         const div = document.createElement('div');
         div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
@@ -2338,6 +2360,7 @@ window.renderPermitList = function() {
                 <div class="flex flex-wrap gap-2 mt-1.5">
                     <span class="px-2 py-0.5 rounded-md ${p.type === 'Sakit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
                     <span class="px-2 py-0.5 rounded-md ${statusBadgeClass} font-bold text-[10px] border">${status}</span>
+                    ${description}
                     <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateDisplay}</span>
                     ${p.session !== 'all' ? `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md uppercase">${p.session}</span>` : ''}
                 </div>
@@ -2552,7 +2575,7 @@ window.renderHomecomingChecklist = function(list) {
         const div = document.createElement('label');
         div.className = 'flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer hover:border-indigo-500 transition-all group select-none';
         div.innerHTML = `
-            <input type="checkbox" name="homecoming_santri_select" value="${id}" onchange="window.updateHomecomingCount()" class="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500 rounded-md cursor-pointer accent-indigo-500">
+            <input type="checkbox" name="homecoming_santri_select" value="${id}" checked onchange="window.updateHomecomingCount()" class="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500 rounded-md cursor-pointer accent-indigo-500">
             <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white">${s.nama}</span>
         `;
         container.appendChild(div);
