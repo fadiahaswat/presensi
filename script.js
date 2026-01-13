@@ -3244,5 +3244,110 @@ window.syncHomecoming = function() {
     window.showToast("Data disinkronkan", "info");
 };
 
+// ==========================================
+// MANAJEMEN EVENT (EDIT MANDIRI)
+// ==========================================
+
+window.manageEvents = async function() {
+    const modal = document.getElementById('modal-event-manager');
+    if(modal) modal.classList.remove('hidden');
+    window.loadEventList();
+};
+
+window.loadEventList = async function() {
+    const container = document.getElementById('event-list-container');
+    container.innerHTML = '<p class="text-center text-xs text-slate-400">Memuat...</p>';
+
+    const { data, error } = await dbClient
+        .from('homecoming_events')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if(error || !data) return;
+
+    container.innerHTML = '';
+    data.forEach(evt => {
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-xl border ${evt.is_active ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'} flex justify-between items-center`;
+        div.innerHTML = `
+            <div>
+                <h4 class="text-xs font-bold ${evt.is_active ? 'text-indigo-700' : 'text-slate-600'}">${evt.title}</h4>
+                <p class="text-[10px] text-slate-400">${window.formatDate(evt.start_date)} - ${window.formatDate(evt.end_date)}</p>
+                <p class="text-[10px] font-bold text-red-400 mt-0.5">Deadline: ${evt.deadline_time?.slice(0,5) || '17:00'}</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="window.editEvent('${evt.id}')" class="p-1.5 bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-500"><i data-lucide="edit-2" class="w-3 h-3"></i></button>
+                ${!evt.is_active ? `<button onclick="window.activateEvent('${evt.id}')" class="p-1.5 bg-emerald-100 rounded-lg text-emerald-600 font-bold text-[9px]">Aktifkan</button>` : '<span class="text-[9px] font-bold text-indigo-500 bg-white px-2 py-1 rounded">AKTIF</span>'}
+            </div>
+        `;
+        container.appendChild(div);
+    });
+    if(window.lucide) window.lucide.createIcons();
+};
+
+window.saveEvent = async function() {
+    const id = document.getElementById('evt-id').value;
+    const title = document.getElementById('evt-title').value;
+    const start = document.getElementById('evt-start').value;
+    const end = document.getElementById('evt-end').value;
+    const deadline = document.getElementById('evt-deadline').value;
+
+    if(!title || !start || !end || !deadline) return window.showToast("Lengkapi semua data!", "warning");
+
+    const payload = { title, start_date: start, end_date: end, deadline_time: deadline };
+
+    let error;
+    if(id) {
+        // Update
+        const res = await dbClient.from('homecoming_events').update(payload).eq('id', id);
+        error = res.error;
+    } else {
+        // Create Baru (Otomatis jadi aktif)
+        // Matikan yg lain dulu
+        await dbClient.from('homecoming_events').update({ is_active: false }).neq('id', 0);
+        const res = await dbClient.from('homecoming_events').insert({ ...payload, is_active: true });
+        error = res.error;
+    }
+
+    if(error) window.showToast("Gagal simpan event", "error");
+    else {
+        window.showToast("Jadwal tersimpan", "success");
+        window.resetEventForm();
+        window.loadEventList();
+        // Refresh tampilan utama jika tab perpulangan terbuka
+        if(document.getElementById('tab-homecoming').classList.contains('hidden') === false) {
+            window.openHomecomingModal(); // Refresh data
+        }
+    }
+};
+
+window.editEvent = async function(id) {
+    const { data } = await dbClient.from('homecoming_events').select('*').eq('id', id).single();
+    if(data) {
+        document.getElementById('evt-id').value = data.id;
+        document.getElementById('evt-title').value = data.title;
+        document.getElementById('evt-start').value = data.start_date;
+        document.getElementById('evt-end').value = data.end_date;
+        document.getElementById('evt-deadline').value = data.deadline_time;
+    }
+};
+
+window.activateEvent = async function(id) {
+    // Nonaktifkan semua
+    await dbClient.from('homecoming_events').update({ is_active: false }).neq('id', 0);
+    // Aktifkan target
+    await dbClient.from('homecoming_events').update({ is_active: true }).eq('id', id);
+    window.loadEventList();
+    window.showToast("Event aktif diubah", "success");
+};
+
+window.resetEventForm = function() {
+    document.getElementById('evt-id').value = '';
+    document.getElementById('evt-title').value = '';
+    document.getElementById('evt-start').value = '';
+    document.getElementById('evt-end').value = '';
+    document.getElementById('evt-deadline').value = '';
+};
+
 // Start App
 window.onload = window.initApp;
