@@ -905,8 +905,7 @@ window.renderAttendanceList = function() {
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
-                // Default awal banget (saat data kosong)
-                if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; // Default Tahajjud/Dhuha = Tidak
+                if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
             dbSlot[id] = { status: defStatus, note: '' };
@@ -918,72 +917,46 @@ window.renderAttendanceList = function() {
         // LOGIKA BARU UNTUK MENENTUKAN STATUS TARGET
         slot.activities.forEach(act => {
             let targetStatus = null;
-
-            // KASUS 1: ADA IZIN AKTIF (APPLY)
             if (activePermit) {
-                // Fardu & KBM -> Ikut Status Izin (S/I)
-                if (act.category === 'fardu' || act.category === 'kbm') {
-                    targetStatus = activePermit.type; 
-                } 
-                // Semua Sunnah (Murni & Dependent) -> Jadi Strip (Tidak)
-                // Karena kalau sakit/izin pasti tidak shalat sunnah/dzikir di masjid
-                else {
-                    targetStatus = 'Tidak'; 
-                }
-            }
-            // KASUS 2: TIDAK ADA IZIN, TAPI BEKAS AUTO (RESET/CLEANUP)
-            else if (isAutoMarked) {
-                // Kembalikan ke DEFAULT masing-masing kategori
-                if (act.category === 'sunnah') {
-                    targetStatus = 'Tidak'; // Tahajjud/Dhuha defaultnya Tidak
-                } else if (act.category === 'fardu' || act.category === 'kbm') {
-                    targetStatus = 'Hadir'; // Shalat/Belajar defaultnya Hadir
-                } else {
-                    targetStatus = 'Ya'; // Dzikir/Rawatib defaultnya Ya (Asumsi shalat hadir)
-                }
+                if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
+                else targetStatus = 'Tidak'; 
+            } else if (isAutoMarked) {
+                if (act.category === 'sunnah') targetStatus = 'Tidak';
+                else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
+                else targetStatus = 'Ya';
             }
 
-            // Eksekusi Perubahan (Jika ada target)
             if (targetStatus !== null && sData.status[act.id] !== targetStatus) {
                 sData.status[act.id] = targetStatus;
                 hasAutoChanges = true;
             }
         });
 
-        // Update Note (Catatan)
+        // Update Note
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
-            // Hanya tulis jika note kosong atau berbeda dari autoNote yang seharusnya
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
             }
         } else if (isAutoMarked) {
-            // Hapus note [Auto] saat reset
             sData.note = '';
             hasAutoChanges = true;
         }
-        // --- END LOGIKA PERIZINAN ---
 
         // Render UI Baris
         const clone = tplRow.content.cloneNode(true);
+        const rowElement = clone.querySelector('.santri-row'); // Ambil elemen kartu
 
-        // --- [TAMBAHAN BARU] PASANG GESTURE DISINI ---
-        const rowElement = clone.querySelector('.santri-row'); // Ini elemen kartunya
-        // Tambahkan wrapper class agar CSS relative positioning berfungsi
+        // --- SIAPKAN WRAPPER ---
         const wrapper = document.createElement('div');
-        wrapper.className = 'swipe-wrapper mb-3'; // mb-3 untuk jarak antar kartu
+        wrapper.className = 'swipe-wrapper mb-3'; 
         
-        // Pindahkan isi clone ke dalam wrapper nanti saat append
-        // Kita modifikasi cara append di bawah
-        window.enableSwipeAndHold(rowElement, id);
-        // ---------------------------------------------
-        
+        // --- ISI DATA KE KARTU (SEBELUM DIPINDAH KE WRAPPER) ---
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // Indikator Visual Permit
         if (activePermit) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
@@ -991,19 +964,14 @@ window.renderAttendanceList = function() {
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            const rowEl = clone.querySelector('.santri-row') || clone.firstElementChild;
-            if(rowEl) {
-                if(activePermit.type === 'Sakit') {
-                    rowEl.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
-                } else {
-                    rowEl.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
-                }
+            if(rowElement) {
+                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+                else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
             }
         }
 
         const btnCont = clone.querySelector('.activity-container');
         
-        // Render Activity Buttons
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
@@ -1018,18 +986,14 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
-            // Efek visual tombol jika otomatis (Locked look)
-            if (activePermit) {
-                if(curr === activePermit.type || curr === 'Tidak') {
-                    btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
-                }
+            if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
+                btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
             btnCont.appendChild(bClone);
         });
 
-        // Notes UI
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
@@ -1039,8 +1003,15 @@ window.renderAttendanceList = function() {
         };
         clone.querySelector('.btn-edit-note').onclick = () => noteBox.classList.toggle('hidden');
 
-        wrapper.appendChild(clone); // Masukkan clone (isi kartu) ke wrapper
-        fragment.appendChild(wrapper); // Masukkan wrapper ke fragment
+        // --- PENTING: URUTAN INI JANGAN DITUKAR ---
+        // 1. Masukkan kartu ke wrapper dulu
+        wrapper.appendChild(clone); 
+        
+        // 2. BARU aktifkan swipe (karena sekarang rowElement sudah punya parent yaitu wrapper)
+        window.enableSwipeAndHold(rowElement, id);
+        
+        // 3. Masukkan wrapper ke list utama
+        fragment.appendChild(wrapper); 
     });
 
     container.appendChild(fragment);
