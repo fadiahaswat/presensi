@@ -1,4 +1,4 @@
-const CACHE_NAME = 'musyrif-app-v1';
+const CACHE_NAME = 'musyrif-app-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,9 +7,9 @@ const ASSETS_TO_CACHE = [
   './santri-manager.js',
   './data-santri.js',
   './data-kelas.js',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@latest',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+  './manifest.json'
+  // KITA HAPUS LINK EKSTERNAL (Tailwind, Lucide, Supabase) DARI SINI
+  // Karena server mereka menolak di-cache oleh Service Worker secara langsung (CORS Error)
 ];
 
 // 1. Install Service Worker & Cache File
@@ -36,11 +36,22 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. Fetch Strategy: Cache First, then Network (Supaya cepat)
+// 3. Fetch Strategy: Cache First, then Network
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+  // Cek apakah request menuju ke file eksternal (http/https)
+  if (event.request.url.startsWith('http')) {
+     // Gunakan strategi Network First untuk file eksternal agar tidak error CORS
+     event.respondWith(
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
+        })
+     );
+  } else {
+     // Untuk file lokal, gunakan Cache First (sesuai kode lama)
+     event.respondWith(
+        caches.match(event.request).then((response) => {
+          return response || fetch(event.request);
+        })
+     );
+  }
 });
