@@ -1094,39 +1094,29 @@
             </div>
 
             <div id="hc-input-group" class="space-y-3 hidden">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="hc-edit-city" placeholder="Kota Tujuan" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs font-bold">
-                    <select id="hc-edit-transport" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs font-bold">
-                        <option value="Jemputan">🚗 Jemputan</option>
-                        <option value="Bus">🚌 Bus</option>
-                        <option value="Kereta">🚂 Kereta</option>
-                        <option value="Pesawat">✈️ Pesawat</option>
-                    </select>
-                </div>
-                
-                <div class="pt-4 border-t border-slate-100 dark:border-slate-700">
-                     <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Cek Kedatangan</h4>
-                     
-                     <button type="button" onclick="window.checkArrivalAuto()" class="w-full py-3 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200">
-                         <i data-lucide="clock" class="w-4 h-4"></i> Scan Jam Sekarang
-                     </button>
+    <div class="grid grid-cols-2 gap-2">
+        <input type="text" id="hc-edit-city" placeholder="Kota Tujuan" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs font-bold">
+        <select id="hc-edit-transport" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs font-bold">
+            <option value="Jemputan">🚗 Jemputan</option>
+            <option value="Bus">🚌 Bus</option>
+            <option value="Kereta">🚂 Kereta</option>
+            <option value="Pesawat">✈️ Pesawat</option>
+        </select>
+    </div>
+    
+    <div>
+        <label class="text-[10px] font-bold text-slate-400 uppercase">Status Kedatangan</label>
+        <select id="hc-edit-arrival" class="w-full p-3 mt-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none">
+            <option value="Belum">⏳ Belum Tiba</option>
+            <option value="Tepat Waktu">✅ Tepat Waktu</option>
+            <option value="Terlambat">❌ Terlambat</option>
+        </select>
+    </div>
 
-                     <div id="hc-auto-result" class="hidden mt-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-center animate-fade-in">
-                         <h3 id="hc-result-text" class="text-sm font-black uppercase mb-2">...</h3>
-                         <input type="hidden" id="hc-final-status">
-                         
-                         <div id="hc-late-reason-box" class="hidden text-left">
-                             <label class="text-[10px] font-bold text-slate-400">Alasan</label>
-                             <select id="hc-late-reason" class="w-full p-2 mt-1 rounded-lg bg-white border border-slate-300 text-xs font-bold">
-                                 <option value="Tanpa Kabar">❌ Tanpa Kabar</option>
-                                 <option value="Macet">🚗 Macet</option>
-                                 <option value="Tiket">🎫 Tiket</option>
-                                 <option value="Sakit">🤒 Sakit</option>
-                             </select>
-                         </div>
-                     </div>
-                </div>
-            </div>
+    <div class="pt-4 border-t border-slate-100 dark:border-slate-700">
+         <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Cek Otomatis</h4>
+         </div>
+</div>
 
             <div class="flex gap-2 mt-4">
                 <button onclick="window.closeModal('modal-hc-edit')" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs">Batal</button>
@@ -1321,6 +1311,7 @@
     
 </body>
 </html>
+
 
 
 
