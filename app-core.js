@@ -1010,6 +1010,15 @@ window.applyBulkAction = function(targetCategory, value, specificId = null) {
         const id = String(s.nis || s.id);
         if(!dbSlot[id]) dbSlot[id] = { status: {}, note: '' };
         
+        // PERLINDUNGAN: Skip jika ada izin/sakit atau perpulangan aktif
+        const activePermit = window.checkActivePermit && window.checkActivePermit(id, dateKey, slotId);
+        const activeHomecoming = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
+        
+        // Jika ada permit atau homecoming aktif, skip santri ini
+        if (activePermit || activeHomecoming) {
+            return; // Bulk action tidak berlaku untuk santri dengan izin/pulang aktif
+        }
+        
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
