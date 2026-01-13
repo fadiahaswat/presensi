@@ -3366,8 +3366,10 @@ window.saveEvent = async function() {
         window.resetEventForm();
         window.loadEventList();
         // Refresh tampilan utama jika tab perpulangan terbuka
-        if(document.getElementById('tab-homecoming').classList.contains('hidden') === false) {
-            window.openHomecomingModal(); // Refresh data
+                // BENAR (Cek Modal)
+        const hcModal = document.getElementById('modal-homecoming');
+        if(hcModal && !hcModal.classList.contains('hidden')) {
+            window.openHomecomingModal(); 
         }
     }
 };
