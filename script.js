@@ -3058,103 +3058,159 @@ window.checkScheduledNotifications = function() {
 // FITUR GESTURE (SWIPE & HOLD) - SUPER ABSEN
 // ==========================================
 
+// ==========================================
+// FITUR GESTURE (SWIPE & HOLD) - ENHANCED
+// ==========================================
+
 window.enableSwipeAndHold = function(element, studentId) {
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
     let holdTimer = null;
-    let isHolding = false;
-    const threshold = 100; // Jarak geser minimal (pixel) untuk trigger aksi
+    let isHolding = false; // Flag apakah aksi hold sudah tereksekusi
+    
+    // Konfigurasi Sensitivitas
+    const threshold = 100; // Jarak minimal geser untuk aksi (pixel)
+    const maxDrag = 150;   // Jarak maksimal visual geser (agar tidak bablas)
 
-    // Element Background (Layer warna)
-    // Kita buat layer ini secara dinamis jika belum ada
+    // 1. Siapkan Layer Background Dinamis
     let bgLayer = element.parentElement.querySelector('.swipe-bg-layer');
+    
+    // Kita reset konten bgLayer agar ikonnya baru & segar
     if (!bgLayer) {
         bgLayer = document.createElement('div');
-        bgLayer.className = 'swipe-bg-layer rounded-2xl'; // samakan rounded
+        bgLayer.className = 'swipe-bg-layer';
         element.parentElement.insertBefore(bgLayer, element);
     }
+    
+    // Masukkan Ikon Kiri (Sakit) & Kanan (Alpa)
+    bgLayer.innerHTML = `
+        <div class="swipe-icon-wrapper icon-left text-amber-100">
+            <i data-lucide="thermometer"></i>
+            <span>SAKIT</span>
+        </div>
+        <div class="swipe-icon-wrapper icon-right text-rose-100">
+            <i data-lucide="x-circle"></i>
+            <span>ALPA</span>
+        </div>
+    `;
+    
+    // Cache referensi elemen ikon untuk performa
+    const iconLeft = bgLayer.querySelector('.icon-left');   // Untuk Swipe ke Kanan (Muncul di kiri)
+    const iconRight = bgLayer.querySelector('.icon-right'); // Untuk Swipe ke Kiri (Muncul di kanan)
 
-    // --- 1. TOUCH START ---
+    // --- EVENT: TOUCH START ---
     element.addEventListener('touchstart', (e) => {
-        // Jangan trigger jika user menekan tombol activity/notes
+        // Abaikan jika menyentuh tombol/input
         if (e.target.closest('button') || e.target.closest('input')) return;
 
         startX = e.touches[0].clientX;
         isDragging = true;
-        element.style.transition = 'none'; // Matikan transisi saat drag agar responsif
-
-        // Mulai Timer Hold (Tekan Lama 800ms)
         isHolding = false;
+        
+        // Matikan transisi CSS saat dragging agar responsif mengikuti jari (1:1)
+        element.style.transition = 'none';
+
+        // Efek Pressing (Mengecil)
+        element.classList.add('is-pressing');
+
+        // Timer Hold (Tekan Lama)
         holdTimer = setTimeout(() => {
-            if (!isDragging) return; // Batal jika user mulai menggeser
+            if (!isDragging) return; // Batal jika user sudah menggeser
+            
             isHolding = true;
-            element.classList.add('holding-animation'); // Efek visual
+            isDragging = false; // Stop logic drag
             
-            // Haptic Feedback (Getar) jika HP support
+            // Efek Visual Trigger
+            element.classList.remove('is-pressing');
+            element.classList.add('holding-trigger');
+            
+            // Getaran HP
             if (navigator.vibrate) navigator.vibrate(50);
-            
-            // Trigger Aksi HOLD (IZIN)
+
+            // Eksekusi Aksi HOLD (IZIN)
             setTimeout(() => {
                 const note = prompt("📝 Masukkan Keterangan IZIN:");
-                if (note !== null) { // Jika tidak cancel
+                
+                // Bersihkan efek visual
+                element.classList.remove('holding-trigger');
+                
+                if (note !== null) {
                     window.quickUpdateStatus(studentId, 'Izin', note || 'Izin (Manual)');
                 }
-                resetPosition();
-            }, 100); 
-        }, 800);
+            }, 100);
+        }, 600); // Waktu tekan: 600ms (lebih cepat dari sebelumnya biar responsif)
+
     }, { passive: true });
 
-    // --- 2. TOUCH MOVE ---
+    // --- EVENT: TOUCH MOVE ---
     element.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
+        if (!isDragging || isHolding) return;
         
         currentX = e.touches[0].clientX;
         const diff = currentX - startX;
 
-        // Jika user menggeser, batalkan Hold Timer
+        // Jika jari bergerak > 10px, batalkan Hold
         if (Math.abs(diff) > 10) {
             clearTimeout(holdTimer);
-            if (isHolding) return; // Jika sudah terlanjur hold, jangan geser
+            element.classList.remove('is-pressing'); // Batalkan efek tekan
         }
 
-        // Batasi scroll vertikal jika sedang swipe horizontal
-        // (Opsional, browser modern biasanya pintar menanganinya)
-
-        // Gerakkan kartu
-        element.style.transform = `translateX(${diff}px)`;
-
-        // Update Warna Background
-        if (diff > 0) {
-            // Geser Kanan -> SAKIT (Kuning/Amber)
-            bgLayer.style.backgroundColor = '#f59e0b'; 
-            bgLayer.innerHTML = '<span class="flex items-center gap-2"><i data-lucide="thermometer" class="w-5 h-5"></i> SAKIT</span> <span></span>';
-            bgLayer.style.opacity = Math.min(diff / threshold, 1);
-        } else {
-            // Geser Kiri -> ALPA (Merah)
-            bgLayer.style.backgroundColor = '#ef4444';
-            bgLayer.innerHTML = '<span></span> <span class="flex items-center gap-2">ALPA <i data-lucide="x-circle" class="w-5 h-5"></i></span>';
-            bgLayer.style.opacity = Math.min(Math.abs(diff) / threshold, 1);
-        }
+        // Hitung Progress Geser (0.0 sampai 1.0)
+        // Kita gunakan rumus logaritmik agar geseran terasa "berat" saat makin jauh (Elastic)
+        const resistance = 0.5; // Faktor pemberat
+        const translateX = diff * resistance; // Geser kartu lebih pelan dari jari
         
-        if(window.lucide) window.lucide.createIcons();
+        // Batasi geseran visual maksimal
+        const clampedTranslate = Math.max(Math.min(translateX, maxDrag), -maxDrag);
+        
+        element.style.transform = `translateX(${clampedTranslate}px)`;
+
+        // Logika Visual Background & Ikon
+        const progress = Math.min(Math.abs(diff) / threshold, 1); // 0 -> 1
+        
+        if (diff > 0) {
+            // ---> GESER KANAN (SAKIT)
+            bgLayer.style.backgroundColor = `rgba(245, 158, 11, ${progress})`; // Amber
+            
+            // Animasi Ikon: Muncul, Membesar, dan Berputar sedikit
+            iconLeft.style.opacity = progress;
+            iconLeft.style.transform = `scale(${0.5 + (progress * 0.7)})`; // 0.5 -> 1.2
+            
+            iconRight.style.opacity = '0'; // Sembunyikan lawan
+
+        } else {
+            // <--- GESER KIRI (ALPA)
+            bgLayer.style.backgroundColor = `rgba(244, 63, 94, ${progress})`; // Rose
+            
+            // Animasi Ikon
+            iconRight.style.opacity = progress;
+            iconRight.style.transform = `scale(${0.5 + (progress * 0.7)})`;
+            
+            iconLeft.style.opacity = '0';
+        }
+
     }, { passive: true });
 
-    // --- 3. TOUCH END ---
+    // --- EVENT: TOUCH END ---
     element.addEventListener('touchend', (e) => {
         if (!isDragging) return;
+        
         isDragging = false;
         clearTimeout(holdTimer);
-        element.classList.remove('holding-animation');
-        element.style.transition = 'transform 0.3s ease-out'; // Hidupkan animasi balik
-
+        
+        // Kembalikan Style
+        element.classList.remove('is-pressing');
+        element.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; // Efek membal (bouncy) saat lepas
+        
         const diff = currentX - startX;
 
-        // Cek apakah geseran cukup jauh?
+        // Cek Threshold Aksi
         if (diff > threshold) {
-            // --- AKSI SWIPE KANAN (SAKIT) ---
-            // Geser kartu sampai habis dulu biar keren
-            element.style.transform = `translateX(120%)`; 
+            // --- AKSI: SAKIT (KANAN) ---
+            // Lempar kartu ke kanan habis
+            element.style.transform = `translateX(${window.innerWidth}px)`;
+            
             setTimeout(() => {
                 const note = prompt("🤒 Masukkan Keterangan SAKIT:");
                 if (note !== null) {
@@ -3162,13 +3218,18 @@ window.enableSwipeAndHold = function(element, studentId) {
                 } else {
                     resetPosition(); // Batal
                 }
-            }, 100);
+            }, 200);
 
         } else if (diff < -threshold) {
-            // --- AKSI SWIPE KIRI (ALPA) ---
-            element.style.transform = `translateX(-120%)`;
+            // --- AKSI: ALPA (KIRI) ---
+            // Lempar kartu ke kiri habis
+            element.style.transform = `translateX(-${window.innerWidth}px)`;
+            
+            // Getar Peringatan
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
             setTimeout(() => {
-                if(confirm("❌ Tandai sebagai ALPA?")) {
+                if(confirm(`❌ Tandai ALPA untuk santri ini?`)) {
                     window.quickUpdateStatus(studentId, 'Alpa', '');
                 } else {
                     resetPosition();
@@ -3176,17 +3237,23 @@ window.enableSwipeAndHold = function(element, studentId) {
             }, 100);
 
         } else {
-            // Batal (Kembali ke posisi awal)
+            // Batal (Geser tidak cukup jauh) -> Balik ke tengah
             resetPosition();
         }
     });
 
     function resetPosition() {
         element.style.transform = 'translateX(0)';
+        // Reset background pelan-pelan
         setTimeout(() => {
-            bgLayer.style.opacity = '0';
-        }, 300);
+            bgLayer.style.backgroundColor = 'transparent';
+            iconLeft.style.opacity = '0';
+            iconRight.style.opacity = '0';
+        }, 200);
     }
+    
+    // Inisialisasi Icon Lucide di dalam layer baru
+    if(window.lucide) window.lucide.createIcons();
 };
 
 // Fungsi Eksekusi Update Status Cepat
