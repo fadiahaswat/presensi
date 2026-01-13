@@ -27,6 +27,11 @@ window.initApp = async function() {
         const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
         if(savedPermits) appState.permits = JSON.parse(savedPermits);
 
+        // Load Homecoming
+        appState.homecomings = [];
+        const savedHomecomings = localStorage.getItem(APP_CONFIG.homecomingKey);
+        if(savedHomecomings) appState.homecomings = JSON.parse(savedHomecomings);
+
     } catch (e) {
         console.error("Storage Error:", e);
     }
@@ -687,9 +692,20 @@ window.renderAttendanceList = function() {
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
+        // Priority: localStorage homecoming (new modal system) > Supabase homecoming (old event system)
+        // This allows both systems to coexist. The modal-based system takes priority when data exists.
         let isPulang = false;
+        let homecomingInfo = null;
         try {
-            isPulang = window.isStudentPulang && window.isStudentPulang(id, dateKey);
+            // First check localStorage homecoming (new system)
+            homecomingInfo = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
+            if (homecomingInfo) {
+                isPulang = true;
+            } 
+            // Then check Supabase homecoming (old system) if new system doesn't have data
+            else if (window.isStudentPulang) {
+                isPulang = window.isStudentPulang(id, dateKey);
+            }
         } catch (e) {
             console.error('Error checking Pulang status:', e);
         }
@@ -747,7 +763,8 @@ window.renderAttendanceList = function() {
                 hasAutoChanges = true;
             }
         } else if (isPulang) {
-            const autoNote = `[Auto] Pulang`;
+            // Use info from localStorage homecoming if available, otherwise use default
+            const autoNote = homecomingInfo && homecomingInfo.city ? `[Auto] Pulang ke ${homecomingInfo.city}` : `[Auto] Pulang`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;

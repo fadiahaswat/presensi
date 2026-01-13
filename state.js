@@ -15,6 +15,8 @@ window.appState = {
     filterProblemOnly: false,
     date: window.getLocalDateStr(),
     activityLog: [],
+    permits: [],
+    homecomings: [],
     settings: {
         darkMode: false,
         notifications: true,
