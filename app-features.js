@@ -422,7 +422,7 @@ window.handleGoogleCallback = function(response) {
 
         // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
         // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        dbClient.from('musyrif_profiles').upsert({
+        dbClient.from('musyrif_profiles').upsert({ // <--- GANTI JADI dbClient
             email: profile.email,
             name: profile.name,
             photo_url: profile.picture,
@@ -2002,15 +2002,6 @@ window.isSlotAccessible = function(slotId, dateStr) {
     return { locked: false, reason: '' };
 };
 
-// 2. Default Slot
-window.determineCurrentSlot = function() {
-    const h = new Date().getHours();
-    if (h >= 19) return 'isya';
-    if (h >= 18) return 'maghrib';
-    if (h >= 15) return 'ashar';
-    return 'shubuh';
-};
-
 window.handleClearData = function() {
     window.showConfirmModal(
         'Hapus Data Hari Ini?',
@@ -3586,6 +3577,3 @@ window.checkArrivalAuto = function() {
         if(navigator.vibrate) navigator.vibrate(50);
     }
 };
-
-// Start App
-window.onload = window.initApp;

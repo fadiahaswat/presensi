@@ -1330,10 +1330,23 @@
     </template>
 
     <!-- Scripts -->
+    <!-- Core Configuration & Utilities -->
+    <script src="config.js"></script>
+    <script src="utils.js"></script>
+    <script src="state.js"></script>
+    <script src="constants.js"></script>
+    
+    <!-- Data Management -->
     <script src="data-kelas.js"></script>
     <script src="data-santri.js"></script>
     <script src="santri-manager.js"></script>
-    <script src="script.js"></script>
+    
+    <!-- Application Logic -->
+    <script src="app-core.js"></script>
+    <script src="app-features.js"></script>
+    
+    <!-- Main Entry Point -->
+    <script src="main.js"></script>
 
     <script>
         // Mendaftarkan Service Worker agar aplikasi bisa di-install & jalan offline
