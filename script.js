@@ -422,7 +422,7 @@ window.handleGoogleCallback = function(response) {
 
         // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
         // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        dbClient.from('musyrif_profiles').upsert({ // <--- GANTI JADI dbClient
+        dbClient.from('musyrif_profiles').upsert({
             email: profile.email,
             name: profile.name,
             photo_url: profile.picture,
@@ -2408,9 +2408,8 @@ window.runAnalysis = function() {
     let loopGuard = 0;
 
     while(curr <= end && loopGuard < 370) {
-        const dateKey = curr.toISOString().split('T')[0]; // YYYY-MM-DD (Local approx)
-        // Fix timezone offset issue for pure YYYY-MM-DD loop
-        // Gunakan string manipulation agar aman
+        // Generate safe date key (YYYY-MM-DD) using local time components
+        // to avoid timezone issues with toISOString()
         const y = curr.getFullYear();
         const m = String(curr.getMonth()+1).padStart(2,'0');
         const d = String(curr.getDate()).padStart(2,'0');
@@ -2868,7 +2867,7 @@ window.syncToSupabase = async function() {
     if (updates.length === 0) return;
 
     // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
-    const { error } = await dbClient // <--- GANTI JADI dbClientsupabase
+    const { error } = await dbClient
         .from('attendance')
         .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
 
