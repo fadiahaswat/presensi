@@ -720,12 +720,9 @@ window.renderAttendanceList = function() {
                 if (act.category === 'fardu' || act.category === 'kbm') {
                     targetStatus = 'Pulang';
                 }
-                // Kegiatan yang nempel dengan shalat (Rawatib/Dzikir) jadi 'Pulang' (P)
-                else if (act.category === 'dependent') {
-                    targetStatus = 'Pulang';
-                }
-                // Ibadah Sunnah Mandiri (Tahajjud, Puasa, Dhuha, Kahfi) jadi Strip (-)
-                else if (act.category === 'sunnah') {
+                // Kegiatan yang nempel dengan shalat (Rawatib/Dzikir) jadi 'Tidak' (-)
+                // Kegiatan Sunnah Mandiri (Tahajjud, Puasa, Dhuha, Kahfi) jadi 'Tidak' (-)
+                else if (act.category === 'dependent' || act.category === 'sunnah') {
                     targetStatus = 'Tidak';
                 }
             }
@@ -872,11 +869,10 @@ window.toggleStatus = function(id, actId, type) {
             if (act.id === 'shalat') return; // Skip diri sendiri
 
             // KASUS A: Shalat jadi S/I/P/A (Tidak Hadir)
-            // Semua kegiatan lain ikut "Sakit/Izin/Pulang" atau "Tidak"
+            // Semua kegiatan lain ikut "Sakit/Izin" atau "Tidak"
             if (isNonHadir) {
                 if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/P/A
-                else if(act.category === 'dependent' && next === 'Pulang') sData.status[act.id] = 'Pulang'; // Rawatib ikut Pulang
-                else sData.status[act.id] = 'Tidak'; // Sunnah jadi Strip (-)
+                else sData.status[act.id] = 'Tidak'; // Dependent & Sunnah jadi Strip (-)
             } 
             
             // KASUS B: Shalat kembali jadi H (Hadir)
