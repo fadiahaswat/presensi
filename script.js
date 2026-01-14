@@ -211,11 +211,13 @@ const SLOT_WAKTU = {
     ]}
 };
 
+// Di script.js
 const STATUS_UI = {
     'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
     'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
     'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
     'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
+    'Pulang': { class: 'bg-purple-100 text-purple-600 border-purple-300', label: 'P' }, // <-- STATUS BARU
     'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };
