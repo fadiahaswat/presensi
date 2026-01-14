@@ -4153,7 +4153,7 @@ window.isStudentPulang = function(studentId, dateKey) {
 };
 
 // Load homecoming data in background (called at app startup)
-window.loadHomecomingData = async function() {
+window.loadHomecomingData = function() {
     try {
         // Load from LocalStorage instead of Supabase
         const homecomingData = localStorage.getItem(APP_CONFIG.homecomingKey);
@@ -4494,7 +4494,11 @@ window.loadEventList = async function() {
         }
 
         // Sort by created_at descending
-        data.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        data.sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+            const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+            return dateB - dateA;
+        });
 
         data.forEach(evt => {
         const isActive = evt.is_active;
@@ -4586,7 +4590,7 @@ window.saveEvent = async function() {
             // --- MODE CREATE BARU ---
             const newEvent = { 
                 ...payload, 
-                id: Date.now().toString(), 
+                id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11), 
                 is_active: false,
                 created_at: new Date().toISOString()
             };
