@@ -846,11 +846,11 @@ window.renderAttendanceList = function() {
             const badge = document.createElement('span');
             let badgeClass = '';
             if (activePermit.type === 'Sakit') {
-                badgeClass = 'bg-amber-100 text-amber-600 border-amber-200';
+                badgeClass = 'bg-yellow-100 text-yellow-700 border-yellow-300';  // Kuning (Yellow)
             } else if (activePermit.type === 'Pulang') {
-                badgeClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
+                badgeClass = 'bg-purple-100 text-purple-600 border-purple-300';  // Ungu (Purple)
             } else {
-                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';
+                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';        // Biru (Blue) - Izin
             }
             badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
             badge.textContent = activePermit.type;
@@ -859,9 +859,9 @@ window.renderAttendanceList = function() {
             // Visual highlight baris (optional)
             if(rowElement) {
                 if(activePermit.type === 'Sakit') {
-                    rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+                    rowElement.classList.add('ring-1', 'ring-yellow-200', 'bg-yellow-50/30');
                 } else if(activePermit.type === 'Pulang') {
-                    rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                    rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
                 } else {
                     rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
                 }
@@ -869,13 +869,13 @@ window.renderAttendanceList = function() {
         } else if (isPulang) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-purple-100 text-purple-600 border-purple-300`;
             badge.textContent = 'Pulang';
             nameEl.appendChild(badge);
             
             // Visual highlight baris
             if(rowElement) {
-                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
             }
         }
 
@@ -898,13 +898,13 @@ window.renderAttendanceList = function() {
             if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
                 let ringClass = 'ring-blue-400';
                 if (activePermit.type === 'Sakit') {
-                    ringClass = 'ring-amber-400';
+                    ringClass = 'ring-yellow-400';      // Kuning (Yellow)
                 } else if (activePermit.type === 'Pulang') {
-                    ringClass = 'ring-indigo-400';
+                    ringClass = 'ring-purple-400';      // Ungu (Purple)
                 }
                 btn.classList.add('ring-2', 'ring-offset-1', ringClass);
             } else if (isPulang && (curr === 'Pulang' || curr === 'Tidak')) {
-                btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400');
+                btn.classList.add('ring-2', 'ring-offset-1', 'ring-purple-400');  // Ungu (Purple)
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);

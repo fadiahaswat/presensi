@@ -212,12 +212,12 @@ const SLOT_WAKTU = {
 };
 
 const STATUS_UI = {
-    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
-    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
-    'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
-    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
-    'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
-    'Pulang': { class: 'bg-indigo-100 text-indigo-600 border-indigo-300', label: 'P' },
+    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },         // Hijau (Green)
+    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },           // Hijau (Green)
+    'Sakit': { class: 'bg-yellow-100 text-yellow-700 border-yellow-300', label: 'S' },     // Kuning (Yellow)
+    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },            // Biru (Blue)
+    'Alpa': { class: 'bg-red-100 text-red-600 border-red-300', label: 'A' },               // Merah (Red)
+    'Pulang': { class: 'bg-purple-100 text-purple-600 border-purple-300', label: 'P' },    // Ungu (Purple)
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };
 
@@ -1007,24 +1007,33 @@ window.renderAttendanceList = function() {
         // BADGE & HIGHLIGHT: IZIN / SAKIT
         if (activePermit) {
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${activePermit.type === 'Sakit' ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`;
+            let badgeClass = '';
+            if (activePermit.type === 'Sakit') {
+                badgeClass = 'bg-yellow-100 text-yellow-700 border-yellow-300';  // Kuning (Yellow)
+            } else if (activePermit.type === 'Pulang') {
+                badgeClass = 'bg-purple-100 text-purple-600 border-purple-300';  // Ungu (Purple)
+            } else {
+                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';        // Biru (Blue) - Izin
+            }
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
             if(rowElement) {
-                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-yellow-200', 'bg-yellow-50/30');
+                else if(activePermit.type === 'Pulang') rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
                 else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
             }
         } 
         // BADGE & HIGHLIGHT: PULANG [BARU]
         else if (activeHomecoming) {
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-purple-100 text-purple-600 border-purple-300`;
             badge.textContent = "PULANG";
             nameEl.appendChild(badge);
 
             if(rowElement) {
-                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
             }
         }
 
@@ -1943,9 +1952,11 @@ window.updateReportTab = function() {
                 const st = dayData[sid]?.[id]?.status?.shalat;
                 let color = 'bg-slate-100 text-slate-300';
                 let label = sid[0].toUpperCase();
-                if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
-                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
-                else if(st === 'Sakit' || st === 'Izin') color = 'bg-amber-100 text-amber-600';
+                if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';                    // Hijau
+                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';                        // Merah
+                else if(st === 'Sakit') color = 'bg-yellow-100 text-yellow-700';                 // Kuning
+                else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';                      // Biru
+                else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';                // Ungu
                 badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black">${label}</span>`;
             });
             shalatCol = `<div class="flex justify-center gap-1">${badges}</div>`;
@@ -3045,15 +3056,15 @@ window.renderDashboardActivePermits = function() {
     const fragment = document.createDocumentFragment();
     
     if (sakit.length > 0) {
-        fragment.appendChild(window.renderPermitSection('Masih Sakit', sakit, 'amber', 'Sembuh'));
+        fragment.appendChild(window.renderPermitSection('Masih Sakit', sakit, 'yellow', 'Sembuh'));  // Kuning
     }
     
     if (izin.length > 0) {
-        fragment.appendChild(window.renderPermitSection('Masih Izin', izin, 'blue', 'Datang'));
+        fragment.appendChild(window.renderPermitSection('Masih Izin', izin, 'blue', 'Datang'));      // Biru
     }
     
     if (pulang.length > 0) {
-        fragment.appendChild(window.renderHomecomingSection('Masih Pulang', pulang, 'indigo', 'Datang'));
+        fragment.appendChild(window.renderHomecomingSection('Masih Pulang', pulang, 'purple', 'Datang'));  // Ungu
     }
     
     container.appendChild(fragment);
@@ -3805,9 +3816,10 @@ window.renderTodayProblems = function() {
         
         // Warna status
         let stClass = 'bg-slate-100 text-slate-600';
-        if(p.status === 'Sakit') stClass = 'bg-amber-100 text-amber-600';
-        else if(p.status === 'Izin') stClass = 'bg-blue-100 text-blue-600';
-        else if(p.status === 'Alpa') stClass = 'bg-red-100 text-red-600';
+        if(p.status === 'Sakit') stClass = 'bg-yellow-100 text-yellow-700';          // Kuning (Yellow)
+        else if(p.status === 'Izin') stClass = 'bg-blue-100 text-blue-600';           // Biru (Blue)
+        else if(p.status === 'Alpa') stClass = 'bg-red-100 text-red-600';             // Merah (Red)
+        else if(p.status === 'Pulang') stClass = 'bg-purple-100 text-purple-600';     // Ungu (Purple)
 
         div.innerHTML = `
             <div class="flex items-center gap-3">
