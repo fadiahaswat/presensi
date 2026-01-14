@@ -3925,22 +3925,25 @@ window.markAsReturned = function(id) {
 };
 
 // 3. PERPANJANG IZIN (P -> I atau I -> I)
+// 2. PULANG -> PERPANJANG (Poin 5: Pulang -> Izin)
 window.extendPermit = function(id) {
     const permit = appState.permits.find(p => p.id === id);
     if(!permit) return;
 
-    // Tanya User tanggal baru
     const newDate = prompt("Perpanjang sampai tanggal berapa? (YYYY-MM-DD)", permit.end_date);
     if(!newDate) return;
 
     permit.end_date = newDate;
     
-    // Jika awalnya Pulang (P), ubah jadi Izin (I) sesuai request
+    // Poin 5: "mengabari jadi I Izin"
+    // Jika asalnya Pulang, kita ubah jadi Izin karena sudah lewat jatah pulang.
     if(permit.category === 'pulang') {
-        permit.category = 'izin'; // Downgrade ke izin biasa
+        permit.category = 'izin'; 
         permit.status_label = 'I';
-        permit.reason += " (Diperpanjang)";
-        window.showToast("Status berubah dari Pulang ke Izin", "info");
+        permit.reason += " (Diperpanjang/Telat)";
+        window.showToast("Status diubah ke Izin (Diperpanjang)", "info");
+    } else {
+        window.showToast("Masa izin diperpanjang", "success");
     }
 
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
