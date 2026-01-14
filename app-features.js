@@ -212,12 +212,12 @@ const SLOT_WAKTU = {
 };
 
 const STATUS_UI = {
-    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
-    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
-    'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
-    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
-    'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
-    'Pulang': { class: 'bg-indigo-100 text-indigo-600 border-indigo-300', label: 'P' },
+    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },         // Hijau (Green)
+    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },           // Hijau (Green)
+    'Sakit': { class: 'bg-yellow-100 text-yellow-700 border-yellow-300', label: 'S' },     // Kuning (Yellow)
+    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },            // Biru (Blue)
+    'Alpa': { class: 'bg-red-100 text-red-600 border-red-300', label: 'A' },               // Merah (Red)
+    'Pulang': { class: 'bg-purple-100 text-purple-600 border-purple-300', label: 'P' },    // Ungu (Purple)
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };
 
@@ -1007,24 +1007,33 @@ window.renderAttendanceList = function() {
         // BADGE & HIGHLIGHT: IZIN / SAKIT
         if (activePermit) {
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${activePermit.type === 'Sakit' ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`;
+            let badgeClass = '';
+            if (activePermit.type === 'Sakit') {
+                badgeClass = 'bg-yellow-100 text-yellow-700 border-yellow-300';  // Kuning (Yellow)
+            } else if (activePermit.type === 'Pulang') {
+                badgeClass = 'bg-purple-100 text-purple-600 border-purple-300';  // Ungu (Purple)
+            } else {
+                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';        // Biru (Blue) - Izin
+            }
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
             if(rowElement) {
-                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-yellow-200', 'bg-yellow-50/30');
+                else if(activePermit.type === 'Pulang') rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
                 else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
             }
         } 
         // BADGE & HIGHLIGHT: PULANG [BARU]
         else if (activeHomecoming) {
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-purple-100 text-purple-600 border-purple-300`;
             badge.textContent = "PULANG";
             nameEl.appendChild(badge);
 
             if(rowElement) {
-                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
             }
         }
 
@@ -1943,9 +1952,11 @@ window.updateReportTab = function() {
                 const st = dayData[sid]?.[id]?.status?.shalat;
                 let color = 'bg-slate-100 text-slate-300';
                 let label = sid[0].toUpperCase();
-                if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
-                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
-                else if(st === 'Sakit' || st === 'Izin') color = 'bg-amber-100 text-amber-600';
+                if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';                    // Hijau
+                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';                        // Merah
+                else if(st === 'Sakit') color = 'bg-yellow-100 text-yellow-700';                 // Kuning
+                else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';                      // Biru
+                else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';                // Ungu
                 badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black">${label}</span>`;
             });
             shalatCol = `<div class="flex justify-center gap-1">${badges}</div>`;
@@ -2240,7 +2251,7 @@ window.togglePermitViewFields = function() {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
     } else if (type === 'Izin') {
         if (endContainer) endContainer.classList.remove('hidden');
-        if (endTimeContainer) endTimeContainer.classList.add('hidden');
+        if (endTimeContainer) endTimeContainer.classList.remove('hidden');  // Show end time for Izin
         if (illnessContainer) illnessContainer.classList.add('hidden');
         if (reasonContainer) reasonContainer.classList.remove('hidden');
         if (pulangContainer) pulangContainer.classList.add('hidden');
@@ -2301,24 +2312,25 @@ window.savePermitFromView = function() {
     const end = document.getElementById('permit-view-end').value;
     const endTime = document.getElementById('permit-view-end-time').value;
     const illness = document.getElementById('permit-view-illness').value.trim();
+    const illnessLocation = document.getElementById('permit-view-illness-location') ? document.getElementById('permit-view-illness-location').value : 'asrama';
     const reason = document.getElementById('permit-view-reason').value.trim();
-    const pulangSession = document.getElementById('permit-view-pulang-session').value;
     const eventName = document.getElementById('permit-view-event-name').value.trim();
 
     if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 anak", "warning");
     if(!start) return window.showToast("Tanggal mulai harus diisi", "warning");
     
     if(type === 'Sakit') {
-        if(!illness) return window.showToast("Keterangan sakit harus diisi", "warning");
+        if(!illness) return window.showToast("Sakitnya apa harus diisi", "warning");
     } else if (type === 'Izin') {
-        if(!end) return window.showToast("Tanggal selesai harus diisi untuk Izin", "warning");
+        if(!end) return window.showToast("Sampai tanggal harus diisi untuk Izin", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
-        if(!reason) return window.showToast("Alasan izin harus diisi", "warning");
+        if(!reason) return window.showToast("Izinnya apa harus diisi", "warning");
+        if(!endTime) return window.showToast("Sampai jam harus diisi untuk Izin", "warning");
     } else if (type === 'Pulang') {
         if(!end) return window.showToast("Sampai tanggal harus diisi untuk Pulang", "warning");
-        if(!endTime) return window.showToast("Jam akhir kepulangan harus diisi untuk tipe Pulang", "warning");
+        if(!endTime) return window.showToast("Sampai jam harus diisi untuk Pulang", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
-        if(!eventName) return window.showToast("Nama event perpulangan harus diisi", "warning");
+        if(!eventName) return window.showToast("Pulangnya apa harus diisi", "warning");
     }
 
     let count = 0;
@@ -2327,7 +2339,7 @@ window.savePermitFromView = function() {
             id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             nis: nis,
             type,
-            session: type === 'Pulang' ? pulangSession : session,
+            session: session,
             start_date: start,
             timestamp: new Date().toISOString()
         };
@@ -2336,9 +2348,11 @@ window.savePermitFromView = function() {
             newPermit.status = 'Sakit';
             newPermit.recovered_date = null;
             newPermit.illness_type = illness;
+            newPermit.illness_location = illnessLocation;
         } else if(type === 'Izin') {
             newPermit.status = 'Izin';
             newPermit.end_date = end;
+            newPermit.end_time = endTime;
             newPermit.arrival_date = null;
             newPermit.reason = reason;
         } else if(type === 'Pulang') {
@@ -2357,8 +2371,12 @@ window.savePermitFromView = function() {
     
     window.showToast(`${count} ${type} berhasil disimpan`, "success");
     
+    // Reset form
     checkboxes.forEach(cb => cb.checked = false);
     document.getElementById('permit-view-illness').value = '';
+    if(document.getElementById('permit-view-illness-location')) {
+        document.getElementById('permit-view-illness-location').value = 'asrama';
+    }
     document.getElementById('permit-view-reason').value = '';
     document.getElementById('permit-view-event-name').value = '';
     document.getElementById('permit-view-end-time').value = '';
@@ -2998,21 +3016,30 @@ window.renderDashboardActivePermits = function() {
     const sakit = [];
     const izin = [];
     const pulang = [];
+    const processedNis = new Set(); // Track which students we've already counted
     
-    // Check permits
+    // Check permits (PRIORITY: Process permits first)
     appState.permits.filter(p => classNisList.includes(p.nis)).forEach(p => {
         if (p.type === 'Sakit' && p.status === 'Sakit') {
             sakit.push(p);
+            processedNis.add(p.nis);
         } else if (p.type === 'Izin' && (p.status === 'Izin' || p.status === 'Alpa')) {
             const endDate = p.end_date || p.end;
             if (today <= endDate || p.status === 'Alpa') {
                 izin.push(p);
+                processedNis.add(p.nis);
+            }
+        } else if (p.type === 'Pulang' && (p.status === 'Pulang' || p.status === 'Alpa')) {
+            const endDate = p.end_date || p.end;
+            if (today <= endDate || p.status === 'Alpa') {
+                pulang.push(p);
+                processedNis.add(p.nis);
             }
         }
     });
     
-    // Check homecomings
-    appState.homecomings.filter(h => classNisList.includes(h.nis)).forEach(h => {
+    // Check homecomings ONLY for students not in permits (backward compatibility)
+    appState.homecomings.filter(h => classNisList.includes(h.nis) && !processedNis.has(h.nis)).forEach(h => {
         const status = h.status || 'Pulang';
         if (status === 'Pulang' || status === 'Alpa') {
             const endDate = h.end_date || h.end;
@@ -3036,15 +3063,15 @@ window.renderDashboardActivePermits = function() {
     const fragment = document.createDocumentFragment();
     
     if (sakit.length > 0) {
-        fragment.appendChild(window.renderPermitSection('Masih Sakit', sakit, 'amber', 'Sembuh'));
+        fragment.appendChild(window.renderPermitSection('Masih Sakit', sakit, 'yellow', 'Sembuh'));  // Kuning
     }
     
     if (izin.length > 0) {
-        fragment.appendChild(window.renderPermitSection('Masih Izin', izin, 'blue', 'Datang'));
+        fragment.appendChild(window.renderPermitSection('Masih Izin', izin, 'blue', 'Datang'));      // Biru
     }
     
     if (pulang.length > 0) {
-        fragment.appendChild(window.renderHomecomingSection('Masih Pulang', pulang, 'indigo', 'Datang'));
+        fragment.appendChild(window.renderHomecomingSection('Masih Pulang', pulang, 'purple', 'Datang'));  // Ungu
     }
     
     container.appendChild(fragment);
@@ -3291,6 +3318,17 @@ window.saveExtendHomecoming = function() {
 window.openHomecomingModal = function() {
     // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
     console.warn('openHomecomingModal is deprecated. Use openPermitView with type "Pulang" instead.');
+    window.showToast("Perpulangan sekarang dikelola melalui Input Perizinan", "info");
+    
+    // Redirect to Permit View and pre-select Pulang
+    window.openPermitView();
+    setTimeout(() => {
+        const typeSelect = document.getElementById('permit-view-type');
+        if (typeSelect) {
+            typeSelect.value = 'Pulang';
+            window.togglePermitViewFields();
+        }
+    }, 100);
     return;
     
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
@@ -3785,9 +3823,10 @@ window.renderTodayProblems = function() {
         
         // Warna status
         let stClass = 'bg-slate-100 text-slate-600';
-        if(p.status === 'Sakit') stClass = 'bg-amber-100 text-amber-600';
-        else if(p.status === 'Izin') stClass = 'bg-blue-100 text-blue-600';
-        else if(p.status === 'Alpa') stClass = 'bg-red-100 text-red-600';
+        if(p.status === 'Sakit') stClass = 'bg-yellow-100 text-yellow-700';          // Kuning (Yellow)
+        else if(p.status === 'Izin') stClass = 'bg-blue-100 text-blue-600';           // Biru (Blue)
+        else if(p.status === 'Alpa') stClass = 'bg-red-100 text-red-600';             // Merah (Red)
+        else if(p.status === 'Pulang') stClass = 'bg-purple-100 text-purple-600';     // Ungu (Purple)
 
         div.innerHTML = `
             <div class="flex items-center gap-3">

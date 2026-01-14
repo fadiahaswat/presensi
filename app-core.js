@@ -697,22 +697,32 @@ window.renderAttendanceList = function() {
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
-        // Priority: localStorage homecoming (new modal system) > Supabase homecoming (old event system)
-        // This allows both systems to coexist. The modal-based system takes priority when data exists.
+        // Priority: 
+        // 1. Permits with type="Pulang" (new unified system)
+        // 2. localStorage homecoming (transitional system)
+        // 3. Supabase homecoming (old event system)
         let isPulang = false;
         let homecomingInfo = null;
-        try {
-            // First check localStorage homecoming (new system)
-            homecomingInfo = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
-            if (homecomingInfo) {
-                isPulang = true;
-            } 
-            // Then check Supabase homecoming (old system) if new system doesn't have data
-            else if (window.isStudentPulang) {
-                isPulang = window.isStudentPulang(id, dateKey);
+        
+        // Check if activePermit is actually a Pulang permit
+        if (activePermit && activePermit.type === 'Pulang') {
+            isPulang = true;
+            homecomingInfo = activePermit; // Use permit as homecoming info
+        } else {
+            // Only check homecoming systems if no Pulang permit found
+            try {
+                // First check localStorage homecoming (new modal system)
+                homecomingInfo = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
+                if (homecomingInfo) {
+                    isPulang = true;
+                } 
+                // Then check Supabase homecoming (old event system) if new system doesn't have data
+                else if (window.isStudentPulang) {
+                    isPulang = window.isStudentPulang(id, dateKey);
+                }
+            } catch (e) {
+                console.error('Error checking Pulang status:', e);
             }
-        } catch (e) {
-            console.error('Error checking Pulang status:', e);
         }
         
         if(!dbSlot[id]) {
@@ -730,12 +740,13 @@ window.renderAttendanceList = function() {
         slot.activities.forEach(act => {
             let targetStatus = null;
             
-            // 1. PRIORITAS UTAMA: Cek Izin (Sakit/Izin)
-            if (activePermit) {
+            // 1. PRIORITAS UTAMA: Cek Perizinan (Sakit/Izin/Pulang)
+            if (activePermit && activePermit.type !== 'Pulang') {
+                // SAKIT or IZIN
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
             } 
-            // 2. PRIORITAS KEDUA: Cek Pulang (Homecoming) - MENGIKUTI LOGIKA IZIN
+            // 2. PRIORITAS KEDUA: Cek Pulang (from permit or homecoming systems)
             else if (isPulang) {
                 // Shalat Fardu, KBM, dan Dzikir/Rawatib (Dependent) menjadi 'Pulang'
                 if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
@@ -761,8 +772,8 @@ window.renderAttendanceList = function() {
         });
 
         // Update auto-note di renderAttendanceList
-        if (activePermit) {
-            // Build auto-note with illness/reason/event name if available
+        if (activePermit && activePermit.type !== 'Pulang') {
+            // Build auto-note for SAKIT or IZIN
             let permitDetail = '';
             if (activePermit.illness_type) {
                 permitDetail = ` (${activePermit.illness_type})`;
@@ -780,14 +791,6 @@ window.renderAttendanceList = function() {
                 } else if (activePermit.status === 'Sembuh' && activePermit.recovered_date) {
                     autoNote = `[Auto] Sembuh mulai ${window.formatDate(activePermit.recovered_date).split(',')[1]}`;
                 }
-            } else if (activePermit.type === 'Pulang') {
-                const endDate = activePermit.end_date || activePermit.end;
-                if (activePermit.status === 'Alpa') {
-                    autoNote = `[Auto] Alpa (Pulang s/d ${window.formatDate(endDate).split(',')[1]} terlampaui)${permitDetail}`;
-                } else {
-                    const endTime = activePermit.end_time ? ` ${activePermit.end_time}` : '';
-                    autoNote = `[Auto] Pulang s/d ${window.formatDate(endDate).split(',')[1]}${endTime}${permitDetail}`;
-                }
             } else {
                 // Izin
                 const endDate = activePermit.end_date || activePermit.end;
@@ -803,8 +806,24 @@ window.renderAttendanceList = function() {
                 hasAutoChanges = true;
             }
         } else if (isPulang) {
-            // Use info from localStorage homecoming if available, otherwise use default
-            const autoNote = homecomingInfo && homecomingInfo.city ? `[Auto] Pulang ke ${homecomingInfo.city}` : `[Auto] Pulang`;
+            // PULANG note (from permit or homecoming system)
+            let autoNote = '';
+            if (homecomingInfo) {
+                // Build note from homecomingInfo
+                const endDate = homecomingInfo.end_date || homecomingInfo.end;
+                const endTime = homecomingInfo.end_time ? ` ${homecomingInfo.end_time}` : '';
+                const city = homecomingInfo.city || homecomingInfo.event_name || '';
+                const cityDisplay = city ? ` ke ${city}` : '';
+                
+                if (homecomingInfo.status === 'Alpa') {
+                    autoNote = `[Auto] Alpa (Pulang s/d ${window.formatDate(endDate).split(',')[1]} terlampaui)${cityDisplay}`;
+                } else {
+                    autoNote = `[Auto] Pulang${cityDisplay} s/d ${window.formatDate(endDate).split(',')[1]}${endTime}`;
+                }
+            } else {
+                autoNote = `[Auto] Pulang`;
+            }
+            
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
@@ -827,11 +846,11 @@ window.renderAttendanceList = function() {
             const badge = document.createElement('span');
             let badgeClass = '';
             if (activePermit.type === 'Sakit') {
-                badgeClass = 'bg-amber-100 text-amber-600 border-amber-200';
+                badgeClass = 'bg-yellow-100 text-yellow-700 border-yellow-300';  // Kuning (Yellow)
             } else if (activePermit.type === 'Pulang') {
-                badgeClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
+                badgeClass = 'bg-purple-100 text-purple-600 border-purple-300';  // Ungu (Purple)
             } else {
-                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';
+                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';        // Biru (Blue) - Izin
             }
             badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
             badge.textContent = activePermit.type;
@@ -840,9 +859,9 @@ window.renderAttendanceList = function() {
             // Visual highlight baris (optional)
             if(rowElement) {
                 if(activePermit.type === 'Sakit') {
-                    rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+                    rowElement.classList.add('ring-1', 'ring-yellow-200', 'bg-yellow-50/30');
                 } else if(activePermit.type === 'Pulang') {
-                    rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                    rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
                 } else {
                     rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
                 }
@@ -850,13 +869,13 @@ window.renderAttendanceList = function() {
         } else if (isPulang) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-indigo-100 text-indigo-600 border-indigo-200`;
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle bg-purple-100 text-purple-600 border-purple-300`;
             badge.textContent = 'Pulang';
             nameEl.appendChild(badge);
             
             // Visual highlight baris
             if(rowElement) {
-                rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                rowElement.classList.add('ring-1', 'ring-purple-200', 'bg-purple-50/30');
             }
         }
 
@@ -879,13 +898,13 @@ window.renderAttendanceList = function() {
             if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
                 let ringClass = 'ring-blue-400';
                 if (activePermit.type === 'Sakit') {
-                    ringClass = 'ring-amber-400';
+                    ringClass = 'ring-yellow-400';      // Kuning (Yellow)
                 } else if (activePermit.type === 'Pulang') {
-                    ringClass = 'ring-indigo-400';
+                    ringClass = 'ring-purple-400';      // Ungu (Purple)
                 }
                 btn.classList.add('ring-2', 'ring-offset-1', ringClass);
             } else if (isPulang && (curr === 'Pulang' || curr === 'Tidak')) {
-                btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400');
+                btn.classList.add('ring-2', 'ring-offset-1', 'ring-purple-400');  // Ungu (Purple)
             }
 
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
