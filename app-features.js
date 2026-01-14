@@ -2251,7 +2251,7 @@ window.togglePermitViewFields = function() {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
     } else if (type === 'Izin') {
         if (endContainer) endContainer.classList.remove('hidden');
-        if (endTimeContainer) endTimeContainer.classList.add('hidden');
+        if (endTimeContainer) endTimeContainer.classList.remove('hidden');  // Show end time for Izin
         if (illnessContainer) illnessContainer.classList.add('hidden');
         if (reasonContainer) reasonContainer.classList.remove('hidden');
         if (pulangContainer) pulangContainer.classList.add('hidden');
@@ -2312,24 +2312,25 @@ window.savePermitFromView = function() {
     const end = document.getElementById('permit-view-end').value;
     const endTime = document.getElementById('permit-view-end-time').value;
     const illness = document.getElementById('permit-view-illness').value.trim();
+    const illnessLocation = document.getElementById('permit-view-illness-location') ? document.getElementById('permit-view-illness-location').value : 'asrama';
     const reason = document.getElementById('permit-view-reason').value.trim();
-    const pulangSession = document.getElementById('permit-view-pulang-session').value;
     const eventName = document.getElementById('permit-view-event-name').value.trim();
 
     if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 anak", "warning");
     if(!start) return window.showToast("Tanggal mulai harus diisi", "warning");
     
     if(type === 'Sakit') {
-        if(!illness) return window.showToast("Keterangan sakit harus diisi", "warning");
+        if(!illness) return window.showToast("Sakitnya apa harus diisi", "warning");
     } else if (type === 'Izin') {
-        if(!end) return window.showToast("Tanggal selesai harus diisi untuk Izin", "warning");
+        if(!end) return window.showToast("Sampai tanggal harus diisi untuk Izin", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
-        if(!reason) return window.showToast("Alasan izin harus diisi", "warning");
+        if(!reason) return window.showToast("Izinnya apa harus diisi", "warning");
+        if(!endTime) return window.showToast("Sampai jam harus diisi untuk Izin", "warning");
     } else if (type === 'Pulang') {
         if(!end) return window.showToast("Sampai tanggal harus diisi untuk Pulang", "warning");
-        if(!endTime) return window.showToast("Jam akhir kepulangan harus diisi untuk tipe Pulang", "warning");
+        if(!endTime) return window.showToast("Sampai jam harus diisi untuk Pulang", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
-        if(!eventName) return window.showToast("Nama event perpulangan harus diisi", "warning");
+        if(!eventName) return window.showToast("Pulangnya apa harus diisi", "warning");
     }
 
     let count = 0;
@@ -2338,7 +2339,7 @@ window.savePermitFromView = function() {
             id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             nis: nis,
             type,
-            session: type === 'Pulang' ? pulangSession : session,
+            session: session,
             start_date: start,
             timestamp: new Date().toISOString()
         };
@@ -2347,9 +2348,11 @@ window.savePermitFromView = function() {
             newPermit.status = 'Sakit';
             newPermit.recovered_date = null;
             newPermit.illness_type = illness;
+            newPermit.illness_location = illnessLocation;
         } else if(type === 'Izin') {
             newPermit.status = 'Izin';
             newPermit.end_date = end;
+            newPermit.end_time = endTime;
             newPermit.arrival_date = null;
             newPermit.reason = reason;
         } else if(type === 'Pulang') {
@@ -2368,8 +2371,12 @@ window.savePermitFromView = function() {
     
     window.showToast(`${count} ${type} berhasil disimpan`, "success");
     
+    // Reset form
     checkboxes.forEach(cb => cb.checked = false);
     document.getElementById('permit-view-illness').value = '';
+    if(document.getElementById('permit-view-illness-location')) {
+        document.getElementById('permit-view-illness-location').value = 'asrama';
+    }
     document.getElementById('permit-view-reason').value = '';
     document.getElementById('permit-view-event-name').value = '';
     document.getElementById('permit-view-end-time').value = '';
