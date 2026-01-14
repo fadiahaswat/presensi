@@ -949,20 +949,42 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
+        // Di dalam window.renderAttendanceList (script.js)
+        // Cari bagian: if (activePermit) { ... }
+        
         if (activePermit) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${activePermit.type === 'Sakit' ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`;
+            
+            // PERBAIKAN 2: Styling Badge & Row Outline yang Benar
+            let badgeClass = '';
+            let rowClass = '';
+        
+            if (activePermit.type === 'Sakit') {
+                badgeClass = 'bg-amber-100 text-amber-600 border-amber-200';
+                rowClass = 'ring-amber-200 bg-amber-50/30';
+            } else if (activePermit.type === 'Pulang') {
+                // Ini fix bug warna biru -> jadi ungu
+                badgeClass = 'bg-purple-100 text-purple-600 border-purple-200';
+                rowClass = 'ring-purple-200 bg-purple-50/30';
+            } else if (activePermit.type === 'Alpa') {
+                badgeClass = 'bg-red-100 text-red-600 border-red-200';
+                rowClass = 'ring-red-200 bg-red-50/30';
+            } else {
+                // Default Izin
+                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';
+                rowClass = 'ring-blue-200 bg-blue-50/30';
+            }
+        
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
-            // Visual highlight baris (optional)
+            // Apply Row Style
             if(rowElement) {
-                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
-                else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
+                rowElement.classList.add('ring-1', ...rowClass.split(' '));
             }
         }
-
         const btnCont = clone.querySelector('.activity-container');
         
         slot.activities.forEach(act => {
