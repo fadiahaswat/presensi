@@ -4106,16 +4106,9 @@ window.syncToSupabase = async function() {
                 .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
             
             if (error) {
-                // Prioritize error codes over message content for consistency
-                if (error.code === 'PGRST116') {
-                    throw new Error('Database table not found.');
-                } else if (error.status === 401 || error.code === '42501') {
-                    throw new Error('Authentication failed. Please logout and login again.');
-                } else if (error.message && error.message.toLowerCase().includes('cors')) {
-                    throw new Error('CORS Error: Unable to sync to database. Please check your network.');
-                } else {
-                    throw new Error(`Sync error: ${error.message || 'Unknown error'}`);
-                }
+                // Use consistent error categorization
+                const errorInfo = window.categorizeSupabaseError(error);
+                throw new Error(errorInfo.message);
             }
             
             return data;
@@ -4264,8 +4257,7 @@ window.fetchAttendanceFromSupabase = async function() {
 
     // Check if Supabase client is available
     if (!window.dbClient) {
-        console.error('Supabase client not initialized');
-        window.showToast('Database connection not available', 'error');
+        console.error('Supabase client not initialized - using local data only');
         return;
     }
 
@@ -4283,16 +4275,9 @@ window.fetchAttendanceFromSupabase = async function() {
                 .eq('date', dateKey);
 
             if (error) {
-                // More specific error messages - prioritize error codes over message content
-                if (error.code === 'PGRST116') {
-                    throw new Error('Database table not found. Please contact administrator.');
-                } else if (error.status === 401 || error.code === '42501') {
-                    throw new Error('Authentication failed. Please logout and login again.');
-                } else if (error.message && error.message.toLowerCase().includes('cors')) {
-                    throw new Error('CORS Error: Unable to connect to database. Please check your network settings or contact administrator.');
-                } else {
-                    throw new Error(`Database error: ${error.message || 'Unknown error'}`);
-                }
+                // Use consistent error categorization
+                const errorInfo = window.categorizeSupabaseError(error);
+                throw new Error(errorInfo.message);
             }
 
             return data;
