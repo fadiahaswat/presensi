@@ -2317,8 +2317,17 @@ window.renderPermitList = function() {
     container.innerHTML = '';
     
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
-    // Ambil yang aktif saja
-    const activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
+    // Filter izin aktif milik kelas ini
+    let activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
+
+    // --- TAMBAHAN FILTER BERDASARKAN MODE ---
+    if (currentModalMode === 'daily') {
+        // Jika mode harian, tampilkan Sakit & Izin saja
+        activePermits = activePermits.filter(p => p.category === 'sakit' || p.category === 'izin');
+    } else {
+        // Jika mode perpulangan, tampilkan Pulang saja
+        activePermits = activePermits.filter(p => p.category === 'pulang');
+    }
 
     if(activePermits.length === 0) {
         container.innerHTML = '<div class="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-bold">Tidak ada yang izin/sakit</div>';
