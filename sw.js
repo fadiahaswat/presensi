@@ -1,12 +1,19 @@
-const CACHE_NAME = 'musyrif-app-v10';
+const CACHE_NAME = 'musyrif-app-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
-  './script.js',
-  './santri-manager.js',
-  './data-santri.js',
+  './output.css',
+  './config.js',
+  './utils.js',
+  './state.js',
+  './constants.js',
   './data-kelas.js',
+  './data-santri.js',
+  './santri-manager.js',
+  './app-core.js',
+  './app-features.js',
+  './main.js',
   './manifest.json'
   // KITA HAPUS LINK EKSTERNAL (Tailwind, Lucide, Supabase) DARI SINI
   // Karena server mereka menolak di-cache oleh Service Worker secara langsung (CORS Error)
@@ -16,7 +23,22 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Use Promise.allSettled to handle individual file failures gracefully
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map(url => 
+          cache.add(url).catch(err => {
+            console.warn(`Failed to cache ${url}:`, err);
+            return null;
+          })
+        )
+      ).then(results => {
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.warn(`Failed to cache ${failures.length} assets`);
+        }
+        // Continue even if some files failed to cache
+        return Promise.resolve();
+      });
     })
   );
 });

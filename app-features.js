@@ -2163,21 +2163,34 @@ window.printReport = function() { window.print(); };
 window.openPermitView = function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
-    document.getElementById('view-main').classList.add('hidden');
-    document.getElementById('view-permit').classList.remove('hidden');
+    const viewMain = document.getElementById('view-main');
+    const viewPermit = document.getElementById('view-permit');
+    if (viewMain) viewMain.classList.add('hidden');
+    if (viewPermit) viewPermit.classList.remove('hidden');
     
-    // Reset form
+    // Reset form with null checks
     const today = appState.date;
-    document.getElementById('permit-view-type').value = 'Sakit';
-    document.getElementById('permit-view-session').value = 'all';
-    document.getElementById('permit-view-start').value = today;
-    document.getElementById('permit-view-end').value = today;
-    document.getElementById('permit-view-end-time').value = '';
-    document.getElementById('permit-view-illness').value = '';
-    document.getElementById('permit-view-reason').value = '';
-    document.getElementById('permit-view-pulang-session').value = 'all';
-    document.getElementById('permit-view-event-name').value = '';
-    document.getElementById('permit-view-search').value = '';
+    const permitType = document.getElementById('permit-view-type');
+    const permitSession = document.getElementById('permit-view-session');
+    const permitStart = document.getElementById('permit-view-start');
+    const permitEnd = document.getElementById('permit-view-end');
+    const permitEndTime = document.getElementById('permit-view-end-time');
+    const permitIllness = document.getElementById('permit-view-illness');
+    const permitReason = document.getElementById('permit-view-reason');
+    const permitPulangSession = document.getElementById('permit-view-pulang-session');
+    const permitEventName = document.getElementById('permit-view-event-name');
+    const permitSearch = document.getElementById('permit-view-search');
+    
+    if (permitType) permitType.value = 'Sakit';
+    if (permitSession) permitSession.value = 'all';
+    if (permitStart) permitStart.value = today;
+    if (permitEnd) permitEnd.value = today;
+    if (permitEndTime) permitEndTime.value = '';
+    if (permitIllness) permitIllness.value = '';
+    if (permitReason) permitReason.value = '';
+    if (permitPulangSession) permitPulangSession.value = 'all';
+    if (permitEventName) permitEventName.value = '';
+    if (permitSearch) permitSearch.value = '';
     
     window.togglePermitViewFields();
     window.renderPermitViewSantriList(FILTERED_SANTRI);
