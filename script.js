@@ -2329,79 +2329,73 @@ window.renderPermitList = function() {
     });
 };
 
-// Helper Urutan Sesi
+// Pastikan SESSION_ORDER ini ada di script.js
 const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
 
 window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
     // Cari permit milik santri ini yang statusnya AKTIF
-    // Kita filter juga is_active: true. 
-    // TAPI untuk fix Poin 3 (Sejarah tetap ada), kita TIDAK men-delete data sakit lama,
-    // melainkan kita update end_date-nya. Jadi permit tetap ada di DB tapi punya expired date.
-    
     const permit = appState.permits.find(p => p.nis === String(nis) && p.is_active);
     
     if (!permit) return null;
 
-    // --- LOGIKA UMUM (START DATE) ---
-    // Jika tanggal presensi < tanggal mulai izin -> SKIP
-    if (currentDateStr < permit.start_date) return null;
-    
-    // Jika tanggal sama, tapi sesi belum masuk -> SKIP
-    // Contoh: Izin mulai Ashar, sekarang Shubuh -> Normal
-    if (currentDateStr === permit.start_date) {
-        if (SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
-    }
-
-    // --- LOGIKA SAKIT (FIX POIN 3) ---
+    // --- 1. LOGIKA SAKIT (Mendukung Sembuh di Tengah Hari) ---
     if (permit.category === 'sakit') {
-        // Jika sakit punya tanggal selesai (karena sudah diset sembuh),
-        // Cek apakah tanggal sekarang sudah lewat masa sakitnya.
+        // Cek Tanggal Sembuh (jika ada)
         if (permit.end_date) {
-            if (currentDateStr > permit.end_date) return null; // Sudah sembuh hari ini
+            // Jika hari ini > hari sembuh -> Sudah Sehat (Null)
+            if (currentDateStr > permit.end_date) return null; 
             
-            // Jika hari ini adalah hari kesembuhan, cek sesinya
+            // Jika hari ini == hari sembuh, cek sesinya
+            // Contoh: Sembuh sebelum Ashar. Berarti Ashar (2) > Shubuh (1) -> Sudah Sehat
             if (currentDateStr === permit.end_date && permit.end_session) {
-                // Jika sesi sekarang > sesi terakhir sakit -> Sudah sembuh
                 if (SESSION_ORDER[currentSlotId] > SESSION_ORDER[permit.end_session]) return null;
             }
         }
         
-        // Kalau lolos cek di atas, berarti masih SAKIT
+        // Cek Tanggal Mulai (untuk masa depan)
+        if (currentDateStr < permit.start_date) return null;
+        if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
+
         return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason} (${permit.location})` };
     }
 
-    // --- LOGIKA IZIN & PULANG (FIX POIN 5) ---
+    // --- 2. LOGIKA IZIN & PULANG (Dengan Deadline Jam) ---
     else {
-        // Cek Deadline (End Date)
-        // Logika: Jika Current > End Date -> ALPA (Telat Balik)
-        // Kecuali user sudah memperpanjang (yang mana akan mengupdate end_date permit ini)
-        
+        // A. Cek Waktu Mulai (Belum berangkat)
+        if (currentDateStr < permit.start_date) return null;
+        if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
+
+        // B. Cek Lewat Hari (Sudah pasti Alpa)
         if (currentDateStr > permit.end_date) {
-            // TERLAMBAT BALIK = ALPA
-            // Poin 5: "kalau terlambat ... jadi A (Alpa)"
-            return { 
-                type: 'Alpa', 
-                label: 'A', 
-                note: `[Terlambat] Deadline: ${window.formatDate(permit.end_date)}` 
-            };
-        }
-        
-        // Cek Hari Terakhir (Deadline Day)
-        // Poin 5: "harus kembali maks jam 17.00 (Ashar)"
-        // Berarti Ashar masih P, Maghrib sudah Normal (jika tepat waktu).
-        if (currentDateStr === permit.end_date) {
-            // Kita asumsikan batas sesi terakhir izin adalah berdasarkan jam/sesi kepulangan
-            // Jika permit.end_time_limit < jam sesi sekarang -> Berarti sudah harusnya di pondok -> Normal (atau Alpa jika belum lapor)
-            
-            // Simpelnya: Kita anggap izin berlaku SAMPAI akhir hari tersebut, 
-            // KECUALI status sudah ditandai 'Kembali' (is_active = false).
-            // Tapi untuk logika "Tepat Waktu = Maghrib Normal", user HARUS klik tombol "Kembali" 
-            // begitu anak sampai. Sistem tidak bisa tahu anak sampai fisik atau tidak tanpa input.
-            
-            // Jadi: Sistem defaultnya akan menganggap Izin/Pulang sampai user klik "Kembali".
-            // ATAU: Kita buat otomatis ALPA jika lewat hari.
+             return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline tgl ${window.formatDate(permit.end_date)}` };
         }
 
+        // C. Cek Hari Terakhir (Deadline Day) - INI LOGIKA YANG ANDA MINTA
+        if (currentDateStr === permit.end_date) {
+            // Ambil jam deadline (misal: 17:00), ambil jam depannya saja (17)
+            const deadlineTime = permit.end_time_limit || '17:00';
+            const deadlineHour = parseInt(deadlineTime.split(':')[0]);
+            
+            // Ambil jam mulai sesi saat ini dari konfigurasi SLOT_WAKTU
+            // Shubuh: 4, Ashar: 15, Maghrib: 18, Isya: 19
+            const slotStartHour = SLOT_WAKTU[currentSlotId].startHour; 
+            
+            // LOGIKA PENENTU:
+            // Jika jam sesi ini SUDAH MELEWATI jam deadline, maka dianggap Terlambat (Alpa).
+            // Contoh: Deadline 17:00.
+            // - Cek Ashar (15.00): 15 >= 17 (False) -> Masih 'Pulang' (Aman)
+            // - Cek Maghrib (18.00): 18 >= 17 (True) -> Jadi 'Alpa' (Terlambat)
+            
+            if (slotStartHour >= deadlineHour) {
+                return { 
+                    type: 'Alpa', 
+                    label: 'A', 
+                    note: `[Terlambat] Deadline jam ${deadlineTime}` 
+                };
+            }
+        }
+
+        // D. Masih Aman (Dalam masa Izin/Pulang)
         const label = permit.category === 'pulang' ? 'Pulang' : 'Izin';
         const code = permit.category === 'pulang' ? 'P' : 'I';
         
