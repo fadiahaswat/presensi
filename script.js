@@ -2333,78 +2333,49 @@ window.renderPermitList = function() {
 const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
 
 window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
-    // Cari permit milik santri ini yang statusnya AKTIF
     const permit = appState.permits.find(p => p.nis === String(nis) && p.is_active);
-    
     if (!permit) return null;
 
-    // --- 1. LOGIKA SAKIT (Mendukung Sembuh di Tengah Hari) ---
+    // --- 1. LOGIKA SAKIT ---
     if (permit.category === 'sakit') {
-        // Cek Tanggal Sembuh (jika ada)
         if (permit.end_date) {
-            // Jika hari ini > hari sembuh -> Sudah Sehat (Null)
             if (currentDateStr > permit.end_date) return null; 
-            
-            // Jika hari ini == hari sembuh, cek sesinya
-            // Contoh: Sembuh sebelum Ashar. Berarti Ashar (2) > Shubuh (1) -> Sudah Sehat
             if (currentDateStr === permit.end_date && permit.end_session) {
                 if (SESSION_ORDER[currentSlotId] > SESSION_ORDER[permit.end_session]) return null;
             }
         }
         
-        // Cek Tanggal Mulai (untuk masa depan)
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
-        return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason} (${permit.location})` };
+        return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason}` };
     }
 
-    // --- 2. LOGIKA IZIN & PULANG (Dengan Deadline Jam) ---
+    // --- 2. LOGIKA IZIN & PULANG ---
     else {
-        // A. Cek Waktu Mulai (Belum berangkat)
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
-        // B. Cek Lewat Hari (Sudah pasti Alpa)
         if (currentDateStr > permit.end_date) {
-             return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline tgl ${window.formatDate(permit.end_date)}` };
+             return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline ${window.formatDate(permit.end_date)}` };
         }
 
-        // C. Cek Hari Terakhir (Deadline Day) - INI LOGIKA YANG ANDA MINTA
         if (currentDateStr === permit.end_date) {
-            // Ambil jam deadline (misal: 17:00), ambil jam depannya saja (17)
             const deadlineTime = permit.end_time_limit || '17:00';
             const deadlineHour = parseInt(deadlineTime.split(':')[0]);
-            
-            // Ambil jam mulai sesi saat ini dari konfigurasi SLOT_WAKTU
-            // Shubuh: 4, Ashar: 15, Maghrib: 18, Isya: 19
             const slotStartHour = SLOT_WAKTU[currentSlotId].startHour; 
             
-            // LOGIKA PENENTU:
-            // Jika jam sesi ini SUDAH MELEWATI jam deadline, maka dianggap Terlambat (Alpa).
-            // Contoh: Deadline 17:00.
-            // - Cek Ashar (15.00): 15 >= 17 (False) -> Masih 'Pulang' (Aman)
-            // - Cek Maghrib (18.00): 18 >= 17 (True) -> Jadi 'Alpa' (Terlambat)
-            
             if (slotStartHour >= deadlineHour) {
-                return { 
-                    type: 'Alpa', 
-                    label: 'A', 
-                    note: `[Terlambat] Deadline jam ${deadlineTime}` 
-                };
+                return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline jam ${deadlineTime}` };
             }
         }
 
-        // D. Masih Aman (Dalam masa Izin/Pulang)
-        const label = permit.category === 'pulang' ? 'Pulang' : 'Izin';
-        const code = permit.category === 'pulang' ? 'P' : 'I';
+        // FIX: Normalisasi kategori agar tidak case-sensitive
+        const cat = (permit.category || '').toLowerCase();
+        const label = cat === 'pulang' ? 'Pulang' : 'Izin';
+        const code = cat === 'pulang' ? 'P' : 'I';
         
-        return { 
-            type: label, 
-            label: code, 
-            end: permit.end_date, 
-            note: `[${label}] ${permit.reason}` 
-        };
+        return { type: label, label: code, end: permit.end_date, note: `[${label}] ${permit.reason}` };
     }
 };
 
