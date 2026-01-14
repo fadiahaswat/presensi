@@ -3884,12 +3884,10 @@ window.renderTodayProblems = function() {
         const div = document.createElement('div');
         div.className = 'bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-start shadow-sm';
         
-        // Warna status
-        let stClass = 'bg-slate-100 text-slate-600';
-        if(p.status === 'Sakit') stClass = 'bg-yellow-100 text-yellow-700';          // Kuning (Yellow)
-        else if(p.status === 'Izin') stClass = 'bg-blue-100 text-blue-600';           // Biru (Blue)
-        else if(p.status === 'Alpa') stClass = 'bg-red-100 text-red-600';             // Merah (Red)
-        else if(p.status === 'Pulang') stClass = 'bg-purple-100 text-purple-600';     // Ungu (Purple)
+        // --- PERBAIKAN: Gunakan STATUS_UI agar konsisten ---
+        const uiConfig = STATUS_UI[p.status] || STATUS_UI['Tidak'];
+        const badgeClass = uiConfig.badgeClass; 
+        // --------------------------------------------------
 
         div.innerHTML = `
             <div class="flex items-center gap-3">
@@ -3901,7 +3899,9 @@ window.renderTodayProblems = function() {
                     <p class="text-[10px] text-slate-500">${p.slot} • ${p.note !== '-' ? p.note : 'Tanpa Ket.'}</p>
                 </div>
             </div>
-            <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase ${stClass}">${p.status}</span>
+            <span class="px-2 py-1 rounded-md text-[10px] font-black uppercase border ${badgeClass}">
+                ${p.status}
+            </span>
         `;
         fragment.appendChild(div);
     });
