@@ -1571,33 +1571,17 @@ window.saveData = function() {
 window.updateQuickStats = function() {
     if(!appState.selectedClass) return;
     
-    // Inisialisasi variabel penghitung
-    let stats = { h: 0, s: 0, i: 0, a: 0 };
-    let activeSlots = 0; // Untuk menghitung berapa sesi yang sudah diisi data
-
-    Object.values(SLOT_WAKTU).forEach(slot => {
-         const slotStats = window.calculateSlotStats(slot.id);
-         
-         // Kita hanya menjumlahkan sesi yang SUDAH DIISI (isFilled = true)
-         if(slotStats.isFilled) {
-             stats.h += slotStats.h;
-             stats.s += slotStats.s;
-             stats.i += slotStats.i;
-             stats.a += slotStats.a;
-             activeSlots++;
-         }
-    });
+    // Gunakan slot yang sedang aktif di dashboard (misal: Shubuh)
+    // Jika ingin total harian, logika bisa disesuaikan.
+    // Di sini kita pakai "Current Slot Snapshot" agar akurat.
+    const slotId = appState.currentSlotId; 
+    const stats = window.calculateSlotStats(slotId);
     
-    // Pembagi: Jika belum ada sesi yang diisi, bagi dengan 1 (biar tidak error/infinity)
-    // Jika sudah ada (misal shubuh & ashar), bagi dengan 2.
-    const divider = activeSlots > 0 ? activeSlots : 1;
-    
-    // Tampilkan hasil RATA-RATA (dibulatkan dengan Math.round)
-    // Sehingga angkanya kembali ke skala jumlah santri (misal: 30), bukan akumulasi (120)
-    document.getElementById('stat-hadir').textContent = Math.round(stats.h / divider);
-    document.getElementById('stat-sakit').textContent = Math.round(stats.s / divider);
-    document.getElementById('stat-izin').textContent = Math.round(stats.i / divider);
-    document.getElementById('stat-alpa').textContent = Math.round(stats.a / divider);
+    // Tampilkan Angka Asli (Bukan Rata-rata)
+    document.getElementById('stat-hadir').textContent = stats.h;
+    document.getElementById('stat-sakit').textContent = stats.s;
+    document.getElementById('stat-izin').textContent = stats.i;
+    document.getElementById('stat-alpa').textContent = stats.a;
 };
 
 // Ganti fungsi window.drawDonutChart yang lama dengan ini:
