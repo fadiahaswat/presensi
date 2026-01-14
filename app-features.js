@@ -4148,11 +4148,22 @@ window.syncToSupabase = async function() {
 };
 
 // --- FITUR SINKRONISASI (READ) ---
+// Error code constants for better maintainability
+const SUPABASE_ERROR_CODES = {
+    AUTH_UNAUTHORIZED: 401,
+    AUTH_FORBIDDEN: 403,
+    POSTGRES_PERMISSION_DENIED: '42501',
+    POSTGRES_TABLE_NOT_FOUND: 'PGRST116'
+};
+
 // Helper function to categorize errors and get user-friendly messages
 window.categorizeSupabaseError = function(error) {
     // Check error properties first (most reliable)
-    if (error.status === 401 || error.status === 403 || 
-        error.code === 401 || error.code === 403 || error.code === '42501') {
+    if (error.status === SUPABASE_ERROR_CODES.AUTH_UNAUTHORIZED || 
+        error.status === SUPABASE_ERROR_CODES.AUTH_FORBIDDEN || 
+        error.code === SUPABASE_ERROR_CODES.AUTH_UNAUTHORIZED || 
+        error.code === SUPABASE_ERROR_CODES.AUTH_FORBIDDEN || 
+        error.code === SUPABASE_ERROR_CODES.POSTGRES_PERMISSION_DENIED) {
         return {
             type: 'authentication',
             message: '🔒 Session expired. Please logout and login again.',
@@ -4160,7 +4171,7 @@ window.categorizeSupabaseError = function(error) {
         };
     }
     
-    if (error.code === 'PGRST116') {
+    if (error.code === SUPABASE_ERROR_CODES.POSTGRES_TABLE_NOT_FOUND) {
         return {
             type: 'database',
             message: 'Database table not found. Please contact administrator.',
@@ -4231,7 +4242,8 @@ window.retryWithBackoff = async function(fn, maxRetries = 3, baseDelay = 1000) {
             
             if (i < maxRetries - 1) {
                 // Exponential backoff: 1s, 2s, 4s
-                const delay = baseDelay * Math.pow(2, i);
+                // Using bit shift for better performance: 1 << i is equivalent to Math.pow(2, i)
+                const delay = baseDelay << i;
                 console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             }

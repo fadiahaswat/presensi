@@ -18,7 +18,11 @@ if (typeof window.supabase !== 'undefined') {
             window.SUPABASE_KEY,
             {
                 auth: {
+                    // Don't persist sessions in localStorage to avoid stale auth tokens
+                    // App uses Google OAuth per-session, not long-lived Supabase sessions
                     persistSession: false,
+                    // Don't auto-refresh tokens since we're not persisting sessions
+                    // Users re-authenticate via Google OAuth on each app load
                     autoRefreshToken: false
                 },
                 global: {
