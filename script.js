@@ -3794,5 +3794,56 @@ window.savePermitLogic = function() {
     }
 };
 
+// 1. SAKIT -> SEMBUH
+window.markAsRecovered = function(id) {
+    const permit = appState.permits.find(p => p.id === id);
+    if(permit) {
+        permit.is_active = false; // Nonaktifkan
+        permit.actual_return_date = appState.date; // Catat tanggal sembuh
+        
+        localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+        window.showToast("Alhamdulillah santri sudah sembuh", "success");
+        window.renderPermitList();
+        window.renderAttendanceList(); // Refresh presensi
+    }
+};
+
+// 2. IZIN/PULANG -> KEMBALI LEBIH AWAL
+window.markAsReturned = function(id) {
+    const permit = appState.permits.find(p => p.id === id);
+    if(permit) {
+        permit.is_active = false; 
+        
+        localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+        window.showToast("Santri ditandai sudah kembali", "success");
+        window.renderPermitList();
+        window.renderAttendanceList();
+    }
+};
+
+// 3. PERPANJANG IZIN (P -> I atau I -> I)
+window.extendPermit = function(id) {
+    const permit = appState.permits.find(p => p.id === id);
+    if(!permit) return;
+
+    // Tanya User tanggal baru
+    const newDate = prompt("Perpanjang sampai tanggal berapa? (YYYY-MM-DD)", permit.end_date);
+    if(!newDate) return;
+
+    permit.end_date = newDate;
+    
+    // Jika awalnya Pulang (P), ubah jadi Izin (I) sesuai request
+    if(permit.category === 'pulang') {
+        permit.category = 'izin'; // Downgrade ke izin biasa
+        permit.status_label = 'I';
+        permit.reason += " (Diperpanjang)";
+        window.showToast("Status berubah dari Pulang ke Izin", "info");
+    }
+
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    window.renderPermitList();
+    window.renderAttendanceList();
+};
+
 // Start App
 window.onload = window.initApp;
