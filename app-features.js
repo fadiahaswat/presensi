@@ -79,6 +79,20 @@ window.formatDate = function(dateStr) {
     return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+// Safely set value on DOM element with null checking
+window.safeSetValue = function(elementId, value, logMissing = true) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.value = value;
+        return true;
+    } else {
+        if (logMissing) {
+            console.warn(`Element with ID '${elementId}' not found. Skipping value assignment.`);
+        }
+        return false;
+    }
+};
+
 // Polyfill Canvas roundRect
 if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radii) {
@@ -2185,21 +2199,17 @@ window.openPermitView = function() {
     // Reset form
     const today = appState.date;
     
-    // Aman karena sudah dicek di atas
+    // Safely set values with null checking
     inputType.value = 'Sakit'; 
-    document.getElementById('permit-view-session').value = 'all';
-    document.getElementById('permit-view-start').value = today;
-    document.getElementById('permit-view-end').value = today;
-    document.getElementById('permit-view-end-time').value = '';
-    document.getElementById('permit-view-illness').value = '';
-    
-    // Cek elemen optional sebelum set value (Jaga-jaga)
-    const reasonEl = document.getElementById('permit-view-reason');
-    if(reasonEl) reasonEl.value = '';
-    
-    document.getElementById('permit-view-pulang-session').value = 'all';
-    document.getElementById('permit-view-event-name').value = '';
-    document.getElementById('permit-view-search').value = '';
+    window.safeSetValue('permit-view-session', 'all');
+    window.safeSetValue('permit-view-start', today);
+    window.safeSetValue('permit-view-end', today);
+    window.safeSetValue('permit-view-end-time', '');
+    window.safeSetValue('permit-view-illness', '');
+    window.safeSetValue('permit-view-reason', '');
+    window.safeSetValue('permit-view-pulang-session', 'all');
+    window.safeSetValue('permit-view-event-name', '');
+    window.safeSetValue('permit-view-search', '');
     
     window.togglePermitViewFields();
     window.renderPermitViewSantriList(FILTERED_SANTRI);
@@ -2354,15 +2364,13 @@ window.savePermitFromView = function() {
     
     window.showToast(`${count} ${type} berhasil disimpan`, "success");
     
-    // Reset form
+    // Reset form with safe value setting
     checkboxes.forEach(cb => cb.checked = false);
-    document.getElementById('permit-view-illness').value = '';
-    if(document.getElementById('permit-view-illness-location')) {
-        document.getElementById('permit-view-illness-location').value = 'asrama';
-    }
-    document.getElementById('permit-view-reason').value = '';
-    document.getElementById('permit-view-event-name').value = '';
-    document.getElementById('permit-view-end-time').value = '';
+    window.safeSetValue('permit-view-illness', '');
+    window.safeSetValue('permit-view-illness-location', 'asrama');
+    window.safeSetValue('permit-view-reason', '');
+    window.safeSetValue('permit-view-event-name', '');
+    window.safeSetValue('permit-view-end-time', '');
     const selectAllCheckbox = document.getElementById('permit-view-select-all');
     if (selectAllCheckbox) selectAllCheckbox.checked = false;
     
