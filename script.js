@@ -3560,5 +3560,61 @@ window.showStatDetails = function(statusType) {
     if(window.lucide) window.lucide.createIcons();
 };
 
+window.renderDashboardPembinaan = function() {
+    const container = document.getElementById('dashboard-pembinaan-list');
+    const card = document.getElementById('dashboard-pembinaan-card');
+    const badge = document.getElementById('pembinaan-count-badge');
+    
+    if(!container || !card) return;
+
+    // 1. Kumpulkan Data Masalah
+    let problemList = [];
+    FILTERED_SANTRI.forEach(s => {
+        const id = String(s.nis || s.id);
+        const totalAlpa = window.countTotalAlpa(id);
+        const status = window.getPembinaanStatus(totalAlpa);
+        
+        if (totalAlpa > 0) {
+            problemList.push({ ...s, totalAlpa, status });
+        }
+    });
+
+    // 2. Sort dari yang terparah
+    problemList.sort((a, b) => b.totalAlpa - a.totalAlpa);
+
+    // 3. Tampilkan/Sembunyikan Widget
+    if (problemList.length === 0) {
+        card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+    badge.textContent = `${problemList.length} Santri`;
+
+    // 4. Render Top 3
+    container.innerHTML = '';
+    problemList.slice(0, 3).forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-600/50';
+        div.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-600 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-500">
+                    ${p.nama.substring(0,2).toUpperCase()}
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${p.nama}</h4>
+                    <p class="text-[9px] ${p.status.color.split(' ')[0]} font-bold">${p.status.label}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-sm font-black text-rose-500">${p.totalAlpa}</div>
+                <div class="text-[8px] text-slate-400 font-bold uppercase">Alpa</div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+    
+    if(window.lucide) window.lucide.createIcons();
+};
+
 // Start App
 window.onload = window.initApp;
