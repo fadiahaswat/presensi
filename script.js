@@ -3447,5 +3447,86 @@ window.quickOpen = function(slotId) {
     window.showToast(`Membuka presensi ${labels[slotId]}`, 'info');
 };
 
+window.showStatDetails = function(statusType) {
+    const modal = document.getElementById('modal-stat-detail');
+    const container = document.getElementById('stat-detail-list');
+    const title = document.getElementById('stat-detail-title');
+    
+    // 1. Setup UI Modal
+    modal.classList.remove('hidden');
+    container.innerHTML = '<div class="text-center py-4"><span class="loading-spinner"></span></div>';
+    
+    // Warna Judul sesuai Tipe
+    let colorClass = 'text-slate-800';
+    if(statusType === 'Sakit') colorClass = 'text-amber-500';
+    else if(statusType === 'Izin') colorClass = 'text-blue-500';
+    else if(statusType === 'Alpa') colorClass = 'text-rose-500';
+    else if(statusType === 'Hadir') colorClass = 'text-emerald-500';
+    
+    title.textContent = `Daftar ${statusType}`;
+    title.className = `text-xl font-black ${colorClass}`;
+
+    // 2. Ambil Data Real
+    const dateKey = appState.date;
+    const slotId = appState.currentSlotId; // Data berdasarkan slot aktif dashboard
+    const slotData = appState.attendanceData[dateKey]?.[slotId] || {};
+    
+    // Filter Santri
+    const list = FILTERED_SANTRI.filter(s => {
+        const id = String(s.nis || s.id);
+        const data = slotData[id];
+        
+        // Cek status Shalat (Utama)
+        const currentStatus = data?.status?.shalat;
+        
+        // Logic Matching
+        if(statusType === 'Hadir') return currentStatus === 'Hadir';
+        if(statusType === 'Sakit') return currentStatus === 'Sakit';
+        if(statusType === 'Izin') return currentStatus === 'Izin' || currentStatus === 'Pulang'; // Pulang masuk ke list Izin/Detail
+        if(statusType === 'Alpa') return currentStatus === 'Alpa';
+        
+        return false;
+    });
+
+    container.innerHTML = '';
+
+    // 3. Render List
+    if(list.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-10 text-slate-400">
+                <i data-lucide="user-x" class="w-12 h-12 mb-3 opacity-50"></i>
+                <p class="text-xs font-bold">Tidak ada santri ${statusType}</p>
+            </div>
+        `;
+    } else {
+        list.forEach(s => {
+            const id = String(s.nis || s.id);
+            const note = slotData[id]?.note || '-';
+            
+            // Generate HTML Item
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700';
+            div.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center font-black text-xs text-slate-600 border border-slate-200 shadow-sm">
+                    ${s.nama.substring(0,2).toUpperCase()}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${s.nama}</h4>
+                    <p class="text-[10px] text-slate-500 truncate">${s.asrama || s.kelas}</p>
+                </div>
+                ${note !== '-' && note !== '' ? `
+                <div class="max-w-[40%] text-right">
+                    <span class="inline-block px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 text-[9px] text-slate-500 leading-tight">
+                        ${note}
+                    </span>
+                </div>` : ''}
+            `;
+            container.appendChild(div);
+        });
+    }
+    
+    if(window.lucide) window.lucide.createIcons();
+};
+
 // Start App
 window.onload = window.initApp;
