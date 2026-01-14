@@ -2276,13 +2276,51 @@ window.renderPermitList = function() {
     if(window.lucide) window.lucide.createIcons();
 };
 
-window.checkActivePermit = function(nis, dateStr, slotId) {
-    return appState.permits.find(p => {
-        const isDateMatch = dateStr >= p.start && dateStr <= p.end;
-        const isSlotMatch = p.session === 'all' || p.session === slotId;
-        const isNisMatch = p.nis === String(nis);
-        return isNisMatch && isDateMatch && isSlotMatch;
-    });
+// Helper urutan sesi untuk perbandingan logika
+const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
+
+window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
+    // Cari permit milik santri ini
+    const permit = appState.permits.find(p => p.nis === String(nis) && p.is_active);
+    
+    if (!permit) return null;
+
+    // 1. LOGIKA SAKIT (Open Ended)
+    if (permit.category === 'sakit') {
+        // Jika tanggal sekarang < tanggal mulai -> Belum sakit
+        if (currentDateStr < permit.start_date) return null;
+        
+        // Jika tanggal sama, cek sesi. Kalau sesi sekarang < sesi mulai -> Belum sakit
+        if (currentDateStr === permit.start_date) {
+            if (SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
+        }
+
+        // Kalau lolos, berarti SAKIT
+        return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason} (${permit.location})` };
+    }
+
+    // 2. LOGIKA IZIN & PULANG (Time Range + Late Penalty)
+    else {
+        // Cek Start Time
+        if (currentDateStr < permit.start_date) return null;
+        if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
+
+        // Cek Deadline (End Date)
+        // Jika Tanggal Sekarang > Tanggal Selesai -> ALPA (Telat Balik)
+        if (currentDateStr > permit.end_date) {
+            return { type: 'Alpa', label: 'A', note: `[Terlambat] Harusnya kembali tgl ${window.formatDate(permit.end_date)}` };
+        }
+        
+        // (Opsional) Cek Jam Deadline di hari terakhir?
+        // Untuk simplifikasi, jika masih di hari deadline, kita anggap masih Izin/Pulang sampai sesi terakhir.
+        // Atau kalau mau ketat, bandingkan jam sekarang dengan permit.end_time_limit.
+        // Tapi presensi basisnya sesi, jadi kita anggap hari terakhir full izin dulu agar aman.
+
+        // Jika Masih Dalam Range
+        const label = permit.category === 'pulang' ? 'Pulang' : 'Izin';
+        const code = permit.category === 'pulang' ? 'P' : 'I';
+        return { type: label, label: code, end: permit.end_date, note: `[${label}] ${permit.reason}` };
+    }
 };
 
 // ==========================================
