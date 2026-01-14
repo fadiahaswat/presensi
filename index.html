@@ -1062,52 +1062,6 @@
 </div>
  
 
-<div id="modal-event-manager" class="fixed inset-0 z-[110] bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-slide-up border border-white/10 flex flex-col max-h-[85vh]">
-        
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-black text-slate-800 dark:text-white">Atur Jadwal Liburan</h3>
-            <button onclick="window.closeModal('modal-event-manager')" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto hide-scrollbar space-y-4 pr-1">
-            <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <input type="hidden" id="evt-id">
-                <div class="space-y-3">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Nama Acara</label>
-                        <input type="text" id="evt-title" placeholder="Contoh: Liburan Maulid" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-indigo-500">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Tgl Mulai</label>
-                            <input type="date" id="evt-start" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 text-xs font-bold">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Tgl Balik</label>
-                            <input type="date" id="evt-end" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 text-xs font-bold">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase text-red-500">Deadline Kedatangan</label>
-                        <input type="time" id="evt-deadline" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900 text-xs font-bold outline-none focus:border-red-500">
-                    </div>
-                </div>
-                <div class="flex gap-2 mt-4">
-                    <button onclick="window.resetEventForm()" class="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-xs font-bold">Reset</button>
-                    <button onclick="window.saveEvent()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-lg">Simpan Event</button>
-                </div>
-            </div>
-
-            <div>
-                <h4 class="text-xs font-bold text-slate-500 mb-2 px-1">Daftar Event</h4>
-                <div id="event-list-container" class="space-y-2"></div>
-            </div>
-        </div>
-    </div>
-</div>
 
     <div id="modal-bulk-actions" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
     <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] p-6 animate-slide-up border border-white/10 shadow-2xl">
