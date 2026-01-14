@@ -3655,5 +3655,77 @@ window.selectAllSantriPermit = function() {
     window.updatePermitCount();
 };
 
+// 3. Logic Simpan Data (Advanced)
+window.savePermitLogic = function() {
+    const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]:checked');
+    const selectedNis = Array.from(checkboxes).map(cb => cb.value);
+
+    if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
+
+    const reason = document.getElementById('permit-reason').value;
+    const startDate = document.getElementById('permit-start-date').value;
+    const startSession = document.getElementById('permit-start-session').value;
+
+    if(!reason) return window.showToast("Isi alasannya dulu", "warning");
+    if(!startDate) return window.showToast("Tanggal mulai wajib diisi", "warning");
+
+    let permitData = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        category: currentPermitTab, // sakit, izin, pulang
+        reason: reason,
+        start_date: startDate,
+        start_session: startSession,
+        timestamp: new Date().toISOString(),
+        is_active: true // Flag utama
+    };
+
+    // Tambahan Data per Kategori
+    if (currentPermitTab === 'sakit') {
+        // SAKIT: Open ended (end_date null)
+        permitData.location = document.querySelector('input[name="loc_sakit"]:checked').value;
+        permitData.end_date = null; 
+        permitData.status_label = 'S';
+    } 
+    else {
+        // IZIN & PULANG: Punya Deadline
+        const endDate = document.getElementById('permit-end-date').value;
+        const endTime = document.getElementById('permit-end-time').value;
+        
+        if(!endDate) return window.showToast("Tanggal selesai wajib diisi", "warning");
+        if(endDate < startDate) return window.showToast("Tanggal selesai error", "error");
+
+        permitData.end_date = endDate;
+        permitData.end_time_limit = endTime;
+        
+        if (currentPermitTab === 'izin') {
+            permitData.status_label = 'I';
+        } else {
+            permitData.status_label = 'P';
+            permitData.pickup = document.getElementById('permit-pickup').value;
+            permitData.vehicle = document.getElementById('permit-vehicle').value;
+        }
+    }
+
+    // Simpan Loop
+    selectedNis.forEach(nis => {
+        appState.permits.push({ ...permitData, nis: nis });
+    });
+
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    
+    window.showToast(`${selectedNis.length} Data Berhasil Disimpan`, "success");
+    window.renderPermitList();
+    
+    // Reset Checkbox
+    checkboxes.forEach(cb => cb.checked = false);
+    window.updatePermitCount();
+
+    // Refresh Dashboard jika tanggal relevan
+    if (appState.date >= startDate) {
+        window.renderAttendanceList();
+        window.updateDashboard();
+    }
+};
+
 // Start App
 window.onload = window.initApp;
