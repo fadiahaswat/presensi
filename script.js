@@ -3697,5 +3697,44 @@ window.scrollToPembinaan = function() {
     }, 100);
 };
 
+window.renderKBMBanner = function() {
+    const banner = document.getElementById('kbm-active-banner');
+    const titleEl = document.getElementById('kbm-banner-title');
+    
+    if(!banner) return;
+
+    // 1. Ambil Data Slot & Waktu Saat Ini
+    const currentSlotId = appState.currentSlotId;
+    const slotData = SLOT_WAKTU[currentSlotId];
+    
+    // Cek hari ini hari apa (0=Ahad, 1=Senin, ...)
+    // Gunakan tanggal dari appState jika ingin sinkron dengan tanggal yang dipilih, 
+    // atau new Date() jika ingin strict realtime. Disini kita pakai appState agar konsisten.
+    const currentDay = new Date(appState.date).getDay();
+
+    // 2. Cari Kegiatan KBM yang Aktif Hari Ini di Slot Ini
+    // Syarat: category == 'kbm' DAN (showOnDays tidak ada ATAU hari ini termasuk)
+    const activeKBM = slotData.activities.find(act => 
+        act.category === 'kbm' && 
+        (!act.showOnDays || act.showOnDays.includes(currentDay))
+    );
+
+    // 3. Tampilkan atau Sembunyikan Banner
+    if (activeKBM) {
+        // Ada KBM! Tampilkan Banner
+        titleEl.textContent = activeKBM.label; // Misal: "Tahfizh" atau "Conversation"
+        
+        // Ganti Icon (Opsional: Jika ada icon khusus per kegiatan)
+        // Default kita pakai book-open di HTML
+        
+        banner.classList.remove('hidden');
+    } else {
+        // Tidak ada KBM saat ini
+        banner.classList.add('hidden');
+    }
+    
+    if(window.lucide) window.lucide.createIcons();
+};
+
 // Start App
 window.onload = window.initApp;
