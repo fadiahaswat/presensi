@@ -223,6 +223,38 @@ const STATUS_UI = {
 };
 
 // ==========================================
+// KONFIGURASI PEMBINAAN (Disciplinary Rules)
+// ==========================================
+const PEMBINAAN_RULES = [
+    { min: 1, max: 10, level: 1, label: "Bimbingan Musyrif", action: "Lembar Pembinaan", color: "text-yellow-600 bg-yellow-100 border-yellow-200" },
+    { min: 11, max: 20, level: 2, label: "SP1 - Pamong", action: "Surat Pernyataan I", color: "text-orange-600 bg-orange-100 border-orange-200" },
+    { min: 21, max: 30, level: 3, label: "SP2 - SU. KIS", action: "Panggil Ortu & SP II", color: "text-orange-700 bg-orange-200 border-orange-300" },
+    { min: 31, max: 40, level: 4, label: "SP3 - Wadir IV", action: "Panggil Ortu & SP III", color: "text-red-600 bg-red-100 border-red-200" },
+    { min: 41, max: 999, level: 5, label: "Direktur - SPT", action: "Surat Pernyataan Terakhir/Keluar", color: "text-white bg-red-600 border-red-700" }
+];
+
+// Helper: Hitung Total Alpa Santri
+window.countTotalAlpa = function(studentId) {
+    let total = 0;
+    // Loop semua tanggal yang ada di data
+    Object.keys(appState.attendanceData).forEach(date => {
+        const dayData = appState.attendanceData[date];
+        // Loop semua slot (shubuh, ashar, etc)
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            const status = dayData[slot.id]?.[studentId]?.status?.shalat;
+            if (status === 'Alpa') total++;
+        });
+    });
+    return total;
+};
+
+// Helper: Tentukan Status Pembinaan
+window.getPembinaanStatus = function(alpaCount) {
+    if (alpaCount === 0) return null;
+    return PEMBINAAN_RULES.find(r => alpaCount >= r.min && alpaCount <= r.max) || PEMBINAAN_RULES[PEMBINAAN_RULES.length - 1];
+};
+
+// ==========================================
 // 1. INIT & STARTUP
 // ==========================================
 
