@@ -3436,5 +3436,16 @@ window.toggleSelectAllPermit = function() {
     window.updatePermitCount();
 };
 
+// Tambahkan fungsi ini di script.js Anda
+window.goToToday = function() {
+    const today = new Date();
+    // Format YYYY-MM-DD sesuai zona waktu lokal (PENTING untuk input date)
+    const offset = today.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(today.getTime() - offset).toISOString().split('T')[0];
+    
+    // Panggil fungsi handleDateChange yang sudah ada di kode Anda
+    handleDateChange(localISOTime);
+};
+
 // Start App
 window.onload = window.initApp;
