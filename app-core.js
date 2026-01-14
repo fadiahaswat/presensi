@@ -762,10 +762,12 @@ window.renderAttendanceList = function() {
 
         // Update auto-note di renderAttendanceList
         if (activePermit) {
-            // Build auto-note with illness/reason if available
+            // Build auto-note with illness/reason/event name if available
             let permitDetail = '';
             if (activePermit.illness_type) {
                 permitDetail = ` (${activePermit.illness_type})`;
+            } else if (activePermit.event_name) {
+                permitDetail = ` (${activePermit.event_name})`;
             } else if (activePermit.reason) {
                 permitDetail = ` (${activePermit.reason})`;
             }
@@ -777,6 +779,14 @@ window.renderAttendanceList = function() {
                     autoNote = `[Auto] Sakit sejak ${window.formatDate(activePermit.start_date || activePermit.start).split(',')[1]}${permitDetail}`;
                 } else if (activePermit.status === 'Sembuh' && activePermit.recovered_date) {
                     autoNote = `[Auto] Sembuh mulai ${window.formatDate(activePermit.recovered_date).split(',')[1]}`;
+                }
+            } else if (activePermit.type === 'Pulang') {
+                const endDate = activePermit.end_date || activePermit.end;
+                if (activePermit.status === 'Alpa') {
+                    autoNote = `[Auto] Alpa (Pulang s/d ${window.formatDate(endDate).split(',')[1]} terlampaui)${permitDetail}`;
+                } else {
+                    const endTime = activePermit.end_time ? ` ${activePermit.end_time}` : '';
+                    autoNote = `[Auto] Pulang s/d ${window.formatDate(endDate).split(',')[1]}${endTime}${permitDetail}`;
                 }
             } else {
                 // Izin
@@ -815,14 +825,27 @@ window.renderAttendanceList = function() {
         if (activePermit) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${activePermit.type === 'Sakit' ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`;
+            let badgeClass = '';
+            if (activePermit.type === 'Sakit') {
+                badgeClass = 'bg-amber-100 text-amber-600 border-amber-200';
+            } else if (activePermit.type === 'Pulang') {
+                badgeClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
+            } else {
+                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';
+            }
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
             badge.textContent = activePermit.type;
             nameEl.appendChild(badge);
             
             // Visual highlight baris (optional)
             if(rowElement) {
-                if(activePermit.type === 'Sakit') rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
-                else rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
+                if(activePermit.type === 'Sakit') {
+                    rowElement.classList.add('ring-1', 'ring-amber-200', 'bg-amber-50/30');
+                } else if(activePermit.type === 'Pulang') {
+                    rowElement.classList.add('ring-1', 'ring-indigo-200', 'bg-indigo-50/30');
+                } else {
+                    rowElement.classList.add('ring-1', 'ring-blue-200', 'bg-blue-50/30');
+                }
             }
         } else if (isPulang) {
             const nameEl = clone.querySelector('.santri-name');
@@ -854,7 +877,13 @@ window.renderAttendanceList = function() {
             lbl.textContent = act.label;
 
             if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
-                btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
+                let ringClass = 'ring-blue-400';
+                if (activePermit.type === 'Sakit') {
+                    ringClass = 'ring-amber-400';
+                } else if (activePermit.type === 'Pulang') {
+                    ringClass = 'ring-indigo-400';
+                }
+                btn.classList.add('ring-2', 'ring-offset-1', ringClass);
             } else if (isPulang && (curr === 'Pulang' || curr === 'Tidak')) {
                 btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400');
             }

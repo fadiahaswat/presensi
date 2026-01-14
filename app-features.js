@@ -2200,8 +2200,11 @@ window.openPermitView = function() {
     document.getElementById('permit-view-session').value = 'all';
     document.getElementById('permit-view-start').value = today;
     document.getElementById('permit-view-end').value = today;
+    document.getElementById('permit-view-end-time').value = '';
     document.getElementById('permit-view-illness').value = '';
     document.getElementById('permit-view-reason').value = '';
+    document.getElementById('permit-view-pulang-session').value = 'all';
+    document.getElementById('permit-view-event-name').value = '';
     document.getElementById('permit-view-search').value = '';
     
     window.togglePermitViewFields();
@@ -2220,17 +2223,39 @@ window.closePermitView = function() {
 window.togglePermitViewFields = function() {
     const type = document.getElementById('permit-view-type').value;
     const endContainer = document.getElementById('permit-view-end-container');
+    const endTimeContainer = document.getElementById('permit-view-end-time-container');
     const illnessContainer = document.getElementById('permit-view-illness-container');
     const reasonContainer = document.getElementById('permit-view-reason-container');
+    const pulangContainer = document.getElementById('permit-view-pulang-container');
+    const selectAllCheckbox = document.getElementById('permit-view-select-all');
     
     if (type === 'Sakit') {
         if (endContainer) endContainer.classList.add('hidden');
+        if (endTimeContainer) endTimeContainer.classList.add('hidden');
         if (illnessContainer) illnessContainer.classList.remove('hidden');
         if (reasonContainer) reasonContainer.classList.add('hidden');
-    } else {
+        if (pulangContainer) pulangContainer.classList.add('hidden');
+        // Uncheck all for Sakit
+        window.toggleAllPermitViewSantri(false);
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+    } else if (type === 'Izin') {
         if (endContainer) endContainer.classList.remove('hidden');
+        if (endTimeContainer) endTimeContainer.classList.add('hidden');
         if (illnessContainer) illnessContainer.classList.add('hidden');
         if (reasonContainer) reasonContainer.classList.remove('hidden');
+        if (pulangContainer) pulangContainer.classList.add('hidden');
+        // Uncheck all for Izin
+        window.toggleAllPermitViewSantri(false);
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+    } else if (type === 'Pulang') {
+        if (endContainer) endContainer.classList.remove('hidden');
+        if (endTimeContainer) endTimeContainer.classList.remove('hidden');
+        if (illnessContainer) illnessContainer.classList.add('hidden');
+        if (reasonContainer) reasonContainer.classList.add('hidden');
+        if (pulangContainer) pulangContainer.classList.remove('hidden');
+        // Check all by default for Pulang
+        window.toggleAllPermitViewSantri(true);
+        if (selectAllCheckbox) selectAllCheckbox.checked = true;
     }
 };
 
@@ -2257,6 +2282,15 @@ window.filterPermitViewSantri = function(val) {
     window.renderPermitViewSantriList(filtered);
 };
 
+window.toggleAllPermitViewSantri = function(checked) {
+    if (typeof checked !== 'boolean') {
+        console.error('toggleAllPermitViewSantri: checked parameter must be a boolean');
+        return;
+    }
+    const checkboxes = document.querySelectorAll('input[name="permit_view_santri_select"]');
+    checkboxes.forEach(cb => cb.checked = checked);
+};
+
 window.savePermitFromView = function() {
     const checkboxes = document.querySelectorAll('input[name="permit_view_santri_select"]:checked');
     const selectedNis = Array.from(checkboxes).map(cb => cb.value);
@@ -2265,18 +2299,26 @@ window.savePermitFromView = function() {
     const session = document.getElementById('permit-view-session').value;
     const start = document.getElementById('permit-view-start').value;
     const end = document.getElementById('permit-view-end').value;
+    const endTime = document.getElementById('permit-view-end-time').value;
     const illness = document.getElementById('permit-view-illness').value.trim();
     const reason = document.getElementById('permit-view-reason').value.trim();
+    const pulangSession = document.getElementById('permit-view-pulang-session').value;
+    const eventName = document.getElementById('permit-view-event-name').value.trim();
 
-    if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
+    if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 anak", "warning");
     if(!start) return window.showToast("Tanggal mulai harus diisi", "warning");
     
     if(type === 'Sakit') {
         if(!illness) return window.showToast("Keterangan sakit harus diisi", "warning");
-    } else {
+    } else if (type === 'Izin') {
         if(!end) return window.showToast("Tanggal selesai harus diisi untuk Izin", "warning");
         if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
         if(!reason) return window.showToast("Alasan izin harus diisi", "warning");
+    } else if (type === 'Pulang') {
+        if(!end) return window.showToast("Sampai tanggal harus diisi untuk Pulang", "warning");
+        if(!endTime) return window.showToast("Jam akhir kepulangan harus diisi untuk tipe Pulang", "warning");
+        if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
+        if(!eventName) return window.showToast("Nama event perpulangan harus diisi", "warning");
     }
 
     let count = 0;
@@ -2285,7 +2327,7 @@ window.savePermitFromView = function() {
             id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             nis: nis,
             type,
-            session,
+            session: type === 'Pulang' ? pulangSession : session,
             start_date: start,
             timestamp: new Date().toISOString()
         };
@@ -2294,11 +2336,17 @@ window.savePermitFromView = function() {
             newPermit.status = 'Sakit';
             newPermit.recovered_date = null;
             newPermit.illness_type = illness;
-        } else {
+        } else if(type === 'Izin') {
             newPermit.status = 'Izin';
             newPermit.end_date = end;
             newPermit.arrival_date = null;
             newPermit.reason = reason;
+        } else if(type === 'Pulang') {
+            newPermit.status = 'Pulang';
+            newPermit.end_date = end;
+            newPermit.end_time = endTime;
+            newPermit.arrival_date = null;
+            newPermit.event_name = eventName;
         }
         
         appState.permits.push(newPermit);
@@ -2312,6 +2360,10 @@ window.savePermitFromView = function() {
     checkboxes.forEach(cb => cb.checked = false);
     document.getElementById('permit-view-illness').value = '';
     document.getElementById('permit-view-reason').value = '';
+    document.getElementById('permit-view-event-name').value = '';
+    document.getElementById('permit-view-end-time').value = '';
+    const selectAllCheckbox = document.getElementById('permit-view-select-all');
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
     
     window.renderPermitViewList();
     window.renderAttendanceList();
@@ -2339,13 +2391,21 @@ window.renderPermitViewList = function() {
         const endDate = p.end_date || p.end;
         const status = p.status || p.type;
         
-        const canEdit = (p.type === 'Sakit' && status === 'Sakit') || (p.type === 'Izin' && status !== 'Datang');
+        const canEdit = (p.type === 'Sakit' && status === 'Sakit') || (p.type === 'Izin' && status !== 'Datang') || (p.type === 'Pulang' && status !== 'Datang');
         
         let dateDisplay = '';
         if (p.type === 'Sakit') {
             dateDisplay = `Mulai ${window.formatDate(startDate).split(',')[1]}`;
             if (status === 'Sembuh' && p.recovered_date) {
                 dateDisplay += ` • Sembuh ${window.formatDate(p.recovered_date).split(',')[1]}`;
+            }
+        } else if (p.type === 'Pulang') {
+            dateDisplay = `${window.formatDate(startDate).split(',')[1]} - ${window.formatDate(endDate).split(',')[1]}`;
+            if (p.end_time) {
+                dateDisplay += ` (${p.end_time})`;
+            }
+            if (status === 'Datang' && p.arrival_date) {
+                dateDisplay += ` • Kembali ${window.formatDate(p.arrival_date).split(',')[1]}`;
             }
         } else {
             dateDisplay = `${window.formatDate(startDate).split(',')[1]} - ${window.formatDate(endDate).split(',')[1]}`;
@@ -2358,15 +2418,22 @@ window.renderPermitViewList = function() {
         if (status === 'Sakit') statusBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
         else if (status === 'Sembuh') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         else if (status === 'Izin') statusBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+        else if (status === 'Pulang') statusBadgeClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
         else if (status === 'Datang') statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         else if (status === 'Alpa') statusBadgeClass = 'bg-red-50 text-red-700 border-red-200';
         
         let description = '';
         if (p.illness_type) {
             description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="activity" class="w-3 h-3"></i> ${p.illness_type}</span>`;
+        } else if (p.event_name) {
+            description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${p.event_name}</span>`;
         } else if (p.reason) {
             description = `<span class="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i> ${p.reason}</span>`;
         }
+
+        let typeColor = 'bg-blue-100 text-blue-700';
+        if (p.type === 'Sakit') typeColor = 'bg-amber-100 text-amber-700';
+        else if (p.type === 'Pulang') typeColor = 'bg-indigo-100 text-indigo-700';
 
         const div = document.createElement('div');
         div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
@@ -2374,7 +2441,7 @@ window.renderPermitViewList = function() {
             <div class="flex-1">
                 <p class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</p>
                 <div class="flex flex-wrap gap-2 mt-1.5">
-                    <span class="px-2 py-0.5 rounded-md ${p.type === 'Sakit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
+                    <span class="px-2 py-0.5 rounded-md ${typeColor} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
                     <span class="px-2 py-0.5 rounded-md ${statusBadgeClass} font-bold text-[10px] border">${status}</span>
                     ${description}
                     <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateDisplay}</span>
@@ -2683,8 +2750,8 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
                 return dateStr >= startDate && dateStr < p.recovered_date;
             }
             return false;
-        } else {
-            // IZIN LOGIC (Fixed duration)
+        } else if (p.type === 'Izin' || p.type === 'Pulang') {
+            // IZIN & PULANG LOGIC (Fixed duration)
             if (p.status === 'Datang') {
                 // Student has returned - permit no longer active
                 return false;
@@ -2694,7 +2761,7 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
             const isDateMatch = dateStr >= startDate && dateStr <= endDate;
             if (!isDateMatch) {
                 // Date is after end_date - check for auto-Alpa
-                if (dateStr > endDate && p.status === 'Izin') {
+                if (dateStr > endDate && (p.status === 'Izin' || p.status === 'Pulang')) {
                     // Auto-transition to Alpa
                     p.status = 'Alpa';
                     // Save the update
@@ -2706,6 +2773,8 @@ window.checkActivePermit = function(nis, dateStr, slotId) {
             
             return true;
         }
+        
+        return false;
     });
     
     return permit;
@@ -2745,8 +2814,8 @@ window.openEditPermitModal = function(permitId) {
         const today = window.getLocalDateStr();
         document.getElementById('edit-permit-recovery-date').value = today;
         document.getElementById('edit-permit-recovery-session').value = 'all';
-    } else {
-        // Show arrival date input
+    } else if (permit.type === 'Izin' || permit.type === 'Pulang') {
+        // Show arrival date input for both Izin and Pulang
         document.getElementById('edit-permit-sakit-section').classList.add('hidden');
         document.getElementById('edit-permit-izin-section').classList.remove('hidden');
         
@@ -3220,6 +3289,10 @@ window.saveExtendHomecoming = function() {
 // ==========================================
 
 window.openHomecomingModal = function() {
+    // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
+    console.warn('openHomecomingModal is deprecated. Use openPermitView with type "Pulang" instead.');
+    return;
+    
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
     const modal = document.getElementById('modal-homecoming');
@@ -4224,6 +4297,21 @@ window.loadHomecomingData = async function() {
 
 // 1. Buka View Halaman Penuh
 window.openHomecomingView = async function() {
+    // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
+    console.warn('openHomecomingView is deprecated. Use openPermitView with type "Pulang" instead.');
+    window.showToast("Perpulangan sekarang dikelola melalui Input Perizinan", "info");
+    
+    // Redirect to Permit View and pre-select Pulang
+    window.openPermitView();
+    setTimeout(() => {
+        const typeSelect = document.getElementById('permit-view-type');
+        if (typeSelect) {
+            typeSelect.value = 'Pulang';
+            window.togglePermitViewFields();
+        }
+    }, 100);
+    return;
+    
     if(!appState.selectedClass) return window.showToast("Pilih kelas dulu!", "warning");
     
     // Ganti View (Main -> Homecoming)
