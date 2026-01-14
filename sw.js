@@ -1,15 +1,25 @@
-const CACHE_NAME = 'musyrif-app-v10';
+const CACHE_NAME = 'musyrif-app-v11'; // Naikkan versi cache agar browser mereset ulang
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css',
-  './script.js',
-  './santri-manager.js',
-  './data-santri.js',
+  './output.css',       // Ganti style.css ke output.css (sesuai index.html)
+  './manifest.json',
+  
+  // Data & Config
+  './config.js',
+  './utils.js',
+  './state.js',
+  './constants.js',
   './data-kelas.js',
-  './manifest.json'
-  // KITA HAPUS LINK EKSTERNAL (Tailwind, Lucide, Supabase) DARI SINI
-  // Karena server mereka menolak di-cache oleh Service Worker secara langsung (CORS Error)
+  './data-santri.js',
+  './santri-manager.js',
+  
+  // App Logic (Masukkan semua file JS yang dipakai)
+  './app-core.js',
+  './app-features.js',
+  './main.js'
+  
+  // HAPUS './script.js' karena file ini TIDAK ADA di folder/index.html Anda
 ];
 
 // 1. Install Service Worker & Cache File
