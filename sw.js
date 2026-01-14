@@ -27,14 +27,18 @@ self.addEventListener('install', (event) => {
       return Promise.allSettled(
         ASSETS_TO_CACHE.map(url => cache.add(url))
       ).then(results => {
-        const failures = results.filter(r => r.status === 'rejected');
-        if (failures.length > 0) {
-          console.warn(`Failed to cache ${failures.length} assets:`);
-          failures.forEach((failure, index) => {
-            const failedUrl = ASSETS_TO_CACHE[results.indexOf(failure)];
-            console.warn(`  - ${failedUrl}:`, failure.reason);
-          });
+        // Log any failures with the correct URLs
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.warn(`Failed to cache ${ASSETS_TO_CACHE[index]}:`, result.reason);
+          }
+        });
+        
+        const failureCount = results.filter(r => r.status === 'rejected').length;
+        if (failureCount > 0) {
+          console.warn(`Total failed to cache: ${failureCount} of ${ASSETS_TO_CACHE.length} assets`);
         }
+        
         // Continue even if some files failed to cache
         return Promise.resolve();
       });
