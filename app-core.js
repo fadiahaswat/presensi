@@ -697,22 +697,32 @@ window.renderAttendanceList = function() {
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         // --- LOGIKA PERPULANGAN (HOMECOMING) ---
-        // Priority: localStorage homecoming (new modal system) > Supabase homecoming (old event system)
-        // This allows both systems to coexist. The modal-based system takes priority when data exists.
+        // Priority: 
+        // 1. Permits with type="Pulang" (new unified system)
+        // 2. localStorage homecoming (transitional system)
+        // 3. Supabase homecoming (old event system)
         let isPulang = false;
         let homecomingInfo = null;
-        try {
-            // First check localStorage homecoming (new system)
-            homecomingInfo = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
-            if (homecomingInfo) {
-                isPulang = true;
-            } 
-            // Then check Supabase homecoming (old system) if new system doesn't have data
-            else if (window.isStudentPulang) {
-                isPulang = window.isStudentPulang(id, dateKey);
+        
+        // Check if activePermit is actually a Pulang permit
+        if (activePermit && activePermit.type === 'Pulang') {
+            isPulang = true;
+            homecomingInfo = activePermit; // Use permit as homecoming info
+        } else {
+            // Only check homecoming systems if no Pulang permit found
+            try {
+                // First check localStorage homecoming (new modal system)
+                homecomingInfo = window.checkActiveHomecoming && window.checkActiveHomecoming(id, dateKey);
+                if (homecomingInfo) {
+                    isPulang = true;
+                } 
+                // Then check Supabase homecoming (old event system) if new system doesn't have data
+                else if (window.isStudentPulang) {
+                    isPulang = window.isStudentPulang(id, dateKey);
+                }
+            } catch (e) {
+                console.error('Error checking Pulang status:', e);
             }
-        } catch (e) {
-            console.error('Error checking Pulang status:', e);
         }
         
         if(!dbSlot[id]) {
@@ -730,12 +740,13 @@ window.renderAttendanceList = function() {
         slot.activities.forEach(act => {
             let targetStatus = null;
             
-            // 1. PRIORITAS UTAMA: Cek Izin (Sakit/Izin)
-            if (activePermit) {
+            // 1. PRIORITAS UTAMA: Cek Perizinan (Sakit/Izin/Pulang)
+            if (activePermit && activePermit.type !== 'Pulang') {
+                // SAKIT or IZIN
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
             } 
-            // 2. PRIORITAS KEDUA: Cek Pulang (Homecoming) - MENGIKUTI LOGIKA IZIN
+            // 2. PRIORITAS KEDUA: Cek Pulang (from permit or homecoming systems)
             else if (isPulang) {
                 // Shalat Fardu, KBM, dan Dzikir/Rawatib (Dependent) menjadi 'Pulang'
                 if (act.category === 'fardu' || act.category === 'kbm' || act.category === 'dependent') {
@@ -761,8 +772,8 @@ window.renderAttendanceList = function() {
         });
 
         // Update auto-note di renderAttendanceList
-        if (activePermit) {
-            // Build auto-note with illness/reason/event name if available
+        if (activePermit && activePermit.type !== 'Pulang') {
+            // Build auto-note for SAKIT or IZIN
             let permitDetail = '';
             if (activePermit.illness_type) {
                 permitDetail = ` (${activePermit.illness_type})`;
@@ -780,14 +791,6 @@ window.renderAttendanceList = function() {
                 } else if (activePermit.status === 'Sembuh' && activePermit.recovered_date) {
                     autoNote = `[Auto] Sembuh mulai ${window.formatDate(activePermit.recovered_date).split(',')[1]}`;
                 }
-            } else if (activePermit.type === 'Pulang') {
-                const endDate = activePermit.end_date || activePermit.end;
-                if (activePermit.status === 'Alpa') {
-                    autoNote = `[Auto] Alpa (Pulang s/d ${window.formatDate(endDate).split(',')[1]} terlampaui)${permitDetail}`;
-                } else {
-                    const endTime = activePermit.end_time ? ` ${activePermit.end_time}` : '';
-                    autoNote = `[Auto] Pulang s/d ${window.formatDate(endDate).split(',')[1]}${endTime}${permitDetail}`;
-                }
             } else {
                 // Izin
                 const endDate = activePermit.end_date || activePermit.end;
@@ -803,8 +806,24 @@ window.renderAttendanceList = function() {
                 hasAutoChanges = true;
             }
         } else if (isPulang) {
-            // Use info from localStorage homecoming if available, otherwise use default
-            const autoNote = homecomingInfo && homecomingInfo.city ? `[Auto] Pulang ke ${homecomingInfo.city}` : `[Auto] Pulang`;
+            // PULANG note (from permit or homecoming system)
+            let autoNote = '';
+            if (homecomingInfo) {
+                // Build note from homecomingInfo
+                const endDate = homecomingInfo.end_date || homecomingInfo.end;
+                const endTime = homecomingInfo.end_time ? ` ${homecomingInfo.end_time}` : '';
+                const city = homecomingInfo.city || homecomingInfo.event_name || '';
+                const cityDisplay = city ? ` ke ${city}` : '';
+                
+                if (homecomingInfo.status === 'Alpa') {
+                    autoNote = `[Auto] Alpa (Pulang s/d ${window.formatDate(endDate).split(',')[1]} terlampaui)${cityDisplay}`;
+                } else {
+                    autoNote = `[Auto] Pulang${cityDisplay} s/d ${window.formatDate(endDate).split(',')[1]}${endTime}`;
+                }
+            } else {
+                autoNote = `[Auto] Pulang`;
+            }
+            
             if (!sData.note || sData.note === '-' || (isAutoMarked && sData.note !== autoNote)) {
                 sData.note = autoNote;
                 hasAutoChanges = true;

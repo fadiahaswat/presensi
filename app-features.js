@@ -3300,6 +3300,17 @@ window.saveExtendHomecoming = function() {
 window.openHomecomingModal = function() {
     // DEPRECATED: Homecoming functionality has been moved to Permit View with type "Pulang"
     console.warn('openHomecomingModal is deprecated. Use openPermitView with type "Pulang" instead.');
+    window.showToast("Perpulangan sekarang dikelola melalui Input Perizinan", "info");
+    
+    // Redirect to Permit View and pre-select Pulang
+    window.openPermitView();
+    setTimeout(() => {
+        const typeSelect = document.getElementById('permit-view-type');
+        if (typeSelect) {
+            typeSelect.value = 'Pulang';
+            window.togglePermitViewFields();
+        }
+    }, 100);
     return;
     
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
