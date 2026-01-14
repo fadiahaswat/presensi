@@ -1,8 +1,8 @@
 // File: constants.js
-// Slot and status configurations
+// Slot and status configurations (UPDATED)
 
 // ==========================================
-// SLOT & STATUS CONFIGURATION
+// SLOT CONFIGURATION
 // ==========================================
 window.SLOT_WAKTU = {
     shubuh: { 
@@ -73,12 +73,64 @@ window.SLOT_WAKTU = {
     ]}
 };
 
+// ==========================================
+// STATUS UI CONFIGURATION (MODERN)
+// ==========================================
 window.STATUS_UI = {
-    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
-    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
-    'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
-    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
-    'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
-    'Pulang': { class: 'bg-indigo-100 text-indigo-600 border-indigo-300', label: 'P' },
-    'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
+    'Hadir': { 
+        label: 'H', 
+        fullLabel: 'Hadir',
+        icon: 'check-circle-2',
+        btnClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30',
+        activeClass: 'bg-emerald-500 text-white border-emerald-600 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-slate-900',
+        badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+    },
+    'Ya': { 
+        label: 'Y', 
+        fullLabel: 'Terlaksana',
+        icon: 'check',
+        btnClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30',
+        activeClass: 'bg-emerald-500 text-white border-emerald-600 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-slate-900',
+        badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+    },
+    'Sakit': { 
+        label: 'S', 
+        fullLabel: 'Sakit',
+        icon: 'thermometer',
+        btnClass: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',
+        activeClass: 'bg-amber-500 text-white border-amber-600 shadow-lg shadow-amber-500/30 ring-2 ring-amber-500 ring-offset-2 dark:ring-offset-slate-900',
+        badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+    },
+    'Izin': { 
+        label: 'I', 
+        fullLabel: 'Izin',
+        icon: 'file-text',
+        btnClass: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30',
+        activeClass: 'bg-blue-500 text-white border-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-900',
+        badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'
+    },
+    'Alpa': { 
+        label: 'A', 
+        fullLabel: 'Alpa',
+        icon: 'x-circle',
+        btnClass: 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30',
+        activeClass: 'bg-rose-500 text-white border-rose-600 shadow-lg shadow-rose-500/30 ring-2 ring-rose-500 ring-offset-2 dark:ring-offset-slate-900',
+        badgeClass: 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
+    },
+    'Pulang': { 
+        label: 'P', 
+        fullLabel: 'Pulang',
+        icon: 'home',
+        btnClass: 'bg-violet-100 text-violet-700 border-violet-200 hover:bg-violet-200 dark:bg-violet-500/20 dark:text-violet-400 dark:border-violet-500/30',
+        activeClass: 'bg-violet-500 text-white border-violet-600 shadow-lg shadow-violet-500/30 ring-2 ring-violet-500 ring-offset-2 dark:ring-offset-slate-900',
+        badgeClass: 'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400'
+    },
+    'Tidak': { 
+        label: '-', 
+        fullLabel: 'Tidak',
+        icon: 'minus',
+        btnClass: 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700',
+        activeClass: 'bg-slate-200 text-slate-500 border-slate-300 dark:bg-slate-700 dark:text-slate-400',
+        badgeClass: 'bg-slate-100 text-slate-400'
+    }
 };
