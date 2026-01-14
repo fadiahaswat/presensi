@@ -12,13 +12,34 @@ const ASSETS_TO_CACHE = [
   // Karena server mereka menolak di-cache oleh Service Worker secara langsung (CORS Error)
 ];
 
-// 1. Install Service Worker & Cache File
+// 1. Install Service Worker & Cache File with Error Handling
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Use Promise.allSettled to handle individual failures gracefully
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map(url => 
+          cache.add(url).catch(error => {
+            console.warn(`Failed to cache ${url}:`, error.message);
+            // Don't fail installation if one resource fails
+            return null;
+          })
+        )
+      ).then(results => {
+        const failed = results.filter(r => r.status === 'rejected');
+        if (failed.length > 0) {
+          console.warn(`Service Worker installed with ${failed.length} cache failures`);
+        } else {
+          console.log('Service Worker installed successfully with all assets cached');
+        }
+      });
+    }).catch(error => {
+      console.error('Failed to open cache during install:', error);
+      // Allow installation to proceed even if caching fails
     })
   );
+  // Force activate immediately
+  self.skipWaiting();
 });
 
 // 2. Activate & Hapus Cache Lama
@@ -28,58 +49,132 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('Deleting old cache:', key);
             return caches.delete(key);
           }
         })
       );
+    }).then(() => {
+      console.log('Service Worker activated');
+      // Take control of all pages immediately
+      return self.clients.claim();
     })
   );
 });
 
-// 3. Fetch Strategy: Cache First, then Network
+// 3. Fetch Strategy: Network First for External, Cache First for Local
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  
   // Cek apakah request menuju ke file eksternal (http/https)
-  if (event.request.url.startsWith('http')) {
-     // Gunakan strategi Network First untuk file eksternal agar tidak error CORS
-     event.respondWith(
-        fetch(event.request).catch((error) => {
-            // Proper error handling: Return a valid Response object
-            console.error('Fetch failed for', event.request.url, error);
+  if (url.protocol === 'http:' || url.protocol === 'https:') {
+    // Detect if it's a Supabase API request
+    const isSupabaseRequest = url.hostname.includes('supabase.co');
+    
+    if (isSupabaseRequest) {
+      // For Supabase: Network-only, never cache API responses
+      event.respondWith(
+        fetch(event.request)
+          .then(response => {
+            // Only cache successful responses
+            if (response && response.status === 200) {
+              return response;
+            }
+            return response;
+          })
+          .catch(error => {
+            console.error('Supabase fetch failed:', error.message);
+            // Return a more informative error response
+            return new Response(
+              JSON.stringify({ 
+                error: 'Network Error', 
+                message: 'Unable to connect to Supabase. Please check your internet connection.',
+                details: error.message 
+              }), 
+              {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({
+                  'Content-Type': 'application/json'
+                })
+              }
+            );
+          })
+      );
+    } else {
+      // For other external resources: Network First, then Cache
+      event.respondWith(
+        fetch(event.request)
+          .then(response => {
+            // Clone response to cache it
+            if (response && response.status === 200 && response.type !== 'opaque') {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseToCache).catch(err => {
+                  console.warn('Failed to cache response:', err.message);
+                });
+              });
+            }
+            return response;
+          })
+          .catch(error => {
+            console.warn('Network fetch failed for', url.href, '- trying cache');
             
             // Try to return cached version if available
-            return caches.match(event.request).then((response) => {
-                if (response) {
-                    return response;
-                }
-                
-                // Return a proper offline response
-                return new Response('Offline - Resource not available', {
-                    status: 503,
-                    statusText: 'Service Unavailable',
-                    headers: new Headers({
-                        'Content-Type': 'text/plain'
-                    })
-                });
-            });
-        })
-     );
-  } else {
-     // Untuk file lokal, gunakan Cache First (sesuai kode lama)
-     event.respondWith(
-        caches.match(event.request).then((response) => {
-          return response || fetch(event.request).catch((error) => {
-              console.error('Fetch failed for local resource', event.request.url, error);
+            return caches.match(event.request).then(response => {
+              if (response) {
+                return response;
+              }
               
-              // Return a proper error response for local resources
-              return new Response('Resource not found', {
-                  status: 404,
-                  statusText: 'Not Found',
-                  headers: new Headers({
-                      'Content-Type': 'text/plain'
-                  })
+              // Return a proper offline response
+              return new Response('Offline - Resource not available', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({
+                  'Content-Type': 'text/plain'
+                })
               });
+            });
+          })
+      );
+    }
+  } else {
+    // Untuk file lokal, gunakan Cache First
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        if (response) {
+          return response;
+        }
+        
+        return fetch(event.request)
+          .then(response => {
+            // Cache the new response
+            if (response && response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+            return response;
+          })
+          .catch(error => {
+            console.error('Fetch failed for local resource', event.request.url, error);
+            
+            // Return a proper error response for local resources
+            return new Response('Resource not found', {
+              status: 404,
+              statusText: 'Not Found',
+              headers: new Headers({
+                'Content-Type': 'text/plain'
+              })
+            });
           });
-        })
-     );
+      })
+    );
   }
 });

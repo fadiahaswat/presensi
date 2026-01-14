@@ -10,10 +10,32 @@ window.SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co';
 // 2. Ambil Key dari Tahap 3 (anon public)
 window.SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
 
-// 3. Nyalakan Mesin Supabase
-if (window.supabase) {
-    window.dbClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
-    console.log("Supabase Siap!");
+// 3. Nyalakan Mesin Supabase dengan error handling
+if (typeof window.supabase !== 'undefined') {
+    try {
+        window.dbClient = window.supabase.createClient(
+            window.SUPABASE_URL, 
+            window.SUPABASE_KEY,
+            {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false
+                },
+                global: {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            }
+        );
+        console.log("✅ Supabase Siap!");
+    } catch (error) {
+        console.error("❌ Gagal inisialisasi Supabase:", error);
+        window.dbClient = null;
+    }
+} else {
+    console.warn("⚠️ Supabase library belum dimuat. Database fitur tidak tersedia.");
+    window.dbClient = null;
 }
 
 // ==========================================

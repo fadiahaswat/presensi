@@ -4057,10 +4057,22 @@ window.syncToSupabase = async function() {
     const slotId = appState.currentSlotId;
     const classId = appState.selectedClass;
 
-    if (!dateKey || !slotId || !classId) return;
+    if (!dateKey || !slotId || !classId) {
+        console.warn('Missing required data for sync');
+        return;
+    }
 
     const dayData = appState.attendanceData[dateKey]?.[slotId];
-    if (!dayData) return;
+    if (!dayData) {
+        console.log('No attendance data to sync');
+        return;
+    }
+
+    // Check if Supabase client is available
+    if (!window.dbClient) {
+        console.error('Supabase client not initialized');
+        return;
+    }
 
     // Ambil Email Musyrif yang sedang login (untuk info siapa yang ngisi)
     const musyrifEmail = appState.userProfile ? appState.userProfile.email : 'manual-pin';
@@ -4081,40 +4093,131 @@ window.syncToSupabase = async function() {
         });
     });
 
-    if (updates.length === 0) return;
+    if (updates.length === 0) {
+        console.log('No updates to sync');
+        return;
+    }
 
-    // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
-    const { error } = await window.dbClient
-        .from('attendance')
-        .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
-
-    if (error) {
-        console.error("Gagal kirim ke Supabase:", error);
-        // Jangan ganggu user dengan popup error terus menerus, cukup di console
-    } else {
-        console.log("✅ Data tersimpan di Awan (Supabase)");
+    try {
+        // KIRIM PAKET dengan retry logic
+        const result = await window.retryWithBackoff(async () => {
+            const { data, error } = await window.dbClient
+                .from('attendance')
+                .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
+            
+            if (error) {
+                if (error.message.includes('CORS')) {
+                    throw new Error('CORS Error: Unable to sync to database. Please check your network.');
+                } else if (error.code === 'PGRST116') {
+                    throw new Error('Database table not found.');
+                } else if (error.message.includes('JWT')) {
+                    throw new Error('Authentication failed. Please logout and login again.');
+                } else {
+                    throw new Error(`Sync error: ${error.message}`);
+                }
+            }
+            
+            return data;
+        }, 3, 1000);
+        
+        console.log(`✅ Data tersimpan di Awan (Supabase) - ${updates.length} records`);
+        
+    } catch (error) {
+        console.error("Gagal kirim ke Supabase:", error.message);
+        
+        // Show user-friendly warning but don't block the UI
+        let userMessage = '⚠️ Warning: Data saved locally but not synced to cloud';
+        
+        if (error.message.includes('CORS') || error.message.includes('Network')) {
+            userMessage += ' (network error)';
+        } else if (error.message.includes('Authentication')) {
+            userMessage = '🔒 Session expired. Data saved locally. Please logout and login to sync.';
+        }
+        
+        // Only show warning, don't block user
+        console.warn(userMessage);
+        
+        // Data is still saved locally, so app continues to work
+        console.log('📱 Data saved locally and will sync when connection is restored');
     }
 };
 
 // --- FITUR SINKRONISASI (READ) ---
+// Helper function for exponential backoff retry
+window.retryWithBackoff = async function(fn, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            
+            // Don't retry on certain errors
+            if (error.message && (
+                error.message.includes('401') || 
+                error.message.includes('403') ||
+                error.message.includes('Invalid')
+            )) {
+                throw error;
+            }
+            
+            if (i < maxRetries - 1) {
+                // Exponential backoff: 1s, 2s, 4s
+                const delay = baseDelay * Math.pow(2, i);
+                console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    throw lastError;
+};
+
 window.fetchAttendanceFromSupabase = async function() {
     const classId = appState.selectedClass;
     const dateKey = appState.date;
 
-    if (!classId || !dateKey) return;
+    if (!classId || !dateKey) {
+        console.warn('Missing classId or dateKey for sync');
+        return;
+    }
+
+    // Check if Supabase client is available
+    if (!window.dbClient) {
+        console.error('Supabase client not initialized');
+        window.showToast('Database connection not available', 'error');
+        return;
+    }
 
     // Tampilkan indikator loading kecil (opsional) di console
     console.log("🔄 Syncing from Cloud...");
 
     try {
-        // 1. Ambil data dari tabel 'attendance' sesuai Kelas & Tanggal
-        const { data, error } = await window.dbClient
-            .from('attendance')
-            .select('*')
-            .eq('class_name', classId)
-            .eq('date', dateKey);
+        // Use retry logic with exponential backoff
+        const data = await window.retryWithBackoff(async () => {
+            // 1. Ambil data dari tabel 'attendance' sesuai Kelas & Tanggal
+            const { data, error } = await window.dbClient
+                .from('attendance')
+                .select('*')
+                .eq('class_name', classId)
+                .eq('date', dateKey);
 
-        if (error) throw error;
+            if (error) {
+                // More specific error messages
+                if (error.message.includes('CORS')) {
+                    throw new Error('CORS Error: Unable to connect to database. Please check your network settings or contact administrator.');
+                } else if (error.code === 'PGRST116') {
+                    throw new Error('Database table not found. Please contact administrator.');
+                } else if (error.message.includes('JWT')) {
+                    throw new Error('Authentication failed. Please logout and login again.');
+                } else {
+                    throw new Error(`Database error: ${error.message}`);
+                }
+            }
+
+            return data;
+        }, 3, 1000);
 
         if (data && data.length > 0) {
             // 2. Masukkan data dari Cloud ke State Aplikasi
@@ -4148,6 +4251,26 @@ window.fetchAttendanceFromSupabase = async function() {
 
     } catch (err) {
         console.error("Gagal ambil data Supabase:", err);
+        
+        // Show user-friendly error message
+        let userMessage = 'Failed to sync data from cloud';
+        
+        if (err.message.includes('CORS')) {
+            userMessage = '⚠️ Network error: Cannot connect to database. Check your internet connection.';
+        } else if (err.message.includes('fetch')) {
+            userMessage = '⚠️ Network error: Please check your internet connection and try again.';
+        } else if (err.message.includes('Authentication')) {
+            userMessage = '🔒 Session expired. Please logout and login again.';
+        } else if (err.message) {
+            userMessage = `⚠️ Sync failed: ${err.message}`;
+        }
+        
+        // Don't show toast on every error to avoid spam
+        // Only log to console for debugging
+        console.warn(userMessage);
+        
+        // Fallback to local data - app should continue working
+        console.log('📱 Using local data only');
     }
 };
 
