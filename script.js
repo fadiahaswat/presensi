@@ -3652,13 +3652,26 @@ window.checkArrivalAuto = function() {
 window.setPermitTab = function(tab) {
     currentPermitTab = tab;
     
-    // Update Style Tombol Tab
+    // 1. Reset Semua Input Form agar bersih
+    const inputsToReset = ['permit-reason', 'permit-pickup', 'permit-vehicle'];
+    inputsToReset.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
+
+    // Reset Date ke Default Hari Ini (User Friendly)
+    const today = window.getLocalDateStr();
+    document.getElementById('permit-start-date').value = today;
+    document.getElementById('permit-end-date').value = today;
+    document.getElementById('permit-start-session').value = 'shubuh';
+    
+    // 2. UI Update (Sama seperti sebelumnya)
     document.querySelectorAll('.permit-tab').forEach(btn => {
         btn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-50";
     });
     const activeBtn = document.getElementById(`tab-btn-${tab}`);
     
-    // Warna aktif beda-beda tiap tab
+    // Warna Tab
     if(tab === 'sakit') activeBtn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-amber-50 text-amber-600 shadow-sm border border-amber-100";
     else if(tab === 'izin') activeBtn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-blue-50 text-blue-600 shadow-sm border border-blue-100";
     else if(tab === 'pulang') activeBtn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-purple-50 text-purple-600 shadow-sm border border-purple-100";
@@ -3672,47 +3685,40 @@ window.setPermitTab = function(tab) {
     const listReasons = document.getElementById('reasons-list');
     const lblReason = document.getElementById('lbl-reason');
 
-    // Reset Suggestions
-    listReasons.innerHTML = '';
+    listReasons.innerHTML = ''; // Reset suggestion
 
     if (tab === 'sakit') {
         lblReason.textContent = "Sakit Apa?";
-        fieldEnd.classList.add('hidden'); // Sakit tidak butuh end date di awal
+        fieldEnd.classList.add('hidden'); 
         fieldLoc.classList.remove('hidden');
         fieldTrans.classList.add('hidden');
         infoSakit.classList.remove('hidden');
-        btnSelectAll.classList.add('hidden'); // Sakit biasanya per individu
+        if(btnSelectAll) btnSelectAll.parentElement.classList.add('hidden'); // Sembunyikan pilih semua utk sakit
         
-        // Suggestion Sakit
         ['Demam', 'Flu/Batuk', 'Sakit Gigi', 'Diare', 'Tifus', 'Cacar', 'Maag', 'Kecapekan'].forEach(r => {
             listReasons.innerHTML += `<option value="${r}">`;
         });
     } 
-    else if (tab === 'izin') {
-        lblReason.textContent = "Keperluan Apa?";
+    else {
+        // Logic Izin & Pulang
         fieldEnd.classList.remove('hidden');
         fieldLoc.classList.add('hidden');
-        fieldTrans.classList.add('hidden');
         infoSakit.classList.add('hidden');
-        btnSelectAll.classList.remove('hidden');
+        if(btnSelectAll) btnSelectAll.parentElement.classList.remove('hidden'); // Munculkan utk izin/pulang
 
-        // Suggestion Izin
-        ['Acara Keluarga', 'Menikah', 'Wisuda Kakak', 'Lomba', 'Tugas Madrasah', 'Mengurus Berkas', 'Check-up Dokter'].forEach(r => {
-            listReasons.innerHTML += `<option value="${r}">`;
-        });
-    }
-    else if (tab === 'pulang') {
-        lblReason.textContent = "Jenis Kepulangan?";
-        fieldEnd.classList.remove('hidden');
-        fieldLoc.classList.add('hidden');
-        fieldTrans.classList.remove('hidden');
-        infoSakit.classList.add('hidden');
-        btnSelectAll.classList.remove('hidden');
-
-        // Suggestion Pulang
-        ['Pulang Bulanan', 'Libur Semester', 'Libur Lebaran', 'Libur Maulid', 'Pulang Sakit Panjang'].forEach(r => {
-            listReasons.innerHTML += `<option value="${r}">`;
-        });
+        if (tab === 'izin') {
+            lblReason.textContent = "Keperluan Apa?";
+            fieldTrans.classList.add('hidden');
+            ['Acara Keluarga', 'Menikah', 'Wisuda Kakak', 'Lomba', 'Tugas Madrasah', 'Check-up Dokter'].forEach(r => {
+                listReasons.innerHTML += `<option value="${r}">`;
+            });
+        } else {
+            lblReason.textContent = "Jenis Kepulangan?";
+            fieldTrans.classList.remove('hidden');
+            ['Pulang Bulanan', 'Libur Semester', 'Libur Lebaran', 'Pulang Sakit Panjang'].forEach(r => {
+                listReasons.innerHTML += `<option value="${r}">`;
+            });
+        }
     }
 };
 
