@@ -2998,21 +2998,30 @@ window.renderDashboardActivePermits = function() {
     const sakit = [];
     const izin = [];
     const pulang = [];
+    const processedNis = new Set(); // Track which students we've already counted
     
-    // Check permits
+    // Check permits (PRIORITY: Process permits first)
     appState.permits.filter(p => classNisList.includes(p.nis)).forEach(p => {
         if (p.type === 'Sakit' && p.status === 'Sakit') {
             sakit.push(p);
+            processedNis.add(p.nis);
         } else if (p.type === 'Izin' && (p.status === 'Izin' || p.status === 'Alpa')) {
             const endDate = p.end_date || p.end;
             if (today <= endDate || p.status === 'Alpa') {
                 izin.push(p);
+                processedNis.add(p.nis);
+            }
+        } else if (p.type === 'Pulang' && (p.status === 'Pulang' || p.status === 'Alpa')) {
+            const endDate = p.end_date || p.end;
+            if (today <= endDate || p.status === 'Alpa') {
+                pulang.push(p);
+                processedNis.add(p.nis);
             }
         }
     });
     
-    // Check homecomings
-    appState.homecomings.filter(h => classNisList.includes(h.nis)).forEach(h => {
+    // Check homecomings ONLY for students not in permits (backward compatibility)
+    appState.homecomings.filter(h => classNisList.includes(h.nis) && !processedNis.has(h.nis)).forEach(h => {
         const status = h.status || 'Pulang';
         if (status === 'Pulang' || status === 'Alpa') {
             const endDate = h.end_date || h.end;
