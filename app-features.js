@@ -4126,19 +4126,17 @@ window.syncToSupabase = async function() {
     } catch (error) {
         console.error("Gagal kirim ke Supabase:", error.message);
         
-        // Show user-friendly warning but don't block the UI
-        // Determine message based on error properties, not string matching
+        // Use consistent error categorization
+        const errorInfo = window.categorizeSupabaseError(error);
+        
         let userMessage = '⚠️ Warning: Data saved locally but not synced to cloud';
         
-        // Check error properties first, fallback to message content
-        if (error.status === 401 || error.status === 403 || error.code === 401 || error.code === 403 || error.code === '42501') {
+        if (errorInfo.type === 'authentication') {
             userMessage = '🔒 Session expired. Data saved locally. Please logout and login to sync.';
-        } else if (error.status >= 500 || (error.message && (
-            error.message.toLowerCase().includes('cors') || 
-            error.message.toLowerCase().includes('network') ||
-            error.message.toLowerCase().includes('fetch')
-        ))) {
+        } else if (errorInfo.type === 'network') {
             userMessage += ' (network error)';
+        } else if (errorInfo.type === 'database') {
+            userMessage += ' (database error)';
         }
         
         // Only show warning, don't block user
@@ -4150,6 +4148,69 @@ window.syncToSupabase = async function() {
 };
 
 // --- FITUR SINKRONISASI (READ) ---
+// Helper function to categorize errors and get user-friendly messages
+window.categorizeSupabaseError = function(error) {
+    // Check error properties first (most reliable)
+    if (error.status === 401 || error.status === 403 || 
+        error.code === 401 || error.code === 403 || error.code === '42501') {
+        return {
+            type: 'authentication',
+            message: '🔒 Session expired. Please logout and login again.',
+            shouldRetry: false
+        };
+    }
+    
+    if (error.code === 'PGRST116') {
+        return {
+            type: 'database',
+            message: 'Database table not found. Please contact administrator.',
+            shouldRetry: false
+        };
+    }
+    
+    // Network errors
+    if (error.status >= 500 || error.name === 'TypeError' || error.name === 'NetworkError') {
+        return {
+            type: 'network',
+            message: '⚠️ Network error: Cannot connect to database. Check your internet connection.',
+            shouldRetry: true
+        };
+    }
+    
+    // Fallback to message content if error properties not available
+    if (error.message) {
+        const msg = error.message.toLowerCase();
+        
+        if (msg.includes('cors') || msg.includes('network')) {
+            return {
+                type: 'network',
+                message: '⚠️ Network error: Cannot connect to database. Check your internet connection.',
+                shouldRetry: true
+            };
+        }
+        
+        if (msg.includes('authentication') || msg.includes('jwt')) {
+            return {
+                type: 'authentication',
+                message: '🔒 Authentication failed. Please logout and login again.',
+                shouldRetry: false
+            };
+        }
+        
+        return {
+            type: 'unknown',
+            message: `⚠️ Error: ${error.message}`,
+            shouldRetry: true
+        };
+    }
+    
+    return {
+        type: 'unknown',
+        message: '⚠️ An unexpected error occurred',
+        shouldRetry: true
+    };
+};
+
 // Helper function for exponential backoff retry
 window.retryWithBackoff = async function(fn, maxRetries = 3, baseDelay = 1000) {
     let lastError;
@@ -4160,13 +4221,11 @@ window.retryWithBackoff = async function(fn, maxRetries = 3, baseDelay = 1000) {
         } catch (error) {
             lastError = error;
             
-            // Don't retry on authentication/authorization errors
-            // Check both numeric status and string code formats
-            const isAuthError = error.status === 401 || error.status === 403 || 
-                               error.code === 401 || error.code === 403 ||
-                               error.code === '42501'; // PostgreSQL permission denied
+            // Use consistent error categorization
+            const errorInfo = window.categorizeSupabaseError(error);
             
-            if (isAuthError || (error.message && error.message.toLowerCase().includes('invalid'))) {
+            // Don't retry authentication errors or database structure errors
+            if (!errorInfo.shouldRetry) {
                 throw error;
             }
             
@@ -4260,28 +4319,12 @@ window.fetchAttendanceFromSupabase = async function() {
     } catch (err) {
         console.error("Gagal ambil data Supabase:", err);
         
-        // Show user-friendly error message
-        // Check error properties first, then fallback to message content
-        let userMessage = 'Failed to sync data from cloud';
-        
-        if (err.status === 401 || err.status === 403 || err.code === 401 || err.code === 403 || err.code === '42501') {
-            userMessage = '🔒 Session expired. Please logout and login again.';
-        } else if (err.status >= 500 || err.name === 'TypeError' || err.name === 'NetworkError') {
-            userMessage = '⚠️ Network error: Cannot connect to database. Check your internet connection.';
-        } else if (err.message) {
-            // Fallback to message content for other errors
-            if (err.message.toLowerCase().includes('cors') || err.message.toLowerCase().includes('network')) {
-                userMessage = '⚠️ Network error: Cannot connect to database. Check your internet connection.';
-            } else if (err.message.toLowerCase().includes('authentication')) {
-                userMessage = '🔒 Session expired. Please logout and login again.';
-            } else {
-                userMessage = `⚠️ Sync failed: ${err.message}`;
-            }
-        }
+        // Use consistent error categorization
+        const errorInfo = window.categorizeSupabaseError(err);
         
         // Don't show toast on every error to avoid spam
         // Only log to console for debugging
-        console.warn(userMessage);
+        console.warn(errorInfo.message);
         
         // Fallback to local data - app should continue working
         console.log('📱 Using local data only');
