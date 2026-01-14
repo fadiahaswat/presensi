@@ -73,20 +73,13 @@ self.addEventListener('fetch', (event) => {
   
   // Cek apakah request menuju ke file eksternal (http/https)
   if (url.protocol === 'http:' || url.protocol === 'https:') {
-    // Detect if it's a Supabase API request
-    const isSupabaseRequest = url.hostname.includes('supabase.co');
+    // Detect if it's a Supabase API request - use more specific check
+    const isSupabaseRequest = url.hostname.endsWith('.supabase.co') || url.hostname === 'supabase.co';
     
     if (isSupabaseRequest) {
       // For Supabase: Network-only, never cache API responses
       event.respondWith(
         fetch(event.request)
-          .then(response => {
-            // Only cache successful responses
-            if (response && response.status === 200) {
-              return response;
-            }
-            return response;
-          })
           .catch(error => {
             console.error('Supabase fetch failed:', error.message);
             // Return a more informative error response

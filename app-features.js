@@ -4106,14 +4106,15 @@ window.syncToSupabase = async function() {
                 .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
             
             if (error) {
-                if (error.message.includes('CORS')) {
-                    throw new Error('CORS Error: Unable to sync to database. Please check your network.');
-                } else if (error.code === 'PGRST116') {
+                // Prioritize error codes over message content for consistency
+                if (error.code === 'PGRST116') {
                     throw new Error('Database table not found.');
-                } else if (error.message.includes('JWT')) {
+                } else if (error.status === 401 || error.code === '42501') {
                     throw new Error('Authentication failed. Please logout and login again.');
+                } else if (error.message && error.message.toLowerCase().includes('cors')) {
+                    throw new Error('CORS Error: Unable to sync to database. Please check your network.');
                 } else {
-                    throw new Error(`Sync error: ${error.message}`);
+                    throw new Error(`Sync error: ${error.message || 'Unknown error'}`);
                 }
             }
             
@@ -4153,12 +4154,10 @@ window.retryWithBackoff = async function(fn, maxRetries = 3, baseDelay = 1000) {
         } catch (error) {
             lastError = error;
             
-            // Don't retry on certain errors
-            if (error.message && (
-                error.message.includes('401') || 
-                error.message.includes('403') ||
-                error.message.includes('Invalid')
-            )) {
+            // Don't retry on authentication/authorization errors
+            if (error.status === 401 || error.status === 403 || 
+                error.code === '401' || error.code === '403' ||
+                (error.message && error.message.toLowerCase().includes('invalid'))) {
                 throw error;
             }
             
@@ -4204,15 +4203,15 @@ window.fetchAttendanceFromSupabase = async function() {
                 .eq('date', dateKey);
 
             if (error) {
-                // More specific error messages
-                if (error.message.includes('CORS')) {
-                    throw new Error('CORS Error: Unable to connect to database. Please check your network settings or contact administrator.');
-                } else if (error.code === 'PGRST116') {
+                // More specific error messages - prioritize error codes over message content
+                if (error.code === 'PGRST116') {
                     throw new Error('Database table not found. Please contact administrator.');
-                } else if (error.message.includes('JWT')) {
+                } else if (error.status === 401 || error.code === '42501') {
                     throw new Error('Authentication failed. Please logout and login again.');
+                } else if (error.message && error.message.toLowerCase().includes('cors')) {
+                    throw new Error('CORS Error: Unable to connect to database. Please check your network settings or contact administrator.');
                 } else {
-                    throw new Error(`Database error: ${error.message}`);
+                    throw new Error(`Database error: ${error.message || 'Unknown error'}`);
                 }
             }
 
