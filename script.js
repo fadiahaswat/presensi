@@ -3915,10 +3915,12 @@ window.markAsRecovered = function(id) {
 window.markAsReturned = function(id) {
     const permit = appState.permits.find(p => p.id === id);
     if(permit) {
+        // Kalau pulang tepat waktu, kita set is_active false
+        // Agar sesi hari ini bisa diisi Hadir manual oleh Musyrif
         permit.is_active = false; 
         
         localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
-        window.showToast("Santri ditandai sudah kembali", "success");
+        window.showToast("Santri sudah kembali. Silakan presensi manual.", "success");
         window.renderPermitList();
         window.renderAttendanceList();
     }
