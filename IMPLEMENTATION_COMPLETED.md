@@ -80,7 +80,7 @@ Created a complete perpulangan (homecoming) management system that mirrors the p
 
 - **app-core.js**:
   - Updated auto-sync logic to support homecoming
-  - Added priority system: Permits > localStorage Homecoming > Supabase Homecoming
+  - Added priority system: Permits > localStorage Homecoming
   - Added homecoming data loading on app initialization
   - Enhanced auto-notes with city information
 
@@ -137,10 +137,9 @@ Automatically updates attendance status during the homecoming period:
 View all active homecoming records for the class with one-click delete.
 
 ### 🔀 System Compatibility
-Works alongside the existing Supabase-based homecoming event system with clear priority:
-1. Perizinan (Sakit/Izin) - highest
-2. localStorage Homecoming (new modal)
-3. Supabase Homecoming (old events)
+Works with localStorage-based data management with clear priority:
+1. Perizinan (Sakit/Izin/Pulang) - highest priority
+2. localStorage Homecoming (modal system)
 
 ---
 

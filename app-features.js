@@ -293,10 +293,6 @@ window.initApp = async function() {
                 // E. Update UI Dashboard
                 window.updateDashboard(); 
                 window.updateProfileInfo();
-                
-                // F. [BARU] SINKRONISASI DATA DARI CLOUD!
-                // Ini kuncinya: Begitu masuk, langsung tarik data terbaru dari Supabase
-                window.fetchAttendanceFromSupabase(); 
 
                 setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
 
@@ -412,27 +408,12 @@ window.handleGoogleCallback = function(response) {
             return sKelas === targetClass;
         }).sort((a,b) => a.nama.localeCompare(b.nama));
 
-        // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
-        // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        window.dbClient.from('musyrif_profiles').upsert({
-            email: profile.email,
-            name: profile.name,
-            photo_url: profile.picture,
-            last_login: new Date().toISOString()
-        }, { onConflict: 'email' }).then(({ error }) => {
-            if(error) console.error("Gagal simpan profil:", error);
-            else console.log("Profil Musyrif tersimpan di Cloud");
-        });
-        // -------------------------------------------
-
         window.closeModal('modal-google-auth');
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-main').classList.remove('hidden');
         
         window.updateDashboard();
         window.updateProfileInfo();
-        // [BARU] Tarik data Supabase saat login sukses
-        window.fetchAttendanceFromSupabase();
         window.showToast("Login Berhasil!", "success");
 
     } catch (e) {
@@ -1293,7 +1274,6 @@ window.changeDateView = function(direction) {
     appState.date = nextDateStr;
     window.updateDateDisplay();
     window.updateDashboard();
-    window.fetchAttendanceFromSupabase();
     window.showToast(`📅 ${window.formatDate(appState.date)}`, 'info');
 };
 
@@ -1319,7 +1299,6 @@ window.handleDateChange = function(value) {
     appState.date = value;
     window.updateDateDisplay();
     window.updateDashboard();
-    window.fetchAttendanceFromSupabase();
     window.showToast('Tanggal berhasil diubah', 'success');
 };
 
@@ -1596,10 +1575,6 @@ window.saveData = function() {
                 setTimeout(() => indicator.innerHTML = '', 1000);
             }
         }
-
-        // 2. KIRIM KE SUPABASE (Cara Baru)
-        // Kita kirim di background agar aplikasi tidak macet
-        window.syncToSupabase();
 
     } catch (e) {
         window.showToast("Gagal menyimpan lokal: " + e.message, "error");
@@ -4050,107 +4025,6 @@ window.verifyLocation = function() {
     });
 };
 
-// Fungsi Pengirim Paket ke Gudang (Supabase)
-window.syncToSupabase = async function() {
-    // Cek apakah ada data hari ini untuk dikirim
-    const dateKey = appState.date;
-    const slotId = appState.currentSlotId;
-    const classId = appState.selectedClass;
-
-    if (!dateKey || !slotId || !classId) return;
-
-    const dayData = appState.attendanceData[dateKey]?.[slotId];
-    if (!dayData) return;
-
-    // Ambil Email Musyrif yang sedang login (untuk info siapa yang ngisi)
-    const musyrifEmail = appState.userProfile ? appState.userProfile.email : 'manual-pin';
-
-    // Loop semua santri yang sudah diabsen hari ini
-    const updates = [];
-    Object.keys(dayData).forEach(studentId => {
-        const studentData = dayData[studentId];
-        
-        // Siapkan paket data
-        updates.push({
-            date: dateKey,
-            class_name: classId,
-            slot: slotId,
-            student_id: studentId,
-            activity_data: studentData, // Simpan status H/S/I beserta catatannya
-            musyrif_email: musyrifEmail
-        });
-    });
-
-    if (updates.length === 0) return;
-
-    // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
-    const { error } = await window.dbClient
-        .from('attendance')
-        .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
-
-    if (error) {
-        console.error("Gagal kirim ke Supabase:", error);
-        // Jangan ganggu user dengan popup error terus menerus, cukup di console
-    } else {
-        console.log("✅ Data tersimpan di Awan (Supabase)");
-    }
-};
-
-// --- FITUR SINKRONISASI (READ) ---
-window.fetchAttendanceFromSupabase = async function() {
-    const classId = appState.selectedClass;
-    const dateKey = appState.date;
-
-    if (!classId || !dateKey) return;
-
-    // Tampilkan indikator loading kecil (opsional) di console
-    console.log("🔄 Syncing from Cloud...");
-
-    try {
-        // 1. Ambil data dari tabel 'attendance' sesuai Kelas & Tanggal
-        const { data, error } = await window.dbClient
-            .from('attendance')
-            .select('*')
-            .eq('class_name', classId)
-            .eq('date', dateKey);
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            // 2. Masukkan data dari Cloud ke State Aplikasi
-            if (!appState.attendanceData[dateKey]) {
-                appState.attendanceData[dateKey] = {};
-            }
-
-            data.forEach(row => {
-                // row.slot = 'shubuh', row.student_id = '12345', row.activity_data = {status:..., note:...}
-                if (!appState.attendanceData[dateKey][row.slot]) {
-                    appState.attendanceData[dateKey][row.slot] = {};
-                }
-                
-                // KITA TIMPA data lokal dengan data Cloud (Cloud is Truth)
-                appState.attendanceData[dateKey][row.slot][row.student_id] = row.activity_data;
-            });
-
-            // 3. Update LocalStorage agar sinkron untuk sesi berikutnya
-            localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
-
-            // 4. Refresh Tampilan Dashboard agar data muncul
-            window.renderSlotList();     // Refresh slot progress bar
-            window.updateQuickStats();   // Refresh angka statistik
-            window.drawDonutChart();     // Refresh grafik
-            window.renderTodayProblems();// Refresh list masalah
-            
-            console.log(`✅ Berhasil load ${data.length} data dari Supabase.`);
-        } else {
-            console.log("☁️ Tidak ada data di Cloud untuk tanggal ini (Murni Lokal/Kosong).");
-        }
-
-    } catch (err) {
-        console.error("Gagal ambil data Supabase:", err);
-    }
-};
-
 // ==========================================
 // FITUR NOTIFIKASI PINTAR (REMINDER)
 // ==========================================
@@ -4279,34 +4153,34 @@ window.isStudentPulang = function(studentId, dateKey) {
 };
 
 // Load homecoming data in background (called at app startup)
-window.loadHomecomingData = async function() {
+window.loadHomecomingData = function() {
     try {
-        // A. Ambil Event Aktif
-        const { data: events } = await window.dbClient
-            .from('homecoming_events')
-            .select('*')
-            .eq('is_active', true)
-            .limit(1);
-            
-        if(!events || events.length === 0) {
+        // Load from LocalStorage instead of Supabase
+        const homecomingData = localStorage.getItem(APP_CONFIG.homecomingKey);
+        
+        if (!homecomingData) {
             hcState.activeEvent = null;
             hcState.logs = {};
             return;
         }
         
-        hcState.activeEvent = events[0];
-
-        // B. Ambil Data Logs
-        const { data: logs } = await window.dbClient
-            .from('homecoming_logs')
-            .select('*')
-            .eq('event_id', hcState.activeEvent.id);
-            
+        const data = JSON.parse(homecomingData);
+        
+        // Find active event
+        const activeEvents = data.events ? data.events.filter(e => e.is_active) : [];
+        
+        if (activeEvents.length === 0) {
+            hcState.activeEvent = null;
+            hcState.logs = {};
+            return;
+        }
+        
+        hcState.activeEvent = activeEvents[0];
+        
+        // Load logs for active event
         hcState.logs = {};
-        if(logs) {
-            logs.forEach(log => {
-                hcState.logs[log.student_id] = log;
-            });
+        if (data.logs && data.logs[hcState.activeEvent.id]) {
+            hcState.logs = data.logs[hcState.activeEvent.id];
         }
     } catch (e) {
         console.error("Error loading homecoming data:", e);
@@ -4561,26 +4435,35 @@ window.saveHcStudent = async function() {
         btnSave.disabled = true;
     }
 
-    // Kirim ke Supabase
-    const { error } = await window.dbClient
-        .from('homecoming_logs')
-        .upsert(log, { onConflict: 'event_id, student_id' });
+    // Save to LocalStorage instead of Supabase
+    try {
+        const homecomingData = JSON.parse(localStorage.getItem(APP_CONFIG.homecomingKey) || '{"events":[],"logs":{}}');
         
-    // Kembalikan Tombol
-    if(btnSave) {
-        btnSave.textContent = originalText;
-        btnSave.disabled = false;
-    }
-
-    if(error) {
-        console.error(error);
-        window.showToast("Gagal simpan: " + error.message, "error");
-    } else {
+        if (!homecomingData.logs) homecomingData.logs = {};
+        if (!homecomingData.logs[log.event_id]) homecomingData.logs[log.event_id] = {};
+        
+        homecomingData.logs[log.event_id][studentId] = log;
+        
+        localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(homecomingData));
+        
+        // Kembalikan Tombol
+        if(btnSave) {
+            btnSave.textContent = originalText;
+            btnSave.disabled = false;
+        }
+        
         // Sukses: Update State Lokal & UI
         hcState.logs[studentId] = log; // Update state asli
         window.showToast("Data tersimpan ✅", "success");
         document.getElementById('modal-hc-edit').classList.add('hidden');
         window.renderHomecomingList(); // Refresh list
+    } catch (error) {
+        console.error(error);
+        if(btnSave) {
+            btnSave.textContent = originalText;
+            btnSave.disabled = false;
+        }
+        window.showToast("Gagal simpan: " + error.message, "error");
     }
 };
 
@@ -4598,24 +4481,26 @@ window.loadEventList = async function() {
     const container = document.getElementById('event-list-container');
     container.innerHTML = '<div class="flex justify-center p-4"><span class="loading-spinner"></span></div>';
 
-    const { data, error } = await window.dbClient
-        .from('homecoming_events')
-        .select('*')
-        .order('created_at', { ascending: false });
+    try {
+        // Load from LocalStorage instead of Supabase
+        const homecomingData = JSON.parse(localStorage.getItem(APP_CONFIG.homecomingKey) || '{"events":[],"logs":{}}');
+        const data = homecomingData.events || [];
 
-    if(error || !data) {
-        container.innerHTML = '<p class="text-center text-xs text-red-400">Gagal memuat data.</p>';
-        return;
-    }
+        container.innerHTML = '';
+        
+        if(data.length === 0) {
+            container.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Belum ada jadwal dibuat.</p>';
+            return;
+        }
 
-    container.innerHTML = '';
-    
-    if(data.length === 0) {
-        container.innerHTML = '<p class="text-center text-xs text-slate-400 py-4">Belum ada jadwal dibuat.</p>';
-        return;
-    }
+        // Sort by created_at descending
+        data.sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+            const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+            return dateB - dateA;
+        });
 
-    data.forEach(evt => {
+        data.forEach(evt => {
         const isActive = evt.is_active;
         const div = document.createElement('div');
         // Styling beda untuk yang aktif
@@ -4654,6 +4539,10 @@ window.loadEventList = async function() {
     });
     
     if(window.lucide) window.lucide.createIcons();
+    } catch (error) {
+        console.error('Error loading events:', error);
+        container.innerHTML = '<p class="text-center text-xs text-red-400">Gagal memuat data.</p>';
+    }
 };
 
 window.saveEvent = async function() {
@@ -4685,46 +4574,54 @@ window.saveEvent = async function() {
         btnSave.disabled = true;
     }
 
-    let error;
-    
-    if(id) {
-        // --- MODE UPDATE ---
-        const res = await window.dbClient.from('homecoming_events').update(payload).eq('id', id);
-        error = res.error;
-    } else {
-        // --- MODE CREATE BARU ---
-        // Agar aman, kita insert dulu sebagai TIDAK AKTIF (is_active: false)
-        // User harus mengaktifkannya manual agar logic 'matikan yang lain' berjalan atomic di fungsi activate
-        // Atau kita biarkan logic lama tapi sadar risikonya.
+    try {
+        // Load from LocalStorage
+        const homecomingData = JSON.parse(localStorage.getItem(APP_CONFIG.homecomingKey) || '{"events":[],"logs":{}}');
         
-        // Versi Aman: Insert dulu, nanti user klik tombol 'Power' untuk aktifkan
-        const res = await window.dbClient.from('homecoming_events').insert({ ...payload, is_active: false }); 
-        error = res.error;
+        if (!homecomingData.events) homecomingData.events = [];
         
-        if(!error) window.showToast("Event dibuat. Silakan klik tombol Power untuk mengaktifkan.", "info");
-    }
-
-    // Kembalikan Tombol
-    if(btnSave) {
-        btnSave.textContent = "Simpan Event";
-        btnSave.disabled = false;
-    }
-
-    if(error) {
-        console.error(error);
-        window.showToast("Gagal: " + error.message, "error");
-    } else {
+        if(id) {
+            // --- MODE UPDATE ---
+            const eventIndex = homecomingData.events.findIndex(e => e.id === id);
+            if (eventIndex !== -1) {
+                homecomingData.events[eventIndex] = { ...homecomingData.events[eventIndex], ...payload };
+            }
+        } else {
+            // --- MODE CREATE BARU ---
+            const newEvent = { 
+                ...payload, 
+                id: Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11), 
+                is_active: false,
+                created_at: new Date().toISOString()
+            };
+            homecomingData.events.push(newEvent);
+            window.showToast("Event dibuat. Silakan klik tombol Power untuk mengaktifkan.", "info");
+        }
+        
+        localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(homecomingData));
+        
+        // Kembalikan Tombol
+        if(btnSave) {
+            btnSave.textContent = "Simpan Event";
+            btnSave.disabled = false;
+        }
+        
         if(id) window.showToast("Perubahan disimpan", "success");
         window.resetEventForm();
         window.loadEventList();
         
-                // UPDATE BAGIAN INI:
+        // UPDATE BAGIAN INI:
         const hcView = document.getElementById('view-homecoming');
         if(hcView && !hcView.classList.contains('hidden')) {
             window.openHomecomingView(); // Refresh halaman view
         }
-        
-        // ----------------------------------------------------
+    } catch (error) {
+        console.error(error);
+        if(btnSave) {
+            btnSave.textContent = "Simpan Event";
+            btnSave.disabled = false;
+        }
+        window.showToast("Gagal: " + error.message, "error");
     }
 };
 
@@ -4732,11 +4629,13 @@ window.editEvent = async function(id) {
     // Reset dulu form biar bersih
     window.resetEventForm();
     
-    const { data, error } = await window.dbClient.from('homecoming_events').select('*').eq('id', id).single();
-    
-    if(error) return window.showToast("Gagal mengambil data", "error");
+    try {
+        // Load from LocalStorage
+        const homecomingData = JSON.parse(localStorage.getItem(APP_CONFIG.homecomingKey) || '{"events":[],"logs":{}}');
+        const data = homecomingData.events.find(e => e.id === id);
+        
+        if(!data) return window.showToast("Gagal mengambil data", "error");
 
-    if(data) {
         document.getElementById('evt-id').value = data.id;
         document.getElementById('evt-title').value = data.title;
         document.getElementById('evt-start').value = data.start_date;
@@ -4748,21 +4647,30 @@ window.editEvent = async function(id) {
         if(timeVal.length > 5) timeVal = timeVal.substring(0, 5);
         
         document.getElementById('evt-deadline').value = timeVal;
+    } catch (error) {
+        console.error(error);
+        window.showToast("Gagal mengambil data", "error");
     }
 };
 
 window.activateEvent = async function(id) {
     if(!confirm("Aktifkan event ini? Event lain akan otomatis non-aktif.")) return;
 
-    // 1. Matikan semua dulu
-    await window.dbClient.from('homecoming_events').update({ is_active: false }).neq('id', 0);
-    
-    // 2. Nyalakan target
-    const { error } = await window.dbClient.from('homecoming_events').update({ is_active: true }).eq('id', id);
-    
-    if(error) {
-        window.showToast("Gagal mengaktifkan event", "error");
-    } else {
+    try {
+        // Load from LocalStorage
+        const homecomingData = JSON.parse(localStorage.getItem(APP_CONFIG.homecomingKey) || '{"events":[],"logs":{}}');
+        
+        // 1. Matikan semua dulu
+        homecomingData.events.forEach(e => e.is_active = false);
+        
+        // 2. Nyalakan target
+        const event = homecomingData.events.find(e => e.id === id);
+        if (event) {
+            event.is_active = true;
+        }
+        
+        localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(homecomingData));
+        
         window.loadEventList();
         window.showToast("Event berhasil diaktifkan!", "success");
         
@@ -4771,6 +4679,9 @@ window.activateEvent = async function(id) {
         if(hcView && !hcView.classList.contains('hidden')) {
             window.openHomecomingView(); // Refresh halaman view
         }
+    } catch (error) {
+        console.error(error);
+        window.showToast("Gagal mengaktifkan event", "error");
     }
 };
 
@@ -4778,13 +4689,25 @@ window.activateEvent = async function(id) {
 window.deleteEvent = async function(id) {
     if(!confirm("Yakin hapus event ini? Data kehadiran santri terkait mungkin akan error.")) return;
     
-    const { error } = await window.dbClient.from('homecoming_events').delete().eq('id', id);
-    
-    if(error) {
-        window.showToast("Gagal menghapus: " + error.message, "error");
-    } else {
+    try {
+        // Load from LocalStorage
+        const homecomingData = JSON.parse(localStorage.getItem(APP_CONFIG.homecomingKey) || '{"events":[],"logs":{}}');
+        
+        // Remove event
+        homecomingData.events = homecomingData.events.filter(e => e.id !== id);
+        
+        // Remove associated logs
+        if (homecomingData.logs && homecomingData.logs[id]) {
+            delete homecomingData.logs[id];
+        }
+        
+        localStorage.setItem(APP_CONFIG.homecomingKey, JSON.stringify(homecomingData));
+        
         window.showToast("Event dihapus", "info");
         window.loadEventList();
+    } catch (error) {
+        console.error(error);
+        window.showToast("Gagal menghapus: " + error.message, "error");
     }
 };
 

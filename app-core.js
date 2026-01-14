@@ -88,10 +88,6 @@ window.initApp = async function() {
                 window.updateDashboard(); 
                 window.updateProfileInfo();
                 
-                // F. [BARU] SINKRONISASI DATA DARI CLOUD!
-                // Ini kuncinya: Begitu masuk, langsung tarik data terbaru dari Supabase
-                window.fetchAttendanceFromSupabase(); 
-                
                 // G. Load homecoming data in background
                 if(window.loadHomecomingData) window.loadHomecomingData();
 
@@ -209,27 +205,12 @@ window.handleGoogleCallback = function(response) {
             return sKelas === targetClass;
         }).sort((a,b) => a.nama.localeCompare(b.nama));
 
-        // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
-        // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        dbClient.from('musyrif_profiles').upsert({ // <--- GANTI JADI dbClient
-            email: profile.email,
-            name: profile.name,
-            photo_url: profile.picture,
-            last_login: new Date().toISOString()
-        }, { onConflict: 'email' }).then(({ error }) => {
-            if(error) console.error("Gagal simpan profil:", error);
-            else console.log("Profil Musyrif tersimpan di Cloud");
-        });
-        // -------------------------------------------
-
         window.closeModal('modal-google-auth');
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-main').classList.remove('hidden');
         
         window.updateDashboard();
         window.updateProfileInfo();
-        // [BARU] Tarik data Supabase saat login sukses
-        window.fetchAttendanceFromSupabase();
         // Load homecoming data
         if(window.loadHomecomingData) window.loadHomecomingData();
         window.showToast("Login Berhasil!", "success");
@@ -1152,7 +1133,6 @@ window.changeDateView = function(direction) {
     appState.date = nextDateStr;
     window.updateDateDisplay();
     window.updateDashboard();
-    window.fetchAttendanceFromSupabase();
     window.showToast(`📅 ${window.formatDate(appState.date)}`, 'info');
 };
 
@@ -1178,7 +1158,6 @@ window.handleDateChange = function(value) {
     appState.date = value;
     window.updateDateDisplay();
     window.updateDashboard();
-    window.fetchAttendanceFromSupabase();
     window.showToast('Tanggal berhasil diubah', 'success');
 };
 
@@ -1455,10 +1434,6 @@ window.saveData = function() {
                 setTimeout(() => indicator.innerHTML = '', 1000);
             }
         }
-
-        // 2. KIRIM KE SUPABASE (Cara Baru)
-        // Kita kirim di background agar aplikasi tidak macet
-        window.syncToSupabase();
 
     } catch (e) {
         window.showToast("Gagal menyimpan lokal: " + e.message, "error");
