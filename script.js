@@ -2136,18 +2136,20 @@ let permitSantriList = [];
 let currentPermitTab = 'sakit';
 
 // 1. Fungsi Buka Modal & Setup Tab
+// Update Open Modal untuk Reset State juga
 window.openPermitModal = function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
     document.getElementById('modal-permit').classList.remove('hidden');
-    window.setPermitTab('sakit'); // Default tab
     
-    // Reset inputs
-    const today = window.getLocalDateStr();
-    document.getElementById('permit-start-date').value = today;
-    document.getElementById('permit-end-date').value = today;
+    // Reset State Select All
+    isAllSelected = false;
+    const btnSelect = document.getElementById('btn-select-all-permit');
+    if(btnSelect) btnSelect.textContent = "Pilih Semua";
+
+    window.setPermitTab('sakit'); // Reset ke tab awal & reset form
+    
     document.getElementById('permit-search-santri').value = '';
-    
     window.renderPermitChecklist(FILTERED_SANTRI);
     window.updatePermitCount();
     window.renderPermitList();
