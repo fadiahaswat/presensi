@@ -538,6 +538,7 @@ window.updateDashboard = function() {
 
     // 3. Render List Slot
     window.renderSlotList();
+    window.renderKBMBanner();
 
     window.renderDashboardPembinaan(); // Refresh widget pembinaan
     
