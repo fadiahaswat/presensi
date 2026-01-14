@@ -2200,13 +2200,18 @@ window.openPermitView = function() {
 };
 
 window.closePermitView = function() {
-    document.getElementById('view-permit').classList.add('hidden');
-    document.getElementById('view-main').classList.remove('hidden');
+    const viewPermit = document.getElementById('view-permit');
+    const viewMain = document.getElementById('view-main');
+    if (viewPermit) viewPermit.classList.add('hidden');
+    if (viewMain) viewMain.classList.remove('hidden');
     window.updateDashboard();
 };
 
 window.togglePermitViewFields = function() {
-    const type = document.getElementById('permit-view-type').value;
+    const typeElement = document.getElementById('permit-view-type');
+    if (!typeElement) return; // Exit early if element doesn't exist
+    
+    const type = typeElement.value;
     const endContainer = document.getElementById('permit-view-end-container');
     const endTimeContainer = document.getElementById('permit-view-end-time-container');
     const illnessContainer = document.getElementById('permit-view-illness-container');

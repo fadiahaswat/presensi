@@ -25,16 +25,15 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => {
       // Use Promise.allSettled to handle individual file failures gracefully
       return Promise.allSettled(
-        ASSETS_TO_CACHE.map(url => 
-          cache.add(url).catch(err => {
-            console.warn(`Failed to cache ${url}:`, err);
-            return null;
-          })
-        )
+        ASSETS_TO_CACHE.map(url => cache.add(url))
       ).then(results => {
         const failures = results.filter(r => r.status === 'rejected');
         if (failures.length > 0) {
-          console.warn(`Failed to cache ${failures.length} assets`);
+          console.warn(`Failed to cache ${failures.length} assets:`);
+          failures.forEach((failure, index) => {
+            const failedUrl = ASSETS_TO_CACHE[results.indexOf(failure)];
+            console.warn(`  - ${failedUrl}:`, failure.reason);
+          });
         }
         // Continue even if some files failed to cache
         return Promise.resolve();
