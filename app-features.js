@@ -2163,18 +2163,40 @@ window.printReport = function() { window.print(); };
 window.openPermitView = function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
-    document.getElementById('view-main').classList.add('hidden');
-    document.getElementById('view-permit').classList.remove('hidden');
+    // --- PERBAIKAN: Ambil elemen ke variabel dulu ---
+    const viewMain = document.getElementById('view-main');
+    const viewPermit = document.getElementById('view-permit');
+    const inputType = document.getElementById('permit-view-type');
+
+    // --- PERBAIKAN: Safety Check ---
+    // Jika elemen tidak ditemukan (misal karena cache HTML lama), stop fungsi agar tidak crash
+    if (!viewPermit || !inputType) {
+        console.error("Elemen View Permit tidak ditemukan. Kemungkinan cache HTML lama.");
+        // Opsional: Paksa reload jika HTML lama
+        if(confirm("Terjadi kesalahan versi aplikasi. Refresh halaman sekarang?")) {
+            window.location.reload();
+        }
+        return;
+    }
+
+    viewMain.classList.add('hidden');
+    viewPermit.classList.remove('hidden');
     
     // Reset form
     const today = appState.date;
-    document.getElementById('permit-view-type').value = 'Sakit';
+    
+    // Aman karena sudah dicek di atas
+    inputType.value = 'Sakit'; 
     document.getElementById('permit-view-session').value = 'all';
     document.getElementById('permit-view-start').value = today;
     document.getElementById('permit-view-end').value = today;
     document.getElementById('permit-view-end-time').value = '';
     document.getElementById('permit-view-illness').value = '';
-    document.getElementById('permit-view-reason').value = '';
+    
+    // Cek elemen optional sebelum set value (Jaga-jaga)
+    const reasonEl = document.getElementById('permit-view-reason');
+    if(reasonEl) reasonEl.value = '';
+    
     document.getElementById('permit-view-pulang-session').value = 'all';
     document.getElementById('permit-view-event-name').value = '';
     document.getElementById('permit-view-search').value = '';
