@@ -345,49 +345,39 @@
     </div>
 </div>
 
-            <div class="animate-slide-up mb-4 mt-4" style="animation-delay: 0.25s">
-               <button onclick="window.openPermitModal('daily')" class="relative group w-full text-left">
-    <div class="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500 rounded-[2rem] blur-xl opacity-40 group-hover:opacity-60 transition-opacity"></div>
-    <div class="relative bg-gradient-to-br from-amber-400 to-orange-500 p-6 rounded-[2rem] text-white shadow-xl overflow-hidden border border-white/20">
-        <div class="absolute -right-8 -top-8 w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
-        <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-orange-600/20 rounded-full blur-2xl"></div>
-        
-        <div class="relative z-10 flex justify-between items-start">
-            <div>
-                <div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/20 shadow-lg">
-                    <i data-lucide="file-plus-2" class="w-6 h-6 text-white"></i>
-                </div>
-                <h3 class="text-xl font-black mb-1">Input Perizinan</h3>
-                <p class="text-orange-100 text-xs font-medium">Sakit & Izin Harian</p>
-            </div>
-            <div class="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                <i data-lucide="chevron-right" class="w-4 h-4 text-white"></i>
-            </div>
+            <div class="animate-slide-up mb-4 mt-4 space-y-3" style="animation-delay: 0.25s">
+    
+    <button onclick="window.openPermitModal('daily')" class="w-full bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all active:scale-[0.98] group">
+        <div class="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <i data-lucide="file-plus-2" class="w-5 h-5"></i>
         </div>
-    </div>
-</button>
+        
+        <div class="text-left flex-1">
+            <h4 class="font-bold text-slate-800 dark:text-white text-sm">Input Perizinan</h4>
+            <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500">Sakit & Izin Harian</p>
+        </div>
 
-<button onclick="window.openPermitModal('pulang')" class="relative group w-full text-left mt-4">
-    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] blur-xl opacity-40 group-hover:opacity-60 transition-opacity"></div>
-    <div class="relative bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-[2rem] text-white shadow-xl overflow-hidden border border-white/20">
-        <div class="absolute -right-8 -top-8 w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
-        <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-indigo-800/20 rounded-full blur-2xl"></div>
-        
-        <div class="relative z-10 flex justify-between items-start">
-            <div>
-                <div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/20 shadow-lg">
-                    <i data-lucide="bus" class="w-6 h-6 text-white"></i>
-                </div>
-                <h3 class="text-xl font-black mb-1">Perpulangan</h3>
-                <p class="text-indigo-100 text-xs font-medium">Pulang & Liburan</p>
-            </div>
-            <div class="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                <i data-lucide="chevron-right" class="w-4 h-4 text-white"></i>
-            </div>
+        <div class="text-slate-300 dark:text-slate-600 group-hover:text-orange-500 transition-colors">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
         </div>
-    </div>
-</button>
-            </div>
+    </button>
+
+    <button onclick="window.openPermitModal('pulang')" class="w-full bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all active:scale-[0.98] group">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <i data-lucide="bus" class="w-5 h-5"></i>
+        </div>
+        
+        <div class="text-left flex-1">
+            <h4 class="font-bold text-slate-800 dark:text-white text-sm">Perpulangan Santri</h4>
+            <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500">Cek keberangkatan & balik</p>
+        </div>
+
+        <div class="text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 transition-colors">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+        </div>
+    </button>
+
+</div>
 
             <!-- Quick Stats Grid -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 animate-slide-up" style="animation-delay: 0.3s">
@@ -1227,6 +1217,7 @@
     
 </body>
 </html>
+
 
 
 
