@@ -3649,7 +3649,11 @@ window.setPermitTab = function(tab) {
     }
 };
 
-
+window.selectAllSantriPermit = function() {
+    const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]');
+    checkboxes.forEach(cb => cb.checked = true);
+    window.updatePermitCount();
+};
 
 // Start App
 window.onload = window.initApp;
