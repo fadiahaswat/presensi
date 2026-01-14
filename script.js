@@ -538,6 +538,8 @@ window.updateDashboard = function() {
 
     // 3. Render List Slot
     window.renderSlotList();
+
+    window.renderDashboardPembinaan(); // Refresh widget pembinaan
     
     // 4. Update Stats Chart
     window.updateQuickStats();
