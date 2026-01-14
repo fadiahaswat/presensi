@@ -42,15 +42,43 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.startsWith('http')) {
      // Gunakan strategi Network First untuk file eksternal agar tidak error CORS
      event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request);
+        fetch(event.request).catch((error) => {
+            // Proper error handling: Return a valid Response object
+            console.error('Fetch failed for', event.request.url, error);
+            
+            // Try to return cached version if available
+            return caches.match(event.request).then((response) => {
+                if (response) {
+                    return response;
+                }
+                
+                // Return a proper offline response
+                return new Response('Offline - Resource not available', {
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: new Headers({
+                        'Content-Type': 'text/plain'
+                    })
+                });
+            });
         })
      );
   } else {
      // Untuk file lokal, gunakan Cache First (sesuai kode lama)
      event.respondWith(
         caches.match(event.request).then((response) => {
-          return response || fetch(event.request);
+          return response || fetch(event.request).catch((error) => {
+              console.error('Fetch failed for local resource', event.request.url, error);
+              
+              // Return a proper error response for local resources
+              return new Response('Resource not found', {
+                  status: 404,
+                  statusText: 'Not Found',
+                  headers: new Headers({
+                      'Content-Type': 'text/plain'
+                  })
+              });
+          });
         })
      );
   }

@@ -1,18 +1,4 @@
-// File: script.js
-
-// ==========================================
-// KONEKSI SUPABASE (GUDANG DATA)
-// ==========================================
-// 1. Ambil URL dari Tahap 3 (Project URL)
-const SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
-
-// 2. Ambil Key dari Tahap 3 (anon public)
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
-
-// 3. Nyalakan Mesin Supabase
-const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-console.log("Supabase Siap!");
+// File: app-features.js
 
 // ==========================================
 // CONFIG & CONSTANTS
@@ -428,7 +414,7 @@ window.handleGoogleCallback = function(response) {
 
         // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
         // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        dbClient.from('musyrif_profiles').upsert({ // <--- GANTI JADI dbClient
+        window.dbClient.from('musyrif_profiles').upsert({
             email: profile.email,
             name: profile.name,
             photo_url: profile.picture,
@@ -4098,7 +4084,7 @@ window.syncToSupabase = async function() {
     if (updates.length === 0) return;
 
     // KIRIM PAKET! (Upsert = Update jika ada, Insert jika belum ada)
-    const { error } = await dbClient
+    const { error } = await window.dbClient
         .from('attendance')
         .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
 
@@ -4122,7 +4108,7 @@ window.fetchAttendanceFromSupabase = async function() {
 
     try {
         // 1. Ambil data dari tabel 'attendance' sesuai Kelas & Tanggal
-        const { data, error } = await dbClient
+        const { data, error } = await window.dbClient
             .from('attendance')
             .select('*')
             .eq('class_name', classId)
@@ -4296,7 +4282,7 @@ window.isStudentPulang = function(studentId, dateKey) {
 window.loadHomecomingData = async function() {
     try {
         // A. Ambil Event Aktif
-        const { data: events } = await dbClient
+        const { data: events } = await window.dbClient
             .from('homecoming_events')
             .select('*')
             .eq('is_active', true)
@@ -4311,7 +4297,7 @@ window.loadHomecomingData = async function() {
         hcState.activeEvent = events[0];
 
         // B. Ambil Data Logs
-        const { data: logs } = await dbClient
+        const { data: logs } = await window.dbClient
             .from('homecoming_logs')
             .select('*')
             .eq('event_id', hcState.activeEvent.id);
@@ -4576,7 +4562,7 @@ window.saveHcStudent = async function() {
     }
 
     // Kirim ke Supabase
-    const { error } = await dbClient
+    const { error } = await window.dbClient
         .from('homecoming_logs')
         .upsert(log, { onConflict: 'event_id, student_id' });
         
@@ -4612,7 +4598,7 @@ window.loadEventList = async function() {
     const container = document.getElementById('event-list-container');
     container.innerHTML = '<div class="flex justify-center p-4"><span class="loading-spinner"></span></div>';
 
-    const { data, error } = await dbClient
+    const { data, error } = await window.dbClient
         .from('homecoming_events')
         .select('*')
         .order('created_at', { ascending: false });
@@ -4703,7 +4689,7 @@ window.saveEvent = async function() {
     
     if(id) {
         // --- MODE UPDATE ---
-        const res = await dbClient.from('homecoming_events').update(payload).eq('id', id);
+        const res = await window.dbClient.from('homecoming_events').update(payload).eq('id', id);
         error = res.error;
     } else {
         // --- MODE CREATE BARU ---
@@ -4712,7 +4698,7 @@ window.saveEvent = async function() {
         // Atau kita biarkan logic lama tapi sadar risikonya.
         
         // Versi Aman: Insert dulu, nanti user klik tombol 'Power' untuk aktifkan
-        const res = await dbClient.from('homecoming_events').insert({ ...payload, is_active: false }); 
+        const res = await window.dbClient.from('homecoming_events').insert({ ...payload, is_active: false }); 
         error = res.error;
         
         if(!error) window.showToast("Event dibuat. Silakan klik tombol Power untuk mengaktifkan.", "info");
@@ -4746,7 +4732,7 @@ window.editEvent = async function(id) {
     // Reset dulu form biar bersih
     window.resetEventForm();
     
-    const { data, error } = await dbClient.from('homecoming_events').select('*').eq('id', id).single();
+    const { data, error } = await window.dbClient.from('homecoming_events').select('*').eq('id', id).single();
     
     if(error) return window.showToast("Gagal mengambil data", "error");
 
@@ -4769,10 +4755,10 @@ window.activateEvent = async function(id) {
     if(!confirm("Aktifkan event ini? Event lain akan otomatis non-aktif.")) return;
 
     // 1. Matikan semua dulu
-    await dbClient.from('homecoming_events').update({ is_active: false }).neq('id', 0);
+    await window.dbClient.from('homecoming_events').update({ is_active: false }).neq('id', 0);
     
     // 2. Nyalakan target
-    const { error } = await dbClient.from('homecoming_events').update({ is_active: true }).eq('id', id);
+    const { error } = await window.dbClient.from('homecoming_events').update({ is_active: true }).eq('id', id);
     
     if(error) {
         window.showToast("Gagal mengaktifkan event", "error");
@@ -4792,7 +4778,7 @@ window.activateEvent = async function(id) {
 window.deleteEvent = async function(id) {
     if(!confirm("Yakin hapus event ini? Data kehadiran santri terkait mungkin akan error.")) return;
     
-    const { error } = await dbClient.from('homecoming_events').delete().eq('id', id);
+    const { error } = await window.dbClient.from('homecoming_events').delete().eq('id', id);
     
     if(error) {
         window.showToast("Gagal menghapus: " + error.message, "error");
