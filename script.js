@@ -3581,5 +3581,75 @@ window.checkArrivalAuto = function() {
     }
 };
 
+// 2. Logika Pindah Tab (UI Change)
+window.setPermitTab = function(tab) {
+    currentPermitTab = tab;
+    
+    // Update Style Tombol Tab
+    document.querySelectorAll('.permit-tab').forEach(btn => {
+        btn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500 hover:bg-slate-50";
+    });
+    const activeBtn = document.getElementById(`tab-btn-${tab}`);
+    
+    // Warna aktif beda-beda tiap tab
+    if(tab === 'sakit') activeBtn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-amber-50 text-amber-600 shadow-sm border border-amber-100";
+    else if(tab === 'izin') activeBtn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-blue-50 text-blue-600 shadow-sm border border-blue-100";
+    else if(tab === 'pulang') activeBtn.className = "permit-tab flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-purple-50 text-purple-600 shadow-sm border border-purple-100";
+
+    // Show/Hide Fields
+    const fieldEnd = document.getElementById('field-end-time');
+    const fieldLoc = document.getElementById('field-location');
+    const fieldTrans = document.getElementById('field-transport');
+    const infoSakit = document.getElementById('info-sakit');
+    const btnSelectAll = document.getElementById('btn-select-all-permit');
+    const listReasons = document.getElementById('reasons-list');
+    const lblReason = document.getElementById('lbl-reason');
+
+    // Reset Suggestions
+    listReasons.innerHTML = '';
+
+    if (tab === 'sakit') {
+        lblReason.textContent = "Sakit Apa?";
+        fieldEnd.classList.add('hidden'); // Sakit tidak butuh end date di awal
+        fieldLoc.classList.remove('hidden');
+        fieldTrans.classList.add('hidden');
+        infoSakit.classList.remove('hidden');
+        btnSelectAll.classList.add('hidden'); // Sakit biasanya per individu
+        
+        // Suggestion Sakit
+        ['Demam', 'Flu/Batuk', 'Sakit Gigi', 'Diare', 'Tifus', 'Cacar', 'Maag', 'Kecapekan'].forEach(r => {
+            listReasons.innerHTML += `<option value="${r}">`;
+        });
+    } 
+    else if (tab === 'izin') {
+        lblReason.textContent = "Keperluan Apa?";
+        fieldEnd.classList.remove('hidden');
+        fieldLoc.classList.add('hidden');
+        fieldTrans.classList.add('hidden');
+        infoSakit.classList.add('hidden');
+        btnSelectAll.classList.remove('hidden');
+
+        // Suggestion Izin
+        ['Acara Keluarga', 'Menikah', 'Wisuda Kakak', 'Lomba', 'Tugas Madrasah', 'Mengurus Berkas', 'Check-up Dokter'].forEach(r => {
+            listReasons.innerHTML += `<option value="${r}">`;
+        });
+    }
+    else if (tab === 'pulang') {
+        lblReason.textContent = "Jenis Kepulangan?";
+        fieldEnd.classList.remove('hidden');
+        fieldLoc.classList.add('hidden');
+        fieldTrans.classList.remove('hidden');
+        infoSakit.classList.add('hidden');
+        btnSelectAll.classList.remove('hidden');
+
+        // Suggestion Pulang
+        ['Pulang Bulanan', 'Libur Semester', 'Libur Lebaran', 'Libur Maulid', 'Pulang Sakit Panjang'].forEach(r => {
+            listReasons.innerHTML += `<option value="${r}">`;
+        });
+    }
+};
+
+
+
 // Start App
 window.onload = window.initApp;
