@@ -3616,5 +3616,83 @@ window.renderDashboardPembinaan = function() {
     if(window.lucide) window.lucide.createIcons();
 };
 
+window.renderPembinaanManagement = function() {
+    const container = document.getElementById('pembinaan-full-list');
+    if(!container) return;
+
+    // 1. Hitung Data
+    let problemList = [];
+    let counts = { l1: 0, l2: 0, l3: 0 }; // Level grouping
+
+    FILTERED_SANTRI.forEach(s => {
+        const id = String(s.nis || s.id);
+        const totalAlpa = window.countTotalAlpa(id);
+        
+        if (totalAlpa > 0) {
+            const status = window.getPembinaanStatus(totalAlpa);
+            problemList.push({ ...s, totalAlpa, status });
+
+            // Grouping untuk statistik ringkas
+            if (status.level === 1) counts.l1++;
+            else if (status.level <= 3) counts.l2++;
+            else counts.l3++;
+        }
+    });
+
+    // Update Angka Statistik
+    document.getElementById('count-level-1').textContent = counts.l1;
+    document.getElementById('count-level-2').textContent = counts.l2;
+    document.getElementById('count-level-3').textContent = counts.l3;
+
+    // 2. Render List
+    container.innerHTML = '';
+    if (problemList.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs font-bold">Alhamdulillah, nihil pelanggaran.</div>';
+        return;
+    }
+
+    // Sort: Terparah di atas
+    problemList.sort((a, b) => b.totalAlpa - a.totalAlpa);
+
+    problemList.forEach(p => {
+        // Hitung persentase bar bahaya (Max 41 sebagai 100%)
+        const percentage = Math.min((p.totalAlpa / 41) * 100, 100);
+        
+        const div = document.createElement('div');
+        div.className = 'p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors';
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${p.nama}</h4>
+                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold border mt-1 ${p.status.color}">
+                        ${p.status.label}
+                    </span>
+                </div>
+                <div class="text-right">
+                    <span class="text-2xl font-black text-slate-800 dark:text-white">${p.totalAlpa}</span>
+                    <span class="text-[10px] text-slate-400 block -mt-1">Alpa</span>
+                </div>
+            </div>
+            
+            <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                <div class="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 transition-all duration-500" style="width: ${percentage}%"></div>
+            </div>
+            <div class="flex justify-between mt-1">
+                <p class="text-[9px] text-slate-400">Tindakan: <span class="font-bold text-slate-600 dark:text-slate-300">${p.status.action}</span></p>
+                <p class="text-[9px] text-slate-400">${percentage >= 100 ? 'MAX LEVEL' : Math.round(percentage) + '% Critical'}</p>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+};
+
+// Helper untuk Scroll ke section ini dari Dashboard
+window.scrollToPembinaan = function() {
+    setTimeout(() => {
+        const el = document.getElementById('pembinaan-section');
+        if(el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+};
+
 // Start App
 window.onload = window.initApp;
