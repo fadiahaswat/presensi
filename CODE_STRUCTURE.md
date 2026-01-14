@@ -5,7 +5,7 @@ This document describes the modular structure of the MusyrifApp Pro codebase.
 ## File Organization
 
 ### Core Configuration Files
-- **config.js** - Application configuration (Supabase, app settings, geofencing, UI colors)
+- **config.js** - Application configuration (app settings, geofencing, UI colors)
 - **constants.js** - Slot and status configurations (SLOT_WAKTU, STATUS_UI)
 - **state.js** - Global application state management
 - **utils.js** - Utility functions (date formatting, JWT parsing, slot determination)
@@ -72,14 +72,12 @@ All major configuration and state is attached to the `window` object for cross-m
 - `window.MASTER_SANTRI` - Student master data
 - `window.MASTER_KELAS` - Class master data
 - `window.FILTERED_SANTRI` - Filtered student list
-- `window.dbClient` - Supabase client instance
 
 ## Development Notes
 
 - The app uses vanilla JavaScript (no build step required)
 - All external dependencies are loaded via CDN
-- LocalStorage is used for offline data caching
-- Supabase is used for cloud data synchronization
+- LocalStorage is used for data persistence and caching
 - The app is a Progressive Web App (PWA) with service worker support
 
 ## Refactoring History

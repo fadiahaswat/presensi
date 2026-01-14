@@ -65,7 +65,7 @@ This implementation adds automatic synchronization of attendance status for stud
 ## How It Works
 
 1. **At App Startup:**
-   - System loads active homecoming events and student logs from Supabase
+   - System loads active homecoming events and student logs from localStorage
    - Data is stored in `hcState` global state
 
 2. **When Opening Attendance:**

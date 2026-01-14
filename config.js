@@ -2,21 +2,6 @@
 // Application configuration and constants
 
 // ==========================================
-// KONEKSI SUPABASE (GUDANG DATA)
-// ==========================================
-// 1. Ambil URL dari Tahap 3 (Project URL)
-window.SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
-
-// 2. Ambil Key dari Tahap 3 (anon public)
-window.SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
-
-// 3. Nyalakan Mesin Supabase
-if (window.supabase) {
-    window.dbClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
-    console.log("Supabase Siap!");
-}
-
-// ==========================================
 // CONFIG & CONSTANTS
 // ==========================================
 window.APP_CONFIG = {

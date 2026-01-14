@@ -74,9 +74,8 @@ This document describes the implementation of the new perpulangan (homecoming) m
 ### 4. Auto-Sync Integration (app-core.js)
 
 #### Priority System:
-1. **Permits** (highest priority)
-2. **localStorage Homecoming** (new modal system)
-3. **Supabase Homecoming** (old event system)
+1. **Permits** (highest priority - includes Pulang type)
+2. **localStorage Homecoming** (modal system)
 
 #### Behavior:
 When a student has active homecoming:
@@ -117,11 +116,9 @@ Homecoming data is loaded on app initialization in both:
 ## Compatibility
 
 ### Coexistence with Old System
-The implementation supports both systems:
-- **Old System**: Supabase-based event management (`isStudentPulang`)
-- **New System**: localStorage-based modal management (`checkActiveHomecoming`)
+The system uses localStorage for all homecoming data management with priority given to the new permit-based system.
 
-Priority: localStorage data takes precedence when both exist for the same student.
+Priority: LocalStorage permit data with type "Pulang" takes precedence.
 
 ## Usage Flow
 
@@ -165,8 +162,7 @@ Priority: localStorage data takes precedence when both exist for the same studen
 - ✅ Security scan passed
 
 ## Future Enhancements
-1. Add arrival tracking (like old system)
+1. Add arrival tracking
 2. Add late arrival reasons
 3. Export homecoming reports
-4. Sync between localStorage and Supabase
-5. Bulk import from CSV
+4. Bulk import from CSV
