@@ -3447,5 +3447,21 @@ window.goToToday = function() {
     handleDateChange(localISOTime);
 };
 
+// Tambahkan ini di script.js
+window.quickOpen = function(slotId) {
+    // 1. Set slot yang dipilih ke state global
+    appState.currentSlotId = slotId;
+    
+    // 2. Update tampilan dashboard (opsional, agar chart/judul berubah)
+    window.updateDashboard(); 
+    
+    // 3. Langsung buka halaman absensi
+    window.openAttendance();
+    
+    // 4. Beri feedback visual
+    const labels = { shubuh: 'Shubuh', ashar: 'Ashar', maghrib: 'Maghrib', isya: 'Isya' };
+    window.showToast(`Membuka presensi ${labels[slotId]}`, 'info');
+};
+
 // Start App
 window.onload = window.initApp;
