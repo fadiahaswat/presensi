@@ -2247,10 +2247,11 @@ window.renderPermitList = function() {
     container.innerHTML = '';
     
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
-    const activePermits = appState.permits.filter(p => classNisList.includes(p.nis));
+    // Ambil yang aktif saja
+    const activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
 
     if(activePermits.length === 0) {
-        container.innerHTML = '<div class="text-center py-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700"><p class="text-xs text-slate-400 font-bold">Belum ada data izin aktif</p></div>';
+        container.innerHTML = '<div class="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-bold">Tidak ada yang izin/sakit</div>';
         return;
     }
 
@@ -2258,22 +2259,50 @@ window.renderPermitList = function() {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === p.nis);
         if(!santri) return;
 
+        // Tampilan Beda Tiap Kategori
+        let badgeColor = 'bg-slate-100 text-slate-600';
+        let detailText = '';
+        let actionBtn = '';
+
+        if(p.category === 'sakit') {
+            badgeColor = 'bg-amber-100 text-amber-600 border border-amber-200';
+            detailText = `Mulai: ${window.formatDate(p.start_date)} (${p.start_session}) • ${p.location}`;
+            // Tombol Sembuh
+            actionBtn = `<button onclick="window.markAsRecovered('${p.id}')" class="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[10px] font-bold shadow hover:bg-emerald-600">Sembuh</button>`;
+        } 
+        else {
+            if(p.category === 'izin') badgeColor = 'bg-blue-100 text-blue-600 border border-blue-200';
+            else badgeColor = 'bg-purple-100 text-purple-600 border border-purple-200';
+            
+            detailText = `Sampai: ${window.formatDate(p.end_date)} ${p.end_time_limit}`;
+            
+            // Tombol Perpanjang / Sudah Kembali
+            actionBtn = `
+                <div class="flex gap-1">
+                    <button onclick="window.extendPermit('${p.id}')" class="px-2 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-[10px] font-bold">Perpanjang</button>
+                    <button onclick="window.markAsReturned('${p.id}')" class="px-2 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-bold">Kembali</button>
+                </div>
+            `;
+        }
+
         const div = document.createElement('div');
-        div.className = 'p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-center shadow-sm';
+        div.className = 'p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm flex justify-between items-center';
         div.innerHTML = `
             <div>
-                <p class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</p>
-                <div class="flex flex-wrap gap-2 mt-1.5">
-                    <span class="px-2 py-0.5 rounded-md ${p.type === 'Sakit' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'} font-black text-[10px] uppercase tracking-wide border border-black/5">${p.type}</span>
-                    <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> ${window.formatDate(p.start).split(',')[1]} - ${window.formatDate(p.end).split(',')[1]}</span>
-                    ${p.session !== 'all' ? `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md uppercase">${p.session}</span>` : ''}
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${badgeColor}">${p.category}</span>
+                    <span class="font-bold text-slate-800 dark:text-white text-xs">${santri.nama}</span>
                 </div>
+                <p class="text-[10px] font-bold text-slate-500">${p.reason}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">${detailText}</p>
             </div>
-            <button onclick="window.deletePermit('${p.id}')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <div class="flex flex-col gap-1 items-end">
+                ${actionBtn}
+                <button onclick="window.deletePermit('${p.id}')" class="text-[9px] text-red-400 underline mt-1">Hapus Data</button>
+            </div>
         `;
         container.appendChild(div);
     });
-    if(window.lucide) window.lucide.createIcons();
 };
 
 // Helper urutan sesi untuk perbandingan logika
