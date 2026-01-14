@@ -21,11 +21,38 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS (Production Build) -->
-    <link href="output.css" rel="stylesheet">
-    
     <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 900: '#064e3b' },
+                        dark: { bg: '#0f172a', card: '#1e293b', text: '#f1f5f9' }
+                    },
+                    animation: {
+                        'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'blob': 'blob 10s infinite alternate',
+                        'spin-slow': 'spin 3s linear infinite',
+                    },
+                    keyframes: {
+                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
+                        fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+                        blob: {
+                            '0%': { transform: 'translate(0, 0) scale(1)' },
+                            '100%': { transform: 'translate(20px, -20px) scale(1.1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -97,6 +124,7 @@
             100% { transform: translateX(100%); }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-[#0f172a] h-[100dvh] w-full flex flex-col relative selection:bg-emerald-500 selection:text-white overflow-hidden">
 
@@ -318,7 +346,7 @@
 </div>
 
             <div class="animate-slide-up mb-4 mt-4" style="animation-delay: 0.25s">
-               <button onclick="window.openPermitView()" class="w-full p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group relative overflow-hidden">
+               <button onclick="window.openPermitModal()" class="w-full p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group relative overflow-hidden">
                     <div class="absolute left-0 top-0 w-1 h-full bg-orange-500"></div>
                     <div class="flex items-center gap-4">
                          <div class="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
@@ -326,13 +354,31 @@
                          </div>
                          <div class="text-left">
                              <h4 class="font-black text-slate-800 dark:text-white text-base leading-tight">Input Perizinan</h4>
-                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Sakit, Izin, atau Pulang</p>
+                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Sakit, Pulang, atau Izin dengan jangka waktu</p>
                          </div>
                     </div>
                     <div class="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-colors">
                         <i data-lucide="arrow-right" class="w-5 h-5"></i>
                     </div>
                </button>
+            </div>
+
+            <div class="animate-slide-up mb-4" style="animation-delay: 0.3s">
+                <button onclick="window.openHomecomingView()" class="w-full p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group relative overflow-hidden">
+                    <div class="absolute left-0 top-0 w-1 h-full bg-indigo-500"></div>
+                    <div class="flex items-center gap-4">
+                         <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                             <i data-lucide="bus" class="w-6 h-6"></i>
+                         </div>
+                         <div class="text-left">
+                             <h4 class="font-black text-slate-800 dark:text-white text-base leading-tight">Perpulangan Santri</h4>
+                             <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Cek keberangkatan & kedatangan</p>
+                         </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-700 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                        <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                    </div>
+                </button>
             </div>
 
             <!-- Quick Stats Grid -->
@@ -480,19 +526,6 @@
                 </div>
             </div>
 
-            <!-- Active Permits Section (NEW) -->
-            <div class="mt-6 animate-slide-up" style="animation-delay: 0.25s">
-                <div class="flex items-center justify-between mb-3 px-1">
-                    <h3 class="font-black text-slate-800 dark:text-white text-lg flex items-center gap-2">
-                        <i data-lucide="user-x" class="w-5 h-5 text-blue-500"></i>
-                        Status Perizinan Aktif
-                    </h3>
-                </div>
-                <div id="dashboard-active-permits" class="space-y-2">
-                    <!-- Will be populated by renderDashboardActivePermits() -->
-                </div>
-            </div>
-
             <div class="mt-6 mb-24 animate-slide-up" style="animation-delay: 0.3s">
     <div class="flex items-center justify-between mb-3 px-1">
         <h3 class="font-black text-slate-800 dark:text-white text-lg flex items-center gap-2">
@@ -503,7 +536,7 @@
     </div>
     <div id="dashboard-problem-list" class="space-y-2">
         </div>
-</div>
+</div>            
         </div>
 
         <div id="tab-analysis" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
@@ -856,159 +889,73 @@
 </div>
     </section>
 
-    <!-- View: Permit Management (NEW Full Page) -->
-    <section id="view-permit" class="fixed inset-0 z-[60] bg-slate-50 dark:bg-[#0f172a] flex flex-col hidden transition-colors">
-        <div class="glass-nav px-5 py-4 flex items-center justify-between shadow-sm z-20 sticky top-0 pt-safe">
-            <button onclick="window.closePermitView()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-50 transition-colors">
-                <i data-lucide="arrow-left" class="w-5 h-5 text-slate-700 dark:text-white"></i>
-            </button>
-            
-            <div class="text-center">
-                <p class="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">Manajemen</p>
-                <h2 class="text-lg font-black text-slate-800 dark:text-white leading-none">Perizinan</h2>
-            </div>
-
-            <div class="w-10 h-10"></div>
+    <section id="view-homecoming" class="fixed inset-0 z-[60] bg-slate-50 dark:bg-[#0f172a] flex flex-col hidden transition-colors">
+    
+    <div class="glass-nav px-5 py-4 flex items-center justify-between shadow-sm z-20 sticky top-0 pt-safe">
+        <button onclick="window.closeHomecomingView()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-50 transition-colors">
+            <i data-lucide="arrow-left" class="w-5 h-5 text-slate-700 dark:text-white"></i>
+        </button>
+        
+        <div class="text-center">
+            <p class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mb-0.5">Event Aktif</p>
+            <h2 id="hc-view-title" class="text-lg font-black text-slate-800 dark:text-white leading-none">Memuat...</h2>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-5 pb-24 space-y-5">
-            <!-- Form Input New Permit -->
-            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
-                <h3 class="text-sm font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="w-4 h-4 text-orange-500"></i>
-                    Input Perizinan Baru
-                </h3>
-                
-                <div class="space-y-4 pb-2">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Tipe</label>
-                            <select id="permit-view-type" onchange="window.togglePermitViewFields()" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                                <option value="Sakit">Sakit</option>
-                                <option value="Izin">Izin</option>
-                                <option value="Pulang">Pulang</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai Sesi</label>
-                            <select id="permit-view-session" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                                <option value="all">Full Seharian</option>
-                                <option value="shubuh">Shubuh</option>
-                                <option value="ashar">Ashar</option>
-                                <option value="maghrib">Maghrib</option>
-                                <option value="isya">Isya</option>
-                            </select>
-                        </div>
-                    </div>
+        <button onclick="window.manageEvents()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-50 transition-colors text-slate-500 hover:text-indigo-500">
+            <i data-lucide="settings-2" class="w-5 h-5"></i>
+        </button>
+    </div>
 
-                    <div id="permit-view-illness-container" class="hidden space-y-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sakitnya Apa</label>
-                            <input type="text" id="permit-view-illness" list="illness-suggestions-view" placeholder="Demam, Flu, Sakit Perut..." class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                            <datalist id="illness-suggestions-view">
-                                <option value="Demam">
-                                <option value="Flu / Batuk / Pilek">
-                                <option value="Sakit Perut / Diare">
-                                <option value="Sakit Kepala / Pusing">
-                                <option value="Sakit Gigi">
-                                <option value="Typus">
-                                <option value="DBD (Demam Berdarah)">
-                                <option value="Asma / Sesak Napas">
-                                <option value="Luka / Cedera">
-                                <option value="Lainnya">
-                            </datalist>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Lokasi Sakit</label>
-                            <select id="permit-view-illness-location" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                                <option value="asrama">Di Asrama</option>
-                                <option value="diluar">Di Luar (Dibawa Pulang)</option>
-                            </select>
-                        </div>
-                    </div>
+    <div class="flex-1 overflow-y-auto p-5 pb-32 space-y-5 scroll-smooth relative">
+        
+        <div class="text-center -mt-2 mb-2">
+            <span id="hc-view-date" class="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">-</span>
+        </div>
 
-                    <div id="permit-view-reason-container" class="hidden">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Izinnya Apa</label>
-                        <input type="text" id="permit-view-reason" list="reason-suggestions-view" placeholder="Acara keluarga, Ngurus dokumen..." class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                        <datalist id="reason-suggestions-view">
-                            <option value="Acara Keluarga (Pernikahan/Walimah)">
-                            <option value="Keluarga Sakit">
-                            <option value="Keluarga Meninggal (Takziah)">
-                            <option value="Urusan Keluarga Penting">
-                            <option value="Keperluan Pribadi">
-                            <option value="Konsultasi Dokter / Berobat">
-                            <option value="Urus Administrasi / Dokumen">
-                            <option value="Lainnya">
-                        </datalist>
-                    </div>
-
-                    <!-- Pulang Fields (shown when Pulang is selected) -->
-                    <div id="permit-view-pulang-container" class="hidden">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Pulangnya Apa</label>
-                        <input type="text" id="permit-view-event-name" list="pulang-suggestions-view" placeholder="Maulid, Lebaran, Liburan Semester..." class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                        <datalist id="pulang-suggestions-view">
-                            <option value="Liburan Maulid Nabi">
-                            <option value="Liburan Lebaran / Idul Fitri">
-                            <option value="Liburan Idul Adha">
-                            <option value="Liburan Semester">
-                            <option value="Liburan Tahun Baru Hijriah">
-                            <option value="Keperluan Keluarga">
-                            <option value="Lainnya">
-                        </datalist>
-                    </div>
-
-                    <div class="grid gap-3">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai Tanggal</label>
-                                <input type="date" id="permit-view-start" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                            </div>
-                            <div id="permit-view-end-container">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai Tanggal</label>
-                                <input type="date" id="permit-view-end" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                            </div>
-                        </div>
-                        <div id="permit-view-end-time-container" class="hidden">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai Jam</label>
-                            <input type="time" id="permit-view-end-time" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pilih Anak</label>
-                            <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input type="checkbox" id="permit-view-select-all" onchange="window.toggleAllPermitViewSantri(this.checked)" class="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500">
-                                <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Pilih Semua</span>
-                            </label>
-                        </div>
-                        <input type="text" id="permit-view-search" onkeyup="window.filterPermitViewSantri(this.value)" placeholder="Cari nama santri..." class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500 mb-2">
-                        <div id="permit-view-santri-list" class="max-h-48 overflow-y-auto space-y-1 p-2 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                <div class="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <i data-lucide="home" class="w-12 h-12 text-slate-500"></i>
                 </div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mukim</p>
+                <p id="hc-stat-mukim" class="text-3xl font-black text-slate-700 dark:text-white">0</p>
             </div>
-
-            <!-- List of Active Permits -->
-            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
-                <h3 class="text-sm font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                    <i data-lucide="list" class="w-4 h-4 text-orange-500"></i>
-                    Data Perizinan Aktif
-                </h3>
-                <div id="permit-view-list" class="space-y-3">
-                    <!-- Populated by renderPermitViewList() -->
+            <div class="bg-indigo-500 p-4 rounded-3xl border border-indigo-400 shadow-lg shadow-indigo-500/30 relative overflow-hidden group">
+                <div class="absolute -right-2 -top-2 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
+                <div class="absolute right-0 top-0 p-3 opacity-20 group-hover:opacity-30 transition-opacity">
+                    <i data-lucide="bus" class="w-12 h-12 text-white"></i>
                 </div>
+                <p class="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Pulang</p>
+                <p id="hc-stat-pulang" class="text-3xl font-black text-white">0</p>
             </div>
         </div>
 
-        <!-- Sticky Save Button -->
-        <div class="fixed bottom-0 left-0 right-0 p-5 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-30 pointer-events-none">
-            <button onclick="window.savePermitFromView()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-2xl shadow-emerald-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 pointer-events-auto">
-                <i data-lucide="save" class="w-5 h-5"></i> Simpan Data
+        <div class="sticky top-0 z-10 bg-slate-50/90 dark:bg-[#0f172a]/90 backdrop-blur-sm py-2 space-y-3">
+            <div class="flex p-1 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                <button onclick="window.filterHcList('all')" class="hc-tab flex-1 py-2.5 text-[10px] font-bold rounded-xl bg-indigo-50 text-indigo-600 transition-all" data-filter="all">Semua</button>
+                <button onclick="window.filterHcList('Pulang')" class="hc-tab flex-1 py-2.5 text-[10px] font-bold rounded-xl text-slate-400 hover:bg-slate-50 transition-all" data-filter="Pulang">Pulang</button>
+                <button onclick="window.filterHcList('Mukim')" class="hc-tab flex-1 py-2.5 text-[10px] font-bold rounded-xl text-slate-400 hover:bg-slate-50 transition-all" data-filter="Mukim">Mukim</button>
+            </div>
+
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                <input type="text" id="hc-search" oninput="window.renderHomecomingList()" placeholder="Cari santri..." class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all">
+            </div>
+        </div>
+
+        <div id="hc-list-container" class="space-y-3 pb-4">
+            </div>
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 p-6 pb-safe bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-[#0f172a] dark:via-[#0f172a] z-20 pointer-events-none">
+        <div class="glass-card p-2 rounded-2xl shadow-2xl pointer-events-auto">
+            <button onclick="window.syncHomecoming()" class="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.98] transition-all">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                Sinkronisasi Data
             </button>
         </div>
-    </section>
+    </div>
+</section>
 
     <!-- Modals -->
     <div id="modal-rekap" class="fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
@@ -1089,7 +1036,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Status</label>
-                        <select id="permit-type" onchange="window.togglePermitEndDate()" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
+                        <select id="permit-type" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                             <option value="Sakit">Sakit</option>
                             <option value="Izin">Izin</option>
                         </select>
@@ -1106,53 +1053,14 @@
                     </div>
                 </div>
 
-                <!-- Keterangan Sakit (tampil jika tipe = Sakit) -->
-                <div id="permit-illness-container" class="hidden">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Keterangan Sakit</label>
-                    <input type="text" id="permit-illness" list="illness-suggestions" placeholder="Demam, Flu, Sakit Perut..." class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                    <datalist id="illness-suggestions">
-                        <option value="Demam">
-                        <option value="Flu / Batuk / Pilek">
-                        <option value="Sakit Perut / Diare">
-                        <option value="Sakit Kepala / Pusing">
-                        <option value="Sakit Gigi">
-                        <option value="Typus">
-                        <option value="DBD (Demam Berdarah)">
-                        <option value="Asma / Sesak Napas">
-                        <option value="Luka / Cedera">
-                        <option value="Lainnya">
-                    </datalist>
-                </div>
-
-                <!-- Alasan Izin (tampil jika tipe = Izin) -->
-                <div id="permit-reason-container" class="hidden">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Alasan Izin</label>
-                    <input type="text" id="permit-reason" list="reason-suggestions" placeholder="Acara keluarga, Keperluan keluarga..." class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                    <datalist id="reason-suggestions">
-                        <option value="Acara Keluarga (Pernikahan/Walimah)">
-                        <option value="Keluarga Sakit">
-                        <option value="Keluarga Meninggal (Takziah)">
-                        <option value="Urusan Keluarga Penting">
-                        <option value="Keperluan Pribadi">
-                        <option value="Konsultasi Dokter / Berobat">
-                        <option value="Urus Administrasi / Dokumen">
-                        <option value="Lainnya">
-                    </datalist>
-                </div>
-
-                <div class="grid gap-3" id="permit-date-grid">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai</label>
-                            <input type="date" id="permit-start" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                        </div>
-                        <div id="permit-end-container">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai</label>
-                            <input type="date" id="permit-end" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                        </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Mulai</label>
+                        <input type="date" id="permit-start" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                     </div>
-                    <div id="permit-info-text" class="hidden text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg border border-amber-200 dark:border-amber-800">
-                        <i data-lucide="info" class="w-3 h-3 inline"></i> Untuk Sakit, hanya isi tanggal mulai. Ubah status ke "Sembuh" nanti.
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sampai</label>
+                        <input type="date" id="permit-end" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
                     </div>
                 </div>
 
@@ -1174,71 +1082,6 @@
     </div>
 </div>
 
-    <!-- Modal Edit Permit Status -->
-    <div id="modal-edit-permit" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-6 animate-slide-up border border-white/10 shadow-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <h3 class="text-xl font-black text-slate-800 dark:text-white">Ubah Status</h3>
-                    <p class="text-xs text-slate-500 mt-1" id="edit-permit-santri-name">-</p>
-                </div>
-                <button onclick="window.closeModal('modal-edit-permit')" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <input type="hidden" id="edit-permit-id">
-            
-            <div class="space-y-4">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipe Perizinan</p>
-                    <p class="text-sm font-bold text-slate-800 dark:text-white" id="edit-permit-type-display">-</p>
-                </div>
-
-                <!-- Section untuk Sakit → Sembuh -->
-                <div id="edit-permit-sakit-section" class="space-y-3">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Tanggal Sembuh</label>
-                        <input type="date" id="edit-permit-recovery-date" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sesi Mulai Normal</label>
-                        <select id="edit-permit-recovery-session" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                            <option value="all">Seharian</option>
-                            <option value="shubuh">Shubuh</option>
-                            <option value="ashar">Ashar</option>
-                            <option value="maghrib">Maghrib</option>
-                            <option value="isya">Isya</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Section untuk Izin → Datang -->
-                <div id="edit-permit-izin-section" class="hidden space-y-3">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Tanggal Datang</label>
-                        <input type="date" id="edit-permit-arrival-date" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Sesi Datang</label>
-                        <select id="edit-permit-arrival-session" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                            <option value="all">Seharian</option>
-                            <option value="shubuh">Shubuh</option>
-                            <option value="ashar">Ashar</option>
-                            <option value="maghrib">Maghrib</option>
-                            <option value="isya">Isya</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button onclick="window.saveEditPermit()" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="check" class="w-4 h-4"></i> Simpan Perubahan
-                </button>
-            </div>
-        </div>
-    </div>
-
-
     <div id="modal-google-auth" class="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] p-8 text-center shadow-2xl border border-white/10">
         <div class="mb-4 text-4xl">🔐</div>
@@ -1250,6 +1093,120 @@
         <div id="google-btn-container" class="flex justify-center h-12"></div>
 
         <button onclick="window.closeModal('modal-google-auth')" class="mt-6 text-xs text-slate-400 font-bold hover:text-red-500">Batal</button>
+    </div>
+</div>
+ 
+<div id="modal-hc-edit" class="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-6">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] p-6 animate-scale-in shadow-2xl border border-white/10 flex flex-col max-h-[90vh] overflow-y-auto hide-scrollbar">
+        <h3 class="text-lg font-black text-slate-800 dark:text-white mb-1">Update Data</h3>
+        <p id="hc-edit-name" class="text-sm text-slate-500 mb-4">Nama Santri</p>
+        
+        <input type="hidden" id="hc-edit-id">
+
+        <div class="space-y-3">
+            <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase">Status</label>
+                <select id="hc-edit-status" onchange="window.toggleHcInputs()" class="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none">
+                    <option value="Mukim">🏠 Mukim (Di Pondok)</option>
+                    <option value="Pulang">🚌 Pulang</option>
+                </select>
+            </div>
+
+            <div id="hc-input-group" class="space-y-3 hidden">
+    <div class="grid grid-cols-2 gap-2">
+        <input type="text" id="hc-edit-city" placeholder="Kota Tujuan" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs font-bold">
+        <select id="hc-edit-transport" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 text-xs font-bold">
+            <option value="Jemputan">🚗 Jemputan</option>
+            <option value="Bus">🚌 Bus</option>
+            <option value="Kereta">🚂 Kereta</option>
+            <option value="Pesawat">✈️ Pesawat</option>
+        </select>
+    </div>
+    
+    <div class="pt-2">
+        <label class="text-[10px] font-bold text-slate-400 uppercase">Status Kedatangan</label>
+        <select id="hc-edit-arrival" class="w-full p-3 mt-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 font-bold text-sm">
+            <option value="Belum">⏳ Belum Tiba</option>
+            <option value="Tepat Waktu">✅ Tepat Waktu</option>
+            <option value="Terlambat">❌ Terlambat</option>
+        </select>
+    </div>
+
+    <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+         <button type="button" onclick="window.checkArrivalAuto()" class="w-full py-3 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center gap-2 hover:bg-indigo-100 border border-indigo-200">
+             <i data-lucide="clock" class="w-4 h-4"></i> Cek Waktu Sekarang
+         </button>
+         <div id="hc-auto-result" class="hidden mt-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+     <p id="hc-result-text" class="text-xs font-black uppercase text-center mb-2"></p>
+     <input type="hidden" id="hc-final-status"> 
+     
+     <div id="hc-late-reason-box" class="hidden text-left animate-fade-in bg-red-50 dark:bg-red-900/20 p-2 rounded-lg border border-red-100 dark:border-red-800/30">
+         <label class="text-[9px] font-bold text-red-500 uppercase tracking-widest">Alasan Keterlambatan</label>
+         <select id="hc-late-reason" class="w-full p-2 mt-1 rounded-lg border border-red-200 dark:border-red-800 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-white outline-none">
+             <option value="Tanpa Kabar">❌ Tanpa Kabar</option>
+             <option value="Macet">🚗 Terjebak Macet</option>
+             <option value="Tiket Habis">🎫 Tiket Habis/Reschedule</option>
+             <option value="Sakit">🤒 Sakit di Jalan</option>
+             <option value="Urusan Keluarga">👨‍👩‍👧‍👦 Urusan Keluarga</option>
+             <option value="Lainnya">📝 Lainnya</option>
+         </select>
+     </div>
+</div>
+    </div>
+</div>
+
+            <div class="flex gap-2 mt-4">
+                <button onclick="window.closeModal('modal-hc-edit')" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs">Batal</button>
+                <button onclick="window.saveHcStudent()" class="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-bold text-xs shadow-lg">Simpan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-event-manager" class="fixed inset-0 z-[110] bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-slide-up border border-white/10 flex flex-col max-h-[85vh]">
+        
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-black text-slate-800 dark:text-white">Atur Jadwal Liburan</h3>
+            <button onclick="window.closeModal('modal-event-manager')" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto hide-scrollbar space-y-4 pr-1">
+            <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <input type="hidden" id="evt-id">
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Nama Acara</label>
+                        <input type="text" id="evt-title" placeholder="Contoh: Liburan Maulid" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Tgl Mulai</label>
+                            <input type="date" id="evt-start" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 text-xs font-bold">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 uppercase">Tgl Balik</label>
+                            <input type="date" id="evt-end" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 text-xs font-bold">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase text-red-500">Deadline Kedatangan</label>
+                        <input type="time" id="evt-deadline" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900 text-xs font-bold outline-none focus:border-red-500">
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="window.resetEventForm()" class="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 text-xs font-bold">Reset</button>
+                    <button onclick="window.saveEvent()" class="flex-1 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-lg">Simpan Event</button>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-bold text-slate-500 mb-2 px-1">Daftar Event</h4>
+                <div id="event-list-container" class="space-y-2"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1373,23 +1330,10 @@
     </template>
 
     <!-- Scripts -->
-    <!-- Core Configuration & Utilities -->
-    <script src="config.js"></script>
-    <script src="utils.js"></script>
-    <script src="state.js"></script>
-    <script src="constants.js"></script>
-    
-    <!-- Data Management -->
     <script src="data-kelas.js"></script>
     <script src="data-santri.js"></script>
     <script src="santri-manager.js"></script>
-    
-    <!-- Application Logic -->
-    <script src="app-core.js"></script>
-    <script src="app-features.js"></script>
-    
-    <!-- Main Entry Point -->
-    <script src="main.js"></script>
+    <script src="script.js"></script>
 
     <script>
         // Mendaftarkan Service Worker agar aplikasi bisa di-install & jalan offline
@@ -1401,49 +1345,6 @@
             });
         }
     </script>
-
-    <!-- Modal Extend Permit -->
-    <div id="modal-extend-permit" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-4 transition-all">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-6 animate-slide-up border border-white/10 shadow-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <h3 class="text-xl font-black text-slate-800 dark:text-white">Perpanjang Izin</h3>
-                    <p class="text-xs text-slate-500 mt-1" id="extend-permit-santri-name">-</p>
-                </div>
-                <button onclick="window.closeModal('modal-extend-permit')" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <input type="hidden" id="extend-permit-id">
-            
-            <div class="space-y-4">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-700">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tipe</p>
-                    <p class="text-sm font-bold text-slate-800 dark:text-white" id="extend-permit-type-display">-</p>
-                </div>
-
-                <div class="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-2xl border border-amber-200 dark:border-amber-800">
-                    <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Berakhir Saat Ini</p>
-                    <p class="text-sm font-bold text-amber-700 dark:text-amber-400" id="extend-permit-current-end">-</p>
-                </div>
-
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Perpanjang Sampai</label>
-                    <input type="date" id="extend-permit-new-end" class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500">
-                </div>
-
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Alasan Perpanjangan</label>
-                    <textarea id="extend-permit-reason" rows="3" placeholder="Misal: Masih belum bisa hadir karena..." class="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:border-emerald-500 resize-none"></textarea>
-                </div>
-
-                <button onclick="window.saveExtendPermit()" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="clock" class="w-4 h-4"></i> Perpanjang Izin
-                </button>
-            </div>
-        </div>
-    </div>
     
 </body>
 </html>
