@@ -2329,50 +2329,88 @@ window.renderPermitList = function() {
     });
 };
 
-// Helper urutan sesi untuk perbandingan logika
+// Helper Urutan Sesi
 const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
 
 window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
-    // Cari permit milik santri ini
+    // Cari permit milik santri ini yang statusnya AKTIF
+    // Kita filter juga is_active: true. 
+    // TAPI untuk fix Poin 3 (Sejarah tetap ada), kita TIDAK men-delete data sakit lama,
+    // melainkan kita update end_date-nya. Jadi permit tetap ada di DB tapi punya expired date.
+    
     const permit = appState.permits.find(p => p.nis === String(nis) && p.is_active);
     
     if (!permit) return null;
 
-    // 1. LOGIKA SAKIT (Open Ended)
-    if (permit.category === 'sakit') {
-        // Jika tanggal sekarang < tanggal mulai -> Belum sakit
-        if (currentDateStr < permit.start_date) return null;
-        
-        // Jika tanggal sama, cek sesi. Kalau sesi sekarang < sesi mulai -> Belum sakit
-        if (currentDateStr === permit.start_date) {
-            if (SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
-        }
+    // --- LOGIKA UMUM (START DATE) ---
+    // Jika tanggal presensi < tanggal mulai izin -> SKIP
+    if (currentDateStr < permit.start_date) return null;
+    
+    // Jika tanggal sama, tapi sesi belum masuk -> SKIP
+    // Contoh: Izin mulai Ashar, sekarang Shubuh -> Normal
+    if (currentDateStr === permit.start_date) {
+        if (SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
+    }
 
-        // Kalau lolos, berarti SAKIT
+    // --- LOGIKA SAKIT (FIX POIN 3) ---
+    if (permit.category === 'sakit') {
+        // Jika sakit punya tanggal selesai (karena sudah diset sembuh),
+        // Cek apakah tanggal sekarang sudah lewat masa sakitnya.
+        if (permit.end_date) {
+            if (currentDateStr > permit.end_date) return null; // Sudah sembuh hari ini
+            
+            // Jika hari ini adalah hari kesembuhan, cek sesinya
+            if (currentDateStr === permit.end_date && permit.end_session) {
+                // Jika sesi sekarang > sesi terakhir sakit -> Sudah sembuh
+                if (SESSION_ORDER[currentSlotId] > SESSION_ORDER[permit.end_session]) return null;
+            }
+        }
+        
+        // Kalau lolos cek di atas, berarti masih SAKIT
         return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason} (${permit.location})` };
     }
 
-    // 2. LOGIKA IZIN & PULANG (Time Range + Late Penalty)
+    // --- LOGIKA IZIN & PULANG (FIX POIN 5) ---
     else {
-        // Cek Start Time
-        if (currentDateStr < permit.start_date) return null;
-        if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
-
         // Cek Deadline (End Date)
-        // Jika Tanggal Sekarang > Tanggal Selesai -> ALPA (Telat Balik)
+        // Logika: Jika Current > End Date -> ALPA (Telat Balik)
+        // Kecuali user sudah memperpanjang (yang mana akan mengupdate end_date permit ini)
+        
         if (currentDateStr > permit.end_date) {
-            return { type: 'Alpa', label: 'A', note: `[Terlambat] Harusnya kembali tgl ${window.formatDate(permit.end_date)}` };
+            // TERLAMBAT BALIK = ALPA
+            // Poin 5: "kalau terlambat ... jadi A (Alpa)"
+            return { 
+                type: 'Alpa', 
+                label: 'A', 
+                note: `[Terlambat] Deadline: ${window.formatDate(permit.end_date)}` 
+            };
         }
         
-        // (Opsional) Cek Jam Deadline di hari terakhir?
-        // Untuk simplifikasi, jika masih di hari deadline, kita anggap masih Izin/Pulang sampai sesi terakhir.
-        // Atau kalau mau ketat, bandingkan jam sekarang dengan permit.end_time_limit.
-        // Tapi presensi basisnya sesi, jadi kita anggap hari terakhir full izin dulu agar aman.
+        // Cek Hari Terakhir (Deadline Day)
+        // Poin 5: "harus kembali maks jam 17.00 (Ashar)"
+        // Berarti Ashar masih P, Maghrib sudah Normal (jika tepat waktu).
+        if (currentDateStr === permit.end_date) {
+            // Kita asumsikan batas sesi terakhir izin adalah berdasarkan jam/sesi kepulangan
+            // Jika permit.end_time_limit < jam sesi sekarang -> Berarti sudah harusnya di pondok -> Normal (atau Alpa jika belum lapor)
+            
+            // Simpelnya: Kita anggap izin berlaku SAMPAI akhir hari tersebut, 
+            // KECUALI status sudah ditandai 'Kembali' (is_active = false).
+            // Tapi untuk logika "Tepat Waktu = Maghrib Normal", user HARUS klik tombol "Kembali" 
+            // begitu anak sampai. Sistem tidak bisa tahu anak sampai fisik atau tidak tanpa input.
+            
+            // Jadi: Sistem defaultnya akan menganggap Izin/Pulang sampai user klik "Kembali".
+            // ATAU: Kita buat otomatis ALPA jika lewat hari.
+        }
 
-        // Jika Masih Dalam Range
         const label = permit.category === 'pulang' ? 'Pulang' : 'Izin';
         const code = permit.category === 'pulang' ? 'P' : 'I';
-        return { type: label, label: code, end: permit.end_date, note: `[${label}] ${permit.reason}` };
+        
+        return { 
+            type: label, 
+            label: code, 
+            end: permit.end_date, 
+            note: `[${label}] ${permit.reason}` 
+        };
     }
 };
 
