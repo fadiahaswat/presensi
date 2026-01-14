@@ -1087,21 +1087,34 @@ window.renderAttendanceList = function() {
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
             
-            const curr = sData.status[act.id];
-            const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
+            // Ambil status saat ini dari DB
+            const curr = sData.status[act.id] || (act.type === 'mandator' ? 'Hadir' : 'Ya');
             
-            btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
-            btn.textContent = ui.label;
+            // Ambil Config UI
+            const uiConfig = STATUS_UI[curr] || STATUS_UI['Hadir'];
+            
+            // Tentukan Class: Jika status ini yang dipilih, pakai activeClass. 
+            // Jika tidak (misal tombol Alpa tapi statusnya Hadir), pakai btnClass milik Alpa tapi versi idle? 
+            // KOREKSI: Tombol toggle biasanya satu tombol yang berubah warna.
+            // Di desain ini, tombolnya berubah WARNA sesuai statusnya saat ini.
+            
+            btn.className = `btn-status w-12 h-12 rounded-2xl flex items-center justify-center border font-black text-lg transition-all duration-300 active:scale-90 ${uiConfig.activeClass}`;
+            
+            // Jika ingin menambahkan icon
+            btn.innerHTML = `<i data-lucide="${uiConfig.icon}" class="w-5 h-5"></i>`;
+            // Jika ingin text saja (seperti desain lama 'H', 'S', 'I'), gunakan:
+            // btn.textContent = uiConfig.label; 
+        
             lbl.textContent = act.label;
-
-            // Visual Ring pada tombol jika status otomatis aktif
-            if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
-                btn.classList.add('ring-2', 'ring-offset-1', activePermit.type === 'Sakit' ? 'ring-amber-400' : 'ring-blue-400');
-            } else if (activeHomecoming && (curr === 'Pulang' || curr === 'Tidak')) {
-                btn.classList.add('ring-2', 'ring-offset-1', 'ring-indigo-400'); // Ring warna Indigo untuk Pulang
-            }
-
+        
+            // Aksi Klik
             btn.onclick = () => window.toggleStatus(id, act.id, act.type);
+            
+            // Efek Visual Tambahan untuk Izin/Sakit/Pulang (Ring Warning)
+            if (activePermit && (curr === activePermit.type)) {
+                btn.classList.add('animate-pulse');
+            }
+        
             btnCont.appendChild(bClone);
         });
 
