@@ -2132,33 +2132,25 @@ window.printReport = function() { window.print(); };
 // Variabel temp untuk filter
 let permitSantriList = [];
 
+// Variable state tambahan
+let currentPermitTab = 'sakit';
+
+// 1. Fungsi Buka Modal & Setup Tab
 window.openPermitModal = function() {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
-    const modal = document.getElementById('modal-permit');
+    document.getElementById('modal-permit').classList.remove('hidden');
+    window.setPermitTab('sakit'); // Default tab
     
-    // 1. Reset Form Tanggal ke Hari Ini
-    const today = appState.date;
-    document.getElementById('permit-start').value = today;
-    document.getElementById('permit-end').value = today;
-    document.getElementById('permit-type').value = 'Sakit';
-    document.getElementById('permit-session').value = 'all';
+    // Reset inputs
+    const today = window.getLocalDateStr();
+    document.getElementById('permit-start-date').value = today;
+    document.getElementById('permit-end-date').value = today;
+    document.getElementById('permit-search-santri').value = '';
     
-    // 2. Reset Pencarian
-    const searchInput = document.getElementById('permit-search-santri');
-    if(searchInput) searchInput.value = '';
-    
-    // 3. Render Checklist Santri
     window.renderPermitChecklist(FILTERED_SANTRI);
     window.updatePermitCount();
-
-    // 4. Render List Izin yang sudah ada
     window.renderPermitList();
-    
-    if(modal) {
-        modal.classList.remove('hidden');
-        if(window.lucide) window.lucide.createIcons();
-    }
 };
 
 window.renderPermitChecklist = function(list) {
