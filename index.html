@@ -286,32 +286,69 @@
 </div>
             
             <!-- Main Action Card (Current Slot) -->
-            <div id="dash-main-card" class="cursor-pointer bg-slate-900 dark:bg-black rounded-[2.5rem] p-7 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group animate-slide-up" style="animation-delay: 0.2s">
-                <!-- Card Background Effects -->
-                <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500 rounded-full blur-[90px] opacity-20 -mr-16 -mt-16 group-hover:opacity-30 transition-opacity duration-700"></div>
-                <div class="absolute bottom-0 left-0 w-48 h-48 bg-blue-600 rounded-full blur-[80px] opacity-10 -ml-10 -mb-10"></div>
-                
-                <div class="relative z-10">
-                    <div class="flex justify-between items-center mb-6">
-                        <span class="px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-[10px] font-bold backdrop-blur-md uppercase tracking-wider flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Sesi Aktif
-                        </span>
-                        <div class="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                            <i data-lucide="zap" class="w-5 h-5 text-yellow-400 group-hover:text-white group-hover:fill-white"></i>
-                        </div>
-                    </div>
-                    
-                    <h2 id="dash-card-title" class="text-3xl font-black mb-2 tracking-tight">Tidak Ada Sesi</h2>
-                    <div id="dash-card-time" class="text-emerald-400 text-sm font-bold mb-8 flex items-center gap-2 opacity-90">
-                        <i data-lucide="clock" class="w-4 h-4"></i> --:--
-                    </div>
-                    
-                    <button class="w-full py-4 bg-white text-slate-900 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 group-hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-white/5">
-                        Mulai Absensi 
-                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                    </button>
+            <div id="dash-main-card" class="bg-slate-900 dark:bg-black rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group animate-slide-up" style="animation-delay: 0.2s">
+    
+    <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500 rounded-full blur-[100px] opacity-20 -mr-16 -mt-16 group-hover:opacity-30 transition-opacity duration-700 pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-48 h-48 bg-blue-600 rounded-full blur-[90px] opacity-10 -ml-10 -mb-10 pointer-events-none"></div>
+    
+    <div class="relative z-10 flex flex-col h-full">
+        
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="px-2.5 py-1 rounded-full bg-white/10 border border-white/5 text-[10px] font-bold backdrop-blur-md uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                        Saat Ini
+                    </span>
+                </div>
+                <h2 id="dash-card-title" class="text-3xl sm:text-4xl font-black tracking-tight leading-none mb-1">...</h2>
+                <div id="dash-card-time" class="text-emerald-400 text-sm font-bold flex items-center gap-1.5 opacity-90">
+                    <i data-lucide="clock" class="w-3.5 h-3.5"></i> --:--
                 </div>
             </div>
+
+            <button onclick="window.openAttendance()" class="w-14 h-14 rounded-2xl bg-white text-slate-900 flex items-center justify-center shadow-lg shadow-white/10 hover:scale-110 hover:rotate-3 active:scale-95 transition-all duration-300 group/btn">
+                <i data-lucide="arrow-right" class="w-6 h-6 group-hover/btn:-rotate-45 transition-transform duration-300"></i>
+            </button>
+        </div>
+
+        <div class="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
+
+        <div>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center sm:text-left">Akses Cepat</p>
+            
+            <div class="grid grid-cols-4 gap-2 sm:gap-3">
+                <button onclick="window.quickOpen('shubuh')" class="flex flex-col items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all active:scale-95 group/item">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover/item:bg-emerald-500 group-hover/item:text-white transition-colors">
+                        <i data-lucide="sunrise" class="w-4 h-4"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-300 group-hover/item:text-emerald-200">Shubuh</span>
+                </button>
+
+                <button onclick="window.quickOpen('ashar')" class="flex flex-col items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-orange-500/20 hover:border-orange-500/50 transition-all active:scale-95 group/item">
+                    <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400 group-hover/item:bg-orange-500 group-hover/item:text-white transition-colors">
+                        <i data-lucide="sun" class="w-4 h-4"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-300 group-hover/item:text-orange-200">Ashar</span>
+                </button>
+
+                <button onclick="window.quickOpen('maghrib')" class="flex flex-col items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-indigo-500/20 hover:border-indigo-500/50 transition-all active:scale-95 group/item">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover/item:bg-indigo-500 group-hover/item:text-white transition-colors">
+                        <i data-lucide="sunset" class="w-4 h-4"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-300 group-hover/item:text-indigo-200">Maghrib</span>
+                </button>
+
+                <button onclick="window.quickOpen('isya')" class="flex flex-col items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-blue-500/20 hover:border-blue-500/50 transition-all active:scale-95 group/item">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover/item:bg-blue-500 group-hover/item:text-white transition-colors">
+                        <i data-lucide="moon" class="w-4 h-4"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-300 group-hover/item:text-blue-200">Isya</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
             <div id="location-status-card" class="mb-4 hidden animate-slide-up" style="animation-delay: 0.2s">
     <div class="p-5 rounded-[2rem] bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden">
@@ -1227,6 +1264,7 @@
     
 </body>
 </html>
+
 
 
 
