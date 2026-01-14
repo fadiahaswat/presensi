@@ -1787,6 +1787,7 @@ window.switchTab = function(tabName) {
     else if(tabName === 'profile') {
         window.updateProfileStats();
         window.renderTimesheetCalendar(); 
+        window.renderPembinaanManagement(); // Refresh list di profil
     }
     else if(tabName === 'analysis') {
         window.populateAnalysisDropdown();
