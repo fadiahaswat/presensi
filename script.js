@@ -908,11 +908,19 @@ window.renderAttendanceList = function() {
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
 
+    // Setup Data Hari Ini
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
+
+    // --- LOGIC: AMBIL DATA KEMARIN (Untuk Smart Suggestion) ---
+    const yesterday = new Date(appState.date);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const prevDateKey = window.getLocalDateStr(yesterday);
+    const prevDataFull = appState.attendanceData[prevDateKey]; 
+    // ----------------------------------------------------------
 
     const search = appState.searchQuery.toLowerCase();
     const list = FILTERED_SANTRI.filter(s => {
@@ -933,70 +941,47 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- LOGIKA OTOMATIS (Permit Resmi) ---
+        // 1. Cek Izin Resmi (Active Permit)
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
+        // 2. Cek Riwayat Kemarin (Smart Suggestion)
+        let yesterdayStatus = null;
+        if (prevDataFull) {
+            // Cek status terakhir kemarin (misal Isya)
+            const lastSlotYesterday = prevDataFull['isya']?.[id]?.status?.shalat;
+            if (['Sakit', 'Izin'].includes(lastSlotYesterday)) {
+                yesterdayStatus = lastSlotYesterday;
+            }
+        }
+
+        // Init Data Kosong
         if(!dbSlot[id]) {
             const defStatus = {};
-            
-            // --- LOGIKA BARU: Cek Status Sesi Sebelumnya (Carry Over) ---
-            // Urutan: Ashar -> Cek Shubuh, Maghrib -> Cek Ashar, dst.
-            let carryOverStatus = null;
-            const prevSessionMap = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
-            const prevSlotId = prevSessionMap[slot.id];
-            
-            // Jika ada sesi sebelumnya di hari yg sama
-            if (prevSlotId && appState.attendanceData[dateKey][prevSlotId]) {
-                const prevData = appState.attendanceData[dateKey][prevSlotId][id];
-                if (prevData && prevData.status) {
-                    const prevSt = prevData.status.shalat;
-                    // Hanya bawa status non-hadir (Sakit/Izin/Pulang/Alpa)
-                    if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(prevSt)) {
-                        carryOverStatus = prevSt;
-                    }
-                }
-            }
-            // -------------------------------------------------------------
-
             slot.activities.forEach(a => {
                 if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
-                else {
-                    // Prioritas: Permit > CarryOver > Default Hadir
-                    if (carryOverStatus && (a.category === 'fardu' || a.category === 'kbm')) {
-                        defStatus[a.id] = carryOverStatus;
-                    } else if (carryOverStatus && a.category === 'dependent') {
-                         defStatus[a.id] = 'Tidak'; 
-                    } else {
-                        defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
-                    }
-                }
+                else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
-            // Tidak pakai [Auto] note agar statusnya dianggap manual (bisa diedit bebas)
             dbSlot[id] = { status: defStatus, note: '' };
         }
 
         const sData = dbSlot[id];
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
-        // Apply Permit (Surat Izin Resmi) Override
+        // Override Status Jika Ada Permit Resmi
         slot.activities.forEach(act => {
             let targetStatus = null;
             if (activePermit) {
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
-            } else if (isAutoMarked) {
-                // Reset jika permit dihapus
-                if (act.category === 'sunnah') targetStatus = 'Tidak';
-                else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
-                else targetStatus = 'Ya';
-            }
-
+            } 
+            
             if (targetStatus !== null && sData.status[act.id] !== targetStatus) {
                 sData.status[act.id] = targetStatus;
                 hasAutoChanges = true;
             }
         });
 
+        // Update Note Otomatis
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
             if (!sData.note || sData.note === '-' || (isAutoMarked && !sData.note.includes(activePermit.type))) {
@@ -1005,33 +990,63 @@ window.renderAttendanceList = function() {
             }
         }
 
-        // Render UI Baris
+        // --- RENDER UI ---
         const clone = tplRow.content.cloneNode(true);
         const rowElement = clone.querySelector('.santri-row'); 
 
         clone.querySelector('.santri-name').textContent = santri.nama;
-        clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
+        
+        // UX: Indikator Kamar + Smart Suggestion
+        const kamarEl = clone.querySelector('.santri-kamar');
+        if (yesterdayStatus && !activePermit) {
+             kamarEl.innerHTML = `<span class="text-amber-500 font-bold">Kemarin ${yesterdayStatus}</span> • <span class="cursor-pointer underline decoration-dotted" onclick="window.toggleStatus('${id}', 'shalat', 'mandator')">Lanjut?</span>`;
+        } else {
+             kamarEl.textContent = santri.asrama || santri.kelas;
+        }
+
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // Highlight Row berdasarkan status Shalat
         const currentStatus = sData.status.shalat || 'Hadir';
+
+        // UX: Color Coding & Badge (Poin 5)
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            let badgeClass = 'bg-slate-100 text-slate-500';
-            let rowClass = '';
+            
+            // Default Style (Manual)
+            let badgeClass = 'bg-slate-100 text-slate-500 border-dashed';
+            let icon = '';
 
-            if (currentStatus === 'Sakit') { badgeClass = 'bg-amber-100 text-amber-600 border-amber-200'; rowClass = 'ring-amber-200 bg-amber-50/30'; }
-            else if (currentStatus === 'Izin') { badgeClass = 'bg-blue-100 text-blue-600 border-blue-200'; rowClass = 'ring-blue-200 bg-blue-50/30'; }
-            else if (currentStatus === 'Pulang') { badgeClass = 'bg-purple-100 text-purple-600 border-purple-200'; rowClass = 'ring-purple-200 bg-purple-50/30'; }
-            else if (currentStatus === 'Alpa') { badgeClass = 'bg-red-100 text-red-600 border-red-200'; rowClass = 'ring-red-200 bg-red-50/30'; }
+            // Jika Resmi (Permit Active) -> Solid Border & Icon
+            if (activePermit) {
+                badgeClass = 'border-solid shadow-sm';
+                icon = '<i data-lucide="file-check" class="w-3 h-3 inline mr-1"></i>';
+            }
+
+            if (currentStatus === 'Sakit') badgeClass += ' bg-amber-50 text-amber-600 border-amber-300';
+            else if (currentStatus === 'Izin') badgeClass += ' bg-blue-50 text-blue-600 border-blue-300';
+            else if (currentStatus === 'Pulang') badgeClass += ' bg-purple-50 text-purple-600 border-purple-300';
+            else if (currentStatus === 'Alpa') badgeClass += ' bg-red-50 text-red-600 border-red-300';
 
             badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
-            badge.textContent = currentStatus;
+            badge.innerHTML = `${icon}${currentStatus}`;
             nameEl.appendChild(badge);
-            if(rowElement) rowElement.classList.add('ring-1', ...rowClass.split(' '));
+
+            // UX: Quick Convert Button (Poin 2)
+            // Jika status Sakit/Izin TAPI Manual (tidak ada activePermit), tawarkan convert
+            if (!activePermit && (currentStatus === 'Sakit' || currentStatus === 'Izin')) {
+                const convertBtn = document.createElement('button');
+                convertBtn.className = "ml-2 text-[9px] text-indigo-500 font-bold underline decoration-indigo-300 decoration-2 underline-offset-2 hover:text-indigo-700";
+                convertBtn.textContent = "Buat Surat?";
+                convertBtn.onclick = (e) => {
+                    e.stopPropagation(); // Stop trigger row click
+                    window.quickConvertPermit(id, currentStatus);
+                };
+                nameEl.appendChild(convertBtn);
+            }
         }
 
+        // Render Tombol Status
         const btnCont = clone.querySelector('.activity-container');
         
         slot.activities.forEach(act => {
@@ -1044,12 +1059,29 @@ window.renderAttendanceList = function() {
             const curr = sData.status[act.id];
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
-            btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
-            btn.textContent = ui.label;
-            lbl.textContent = act.label;
+            // UX: Visual Lock Indicator (Poin 1)
+            // Jika ada permit resmi, tombol dibuat semi-transparent & ada icon gembok
+            let isLocked = false;
+            if (activePermit && (act.category === 'fardu' || act.category === 'kbm')) {
+                isLocked = true;
+            }
 
-            // Highlight Tombol
-            if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
+            if (isLocked) {
+                btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center border font-black text-lg bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80`;
+                btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i>`;
+                // Toast Warning saat diklik
+                btn.onclick = () => window.showToast("🔒 Status dikunci oleh Surat Izin. Ubah di menu Perizinan.", "warning");
+            } else {
+                // Normal Button
+                btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
+                btn.textContent = ui.label;
+                btn.onclick = () => window.toggleStatus(id, act.id, act.type);
+            }
+            
+            lbl.textContent = act.label;
+            
+            // Highlight Manual Status
+            if (!isLocked && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
                 let ringColor = 'ring-slate-300';
                 if (curr === 'Sakit') ringColor = 'ring-amber-400';
                 else if (curr === 'Izin') ringColor = 'ring-blue-400';
@@ -1058,7 +1090,6 @@ window.renderAttendanceList = function() {
                 btn.classList.add('ring-2', 'ring-offset-1', ringColor);
             }
 
-            btn.onclick = () => window.toggleStatus(id, act.id, act.type);
             btnCont.appendChild(bClone);
         });
 
@@ -1075,10 +1106,8 @@ window.renderAttendanceList = function() {
     });
 
     container.appendChild(fragment);
-    
-    if(hasAutoChanges) {
-        window.saveData(); 
-    }
+    if(hasAutoChanges) window.saveData(); 
+    if(window.lucide) window.lucide.createIcons();
 };
 
 window.toggleStatus = function(id, actId, type) {
@@ -3878,6 +3907,36 @@ window.resolveManualStatus = function(nis, statusType) {
     } else {
         window.showToast("Tidak ada data yang perlu diubah", "info");
     }
+};
+
+window.quickConvertPermit = function(studentId, statusType) {
+    // 1. Tentukan Tab berdasarkan status
+    const targetTab = statusType.toLowerCase(); // 'sakit', 'izin'
+    if (targetTab !== 'sakit' && targetTab !== 'izin') return;
+
+    // 2. Buka Modal
+    window.openPermitModal('daily');
+    window.setPermitTab(targetTab);
+
+    // 3. Auto-Select Santri di Checklist
+    // Kita perlu menunggu renderPermitChecklist selesai (yang dipanggil di openPermitModal)
+    // Jadi kita gunakan setTimeout kecil
+    setTimeout(() => {
+        const checkbox = document.querySelector(`input[name="permit_santri_select"][value="${studentId}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+            // Scroll ke checkbox tsb biar kelihatan
+            checkbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.updatePermitCount();
+        }
+        
+        // 4. Fokus ke input alasan
+        const reasonInput = document.getElementById('permit-reason');
+        if (reasonInput) {
+            reasonInput.focus();
+            window.showToast("Silakan lengkapi alasan izin", "info");
+        }
+    }, 100);
 };
 
 // Start App
