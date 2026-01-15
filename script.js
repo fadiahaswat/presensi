@@ -3335,17 +3335,38 @@ window.savePermitLogic = function() {
 window.markAsRecovered = function(id) {
     const permit = appState.permits.find(p => p.id === id);
     if(permit) {
-        // PERBAIKAN LOGIKA:
-        // Jangan set ke kemarin. Set ke HARI INI.
-        // End Session = Sesi saat ini (misal: Shubuh).
-        // Artinya: Shubuh masih dianggap sakit, tapi sesi SETELAH Shubuh (Ashar) dianggap sembuh.
+        // --- PERBAIKAN: Konfirmasi Waktu Sembuh ---
+        // True  = Mulai sesi ini sudah ikut kegiatan (Sehat Sekarang)
+        // False = Mulai sesi DEPAN baru ikut (Masih Sakit Sesi Ini)
+        const isNow = confirm("Apakah santri sudah bisa ikut kegiatan DI SESI INI?\n\n[OK] = Ya, Sekarang sudah hadir.\n[Cancel] = Tidak, Baru hadir sesi depan.");
         
         permit.end_date = appState.date; 
-        permit.end_session = appState.currentSlotId; // Misal: 'shubuh'
+        
+        // Logika menentukan 'end_session' (Sesi TERAKHIR dianggap sakit)
+        if (isNow) {
+            // Jika sembuh SEKARANG, maka sesi sakit terakhir adalah sesi SEBELUMNYA.
+            // Contoh: Sembuh di Ashar. Sesi sakit terakhir = Shubuh. Ashar = Sehat.
+            const slots = ['shubuh', 'ashar', 'maghrib', 'isya'];
+            const currIdx = slots.indexOf(appState.currentSlotId);
+            
+            if (currIdx === 0) {
+                // Kasus khusus: Sembuh di Shubuh (awal hari)
+                // Kita set end_session ke null atau string khusus agar dianggap sembuh total hari ini
+                permit.end_session = 'kemarin'; 
+            } else {
+                const prevIdx = currIdx - 1;
+                permit.end_session = slots[prevIdx];
+            }
+        } else {
+            // Jika sembuh NANTI, maka sesi sakit terakhir adalah sesi INI.
+            // Contoh: Klik Sembuh di Ashar (tapi baru ikut Maghrib).
+            // Sesi sakit terakhir = Ashar. Maghrib = Sehat.
+            permit.end_session = appState.currentSlotId;
+        }
 
         localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
         
-        window.showToast("Santri sembuh. Sesi selanjutnya akan normal.", "success");
+        window.showToast("Status kesembuhan diperbarui", "success");
         
         // Refresh semua komponen
         window.renderPermitList();
