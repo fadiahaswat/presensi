@@ -941,6 +941,18 @@ window.renderAttendanceList = function() {
         
         // 1. Cek Permit Resmi
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
+
+        let recoveredToday = false;
+        if (!activePermit) {
+            // Cari permit sakit milik anak ini yang berakhir hari ini
+            const expiredPermit = appState.permits.find(p => 
+                String(p.nis) === id && 
+                p.category === 'sakit' && 
+                p.end_date === dateKey &&
+                SESSION_ORDER[slot.id] > SESSION_ORDER[p.end_session]
+            );
+            if (expiredPermit) recoveredToday = true;
+        }
         
         // 2. Inisialisasi Data Kosong (Jika belum ada)
         if(!dbSlot[id]) {
