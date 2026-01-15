@@ -3924,29 +3924,27 @@ window.resolveManualStatus = function(nis, statusType) {
 
     let changed = false;
 
-    // Loop semua slot hari ini. Jika ada status yang sama (misal 'Sakit'), ubah jadi 'Hadir'.
+    // Cari di semua slot hari ini yang statusnya sesuai
     Object.keys(dayData).forEach(slotId => {
         const studentData = dayData[slotId][nis];
         if (studentData && studentData.status && studentData.status.shalat === statusType) {
+            
+            // Ubah Status ke Hadir
             studentData.status.shalat = 'Hadir';
 
+            // Reset Kegiatan Lain
             const slotConfig = SLOT_WAKTU[slotId];
             if(slotConfig && slotConfig.activities) {
                 slotConfig.activities.forEach(act => {
-                    // Jika kategori dependent (misal Dzikir), kembalikan ke 'Ya'
-                    if(act.category === 'dependent') {
-                         studentData.status[act.id] = 'Ya';
-                    }
-                    // Jika kategori KBM (misal Tahfizh), kembalikan ke 'Hadir'
-                    else if(act.category === 'kbm' || act.category === 'fardu') {
-                         studentData.status[act.id] = 'Hadir';
-                    }
+                    if(act.category === 'dependent') studentData.status[act.id] = 'Ya';
+                    else if(act.category === 'kbm' || act.category === 'fardu') studentData.status[act.id] = 'Hadir';
                 });
             }
             
-            // Hapus catatan otomatis jika ada, agar bersih
-            if (studentData.note && (studentData.note.includes('[Auto]') || studentData.note.includes('Lanjutan'))) {
-                studentData.note = '';
+            // PENTING: Hapus Catatan [Auto] agar renderAttendanceList tidak meresetnya
+            if (studentData.note) {
+                // Hapus string [Auto] ... sampai akhir baris, atau kosongkan note jika hanya berisi auto
+                studentData.note = studentData.note.replace(/\[Auto\].*$/g, '').trim();
             }
             changed = true;
         }
@@ -3954,8 +3952,8 @@ window.resolveManualStatus = function(nis, statusType) {
 
     if (changed) {
         window.saveData();
-        window.renderActivePermitsWidget(); // Refresh widget
-        window.renderAttendanceList(); // Refresh list jika sedang dibuka
+        window.renderActivePermitsWidget(); 
+        window.renderAttendanceList();
         window.showToast("Status berhasil diubah menjadi Hadir", "success");
     } else {
         window.showToast("Tidak ada data yang perlu diubah", "info");
