@@ -263,106 +263,122 @@ window.getPembinaanStatus = function(alpaCount) {
 window.initApp = async function() {
     const loadingEl = document.getElementById('view-loading');
     
-    // ============================================================
-    // 1. RENDERING UI DASAR (SEGERA) - OPTIMASI
-    // ============================================================
-    // Kita panggil ini DULUAN agar Tanggal & Jam langsung muncul
-    // tanpa menunggu loading data santri selesai.
-    window.startClock();
-    window.updateDateDisplay();
-    if(window.lucide) window.lucide.createIcons(); // Render icon agar tidak kotak-kotak
-    
-    // Load Settings & LocalStorage Data (Presensi Harian)
     try {
-        const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
-        if(savedSettings) {
-            appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
-            if(appState.settings.darkMode) document.documentElement.classList.add('dark');
+        // ============================================================
+        // 1. RENDERING UI DASAR (SEGERA)
+        // ============================================================
+        // Bungkus try-catch kecil agar jika UI error, aplikasi tetap lanjut loading
+        try {
+            window.startClock();
+            window.updateDateDisplay();
+            if(window.lucide) window.lucide.createIcons();
+        } catch (uiError) {
+            console.error("UI Init Error:", uiError);
         }
-
-        const savedData = localStorage.getItem(APP_CONFIG.storageKey);
-        if(savedData) appState.attendanceData = JSON.parse(savedData);
-
-        const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
-        if(savedLog) appState.activityLog = JSON.parse(savedLog);
         
-        // Load Izin
-        appState.permits = [];
-        const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
-        if(savedPermits) appState.permits = JSON.parse(savedPermits);
+        // 2. Load Local Storage (Pengaturan & Data Harian)
+        try {
+            const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
+            if(savedSettings) {
+                appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
+                if(appState.settings.darkMode) document.documentElement.classList.add('dark');
+            }
 
-    } catch (e) {
-        console.error("Storage Error:", e);
-    }
+            const savedData = localStorage.getItem(APP_CONFIG.storageKey);
+            if(savedData) appState.attendanceData = JSON.parse(savedData);
 
-    // 2. Determine Logic Waktu Shalat
-    appState.currentSlotId = window.determineCurrentSlot();
+            const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
+            if(savedLog) appState.activityLog = JSON.parse(savedLog);
+            
+            const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
+            if(savedPermits) appState.permits = JSON.parse(savedPermits);
 
-    // 3. FETCH DATA EXTERNAL (KELAS & SANTRI) DULU!
-    try {
-        if (!window.loadClassData || !window.loadSantriData) {
-            throw new Error("Library data belum termuat.");
+        } catch (storageError) {
+            console.error("Storage Error:", storageError);
+            // Lanjut saja meski storage error (misal Incognito mode), jangan bikin stuck
         }
 
-        // Tunggu sampai data selesai diambil (Proses Berat)
-        const [kelasData, santriData] = await Promise.all([
-            window.loadClassData(),
-            window.loadSantriData()
+        // 3. Determine Slot Waktu
+        appState.currentSlotId = window.determineCurrentSlot();
+
+        // 4. FETCH DATA EXTERNAL (DENGAN TIMEOUT PENGAMAN)
+        // Kita batasi waktu loading data maksimal 8 detik. Jika lebih, anggap timeout agar tidak stuck.
+        const dataLoadingPromise = Promise.all([
+            window.loadClassData ? window.loadClassData() : Promise.resolve({}),
+            window.loadSantriData ? window.loadSantriData() : Promise.resolve([])
         ]);
 
-        MASTER_KELAS = kelasData || {};
-        MASTER_SANTRI = santriData || [];
+        // Membuat Timer Timeout 8 Detik
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Koneksi lambat (Timeout)")), 8000)
+        );
 
-        window.populateClassDropdown();
-        
-        // Hilangkan Loading Screen
-        if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
+        try {
+            // Balapan: Mana duluan selesai, Data loaded atau Timeout?
+            const [kelasData, santriData] = await Promise.race([dataLoadingPromise, timeoutPromise]);
+
+            MASTER_KELAS = kelasData || {};
+            MASTER_SANTRI = santriData || [];
+            window.populateClassDropdown();
+
+        } catch (fetchError) {
+            console.error("Data Fetch Error:", fetchError);
+            window.showToast("Gagal memuat data santri (Offline/Lambat)", 'warning');
+            // Tetap lanjut agar aplikasi terbuka walau data mungkin kosong
+        }
 
         // ============================================================
-        // 4. BARU CEK AUTO LOGIN (Setelah Data Tersedia)
+        // 5. AUTO LOGIN CHECK
         // ============================================================
         const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
-        
         if(savedAuth) {
             try {
                 const authData = JSON.parse(savedAuth);
                 
-                // A. Restore State
-                appState.selectedClass = authData.kelas;
-                appState.userProfile = authData.profile;
-                
-                // B. PENTING: ISI ULANG FILTERED_SANTRI!
-                FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
-                    const sKelas = String(s.kelas || s.rombel || "").trim();
-                    return sKelas === appState.selectedClass;
-                }).sort((a,b) => a.nama.localeCompare(b.nama));
+                // Pastikan data kelas valid sebelum auto-login
+                if (authData.kelas && MASTER_KELAS[authData.kelas]) {
+                    appState.selectedClass = authData.kelas;
+                    appState.userProfile = authData.profile;
+                    
+                    // Filter ulang santri
+                    FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
+                        const sKelas = String(s.kelas || s.rombel || "").trim();
+                        return sKelas === appState.selectedClass;
+                    }).sort((a,b) => a.nama.localeCompare(b.nama));
 
-                if(FILTERED_SANTRI.length === 0) throw new Error("Data kelas kosong");
-
-                // D. Bypass Login & Masuk Dashboard
-                document.getElementById('view-login').classList.add('hidden');
-                document.getElementById('view-main').classList.remove('hidden');
-                
-                // E. Update UI Dashboard
-                window.updateDashboard(); 
-                window.updateProfileInfo();
-                
-                // F. [BARU] SINKRONISASI DATA DARI CLOUD!
-                // Ini kuncinya: Begitu masuk, langsung tarik data terbaru dari Supabase
-                window.fetchAttendanceFromSupabase(); 
-
-                setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
-
-            } catch(e) {
-                console.error("Auto-login error:", e);
+                    if(FILTERED_SANTRI.length > 0) {
+                        document.getElementById('view-login').classList.add('hidden');
+                        document.getElementById('view-main').classList.remove('hidden');
+                        window.updateDashboard(); 
+                        window.updateProfileInfo();
+                        window.fetchAttendanceFromSupabase(); // Sync background
+                        setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
+                    }
+                } else {
+                    // Jika data kelas tidak sinkron, paksa login ulang
+                    throw new Error("Data kelas tidak valid");
+                }
+            } catch(authError) {
+                console.error("Auto-login error:", authError);
                 localStorage.removeItem(APP_CONFIG.googleAuthKey);
             }
         }
+
+    } catch (criticalError) {
+        console.error("Critical Init Error:", criticalError);
+        alert("Terjadi kesalahan sistem: " + criticalError.message);
+    } finally {
         // ============================================================
-        
-    } catch (e) {
-        window.showToast("Gagal memuat data: " + e.message, 'error');
-        if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
+        // FINAL: HILANGKAN LOADING SCREEN (WAJIB JALAN)
+        // ============================================================
+        // Apapun yang terjadi (Sukses/Error), kode ini PASTI dijalankan.
+        if(loadingEl) {
+            loadingEl.classList.add('opacity-0', 'pointer-events-none');
+            // Hapus elemen dari DOM total setelah animasi selesai agar tidak menghalangi klik
+            setTimeout(() => {
+                loadingEl.style.display = 'none';
+            }, 500); 
+        }
     }
 };
 
