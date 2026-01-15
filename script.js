@@ -3022,7 +3022,7 @@ window.fetchAttendanceFromSupabase = async function() {
             window.renderSlotList();     // Refresh slot progress bar
             window.updateQuickStats();   // Refresh angka statistik
             window.drawDonutChart();     // Refresh grafik
-            window.renderTodayProblems();// Refresh list masalah
+            window.renderDashboardPembinaan(); // Gunakan nama fungsi yang benar
             
             console.log(`✅ Berhasil load ${data.length} data dari Supabase.`);
         } else {
