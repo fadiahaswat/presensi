@@ -3743,5 +3743,38 @@ window.renderActivePermitsWidget = function() {
     if (window.lucide) window.lucide.createIcons();
 };
 
+// FUNGSI BARU: Menangani tombol "Sembuh/Hadir" untuk input manual harian
+window.resolveManualStatus = function(nis, statusType) {
+    const dateKey = appState.date;
+    const dayData = appState.attendanceData[dateKey];
+    
+    if (!dayData) return;
+
+    let changed = false;
+
+    // Loop semua slot hari ini (Shubuh - Isya)
+    // Jika ada status yang sama, ubah jadi 'Hadir'
+    Object.keys(dayData).forEach(slotId => {
+        const studentData = dayData[slotId][nis];
+        if (studentData && studentData.status && studentData.status.shalat === statusType) {
+            studentData.status.shalat = 'Hadir'; // Reset ke Hadir
+            // Opsional: Hapus catatan otomatis jika ada
+            if (studentData.note && studentData.note.includes('[Auto]')) {
+                studentData.note = '';
+            }
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        window.saveData();
+        window.renderActivePermitsWidget(); // Refresh widget
+        window.renderAttendanceList(); // Refresh list jika sedang dibuka
+        window.showToast("Status berhasil diubah menjadi Hadir", "success");
+    } else {
+        window.showToast("Data status tidak ditemukan", "warning");
+    }
+};
+
 // Start App
 window.onload = window.initApp;
