@@ -2515,35 +2515,35 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
 
     // --- LOGIKA SAKIT ---
     if (permit.category === 'sakit') {
-        // Jika sudah ditandai sembuh (punya end_date)
-        if (permit.end_date) {
-            // 1. Jika tanggal absen > tanggal sembuh -> Sudah Sehat
-            if (currentDateStr > permit.end_date) return null; 
-            
-            // 2. Jika tanggal absen == tanggal sembuh (HARI INI)
-            if (currentDateStr === permit.end_date && permit.end_session) {
-                // Cek Urutan Sesi
-                // Contoh: Sembuh di 'shubuh' (1).
-                // Saat buka 'shubuh' (1) -> 1 <= 1 (TRUE) -> Masih Sakit.
-                // Saat buka 'ashar' (2)  -> 2 <= 1 (FALSE) -> Sudah Sehat (return null).
-                if (SESSION_ORDER[currentSlotId] >= SESSION_ORDER[permit.end_session]) {
-                    return null; // Sudah sembuh di sesi ini
-                }
-            }
-        }
-        
-        // Cek Start Date (Validasi standar)
+        // Validasi Awal Tanggal
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
+        // Validasi Sembuh (End Date)
+        if (permit.end_date) {
+            // Jika sudah lewat tanggal sembuh -> Sehat
+            if (currentDateStr > permit.end_date) return null; 
+            
+            // Jika hari ini tanggal sembuh, cek sesinya
+            if (currentDateStr === permit.end_date && permit.end_session) {
+                // Logic: Jika sesi sekarang SUDAH MELEWATI atau SAMA DENGAN sesi sembuh -> Sehat
+                // Contoh: End Session = Shubuh. Buka Ashar (2) > Shubuh (1) -> Sehat.
+                // Tapi tunggu, "End Session" biasanya menandakan sesi TERAKHIR dia sakit.
+                // Jadi: Jika Sesi Sekarang > Sesi Terakhir Sakit, maka Null.
+                if (SESSION_ORDER[currentSlotId] > SESSION_ORDER[permit.end_session]) {
+                    return null; 
+                }
+            }
+        }
         return { type: 'Sakit', label: 'S', end: permit.end_date, note: `[Sakit] ${permit.reason}` };
     }
 
-    // --- LOGIKA IZIN & PULANG (Tidak Berubah) ---
+    // --- LOGIKA IZIN & PULANG ---
     else {
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
+        // Cek Deadline Kembali
         if (currentDateStr > permit.end_date) {
              return { type: 'Alpa', label: 'A', end: permit.end_date, note: `[Terlambat] Deadline ${window.formatDate(permit.end_date)}` };
         }
@@ -2553,6 +2553,7 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
             const deadlineHour = parseInt(deadlineTime.split(':')[0]);
             const slotStartHour = SLOT_WAKTU[currentSlotId].startHour; 
             
+            // Jika waktu presensi sudah melewati jam deadline -> Alpa
             if (slotStartHour >= deadlineHour) {
                 return { type: 'Alpa', label: 'A', end: permit.end_date, note: `[Terlambat] Deadline jam ${deadlineTime}` };
             }
