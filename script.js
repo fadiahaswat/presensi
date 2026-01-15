@@ -917,12 +917,11 @@ window.renderAttendanceList = function() {
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Mapping slot sebelumnya untuk logika Carry-Over
+    // Mapping slot sebelumnya
     const PREV_SLOT_MAP = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
 
-    // Filter Santri
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(appState.searchQuery.toLowerCase());
         if(appState.filterProblemOnly) {
@@ -941,29 +940,19 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // ============================================================
-        // 1. INISIALISASI DATA & LOGIKA CARRY-OVER (Hanya Sekali)
-        // ============================================================
+        // 1. Inisialisasi Data Kosong & Carry Over (Hanya saat data baru)
         if(!dbSlot[id]) {
             const defStatus = {};
-            
-            // Set default awal
             slot.activities.forEach(a => {
                 if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
-            // --- PERBAIKAN: Logika Copy Status Sebelumnya ---
-            // Hanya dijalankan saat data baru dibuat (dbSlot[id] kosong)
-            // Ini mencegah data yang sudah diedit manual tertimpa kembali.
+            // Logika Carry Over (Level 0 -> Level 1 Otomatis)
             if (prevSlotData && prevSlotData[id]) {
                 const prevSt = prevSlotData[id].status?.shalat;
-                
-                // Jika sesi sebelumnya Sakit/Izin/Pulang, jadikan default sesi ini
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
                     defStatus['shalat'] = prevSt;
-                    
-                    // Sesuaikan kegiatan lain mengikuti status utama
                     slot.activities.forEach(a => {
                         if (a.id === 'shalat') return;
                         if (a.category === 'fardu' || a.category === 'kbm') {
@@ -974,35 +963,28 @@ window.renderAttendanceList = function() {
                     });
                 }
             }
-            // ------------------------------------------------
-
             dbSlot[id] = { status: defStatus, note: '' };
         }
 
         const sData = dbSlot[id];
         
-        // ============================================================
-        // 2. CEK PERMIT RESMI (Override Otomatis)
-        // ============================================================
+        // 2. Cek Permit Resmi (Level 2: Otoritas)
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
         if (activePermit) {
-            // A. Jika Ada Permit: Paksa Status sesuai Permit
+            // Level 2: Override Status sesuai Permit
             slot.activities.forEach(act => {
                 let target = null;
-                // Hanya override kegiatan Wajib/Fardu
                 if (act.category === 'fardu' || act.category === 'kbm') target = activePermit.type;
-                else target = 'Tidak'; // Sunnah otomatis tidak
+                else target = 'Tidak';
                 
-                // Update status jika belum sesuai
                 if (sData.status[act.id] !== target) {
                     sData.status[act.id] = target;
                     hasAutoChanges = true;
                 }
             });
-            
-            // Update Note Otomatis
+            // Update Note Khas Level 2
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
             if (!sData.note || !sData.note.includes(activePermit.type)) {
                 sData.note = autoNote;
@@ -1010,8 +992,7 @@ window.renderAttendanceList = function() {
             }
         } 
         else if (isAutoMarked) {
-            // B. Jika Permit sudah TIDAK Ada tapi masih ada label [Auto] (Kasus dihapus/sembuh)
-            // Maka: RESET ke Hadir (Normal)
+            // Reset jika Permit Level 2 dicabut
             slot.activities.forEach(act => {
                 if (act.category === 'fardu' || act.category === 'kbm') sData.status[act.id] = 'Hadir';
                 else if (act.category === 'dependent') sData.status[act.id] = 'Ya';
@@ -1027,30 +1008,51 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // Badge Status (Visual)
+        // 3. LOGIKA BADGE BERLEVEL
         const currentStatus = sData.status.shalat || 'Hadir';
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            let badgeClass = 'bg-slate-100 text-slate-500 border-dashed'; 
-            let icon = '';
+            
+            // Default Style (Level 1 - Manual)
+            // Ciri: Border putus-putus (dashed), warna soft, icon user-edit
+            let badgeClass = 'border-dashed border ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider align-middle flex inline-flex items-center gap-1'; 
+            let icon = '<i data-lucide="user-pen" class="w-3 h-3"></i>'; // Icon manual
+            let labelText = currentStatus;
 
+            // Override Style jika ada Permit (Level 2 - Otoritas)
+            // Ciri: Border solid, warna lebih tegas, shadow, icon dokumen
             if (activePermit) {
-                badgeClass = 'border-solid shadow-sm';
-                icon = '<i data-lucide="file-check" class="w-3 h-3 inline mr-1"></i>';
+                badgeClass = 'border-solid border shadow-sm ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider align-middle flex inline-flex items-center gap-1';
+                icon = '<i data-lucide="file-badge-2" class="w-3 h-3"></i>'; // Icon resmi
+                labelText = activePermit.type.toUpperCase(); // SAKIT / IZIN / PULANG
             }
 
-            if (currentStatus === 'Sakit') badgeClass += ' bg-amber-50 text-amber-600 border-amber-300';
-            else if (currentStatus === 'Izin') badgeClass += ' bg-blue-50 text-blue-600 border-blue-300';
-            else if (currentStatus === 'Pulang') badgeClass += ' bg-purple-50 text-purple-600 border-purple-300';
-            else if (currentStatus === 'Alpa') badgeClass += ' bg-red-50 text-red-600 border-red-300';
+            // Pewarnaan Berdasarkan Status
+            if (currentStatus === 'Sakit') {
+                if(activePermit) badgeClass += ' bg-amber-100 text-amber-700 border-amber-400'; // Level 2 Sakit (Lebih Gelap)
+                else badgeClass += ' bg-amber-50 text-amber-600 border-amber-300'; // Level 1 Sakit
+            }
+            else if (currentStatus === 'Izin') {
+                if(activePermit) badgeClass += ' bg-blue-100 text-blue-700 border-blue-400';
+                else badgeClass += ' bg-blue-50 text-blue-600 border-blue-300';
+            }
+            else if (currentStatus === 'Pulang') {
+                if(activePermit) badgeClass += ' bg-purple-100 text-purple-700 border-purple-400';
+                else badgeClass += ' bg-purple-50 text-purple-600 border-purple-300';
+            }
+            else if (currentStatus === 'Alpa') {
+                // Alpa biasanya manual (Level 1) atau otomatis terlambat (Level 3 - Future)
+                badgeClass += ' bg-red-50 text-red-600 border-red-300';
+                icon = '<i data-lucide="alert-circle" class="w-3 h-3"></i>';
+            }
 
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
-            badge.innerHTML = `${icon}${currentStatus}`;
+            badge.className = badgeClass;
+            badge.innerHTML = `${icon} ${labelText}`;
             nameEl.appendChild(badge);
         }
 
-        // Render Tombol Kegiatan
+        // Render Tombol
         const btnCont = clone.querySelector('.activity-container');
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
@@ -1062,15 +1064,14 @@ window.renderAttendanceList = function() {
             const curr = sData.status[act.id];
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
-            // --- PERBAIKAN: JANGAN KUNCI TOMBOL ---
-            // Cek konflik dengan permit, tapi jangan disable tombolnya.
             const hasPermitConflict = activePermit && (act.category === 'fardu' || act.category === 'kbm');
 
             let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all ${ui.class}`;
 
+            // VISUAL LEVEL PADA TOMBOL
             if (hasPermitConflict) {
-                // Beri tanda visual (border putus-putus merah)
-                baseClass += ' ring-2 ring-red-400 ring-offset-2 border-dashed opacity-90';
+                // Level 2: Tombol ada "Ring Emas" atau indikator terkunci tapi bisa dibuka
+                baseClass += ' ring-2 ring-yellow-400 ring-offset-1 border-dashed opacity-90';
             } else {
                 baseClass += ' active:scale-95';
             }
@@ -1078,14 +1079,11 @@ window.renderAttendanceList = function() {
             btn.className = baseClass;
             btn.textContent = ui.label;
             
-            // Logika Klik Tombol
             btn.onclick = () => {
                 if (hasPermitConflict) {
-                    // Konfirmasi sebelum mengubah status permit resmi
-                    if(!confirm(`Santri ini sedang izin resmi (${activePermit.type}).\nYakin ingin mengubah status jadi Hadir manual?`)) {
+                    if(!confirm(`⚠️ STATUS PERIZINAN RESMI\n\nSantri ini tercatat ${activePermit.type} sampai ${window.formatDate(activePermit.end)}.\n\nApakah Anda yakin ingin mengubah statusnya menjadi HADIR secara manual (Level 1)?`)) {
                         return; 
                     }
-                    // Hapus flag [Auto] agar tidak kembali otomatis ke status izin
                     if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
                 }
                 window.toggleStatus(id, act.id, act.type);
@@ -1093,7 +1091,7 @@ window.renderAttendanceList = function() {
             
             lbl.textContent = act.label;
             
-            // Ring warna untuk status non-hadir manual
+            // Ring warna untuk status non-hadir manual (Level 1)
             if (!hasPermitConflict && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
                 let ringColor = 'ring-slate-300';
                 if (curr === 'Sakit') ringColor = 'ring-amber-400';
@@ -1121,7 +1119,6 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
-    // Simpan otomatis jika ada perubahan status otomatis (permit/reset)
     if(hasAutoChanges) window.saveData(); 
     if(window.lucide) window.lucide.createIcons();
 };
