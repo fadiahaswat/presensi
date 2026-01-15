@@ -2485,7 +2485,7 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
                 // Contoh: Sembuh di 'shubuh' (1).
                 // Saat buka 'shubuh' (1) -> 1 <= 1 (TRUE) -> Masih Sakit.
                 // Saat buka 'ashar' (2)  -> 2 <= 1 (FALSE) -> Sudah Sehat (return null).
-                if (SESSION_ORDER[currentSlotId] > SESSION_ORDER[permit.end_session]) {
+                if (SESSION_ORDER[currentSlotId] >= SESSION_ORDER[permit.end_session]) {
                     return null; // Sudah sembuh di sesi ini
                 }
             }
