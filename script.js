@@ -2350,8 +2350,22 @@ window.renderPermitList = function() {
     
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     // Filter izin aktif milik kelas ini
-    let activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
+    let activePermits = appState.permits.filter(p => {
+        const isMyClass = classNisList.includes(p.nis);
+        const isActive = p.is_active;
+        
+        // Cek jika ini sakit yang sudah sembuh (punya end_date)
+        const isRecoveredSakit = (p.category === 'sakit' && p.end_date !== null);
+        
+        return isMyClass && isActive && !isRecoveredSakit; 
+    });
 
+    if (currentModalMode === 'daily') {
+        activePermits = activePermits.filter(p => p.category === 'sakit' || p.category === 'izin');
+    } else {
+        activePermits = activePermits.filter(p => p.category === 'pulang');
+    }
+    
     // --- TAMBAHAN FILTER BERDASARKAN MODE ---
     if (currentModalMode === 'daily') {
         // Jika mode harian, tampilkan Sakit & Izin saja
