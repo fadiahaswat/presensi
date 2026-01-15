@@ -2457,31 +2457,38 @@ window.renderPermitList = function() {
 const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
 
 window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
-    const permit = appState.permits.find(p => p.nis === String(nis) && p.is_active);
+    const permit = appState.permits.find(p => String(p.nis) === String(nis) && p.is_active);
     if (!permit) return null;
 
-    // --- 1. LOGIKA SAKIT ---
+    // --- LOGIKA SAKIT ---
     if (permit.category === 'sakit') {
+        // Jika sudah ada end_date (berarti sudah ditandai sembuh)
         if (permit.end_date) {
+            // Jika tanggal absen > tanggal sembuh, berarti sudah SEHAT -> return null
             if (currentDateStr > permit.end_date) return null; 
+            
+            // Jika tanggal absen == tanggal sembuh
+            // Cek sesinya. Misal sembuh di Ashar, maka Isya harus sudah sehat.
             if (currentDateStr === permit.end_date && permit.end_session) {
+                // Urutan: shubuh(1) < ashar(2) < maghrib(3) < isya(4)
                 if (SESSION_ORDER[currentSlotId] > SESSION_ORDER[permit.end_session]) return null;
             }
         }
         
+        // Cek Start Date
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
-        return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason}` };
+        return { type: 'Sakit', label: 'S', end: permit.end_date, note: `[Sakit] ${permit.reason}` };
     }
 
-    // --- 2. LOGIKA IZIN & PULANG ---
+    // --- LOGIKA IZIN & PULANG ---
     else {
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
         if (currentDateStr > permit.end_date) {
-             return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline ${window.formatDate(permit.end_date)}` };
+             return { type: 'Alpa', label: 'A', end: permit.end_date, note: `[Terlambat] Deadline ${window.formatDate(permit.end_date)}` };
         }
 
         if (currentDateStr === permit.end_date) {
@@ -2490,11 +2497,10 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
             const slotStartHour = SLOT_WAKTU[currentSlotId].startHour; 
             
             if (slotStartHour >= deadlineHour) {
-                return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline jam ${deadlineTime}` };
+                return { type: 'Alpa', label: 'A', end: permit.end_date, note: `[Terlambat] Deadline jam ${deadlineTime}` };
             }
         }
 
-        // FIX: Normalisasi kategori agar tidak case-sensitive
         const cat = (permit.category || '').toLowerCase();
         const label = cat === 'pulang' ? 'Pulang' : 'Izin';
         const code = cat === 'pulang' ? 'P' : 'I';
