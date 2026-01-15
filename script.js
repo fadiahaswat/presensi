@@ -3709,26 +3709,46 @@ window.renderPembinaanManagement = function() {
     const container = document.getElementById('pembinaan-full-list');
     if(!container) return;
 
-    // 1. Hitung Data
+    // 1. Akumulasi Data Pelanggaran (All Time)
     let problemList = [];
-    let counts = { l1: 0, l2: 0, l3: 0 }; // Level grouping
+    let counts = { l1: 0, l2: 0, l3: 0 }; 
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        const totalAlpa = window.countTotalAlpa(id);
         
+        // Cari Tanggal-Tanggal Pelanggaran
+        let dates = [];
+        Object.keys(appState.attendanceData).forEach(date => {
+            const dayData = appState.attendanceData[date];
+            let slots = [];
+            Object.values(SLOT_WAKTU).forEach(slot => {
+                if (dayData[slot.id]?.[id]?.status?.shalat === 'Alpa') {
+                    slots.push(slot.label);
+                }
+            });
+            if (slots.length > 0) {
+                dates.push({ date: date, slots: slots });
+            }
+        });
+
+        // Urutkan tanggal dari terbaru
+        dates.sort((a,b) => b.date.localeCompare(a.date));
+
+        const totalAlpa = dates.length; // Hitung hari yg ada alpa (atau bisa hitung slot)
+        // Jika ingin hitung total slot alpa:
+        // const totalAlpa = dates.reduce((acc, curr) => acc + curr.slots.length, 0);
+
         if (totalAlpa > 0) {
             const status = window.getPembinaanStatus(totalAlpa);
-            problemList.push({ ...s, totalAlpa, status });
+            problemList.push({ ...s, totalAlpa, status, dates });
 
-            // Grouping untuk statistik ringkas
             if (status.level === 1) counts.l1++;
             else if (status.level <= 3) counts.l2++;
             else counts.l3++;
         }
     });
 
-    // Update Angka Statistik
+    // Update Statistik Header Profil
     document.getElementById('count-level-1').textContent = counts.l1;
     document.getElementById('count-level-2').textContent = counts.l2;
     document.getElementById('count-level-3').textContent = counts.l3;
@@ -3736,43 +3756,94 @@ window.renderPembinaanManagement = function() {
     // 2. Render List
     container.innerHTML = '';
     if (problemList.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs font-bold">Alhamdulillah, nihil pelanggaran.</div>';
+        container.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs font-bold border-2 border-dashed border-slate-100 rounded-xl">Alhamdulillah, nihil pelanggaran.</div>';
         return;
     }
 
-    // Sort: Terparah di atas
     problemList.sort((a, b) => b.totalAlpa - a.totalAlpa);
 
     problemList.forEach(p => {
-        // Hitung persentase bar bahaya (Max 41 sebagai 100%)
         const percentage = Math.min((p.totalAlpa / 41) * 100, 100);
+        const detailId = `detail-${p.nis || p.id}`;
         
         const div = document.createElement('div');
-        div.className = 'p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors';
-        div.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-                <div>
-                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${p.nama}</h4>
-                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold border mt-1 ${p.status.color}">
-                        ${p.status.label}
+        div.className = 'mb-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm';
+        
+        // Generate List Tanggal (Detail)
+        let detailHtml = '';
+        p.dates.forEach(d => {
+            // Tombol untuk loncat ke tanggal tersebut
+            detailHtml += `
+                <div onclick="window.jumpToDate('${d.date}')" class="flex justify-between items-center py-2 px-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer group">
+                    <span class="text-[10px] text-slate-500 font-mono group-hover:text-emerald-600 transition-colors">
+                        <i data-lucide="calendar" class="w-3 h-3 inline mr-1 opacity-50"></i>${window.formatDate(d.date)}
                     </span>
+                    <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">${d.slots.join(', ')}</span>
                 </div>
-                <div class="text-right">
-                    <span class="text-2xl font-black text-slate-800 dark:text-white">${p.totalAlpa}</span>
-                    <span class="text-[10px] text-slate-400 block -mt-1">Alpa</span>
+            `;
+        });
+
+        div.innerHTML = `
+            <div onclick="document.getElementById('${detailId}').classList.toggle('hidden')" class="p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex gap-3">
+                         <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-600 flex items-center justify-center text-xs font-black text-slate-500 dark:text-slate-300">
+                            ${p.nama.substring(0,2).toUpperCase()}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm">${p.nama}</h4>
+                            <span class="inline-block px-2 py-0.5 rounded text-[9px] font-bold border mt-1 ${p.status.color}">
+                                ${p.status.label}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-2xl font-black text-slate-800 dark:text-white">${p.totalAlpa}</span>
+                        <span class="text-[10px] text-slate-400 block -mt-1">Poin</span>
+                    </div>
+                </div>
+                
+                <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex mb-2">
+                    <div class="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600" style="width: ${percentage}%"></div>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <p class="text-[9px] text-slate-400">Sanksi: <span class="font-bold text-slate-600 dark:text-slate-300">${p.status.action}</span></p>
+                    <button class="text-[10px] font-bold text-indigo-500 flex items-center gap-1">
+                        Riwayat <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                    </button>
                 </div>
             </div>
             
-            <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
-                <div class="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 transition-all duration-500" style="width: ${percentage}%"></div>
-            </div>
-            <div class="flex justify-between mt-1">
-                <p class="text-[9px] text-slate-400">Tindakan: <span class="font-bold text-slate-600 dark:text-slate-300">${p.status.action}</span></p>
-                <p class="text-[9px] text-slate-400">${percentage >= 100 ? 'MAX LEVEL' : Math.round(percentage) + '% Critical'}</p>
+            <div id="${detailId}" class="hidden bg-slate-50/50 border-t border-slate-100 dark:border-slate-700 dark:bg-slate-900/30">
+                <div class="px-4 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800">
+                    Klik tanggal untuk edit/hapus
+                </div>
+                ${detailHtml}
             </div>
         `;
         container.appendChild(div);
     });
+    
+    if(window.lucide) window.lucide.createIcons();
+};
+
+// Fungsi Helper Baru: Loncat ke tanggal tertentu dan buka tab presensi
+window.jumpToDate = function(dateStr) {
+    if(confirm(`Buka data presensi tanggal ${window.formatDate(dateStr)} untuk mengedit/menghapus pelanggaran?`)) {
+        appState.date = dateStr;
+        window.updateDateDisplay();
+        window.updateDashboard(); // Refresh dashboard data sesuai tanggal baru
+        
+        // Pindah ke tab Home dan scroll ke atas
+        window.switchTab('home'); 
+        window.scrollTo(0,0);
+        
+        // Opsional: Langsung buka slot pertama yg ada alpa?
+        // window.openAttendance(); 
+        
+        window.showToast(`Mode Edit: ${window.formatDate(dateStr)}`, 'info');
+    }
 };
 
 // Helper untuk Scroll ke section ini dari Dashboard
