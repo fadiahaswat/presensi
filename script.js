@@ -3313,23 +3313,19 @@ window.savePermitLogic = function() {
 window.markAsRecovered = function(id) {
     const permit = appState.permits.find(p => p.id === id);
     if(permit) {
-        // Logika: User klik sembuh SEKARANG.
-        // Berarti sesi TERAKHIR dia sakit adalah sesi KEMARIN (atau sesi sebelumnya).
-        // Kita set end_date ke KEMARIN agar hari ini checkActivePermit me-return NULL.
+        // PERBAIKAN LOGIKA:
+        // Jangan set ke kemarin. Set ke HARI INI.
+        // End Session = Sesi saat ini (misal: Shubuh).
+        // Artinya: Shubuh masih dianggap sakit, tapi sesi SETELAH Shubuh (Ashar) dianggap sembuh.
         
-        const yesterday = new Date(appState.date);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        // Format YYYY-MM-DD local
-        const offset = yesterday.getTimezoneOffset() * 60000;
-        const yesterdayStr = new Date(yesterday.getTime() - offset).toISOString().split('T')[0];
-
-        permit.end_date = yesterdayStr; 
-        permit.end_session = 'isya'; // Anggap sakit terakhir sampai Isya kemarin
+        permit.end_date = appState.date; 
+        permit.end_session = appState.currentSlotId; // Misal: 'shubuh'
 
         localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
         
-        window.showToast("Santri ditandai sembuh. Status kembali normal.", "success");
+        window.showToast("Santri sembuh. Sesi selanjutnya akan normal.", "success");
+        
+        // Refresh semua komponen
         window.renderPermitList();
         window.renderAttendanceList(); 
         window.renderActivePermitsWidget();
