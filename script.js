@@ -920,7 +920,10 @@ window.renderAttendanceList = function() {
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Mapping slot sebelumnya
+    // Variabel untuk menampung ringkasan S/I/A/P
+    let summaryCount = { Sakit: 0, Izin: 0, Pulang: 0, Alpa: 0 };
+    let summaryList = []; // Array object { nama, status }
+
     const PREV_SLOT_MAP = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
@@ -943,7 +946,7 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // 1. Inisialisasi Data & Carry Over
+        // 1. Inisialisasi
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -970,7 +973,7 @@ window.renderAttendanceList = function() {
 
         const sData = dbSlot[id];
         
-        // 2. Cek Permit Resmi (Level 2)
+        // 2. Permit Check
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
@@ -979,7 +982,6 @@ window.renderAttendanceList = function() {
                 let target = null;
                 if (act.category === 'fardu' || act.category === 'kbm') target = activePermit.type;
                 else target = 'Tidak';
-                
                 if (sData.status[act.id] !== target) {
                     sData.status[act.id] = target;
                     hasAutoChanges = true;
@@ -1001,124 +1003,82 @@ window.renderAttendanceList = function() {
             hasAutoChanges = true;
         }
 
-        // --- RENDER UI: RICH CARD SYSTEM ---
+        // --- HITUNG RINGKASAN ---
+        const currentStatus = sData.status.shalat || 'Hadir';
+        if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
+            summaryCount[currentStatus]++;
+            summaryList.push({ nama: santri.nama, status: currentStatus });
+        }
+
+        // --- RENDER UI ---
         const clone = tplRow.content.cloneNode(true);
         const cardContainer = clone.querySelector('.santri-card-container') || clone.querySelector('div'); 
         
-        const currentStatus = sData.status.shalat || 'Hadir';
-        
-        // Base: Flex, Padding, Rounded, Transition
-        let cardClasses = "relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ";
-        
-        // --- DEFINISI TEMA WARNA (Color Logic) ---
-        let theme = {
-            bg: "", border: "", text: "", badgeBg: "", badgeText: ""
-        };
+        // Card Design Logic (Sama seperti sebelumnya)
+        let cardClasses = "relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300 shadow-sm ";
+        let theme = { bg: "bg-white dark:bg-slate-800", border: "border-slate-100 dark:border-slate-700", text: "text-slate-800 dark:text-white" };
 
-        if (currentStatus === 'Hadir' || currentStatus === 'Ya') {
-            // FIX: Hadir sekarang Hijau (Emerald), bukan Biru/Slate
-            theme.bg = "bg-emerald-50/50 dark:bg-emerald-900/10";
-            theme.border = "border-emerald-200 dark:border-emerald-800/30";
-            theme.text = "text-emerald-900 dark:text-emerald-100";
-            theme.badgeBg = "bg-emerald-100";
-            theme.badgeText = "text-emerald-700";
-        } 
-        else if (currentStatus === 'Sakit') {
-            theme.bg = "bg-amber-50/90 dark:bg-amber-900/20";
-            theme.border = "border-amber-200 dark:border-amber-700";
+        if (currentStatus === 'Sakit') {
+            theme.bg = "bg-amber-50/80 dark:bg-amber-900/10";
+            theme.border = "border-amber-200 dark:border-amber-800/50";
             theme.text = "text-amber-900 dark:text-amber-100";
-            theme.badgeBg = "bg-amber-100";
-            theme.badgeText = "text-amber-700";
-        } 
-        else if (currentStatus === 'Izin') {
-            theme.bg = "bg-blue-50/90 dark:bg-blue-900/20";
-            theme.border = "border-blue-200 dark:border-blue-700";
+        } else if (currentStatus === 'Izin') {
+            theme.bg = "bg-blue-50/80 dark:bg-blue-900/10";
+            theme.border = "border-blue-200 dark:border-blue-800/50";
             theme.text = "text-blue-900 dark:text-blue-100";
-            theme.badgeBg = "bg-blue-100";
-            theme.badgeText = "text-blue-700";
-        }
-        else if (currentStatus === 'Pulang') {
-            theme.bg = "bg-purple-50/90 dark:bg-purple-900/20";
-            theme.border = "border-purple-200 dark:border-purple-700";
+        } else if (currentStatus === 'Pulang') {
+            theme.bg = "bg-purple-50/80 dark:bg-purple-900/10";
+            theme.border = "border-purple-200 dark:border-purple-800/50";
             theme.text = "text-purple-900 dark:text-purple-100";
-            theme.badgeBg = "bg-purple-100";
-            theme.badgeText = "text-purple-700";
-        }
-        else if (currentStatus === 'Alpa') {
-            theme.bg = "bg-rose-50/90 dark:bg-rose-900/20";
-            theme.border = "border-rose-200 dark:border-rose-700";
-            theme.text = "text-rose-900 dark:text-rose-100";
-            theme.badgeBg = "bg-rose-100";
-            theme.badgeText = "text-rose-700";
-        }
-        else {
-            // Default (Netral)
-            theme.bg = "bg-white dark:bg-slate-800";
-            theme.border = "border-slate-200 dark:border-slate-700";
-            theme.text = "text-slate-800 dark:text-white";
+        } else if (currentStatus === 'Alpa') {
+            theme.bg = "bg-red-50/80 dark:bg-red-900/10";
+            theme.border = "border-red-200 dark:border-red-800/50";
+            theme.text = "text-red-900 dark:text-red-100";
         }
 
-        // --- LEVEL 2: INDIKATOR RESMI ---
         if (activePermit) {
-            // Border Kiri Tebal (Accent) sesuai warna status
-            if(currentStatus === 'Sakit') cardClasses += " border-l-4 border-l-amber-500 shadow-sm";
-            else if(currentStatus === 'Izin') cardClasses += " border-l-4 border-l-blue-500 shadow-sm";
-            else if(currentStatus === 'Pulang') cardClasses += " border-l-4 border-l-purple-500 shadow-sm";
-        } else {
-            // Level 1: Border tipis biasa
-            cardClasses += " border"; 
+            if(currentStatus === 'Sakit') cardClasses += " border-l-4 border-l-amber-500";
+            else if(currentStatus === 'Izin') cardClasses += " border-l-4 border-l-blue-500";
+            else if(currentStatus === 'Pulang') cardClasses += " border-l-4 border-l-purple-500";
         }
 
-        // Terapkan Class
         cardContainer.className = `${cardClasses} ${theme.bg} ${theme.border}`;
 
-        // Isi Data Nama
         const nameEl = clone.querySelector('.santri-name');
         nameEl.textContent = santri.nama;
         nameEl.className = `santri-name font-bold text-sm ${theme.text}`;
-
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         
-        // Avatar (Warnanya juga menyesuaikan sedikit)
         const avatar = clone.querySelector('.santri-avatar');
         avatar.textContent = santri.nama.substring(0,2).toUpperCase();
-        if(currentStatus !== 'Hadir') {
-             // Jika sakit/izin, avatar ikut berwarna pudar sesuai tema
-             avatar.classList.add('opacity-80'); 
-        }
+        if(currentStatus !== 'Hadir') avatar.classList.add('opacity-80');
 
-        // --- BADGE STATUS BERLEVEL ---
-        // Kita hanya tampilkan badge jika TIDAK Hadir
+        // Badge Status
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const badge = document.createElement('span');
-            let badgeClass = 'ml-2 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider align-middle flex inline-flex items-center gap-1 border ';
+            let badgeClass = 'ml-2 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider align-middle flex inline-flex items-center gap-1 ';
             let icon = '';
             let labelText = currentStatus;
 
             if (activePermit) {
-                // LEVEL 2 (RESMI): Solid Color Badge + File Icon
                 icon = '<i data-lucide="file-badge-2" class="w-3 h-3"></i>';
                 labelText = activePermit.type.toUpperCase();
-                
-                if(currentStatus === 'Sakit') badgeClass += 'bg-amber-500 border-amber-600 text-white shadow-sm';
-                else if(currentStatus === 'Izin') badgeClass += 'bg-blue-500 border-blue-600 text-white shadow-sm';
-                else if(currentStatus === 'Pulang') badgeClass += 'bg-purple-500 border-purple-600 text-white shadow-sm';
+                if(currentStatus === 'Sakit') badgeClass += 'bg-amber-500 text-white shadow-md shadow-amber-500/20';
+                else if(currentStatus === 'Izin') badgeClass += 'bg-blue-500 text-white shadow-md shadow-blue-500/20';
+                else if(currentStatus === 'Pulang') badgeClass += 'bg-purple-500 text-white shadow-md shadow-purple-500/20';
             } else {
-                // LEVEL 1 (MANUAL): Outline Badge + User Icon
                 icon = '<i data-lucide="user-pen" class="w-3 h-3"></i>';
-                
-                if(currentStatus === 'Sakit') badgeClass += 'bg-white border-amber-400 text-amber-600';
-                else if(currentStatus === 'Izin') badgeClass += 'bg-white border-blue-400 text-blue-600';
-                else if(currentStatus === 'Pulang') badgeClass += 'bg-white border-purple-400 text-purple-600';
-                else if(currentStatus === 'Alpa') badgeClass += 'bg-white border-rose-400 text-rose-600';
+                if(currentStatus === 'Sakit') badgeClass += 'bg-white border border-amber-300 text-amber-600';
+                else if(currentStatus === 'Izin') badgeClass += 'bg-white border border-blue-300 text-blue-600';
+                else if(currentStatus === 'Pulang') badgeClass += 'bg-white border border-purple-300 text-purple-600';
+                else if(currentStatus === 'Alpa') badgeClass += 'bg-white border border-red-300 text-red-600';
             }
-
             badge.className = badgeClass;
             badge.innerHTML = `${icon} ${labelText}`;
             nameEl.appendChild(badge);
         }
 
-        // --- RENDER TOMBOL (SOLID) ---
+        // Render Tombol
         const btnCont = clone.querySelector('.activity-container');
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
@@ -1131,39 +1091,19 @@ window.renderAttendanceList = function() {
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             const hasPermitConflict = activePermit && (act.category === 'fardu' || act.category === 'kbm');
 
-            // Base Button: Solid, Text Putih, Shadow
-            let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg transition-all duration-200 border-b-4 `;
+            let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-md border font-black text-lg transition-all duration-200 `;
             
-            // LOGIKA WARNA TOMBOL
-            if (curr === 'Hadir' || curr === 'Ya') {
-                // Hijau Emerald
-                baseClass += 'bg-emerald-500 border-emerald-700 text-white active:border-b-0 active:translate-y-1';
-            } 
-            else if (curr === 'Sakit') {
-                // Kuning Amber
-                baseClass += 'bg-amber-500 border-amber-700 text-white active:border-b-0 active:translate-y-1';
-            } 
-            else if (curr === 'Izin') {
-                // Biru
-                baseClass += 'bg-blue-500 border-blue-700 text-white active:border-b-0 active:translate-y-1';
-            } 
-            else if (curr === 'Pulang') {
-                // Ungu
-                baseClass += 'bg-purple-500 border-purple-700 text-white active:border-b-0 active:translate-y-1';
-            } 
-            else if (curr === 'Alpa') {
-                // Merah Rose
-                baseClass += 'bg-rose-500 border-rose-700 text-white active:border-b-0 active:translate-y-1';
-            } 
-            else {
-                // Tidak/Kosong (Abu-abu Flat)
-                baseClass += 'bg-slate-100 border-slate-300 text-slate-300 hover:bg-slate-200 active:border-b-0 active:translate-y-1';
-            }
+            if (curr === 'Hadir' || curr === 'Ya') baseClass += 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30';
+            else if (curr === 'Sakit') baseClass += 'bg-amber-500 border-amber-600 text-white shadow-amber-500/30';
+            else if (curr === 'Izin') baseClass += 'bg-blue-500 border-blue-600 text-white shadow-blue-500/30';
+            else if (curr === 'Pulang') baseClass += 'bg-purple-500 border-purple-600 text-white shadow-purple-500/30';
+            else if (curr === 'Alpa') baseClass += 'bg-red-500 border-red-600 text-white shadow-red-500/30';
+            else baseClass += 'bg-white border-slate-200 text-slate-300 hover:border-slate-300';
 
-            // Visual Konflik Level 2 (Permit)
             if (hasPermitConflict) {
-                // Efek "Locked" tapi masih bisa di-override
-                baseClass += ' opacity-80 border-dashed ring-2 ring-yellow-400 ring-offset-2';
+                baseClass += ' ring-4 ring-yellow-300/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 opacity-90';
+            } else {
+                baseClass += ' active:scale-95 hover:scale-105';
             }
 
             btn.className = baseClass;
@@ -1178,9 +1118,7 @@ window.renderAttendanceList = function() {
             };
             
             lbl.textContent = act.label;
-            // Warna label mengikuti tema kartu
-            lbl.className = `lbl-status text-[10px] font-bold mt-1 text-center ${theme.text} opacity-60`;
-
+            lbl.className = `lbl-status text-[10px] font-bold mt-1 text-center ${theme.text} opacity-70`;
             btnCont.appendChild(bClone);
         });
 
@@ -1188,7 +1126,6 @@ window.renderAttendanceList = function() {
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
-        // Input transparan agar menyatu dengan warna kartu
         noteInp.className = `input-note w-full text-xs p-2 rounded-lg border focus:ring-2 outline-none transition-all bg-white/40 dark:bg-black/20 ${theme.border} focus:border-emerald-500 focus:ring-emerald-200 placeholder-slate-400`;
         
         noteInp.onchange = (e) => {
@@ -1202,6 +1139,43 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
+    // --- UPDATE WIDGET RINGKASAN (NEW) ---
+    const summaryWidget = document.getElementById('att-summary-widget');
+    const summaryBadges = document.getElementById('att-summary-badges');
+    const summaryNames = document.getElementById('att-summary-names');
+    const totalProblem = summaryCount.Sakit + summaryCount.Izin + summaryCount.Pulang + summaryCount.Alpa;
+
+    if (summaryWidget && summaryBadges && summaryNames) {
+        if (totalProblem > 0) {
+            summaryWidget.classList.remove('hidden');
+            summaryBadges.innerHTML = '';
+            summaryNames.innerHTML = '';
+
+            // Render Badges (Angka)
+            if (summaryCount.Sakit > 0) summaryBadges.innerHTML += `<div class="px-3 py-1 rounded-lg bg-amber-100 text-amber-700 font-bold text-xs whitespace-nowrap border border-amber-200">🤒 ${summaryCount.Sakit} Sakit</div>`;
+            if (summaryCount.Izin > 0) summaryBadges.innerHTML += `<div class="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs whitespace-nowrap border border-blue-200">📝 ${summaryCount.Izin} Izin</div>`;
+            if (summaryCount.Pulang > 0) summaryBadges.innerHTML += `<div class="px-3 py-1 rounded-lg bg-purple-100 text-purple-700 font-bold text-xs whitespace-nowrap border border-purple-200">🏠 ${summaryCount.Pulang} Pulang</div>`;
+            if (summaryCount.Alpa > 0) summaryBadges.innerHTML += `<div class="px-3 py-1 rounded-lg bg-red-100 text-red-700 font-bold text-xs whitespace-nowrap border border-red-200">❌ ${summaryCount.Alpa} Alpa</div>`;
+
+            // Render Detail Nama
+            summaryList.forEach(item => {
+                let color = 'bg-slate-100 text-slate-600';
+                if(item.status === 'Sakit') color = 'bg-amber-50 text-amber-600 border border-amber-100';
+                else if(item.status === 'Izin') color = 'bg-blue-50 text-blue-600 border border-blue-100';
+                else if(item.status === 'Pulang') color = 'bg-purple-50 text-purple-600 border border-purple-100';
+                else if(item.status === 'Alpa') color = 'bg-red-50 text-red-600 border border-red-100';
+
+                const badge = document.createElement('span');
+                badge.className = `px-2 py-1 rounded text-[10px] font-bold ${color}`;
+                badge.textContent = `${item.nama} (${item.status[0]})`;
+                summaryNames.appendChild(badge);
+            });
+
+        } else {
+            summaryWidget.classList.add('hidden');
+        }
+    }
+
     if(hasAutoChanges) window.saveData(); 
     if(window.lucide) window.lucide.createIcons();
 };
