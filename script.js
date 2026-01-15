@@ -4267,17 +4267,20 @@ window.renderPermitHistory = function() {
 
 // 1. Fungsi Hapus (Khusus History)
 window.deleteHistoryPermit = function(id) {
-    if(!confirm("⚠️ HAPUS PERMANEN?\nData izin ini akan hilang selamanya dan status presensi terkait akan di-reset.")) return;
+    if(!confirm("⚠️ PERINGATAN HAPUS\n\nApakah Anda yakin ingin menghapus data izin ini secara permanen? Data yang dihapus tidak bisa dikembalikan.")) return;
 
+    // Filter array untuk membuang ID yang cocok
     appState.permits = appState.permits.filter(p => p.id !== id);
+    
+    // Simpan perubahan ke LocalStorage
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
 
     // Refresh UI
-    window.renderPermitHistory(); 
-    window.renderActivePermitsWidget(); // Update Dashboard juga
-    window.renderAttendanceList();      // Update list absen jika terbuka
+    window.renderPermitHistory(); // Refresh list profil
+    window.renderActivePermitsWidget(); // Refresh widget dashboard (jika yang dihapus hari ini)
+    window.renderAttendanceList(); // Refresh list absen (mungkin statusnya berubah jadi Hadir)
     
-    window.showToast("Data riwayat berhasil dihapus", "success");
+    window.showToast("Data izin berhasil dihapus", "success");
 };
 
 // 2. Fungsi Toggle Status (Aktif <-> Selesai)
