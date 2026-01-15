@@ -939,7 +939,7 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // 1. Inisialisasi Data Kosong & Carry Over
+        // 1. Inisialisasi Data
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -947,6 +947,7 @@ window.renderAttendanceList = function() {
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
+            // Carry Over Logic
             if (prevSlotData && prevSlotData[id]) {
                 const prevSt = prevSlotData[id].status?.shalat;
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
@@ -997,69 +998,59 @@ window.renderAttendanceList = function() {
             hasAutoChanges = true;
         }
 
-        // --- RENDER UI (NEW DESIGN) ---
+        // --- RENDER UI (CARD THEME & SOLID BUTTONS) ---
         const clone = tplRow.content.cloneNode(true);
-        // Ambil elemen pembungkus kartu (asumsi div pertama di dalam template)
         const cardContainer = clone.querySelector('.santri-card-container') || clone.querySelector('div'); 
         
-        // Pastikan kita bisa memanipulasi class container ini
-        // Kita reset class dasar dulu agar bersih, lalu tambahkan base
-        // (Pastikan di HTML tpl-santri-row elemen terluarnya punya class 'santri-card-container' atau div biasa)
-        
-        // --- LOGIKA NUANSA WARNA (CARD THEME) ---
         const currentStatus = sData.status.shalat || 'Hadir';
         let cardClasses = "relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300 shadow-sm ";
         
-        // Default (Hadir/Netral)
+        // Tema Kartu (Nuansa Warna)
         let theme = {
             bg: "bg-white dark:bg-slate-800",
             border: "border-slate-100 dark:border-slate-700",
-            text: "text-slate-800 dark:text-white",
-            badge: null
+            text: "text-slate-800 dark:text-white"
         };
 
-        // Modifikasi Tema Berdasarkan Status
         if (currentStatus === 'Sakit') {
-            theme.bg = "bg-amber-50/80 dark:bg-amber-900/10"; // Nuansa Kuning
+            theme.bg = "bg-amber-50/80 dark:bg-amber-900/10";
             theme.border = "border-amber-200 dark:border-amber-800/50";
             theme.text = "text-amber-900 dark:text-amber-100";
         } 
         else if (currentStatus === 'Izin') {
-            theme.bg = "bg-blue-50/80 dark:bg-blue-900/10"; // Nuansa Biru
+            theme.bg = "bg-blue-50/80 dark:bg-blue-900/10";
             theme.border = "border-blue-200 dark:border-blue-800/50";
             theme.text = "text-blue-900 dark:text-blue-100";
         }
         else if (currentStatus === 'Pulang') {
-            theme.bg = "bg-purple-50/80 dark:bg-purple-900/10"; // Nuansa Ungu
+            theme.bg = "bg-purple-50/80 dark:bg-purple-900/10";
             theme.border = "border-purple-200 dark:border-purple-800/50";
             theme.text = "text-purple-900 dark:text-purple-100";
         }
         else if (currentStatus === 'Alpa') {
-            theme.bg = "bg-red-50/80 dark:bg-red-900/10"; // Nuansa Merah
+            theme.bg = "bg-red-50/80 dark:bg-red-900/10";
             theme.border = "border-red-200 dark:border-red-800/50";
             theme.text = "text-red-900 dark:text-red-100";
         }
 
-        // --- LEVEL 2: PENANDA PERMIT RESMI (BORDER KIRI TEBAL) ---
+        // Border Kiri Tebal jika Resmi
         if (activePermit) {
-            // Jika resmi, border lebih tebal di kiri (Accent)
             if(currentStatus === 'Sakit') cardClasses += " border-l-4 border-l-amber-500";
             else if(currentStatus === 'Izin') cardClasses += " border-l-4 border-l-blue-500";
             else if(currentStatus === 'Pulang') cardClasses += " border-l-4 border-l-purple-500";
         }
 
-        // Terapkan Class ke Kartu
         cardContainer.className = `${cardClasses} ${theme.bg} ${theme.border}`;
 
-        // Isi Data Nama
+        // Nama & Avatar
         const nameEl = clone.querySelector('.santri-name');
         nameEl.textContent = santri.nama;
-        nameEl.className = `santri-name font-bold text-sm ${theme.text}`; // Update warna teks nama
+        nameEl.className = `santri-name font-bold text-sm ${theme.text}`;
 
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // --- BADGE STATUS (LEVEL INDICATOR) ---
+        // Badge Status (Leveling)
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const badge = document.createElement('span');
             let badgeClass = 'ml-2 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider align-middle flex inline-flex items-center gap-1 ';
@@ -1067,7 +1058,7 @@ window.renderAttendanceList = function() {
             let labelText = currentStatus;
 
             if (activePermit) {
-                // Level 2 (Resmi): Solid, Icon Dokumen
+                // Resmi (Level 2)
                 icon = '<i data-lucide="file-badge-2" class="w-3 h-3"></i>';
                 labelText = activePermit.type.toUpperCase();
                 
@@ -1075,7 +1066,7 @@ window.renderAttendanceList = function() {
                 else if(currentStatus === 'Izin') badgeClass += 'bg-blue-500 text-white shadow-md shadow-blue-500/20';
                 else if(currentStatus === 'Pulang') badgeClass += 'bg-purple-500 text-white shadow-md shadow-purple-500/20';
             } else {
-                // Level 1 (Manual): Outline/Transparan, Icon User
+                // Manual (Level 1)
                 icon = '<i data-lucide="user-pen" class="w-3 h-3"></i>';
                 
                 if(currentStatus === 'Sakit') badgeClass += 'bg-white border border-amber-300 text-amber-600';
@@ -1103,22 +1094,35 @@ window.renderAttendanceList = function() {
             
             const hasPermitConflict = activePermit && (act.category === 'fardu' || act.category === 'kbm');
 
-            // Tombol tetap putih/clean agar kontras dengan kartu yang berwarna
-            let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border font-black text-lg transition-all bg-white dark:bg-slate-700 `;
+            // --- TOMBOL SOLID & TEXT PUTIH ---
+            let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-md border font-black text-lg transition-all duration-200 `;
             
-            // Warna Text Tombol & Border
-            if (curr === 'Hadir' || curr === 'Ya') baseClass += 'border-emerald-200 text-emerald-600';
-            else if (curr === 'Sakit') baseClass += 'border-amber-200 text-amber-600 bg-amber-50';
-            else if (curr === 'Izin') baseClass += 'border-blue-200 text-blue-600 bg-blue-50';
-            else if (curr === 'Pulang') baseClass += 'border-purple-200 text-purple-600 bg-purple-50';
-            else if (curr === 'Alpa') baseClass += 'border-red-200 text-red-600 bg-red-50';
-            else baseClass += 'border-slate-200 text-slate-300'; // Tidak
+            // Logika Warna Solid + Shadow
+            if (curr === 'Hadir' || curr === 'Ya') {
+                baseClass += 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30';
+            } 
+            else if (curr === 'Sakit') {
+                baseClass += 'bg-amber-500 border-amber-600 text-white shadow-amber-500/30';
+            } 
+            else if (curr === 'Izin') {
+                baseClass += 'bg-blue-500 border-blue-600 text-white shadow-blue-500/30';
+            } 
+            else if (curr === 'Pulang') {
+                baseClass += 'bg-purple-500 border-purple-600 text-white shadow-purple-500/30';
+            } 
+            else if (curr === 'Alpa') {
+                baseClass += 'bg-red-500 border-red-600 text-white shadow-red-500/30';
+            } 
+            else {
+                // Default / Tidak / Belum Diisi
+                baseClass += 'bg-white border-slate-200 text-slate-300 hover:border-slate-300';
+            }
 
+            // Visual Konflik Izin (Ring Emas di luar tombol solid)
             if (hasPermitConflict) {
-                // Indikator bahwa tombol ini "terikat" izin resmi (Ring Kuning Emas)
-                baseClass += ' ring-2 ring-yellow-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-800 opacity-90';
+                baseClass += ' ring-4 ring-yellow-300/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 opacity-90';
             } else {
-                baseClass += ' active:scale-95 hover:shadow-md';
+                baseClass += ' active:scale-95 hover:scale-105';
             }
 
             btn.className = baseClass;
@@ -1133,7 +1137,6 @@ window.renderAttendanceList = function() {
             };
             
             lbl.textContent = act.label;
-            // Sesuaikan warna label dengan tema kartu agar terlihat rapi
             lbl.className = `lbl-status text-[10px] font-bold mt-1 text-center ${theme.text} opacity-70`;
 
             btnCont.appendChild(bClone);
@@ -1143,7 +1146,7 @@ window.renderAttendanceList = function() {
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
-        noteInp.className = "input-note w-full text-xs p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white/50 dark:bg-black/20"; // Transparan dikit
+        noteInp.className = "input-note w-full text-xs p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white/50 dark:bg-black/20 transition-all";
         
         noteInp.onchange = (e) => {
             sData.note = e.target.value;
