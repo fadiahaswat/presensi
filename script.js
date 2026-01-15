@@ -1838,6 +1838,7 @@ window.switchTab = function(tabName) {
         window.updateProfileStats();
         window.renderTimesheetCalendar(); 
         window.renderPembinaanManagement(); // Refresh list di profil
+        window.renderPermitHistory();
     }
     else if(tabName === 'analysis') {
         window.populateAnalysisDropdown();
@@ -3896,6 +3897,199 @@ window.resolveManualStatus = function(nis, statusType) {
     } else {
         window.showToast("Tidak ada data yang perlu diubah", "info");
     }
+};
+
+// ==========================================
+// MANAJEMEN RIWAYAT PERIZINAN (PROFIL)
+// ==========================================
+
+window.renderPermitHistory = function() {
+    const container = document.getElementById('permit-history-list');
+    const filterCat = document.getElementById('hist-filter-cat')?.value || 'all';
+    const searchQuery = document.getElementById('hist-search')?.value.toLowerCase() || '';
+
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Ambil semua permit, urutkan dari yang terbaru (berdasarkan timestamp atau start_date)
+    let history = [...appState.permits].sort((a, b) => {
+        return new Date(b.timestamp || b.start_date) - new Date(a.timestamp || a.start_date);
+    });
+
+    // Filter
+    history = history.filter(p => {
+        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
+        if (!santri) return false; // Skip jika santri tidak ditemukan (misal data lama)
+        
+        const matchName = santri.nama.toLowerCase().includes(searchQuery);
+        const matchCat = filterCat === 'all' || p.category === filterCat;
+        
+        return matchName && matchCat;
+    });
+
+    if (history.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-10 text-slate-400">
+                <i data-lucide="folder-open" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                <p class="text-xs font-bold">Tidak ada riwayat ditemukan</p>
+            </div>`;
+        if(window.lucide) window.lucide.createIcons();
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    history.forEach(p => {
+        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
+        if (!santri) return;
+
+        // Tentukan Warna & Icon
+        let colorClass = 'bg-slate-100 text-slate-600';
+        let icon = 'file-text';
+        if (p.category === 'sakit') { colorClass = 'bg-amber-100 text-amber-600 border-amber-200'; icon = 'thermometer'; }
+        else if (p.category === 'izin') { colorClass = 'bg-blue-100 text-blue-600 border-blue-200'; icon = 'calendar'; }
+        else if (p.category === 'pulang') { colorClass = 'bg-purple-100 text-purple-600 border-purple-200'; icon = 'bus'; }
+
+        // Status Aktif/Selesai
+        const isActive = p.is_active;
+        const statusBadge = isActive 
+            ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 border border-emerald-200 text-[9px] font-black uppercase">Aktif</span>`
+            : `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200 text-[9px] font-black uppercase">Selesai</span>`;
+
+        // Format Tanggal
+        const dateStr = p.end_date 
+            ? `${window.formatDate(p.start_date)} - ${window.formatDate(p.end_date)}`
+            : `${window.formatDate(p.start_date)} (Belum ditentukan)`;
+
+        const div = document.createElement('div');
+        div.className = 'p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md group relative';
+        div.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl ${colorClass} border flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="${icon}" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800 dark:text-white">${santri.nama}</h4>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[10px] font-bold capitalize text-slate-500">${p.category}</span>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-0.5"><i data-lucide="clock" class="w-3 h-3 inline mr-0.5"></i> ${dateStr}</p>
+                        <p class="text-[10px] text-slate-500 font-medium mt-1 bg-slate-50 dark:bg-slate-700/50 p-1.5 rounded-lg inline-block">
+                           "${p.reason}"
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col gap-1 pl-2 border-l border-slate-100 dark:border-slate-700 ml-2">
+                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors" title="Edit">
+                        <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Hapus Permanen">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                    ${!isActive ? `
+                    <button onclick="window.togglePermitStatus('${p.id}')" class="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Aktifkan Lagi">
+                        <i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i>
+                    </button>` : `
+                    <button onclick="window.togglePermitStatus('${p.id}')" class="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors" title="Tandai Selesai">
+                        <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                    </button>`}
+                </div>
+            </div>
+        `;
+        fragment.appendChild(div);
+    });
+
+    container.appendChild(fragment);
+    if(window.lucide) window.lucide.createIcons();
+};
+
+// 1. Fungsi Hapus (Khusus History)
+window.deleteHistoryPermit = function(id) {
+    if(!confirm("⚠️ HAPUS PERMANEN?\nData izin ini akan hilang selamanya dan status presensi terkait akan di-reset.")) return;
+
+    appState.permits = appState.permits.filter(p => p.id !== id);
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+
+    // Refresh UI
+    window.renderPermitHistory(); 
+    window.renderActivePermitsWidget(); // Update Dashboard juga
+    window.renderAttendanceList();      // Update list absen jika terbuka
+    
+    window.showToast("Data riwayat berhasil dihapus", "success");
+};
+
+// 2. Fungsi Toggle Status (Aktif <-> Selesai)
+window.togglePermitStatus = function(id) {
+    const permit = appState.permits.find(p => p.id === id);
+    if(!permit) return;
+
+    permit.is_active = !permit.is_active;
+    
+    // Jika diaktifkan kembali, pastikan end_date dihapus jika itu permit Sakit (agar logic sembuh tidak bentrok)
+    // Atau biarkan apa adanya jika itu izin berjangka.
+    // Kita reset end_date hanya jika user mengaktifkan kembali permit Sakit yg sudah sembuh.
+    if (permit.is_active && permit.category === 'sakit' && permit.end_date) {
+        if(confirm("Hapus tanggal kesembuhan agar santri kembali berstatus Sakit?")) {
+            permit.end_date = null;
+        }
+    }
+
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+    
+    window.renderPermitHistory();
+    window.renderActivePermitsWidget();
+    window.renderAttendanceList();
+    window.showToast(`Status izin: ${permit.is_active ? 'AKTIF' : 'SELESAI'}`, "info");
+};
+
+// 3. Fungsi Edit (Buka Modal)
+window.openEditHistory = function(id) {
+    const permit = appState.permits.find(p => p.id === id);
+    if(!permit) return;
+
+    // Isi Form
+    document.getElementById('edit-permit-id').value = permit.id;
+    document.getElementById('edit-permit-reason').value = permit.reason || '';
+    document.getElementById('edit-permit-start').value = permit.start_date || '';
+    document.getElementById('edit-permit-end').value = permit.end_date || '';
+    document.getElementById('edit-permit-active').checked = permit.is_active;
+
+    // Tampilkan Modal
+    const modal = document.getElementById('modal-edit-permit');
+    modal.classList.remove('hidden');
+};
+
+// 4. Fungsi Simpan Edit
+window.savePermitEdit = function() {
+    const id = document.getElementById('edit-permit-id').value;
+    const reason = document.getElementById('edit-permit-reason').value;
+    const start = document.getElementById('edit-permit-start').value;
+    const end = document.getElementById('edit-permit-end').value;
+    const isActive = document.getElementById('edit-permit-active').checked;
+
+    if(!reason || !start) return window.showToast("Data tidak boleh kosong", "warning");
+
+    const permit = appState.permits.find(p => p.id === id);
+    if(!permit) return;
+
+    // Update Data
+    permit.reason = reason;
+    permit.start_date = start;
+    permit.end_date = end || null; // Bisa null kalau sakit belum sembuh
+    permit.is_active = isActive;
+
+    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+
+    window.closeModal('modal-edit-permit');
+    window.showToast("Perubahan disimpan", "success");
+
+    // Refresh semua view yang terdampak
+    window.renderPermitHistory();
+    window.renderActivePermitsWidget();
+    window.renderAttendanceList();
 };
 
 // Start App
