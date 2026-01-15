@@ -3828,7 +3828,21 @@ window.resolveManualStatus = function(nis, statusType) {
     Object.keys(dayData).forEach(slotId => {
         const studentData = dayData[slotId][nis];
         if (studentData && studentData.status && studentData.status.shalat === statusType) {
-            studentData.status.shalat = 'Hadir'; 
+            studentData.status.shalat = 'Hadir';
+
+            const slotConfig = SLOT_WAKTU[slotId];
+            if(slotConfig && slotConfig.activities) {
+                slotConfig.activities.forEach(act => {
+                    // Jika kategori dependent (misal Dzikir), kembalikan ke 'Ya'
+                    if(act.category === 'dependent') {
+                         studentData.status[act.id] = 'Ya';
+                    }
+                    // Jika kategori KBM (misal Tahfizh), kembalikan ke 'Hadir'
+                    else if(act.category === 'kbm' || act.category === 'fardu') {
+                         studentData.status[act.id] = 'Hadir';
+                    }
+                });
+            }
             
             // Hapus catatan otomatis jika ada, agar bersih
             if (studentData.note && (studentData.note.includes('[Auto]') || studentData.note.includes('Lanjutan'))) {
