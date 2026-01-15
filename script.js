@@ -3687,7 +3687,11 @@ window.renderActivePermitsWidget = function() {
 
     // A. Permit Resmi (Jangka Panjang)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
-    const activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
+    const activePermits = appState.permits.filter(p => {
+        // Cek Sakit yg sudah sembuh
+        const isRecoveredSakit = (p.category === 'sakit' && p.end_date !== null);
+        return classNisList.includes(p.nis) && p.is_active && !isRecoveredSakit;
+    });
 
     activePermits.forEach(p => {
         combinedList.push({
