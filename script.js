@@ -917,11 +917,12 @@ window.renderAttendanceList = function() {
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Mapping slot sebelumnya
+    // Mapping slot sebelumnya untuk logika Carry-Over
     const PREV_SLOT_MAP = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
 
+    // Filter Santri
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(appState.searchQuery.toLowerCase());
         if(appState.filterProblemOnly) {
@@ -940,51 +941,49 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // 1. Inisialisasi Data Kosong (Jika belum ada)
+        // ============================================================
+        // 1. INISIALISASI DATA & LOGIKA CARRY-OVER (Hanya Sekali)
+        // ============================================================
         if(!dbSlot[id]) {
             const defStatus = {};
+            
+            // Set default awal
             slot.activities.forEach(a => {
                 if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
+
+            // --- PERBAIKAN: Logika Copy Status Sebelumnya ---
+            // Hanya dijalankan saat data baru dibuat (dbSlot[id] kosong)
+            // Ini mencegah data yang sudah diedit manual tertimpa kembali.
+            if (prevSlotData && prevSlotData[id]) {
+                const prevSt = prevSlotData[id].status?.shalat;
+                
+                // Jika sesi sebelumnya Sakit/Izin/Pulang, jadikan default sesi ini
+                if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
+                    defStatus['shalat'] = prevSt;
+                    
+                    // Sesuaikan kegiatan lain mengikuti status utama
+                    slot.activities.forEach(a => {
+                        if (a.id === 'shalat') return;
+                        if (a.category === 'fardu' || a.category === 'kbm') {
+                            defStatus[a.id] = prevSt;
+                        } else {
+                            defStatus[a.id] = 'Tidak';
+                        }
+                    });
+                }
+            }
+            // ------------------------------------------------
+
             dbSlot[id] = { status: defStatus, note: '' };
         }
 
         const sData = dbSlot[id];
         
         // ============================================================
-        // FIX: LOGIKA CARRY OVER (Dijalankan diluar blok inisialisasi)
+        // 2. CEK PERMIT RESMI (Override Otomatis)
         // ============================================================
-        // Syarat:
-        // 1. Ada data slot sebelumnya (prevSlotData)
-        // 2. Status Shalat di slot sebelumnya adalah Sakit/Izin/Pulang
-        // 3. Status Shalat di slot SAAT INI masih 'Hadir' (belum diubah jadi Alpa/Hadir manual)
-        // ============================================================
-        if (prevSlotData && prevSlotData[id]) {
-            const prevSt = prevSlotData[id].status?.shalat;
-            const currentSt = sData.status.shalat;
-
-            if (['Sakit', 'Izin', 'Pulang'].includes(prevSt) && currentSt === 'Hadir') {
-                // Terapkan status dari slot sebelumnya
-                sData.status.shalat = prevSt;
-                
-                // Sesuaikan kegiatan dependent/KBM
-                slot.activities.forEach(a => {
-                    if (a.id === 'shalat') return; // Skip shalat (sudah diset)
-                    
-                    if (a.category === 'fardu' || a.category === 'kbm') {
-                        sData.status[a.id] = prevSt;
-                    } else {
-                        // Kegiatan sunnah/dependent otomatis 'Tidak'
-                        sData.status[a.id] = 'Tidak';
-                    }
-                });
-                hasAutoChanges = true;
-            }
-        }
-        // ============================================================
-
-        // 2. Cek Permit Resmi (Override di atas segalanya)
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
@@ -992,15 +991,18 @@ window.renderAttendanceList = function() {
             // A. Jika Ada Permit: Paksa Status sesuai Permit
             slot.activities.forEach(act => {
                 let target = null;
+                // Hanya override kegiatan Wajib/Fardu
                 if (act.category === 'fardu' || act.category === 'kbm') target = activePermit.type;
-                else target = 'Tidak';
+                else target = 'Tidak'; // Sunnah otomatis tidak
                 
+                // Update status jika belum sesuai
                 if (sData.status[act.id] !== target) {
                     sData.status[act.id] = target;
                     hasAutoChanges = true;
                 }
             });
-            // Update Note
+            
+            // Update Note Otomatis
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
             if (!sData.note || !sData.note.includes(activePermit.type)) {
                 sData.note = autoNote;
@@ -1008,8 +1010,8 @@ window.renderAttendanceList = function() {
             }
         } 
         else if (isAutoMarked) {
-            // B. Jika TIDAK Ada Permit tapi masih ada label [Auto] (Kasus Hapus/Sembuh)
-            // Maka: RESET ke Hadir
+            // B. Jika Permit sudah TIDAK Ada tapi masih ada label [Auto] (Kasus dihapus/sembuh)
+            // Maka: RESET ke Hadir (Normal)
             slot.activities.forEach(act => {
                 if (act.category === 'fardu' || act.category === 'kbm') sData.status[act.id] = 'Hadir';
                 else if (act.category === 'dependent') sData.status[act.id] = 'Ya';
@@ -1019,13 +1021,13 @@ window.renderAttendanceList = function() {
             hasAutoChanges = true;
         }
 
-        // --- RENDER UI (Tidak Berubah) ---
+        // --- RENDER UI ---
         const clone = tplRow.content.cloneNode(true);
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // Badge Status
+        // Badge Status (Visual)
         const currentStatus = sData.status.shalat || 'Hadir';
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const nameEl = clone.querySelector('.santri-name');
@@ -1048,7 +1050,7 @@ window.renderAttendanceList = function() {
             nameEl.appendChild(badge);
         }
 
-        // Render Tombol
+        // Render Tombol Kegiatan
         const btnCont = clone.querySelector('.activity-container');
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
@@ -1060,26 +1062,39 @@ window.renderAttendanceList = function() {
             const curr = sData.status[act.id];
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
-            let isLocked = false;
-            if (activePermit && (act.category === 'fardu' || act.category === 'kbm')) {
-                isLocked = true;
-            }
+            // --- PERBAIKAN: JANGAN KUNCI TOMBOL ---
+            // Cek konflik dengan permit, tapi jangan disable tombolnya.
+            const hasPermitConflict = activePermit && (act.category === 'fardu' || act.category === 'kbm');
 
             let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all ${ui.class}`;
 
-            if (isLocked) {
-                btn.className = `${baseClass} opacity-90 cursor-not-allowed`;
-                btn.textContent = ui.label;
-                btn.onclick = () => window.showToast("🔒 Status dikunci oleh Surat Izin.", "warning");
+            if (hasPermitConflict) {
+                // Beri tanda visual (border putus-putus merah)
+                baseClass += ' ring-2 ring-red-400 ring-offset-2 border-dashed opacity-90';
             } else {
-                btn.className = `${baseClass} active:scale-95`;
-                btn.textContent = ui.label;
-                btn.onclick = () => window.toggleStatus(id, act.id, act.type);
+                baseClass += ' active:scale-95';
             }
+
+            btn.className = baseClass;
+            btn.textContent = ui.label;
+            
+            // Logika Klik Tombol
+            btn.onclick = () => {
+                if (hasPermitConflict) {
+                    // Konfirmasi sebelum mengubah status permit resmi
+                    if(!confirm(`Santri ini sedang izin resmi (${activePermit.type}).\nYakin ingin mengubah status jadi Hadir manual?`)) {
+                        return; 
+                    }
+                    // Hapus flag [Auto] agar tidak kembali otomatis ke status izin
+                    if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
+                }
+                window.toggleStatus(id, act.id, act.type);
+            };
             
             lbl.textContent = act.label;
             
-            if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
+            // Ring warna untuk status non-hadir manual
+            if (!hasPermitConflict && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
                 let ringColor = 'ring-slate-300';
                 if (curr === 'Sakit') ringColor = 'ring-amber-400';
                 else if (curr === 'Izin') ringColor = 'ring-blue-400';
@@ -1106,7 +1121,7 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
-    // Simpan otomatis jika ada perubahan status/reset
+    // Simpan otomatis jika ada perubahan status otomatis (permit/reset)
     if(hasAutoChanges) window.saveData(); 
     if(window.lucide) window.lucide.createIcons();
 };
