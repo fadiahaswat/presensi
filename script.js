@@ -3625,53 +3625,82 @@ window.renderDashboardPembinaan = function() {
     const card = document.getElementById('dashboard-pembinaan-card');
     const badge = document.getElementById('pembinaan-count-badge');
     
+    // Pastikan elemen ada (judul widget di HTML mungkin perlu disesuaikan manual atau kita biarkan default)
+    // Kita ubah judul card secara dinamis jika ada ID-nya, jika tidak biarkan.
+    const cardTitle = document.querySelector('#dashboard-pembinaan-card h3');
+    if(cardTitle) cardTitle.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 mr-2 inline"></i>Pelanggaran Hari Ini`;
+
     if(!container || !card) return;
 
-    // 1. Kumpulkan Data Masalah
-    let problemList = [];
-    FILTERED_SANTRI.forEach(s => {
-        const id = String(s.nis || s.id);
-        const totalAlpa = window.countTotalAlpa(id);
-        const status = window.getPembinaanStatus(totalAlpa);
-        
-        if (totalAlpa > 0) {
-            problemList.push({ ...s, totalAlpa, status });
-        }
-    });
+    // 1. Filter Hanya Alpa HARI INI (Sesuai Tanggal Dashboard)
+    const dateKey = appState.date;
+    const dayData = appState.attendanceData[dateKey];
+    
+    let todayViolations = [];
+    
+    if (dayData) {
+        FILTERED_SANTRI.forEach(s => {
+            const id = String(s.nis || s.id);
+            let violationSlots = [];
+            
+            // Cek setiap slot (Shubuh - Isya) pada hari ini
+            Object.values(SLOT_WAKTU).forEach(slot => {
+                const st = dayData[slot.id]?.[id]?.status?.shalat;
+                if (st === 'Alpa') {
+                    violationSlots.push(slot.label);
+                }
+            });
 
-    // 2. Sort dari yang terparah
-    problemList.sort((a, b) => b.totalAlpa - a.totalAlpa);
-
-    // 3. Tampilkan/Sembunyikan Widget
-    if (problemList.length === 0) {
-        card.classList.add('hidden');
-        return;
+            if (violationSlots.length > 0) {
+                todayViolations.push({
+                    ...s,
+                    slots: violationSlots
+                });
+            }
+        });
     }
-    card.classList.remove('hidden');
-    badge.textContent = `${problemList.length} Santri`;
 
-    // 4. Render Top 3
-    container.innerHTML = '';
-    problemList.slice(0, 3).forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-600/50';
-        div.innerHTML = `
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-600 flex items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-500">
-                    ${p.nama.substring(0,2).toUpperCase()}
+    // Update Badge
+    if(badge) badge.textContent = `${todayViolations.length} Santri`;
+
+    // 2. Render UI
+    if (todayViolations.length === 0) {
+        // Tampilkan State Kosong yang Rapi
+        container.innerHTML = `
+            <div class="text-center py-6">
+                <div class="inline-flex p-3 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 mb-2 border border-emerald-100 dark:border-emerald-800">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
                 </div>
-                <div>
-                    <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${p.nama}</h4>
-                    <p class="text-[9px] ${p.status.color.split(' ')[0]} font-bold">${p.status.label}</p>
+                <p class="text-[10px] font-bold text-slate-400">Nihil pelanggaran hari ini</p>
+            </div>`;
+    } else {
+        container.innerHTML = '';
+        todayViolations.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-3 rounded-xl bg-red-50/80 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 mb-2 transition-all hover:bg-red-100/80';
+            div.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-xs font-black text-red-500 border border-red-100 shadow-sm">
+                        ${p.nama.substring(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${p.nama}</h4>
+                        <p class="text-[10px] text-red-500 font-medium flex items-center gap-1">
+                            <i data-lucide="x-circle" class="w-3 h-3"></i>
+                            Alpa: ${p.slots.join(', ')}
+                        </p>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right">
-                <div class="text-sm font-black text-rose-500">${p.totalAlpa}</div>
-                <div class="text-[8px] text-slate-400 font-bold uppercase">Alpa</div>
-            </div>
-        `;
-        container.appendChild(div);
-    });
+                <button onclick="window.quickOpen('${appState.currentSlotId}')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:border-emerald-200 border border-transparent shadow-sm transition-all">
+                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        });
+    }
+    
+    // Pastikan card terlihat (kecuali fitur dimatikan total, tapi user minta tampil)
+    card.classList.remove('hidden');
     
     if(window.lucide) window.lucide.createIcons();
 };
