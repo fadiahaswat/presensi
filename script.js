@@ -929,6 +929,11 @@ window.renderAttendanceList = function() {
     const tplRow = document.getElementById('tpl-santri-row');
     const tplBtn = document.getElementById('tpl-activity-btn');
     const fragment = document.createDocumentFragment();
+    
+    // UX #4: Calculate yesterday date once for efficiency
+    const yesterday = new Date(dateKey);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().split('T')[0];
 
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
@@ -1013,11 +1018,8 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
         
-        // UX #4: Smart Suggestion - Check Yesterday's Status
+        // UX #4: Smart Suggestion - Check Yesterday's Status (using pre-calculated yesterdayKey)
         let yesterdayStatus = null;
-        const yesterday = new Date(dateKey);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayKey = yesterday.toISOString().split('T')[0];
         
         if (!activePermit && appState.attendanceData[yesterdayKey]) {
             // Check yesterday's last session (Isya -> Maghrib -> Ashar -> Shubuh)
@@ -4215,8 +4217,15 @@ window.continueYesterdayStatus = function(nis, statusType) {
 
 // UX #6: Apply Bulk Defaults for Perpulangan
 window.applyBulkDefaults = function() {
-    const bulkPickup = document.getElementById('bulk-pickup').value;
-    const bulkVehicle = document.getElementById('bulk-vehicle').value;
+    const bulkPickupEl = document.getElementById('bulk-pickup');
+    const bulkVehicleEl = document.getElementById('bulk-vehicle');
+    
+    if (!bulkPickupEl || !bulkVehicleEl) {
+        return window.showToast("Error: Form tidak ditemukan", "error");
+    }
+    
+    const bulkPickup = bulkPickupEl.value;
+    const bulkVehicle = bulkVehicleEl.value;
     
     if (!bulkPickup && !bulkVehicle) {
         return window.showToast("Pilih minimal satu default untuk diterapkan", "warning");
@@ -4224,10 +4233,12 @@ window.applyBulkDefaults = function() {
     
     // Apply to main form fields
     if (bulkPickup) {
-        document.getElementById('permit-pickup').value = bulkPickup;
+        const permitPickupEl = document.getElementById('permit-pickup');
+        if (permitPickupEl) permitPickupEl.value = bulkPickup;
     }
     if (bulkVehicle) {
-        document.getElementById('permit-vehicle').value = bulkVehicle;
+        const permitVehicleEl = document.getElementById('permit-vehicle');
+        if (permitVehicleEl) permitVehicleEl.value = bulkVehicle;
     }
     
     window.showToast("Default berhasil diterapkan! Simpan untuk melanjutkan", "success");
