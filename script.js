@@ -910,13 +910,14 @@ window.renderAttendanceList = function() {
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
 
+    // Pastikan struktur data ada
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Mapping slot sebelumnya
+    // Mapping slot sebelumnya untuk Carry-Over Manual
     const PREV_SLOT_MAP = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
@@ -939,7 +940,11 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // 1. Inisialisasi Data
+        // ============================================================
+        // TAHAP 1: INISIALISASI & MANUAL CARRY-OVER
+        // ============================================================
+        // Logika ini HANYA jalan jika data sesi ini BELUM PERNAH dibuat.
+        // Jadi kalau Anda ubah manual jadi "Hadir", logika ini TIDAK akan menimpa lagi.
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -947,9 +952,10 @@ window.renderAttendanceList = function() {
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
-            // Carry Over Logic
+            // Cek Status Sesi Sebelumnya (Manual Carry-Over)
             if (prevSlotData && prevSlotData[id]) {
                 const prevSt = prevSlotData[id].status?.shalat;
+                // Jika sesi lalu Sakit/Izin/Pulang, jadikan default sesi ini
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
                     defStatus['shalat'] = prevSt;
                     slot.activities.forEach(a => {
@@ -967,11 +973,18 @@ window.renderAttendanceList = function() {
 
         const sData = dbSlot[id];
         
-        // 2. Cek Permit Resmi
+        // ============================================================
+        // TAHAP 2: CEK IZIN RESMI (MANAJEMEN PERIZINAN)
+        // ============================================================
+        // Ini adalah Otoritas Tertinggi. Jika ada Surat Izin Aktif,
+        // data akan dipaksa mengikuti surat, tidak peduli manualnya apa.
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
-        const isAutoMarked = sData.note && sData.note.includes('[Auto]');
+        
+        // Cek apakah data saat ini ditandai sebagai [Auto] (hasil generate sistem)
+        const isSystemGenerated = sData.note && sData.note.includes('[Auto]');
 
         if (activePermit) {
+            // A. KASUS ADA IZIN RESMI AKTIF -> TIMPA DATA
             slot.activities.forEach(act => {
                 let target = null;
                 if (act.category === 'fardu' || act.category === 'kbm') target = activePermit.type;
@@ -982,21 +995,29 @@ window.renderAttendanceList = function() {
                     hasAutoChanges = true;
                 }
             });
+            
+            // Tambahkan Label [Auto] jika belum ada
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
-            if (!sData.note || !sData.note.includes(activePermit.type)) {
+            if (!sData.note || !sData.note.includes('[Auto]')) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
             }
         } 
-        else if (isAutoMarked) {
+        else if (isSystemGenerated) {
+            // B. KASUS IZIN RESMI SUDAH HILANG (Sembuh/Pulang), TAPI MASIH ADA LABEL [Auto]
+            // Artinya: Ini sisa data lama yang harus dibersihkan (Reset ke Hadir).
+            
             slot.activities.forEach(act => {
                 if (act.category === 'fardu' || act.category === 'kbm') sData.status[act.id] = 'Hadir';
                 else if (act.category === 'dependent') sData.status[act.id] = 'Ya';
                 else sData.status[act.id] = 'Tidak';
             });
-            sData.note = ''; 
+            sData.note = ''; // Hapus catatan [Auto]
             hasAutoChanges = true;
         }
+        // C. KASUS MANUAL (Tidak ada Permit, Tidak ada label Auto)
+        // Biarkan apa adanya sesuai database (sData). 
+        // Ini memungkinkan User mengubah status Sakit -> Hadir secara manual tanpa tertimpa.
 
         // --- RENDER UI (CARD THEME & SOLID BUTTONS) ---
         const clone = tplRow.content.cloneNode(true);
@@ -1005,12 +1026,8 @@ window.renderAttendanceList = function() {
         const currentStatus = sData.status.shalat || 'Hadir';
         let cardClasses = "relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300 shadow-sm ";
         
-        // Tema Kartu (Nuansa Warna)
-        let theme = {
-            bg: "bg-white dark:bg-slate-800",
-            border: "border-slate-100 dark:border-slate-700",
-            text: "text-slate-800 dark:text-white"
-        };
+        // TEMA KARTU (WARNA)
+        let theme = { bg: "bg-white dark:bg-slate-800", border: "border-slate-100 dark:border-slate-700", text: "text-slate-800 dark:text-white" };
 
         if (currentStatus === 'Sakit') {
             theme.bg = "bg-amber-50/80 dark:bg-amber-900/10";
@@ -1033,8 +1050,8 @@ window.renderAttendanceList = function() {
             theme.text = "text-red-900 dark:text-red-100";
         }
 
-        // Border Kiri Tebal jika Resmi
         if (activePermit) {
+            // Jika Resmi: Border Kiri Tebal
             if(currentStatus === 'Sakit') cardClasses += " border-l-4 border-l-amber-500";
             else if(currentStatus === 'Izin') cardClasses += " border-l-4 border-l-blue-500";
             else if(currentStatus === 'Pulang') cardClasses += " border-l-4 border-l-purple-500";
@@ -1042,45 +1059,38 @@ window.renderAttendanceList = function() {
 
         cardContainer.className = `${cardClasses} ${theme.bg} ${theme.border}`;
 
-        // Nama & Avatar
         const nameEl = clone.querySelector('.santri-name');
         nameEl.textContent = santri.nama;
         nameEl.className = `santri-name font-bold text-sm ${theme.text}`;
-
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // Badge Status (Leveling)
+        // BADGE STATUS (LEVELING)
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const badge = document.createElement('span');
             let badgeClass = 'ml-2 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider align-middle flex inline-flex items-center gap-1 ';
             let icon = '';
             let labelText = currentStatus;
 
-            if (activePermit) {
-                // Resmi (Level 2)
+            if (activePermit) { // Level 2 (Resmi)
                 icon = '<i data-lucide="file-badge-2" class="w-3 h-3"></i>';
                 labelText = activePermit.type.toUpperCase();
-                
                 if(currentStatus === 'Sakit') badgeClass += 'bg-amber-500 text-white shadow-md shadow-amber-500/20';
                 else if(currentStatus === 'Izin') badgeClass += 'bg-blue-500 text-white shadow-md shadow-blue-500/20';
                 else if(currentStatus === 'Pulang') badgeClass += 'bg-purple-500 text-white shadow-md shadow-purple-500/20';
-            } else {
-                // Manual (Level 1)
+            } else { // Level 1 (Manual)
                 icon = '<i data-lucide="user-pen" class="w-3 h-3"></i>';
-                
                 if(currentStatus === 'Sakit') badgeClass += 'bg-white border border-amber-300 text-amber-600';
                 else if(currentStatus === 'Izin') badgeClass += 'bg-white border border-blue-300 text-blue-600';
                 else if(currentStatus === 'Pulang') badgeClass += 'bg-white border border-purple-300 text-purple-600';
                 else if(currentStatus === 'Alpa') badgeClass += 'bg-white border border-red-300 text-red-600';
             }
-
             badge.className = badgeClass;
             badge.innerHTML = `${icon} ${labelText}`;
             nameEl.appendChild(badge);
         }
 
-        // Render Tombol
+        // RENDER TOMBOL
         const btnCont = clone.querySelector('.activity-container');
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
@@ -1091,34 +1101,18 @@ window.renderAttendanceList = function() {
             
             const curr = sData.status[act.id];
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
-            
             const hasPermitConflict = activePermit && (act.category === 'fardu' || act.category === 'kbm');
 
-            // --- TOMBOL SOLID & TEXT PUTIH ---
+            // Style Tombol Solid
             let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-md border font-black text-lg transition-all duration-200 `;
             
-            // Logika Warna Solid + Shadow
-            if (curr === 'Hadir' || curr === 'Ya') {
-                baseClass += 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30';
-            } 
-            else if (curr === 'Sakit') {
-                baseClass += 'bg-amber-500 border-amber-600 text-white shadow-amber-500/30';
-            } 
-            else if (curr === 'Izin') {
-                baseClass += 'bg-blue-500 border-blue-600 text-white shadow-blue-500/30';
-            } 
-            else if (curr === 'Pulang') {
-                baseClass += 'bg-purple-500 border-purple-600 text-white shadow-purple-500/30';
-            } 
-            else if (curr === 'Alpa') {
-                baseClass += 'bg-red-500 border-red-600 text-white shadow-red-500/30';
-            } 
-            else {
-                // Default / Tidak / Belum Diisi
-                baseClass += 'bg-white border-slate-200 text-slate-300 hover:border-slate-300';
-            }
+            if (curr === 'Hadir' || curr === 'Ya') baseClass += 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/30';
+            else if (curr === 'Sakit') baseClass += 'bg-amber-500 border-amber-600 text-white shadow-amber-500/30';
+            else if (curr === 'Izin') baseClass += 'bg-blue-500 border-blue-600 text-white shadow-blue-500/30';
+            else if (curr === 'Pulang') baseClass += 'bg-purple-500 border-purple-600 text-white shadow-purple-500/30';
+            else if (curr === 'Alpa') baseClass += 'bg-red-500 border-red-600 text-white shadow-red-500/30';
+            else baseClass += 'bg-white border-slate-200 text-slate-300 hover:border-slate-300';
 
-            // Visual Konflik Izin (Ring Emas di luar tombol solid)
             if (hasPermitConflict) {
                 baseClass += ' ring-4 ring-yellow-300/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 opacity-90';
             } else {
@@ -1131,6 +1125,7 @@ window.renderAttendanceList = function() {
             btn.onclick = () => {
                 if (hasPermitConflict) {
                     if(!confirm(`⚠️ STATUS PERIZINAN RESMI\n\nSantri ini tercatat ${activePermit.type} sampai ${window.formatDate(activePermit.end)}.\n\nUbah manual jadi HADIR?`)) return;
+                    // Hapus flag [Auto] agar status tidak kembali otomatis
                     if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
                 }
                 window.toggleStatus(id, act.id, act.type);
@@ -1138,7 +1133,6 @@ window.renderAttendanceList = function() {
             
             lbl.textContent = act.label;
             lbl.className = `lbl-status text-[10px] font-bold mt-1 text-center ${theme.text} opacity-70`;
-
             btnCont.appendChild(bClone);
         });
 
@@ -1147,7 +1141,6 @@ window.renderAttendanceList = function() {
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
         noteInp.className = "input-note w-full text-xs p-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none bg-white/50 dark:bg-black/20 transition-all";
-        
         noteInp.onchange = (e) => {
             sData.note = e.target.value;
             window.saveData();
