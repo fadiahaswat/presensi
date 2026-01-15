@@ -222,6 +222,8 @@ const STATUS_UI = {
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };
 
+const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
+
 // ==========================================
 // KONFIGURASI PEMBINAAN (Disciplinary Rules)
 // ==========================================
@@ -2464,9 +2466,6 @@ window.renderPermitList = function() {
         container.appendChild(div);
     });
 };
-
-// Pastikan variabel ini ada/terbaca
-const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
 
 window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
     const permit = appState.permits.find(p => String(p.nis) === String(nis) && p.is_active);
