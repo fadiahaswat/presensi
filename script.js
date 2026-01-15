@@ -914,7 +914,6 @@ window.renderAttendanceList = function() {
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Filter Logic
     const search = appState.searchQuery.toLowerCase();
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(search);
@@ -934,28 +933,59 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- LOGIKA OTOMATIS ---
+        // --- LOGIKA OTOMATIS (Permit Resmi) ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
         if(!dbSlot[id]) {
             const defStatus = {};
+            
+            // --- LOGIKA BARU: Cek Status Sesi Sebelumnya (Carry Over) ---
+            // Urutan: Ashar -> Cek Shubuh, Maghrib -> Cek Ashar, dst.
+            let carryOverStatus = null;
+            const prevSessionMap = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
+            const prevSlotId = prevSessionMap[slot.id];
+            
+            // Jika ada sesi sebelumnya di hari yg sama
+            if (prevSlotId && appState.attendanceData[dateKey][prevSlotId]) {
+                const prevData = appState.attendanceData[dateKey][prevSlotId][id];
+                if (prevData && prevData.status) {
+                    const prevSt = prevData.status.shalat;
+                    // Hanya bawa status non-hadir (Sakit/Izin/Pulang/Alpa)
+                    if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(prevSt)) {
+                        carryOverStatus = prevSt;
+                    }
+                }
+            }
+            // -------------------------------------------------------------
+
             slot.activities.forEach(a => {
                 if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
-                else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
+                else {
+                    // Prioritas: Permit > CarryOver > Default Hadir
+                    if (carryOverStatus && (a.category === 'fardu' || a.category === 'kbm')) {
+                        defStatus[a.id] = carryOverStatus;
+                    } else if (carryOverStatus && a.category === 'dependent') {
+                         defStatus[a.id] = 'Tidak'; 
+                    } else {
+                        defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
+                    }
+                }
             });
+            // Tidak pakai [Auto] note agar statusnya dianggap manual (bisa diedit bebas)
             dbSlot[id] = { status: defStatus, note: '' };
         }
 
         const sData = dbSlot[id];
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
+        // Apply Permit (Surat Izin Resmi) Override
         slot.activities.forEach(act => {
             let targetStatus = null;
             if (activePermit) {
-                // Jika Pulang, statusnya 'Pulang' (P)
                 if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
                 else targetStatus = 'Tidak'; 
             } else if (isAutoMarked) {
+                // Reset jika permit dihapus
                 if (act.category === 'sunnah') targetStatus = 'Tidak';
                 else if (act.category === 'fardu' || act.category === 'kbm') targetStatus = 'Hadir';
                 else targetStatus = 'Ya';
@@ -969,7 +999,6 @@ window.renderAttendanceList = function() {
 
         if (activePermit) {
             const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
-            // Update note hanya jika belum ada note manual
             if (!sData.note || sData.note === '-' || (isAutoMarked && !sData.note.includes(activePermit.type))) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
@@ -984,38 +1013,23 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
 
-        // --- BADGE STATUS & WARNA BARIS ---
-        if (activePermit) {
+        // Highlight Row berdasarkan status Shalat
+        const currentStatus = sData.status.shalat || 'Hadir';
+        if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
-            
-            let badgeClass = '';
+            let badgeClass = 'bg-slate-100 text-slate-500';
             let rowClass = '';
 
-            if (activePermit.type === 'Sakit') {
-                badgeClass = 'bg-amber-100 text-amber-600 border-amber-200';
-                rowClass = 'ring-amber-200 bg-amber-50/30';
-            } 
-            else if (activePermit.type === 'Pulang') { // Fix Ungu
-                badgeClass = 'bg-purple-100 text-purple-600 border-purple-200';
-                rowClass = 'ring-purple-200 bg-purple-50/30';
-            } 
-            else if (activePermit.type === 'Alpa') {
-                badgeClass = 'bg-red-100 text-red-600 border-red-200';
-                rowClass = 'ring-red-200 bg-red-50/30';
-            } 
-            else { // Izin
-                badgeClass = 'bg-blue-100 text-blue-600 border-blue-200';
-                rowClass = 'ring-blue-200 bg-blue-50/30';
-            }
+            if (currentStatus === 'Sakit') { badgeClass = 'bg-amber-100 text-amber-600 border-amber-200'; rowClass = 'ring-amber-200 bg-amber-50/30'; }
+            else if (currentStatus === 'Izin') { badgeClass = 'bg-blue-100 text-blue-600 border-blue-200'; rowClass = 'ring-blue-200 bg-blue-50/30'; }
+            else if (currentStatus === 'Pulang') { badgeClass = 'bg-purple-100 text-purple-600 border-purple-200'; rowClass = 'ring-purple-200 bg-purple-50/30'; }
+            else if (currentStatus === 'Alpa') { badgeClass = 'bg-red-100 text-red-600 border-red-200'; rowClass = 'ring-red-200 bg-red-50/30'; }
 
             badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
-            badge.textContent = activePermit.type;
+            badge.textContent = currentStatus;
             nameEl.appendChild(badge);
-            
-            if(rowElement) {
-                rowElement.classList.add('ring-1', ...rowClass.split(' '));
-            }
+            if(rowElement) rowElement.classList.add('ring-1', ...rowClass.split(' '));
         }
 
         const btnCont = clone.querySelector('.activity-container');
@@ -1034,16 +1048,13 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
-            // --- PERBAIKAN PENTING: WARNA RING TOMBOL ---
-            // Logika lama hanya cek 'Sakit' vs 'Selain Sakit (Blue)'
-            // Logika baru cek semua tipe
-            if (activePermit && (curr === activePermit.type || curr === 'Tidak')) {
-                let ringColor = 'ring-blue-400'; // Default Izin
-                
-                if (activePermit.type === 'Sakit') ringColor = 'ring-amber-400';
-                else if (activePermit.type === 'Pulang') ringColor = 'ring-purple-400'; // Fix Ungu
-                else if (activePermit.type === 'Alpa') ringColor = 'ring-red-400';
-
+            // Highlight Tombol
+            if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
+                let ringColor = 'ring-slate-300';
+                if (curr === 'Sakit') ringColor = 'ring-amber-400';
+                else if (curr === 'Izin') ringColor = 'ring-blue-400';
+                else if (curr === 'Pulang') ringColor = 'ring-purple-400';
+                else if (curr === 'Alpa') ringColor = 'ring-red-400';
                 btn.classList.add('ring-2', 'ring-offset-1', ringColor);
             }
 
