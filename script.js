@@ -4152,22 +4152,31 @@ window.resolveManualStatus = function(nis, statusType) {
 
 window.renderPermitHistory = function() {
     const container = document.getElementById('permit-history-list');
-    const filterCat = document.getElementById('hist-filter-cat')?.value || 'all';
-    const searchQuery = document.getElementById('hist-search')?.value.toLowerCase() || '';
+    const filterCat = document.getElementById('hist-filter-cat')?.value || 'all'; // Jika nanti mau tambah filter kategori
+    const searchQuery = document.getElementById('hist-search')?.value.toLowerCase() || ''; // Jika ada search box di profil
 
     if (!container) return;
     container.innerHTML = '';
 
-    // Ambil semua permit, urutkan dari yang terbaru (berdasarkan timestamp atau start_date)
+    // 1. Ambil SEMUA permit & Urutkan (Terbaru di atas)
+    // Kita copy array agar tidak merusak urutan asli di appState
     let history = [...appState.permits].sort((a, b) => {
-        return new Date(b.timestamp || b.start_date) - new Date(a.timestamp || a.start_date);
+        // Prioritaskan timestamp pembuatan, kalau tidak ada pakai start_date
+        const dateA = new Date(a.timestamp || a.start_date);
+        const dateB = new Date(b.timestamp || b.start_date);
+        return dateB - dateA; // Descending
     });
 
-    // Filter
+    // 2. Filter Data (Berdasarkan Kelas & Search)
+    const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
+    
     history = history.filter(p => {
+        // Cek apakah santri ini milik kelas yang sedang login
+        if (!classNisList.includes(String(p.nis))) return false;
+
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
-        if (!santri) return false; // Skip jika santri tidak ditemukan (misal data lama)
-        
+        if (!santri) return false;
+
         const matchName = santri.nama.toLowerCase().includes(searchQuery);
         const matchCat = filterCat === 'all' || p.category === filterCat;
         
@@ -4176,80 +4185,83 @@ window.renderPermitHistory = function() {
 
     if (history.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-10 text-slate-400">
-                <i data-lucide="folder-open" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
-                <p class="text-xs font-bold">Tidak ada riwayat ditemukan</p>
+            <div class="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl">
+                <i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-3 text-slate-300"></i>
+                <p class="text-xs font-bold text-slate-400">Belum ada riwayat perizinan</p>
             </div>`;
         if(window.lucide) window.lucide.createIcons();
         return;
     }
 
-    const fragment = document.createDocumentFragment();
-
+    // 3. Render List
     history.forEach(p => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
-        if (!santri) return;
+        
+        // Tentukan Style Berdasarkan Kategori
+        let colorTheme = 'bg-slate-100 text-slate-500';
+        let iconName = 'file-text';
+        let borderClass = 'border-slate-200';
 
-        // Tentukan Warna & Icon
-        let colorClass = 'bg-slate-100 text-slate-600';
-        let icon = 'file-text';
-        if (p.category === 'sakit') { colorClass = 'bg-amber-100 text-amber-600 border-amber-200'; icon = 'thermometer'; }
-        else if (p.category === 'izin') { colorClass = 'bg-blue-100 text-blue-600 border-blue-200'; icon = 'calendar'; }
-        else if (p.category === 'pulang') { colorClass = 'bg-purple-100 text-purple-600 border-purple-200'; icon = 'bus'; }
+        if (p.category === 'sakit') {
+            colorTheme = 'bg-amber-100 text-amber-600';
+            borderClass = 'border-amber-200';
+            iconName = 'thermometer';
+        } else if (p.category === 'izin') {
+            colorTheme = 'bg-blue-100 text-blue-600';
+            borderClass = 'border-blue-200';
+            iconName = 'calendar';
+        } else if (p.category === 'pulang') {
+            colorTheme = 'bg-purple-100 text-purple-600';
+            borderClass = 'border-purple-200';
+            iconName = 'bus';
+        }
 
-        // Status Aktif/Selesai
-        const isActive = p.is_active;
-        const statusBadge = isActive 
-            ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 border border-emerald-200 text-[9px] font-black uppercase">Aktif</span>`
-            : `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200 text-[9px] font-black uppercase">Selesai</span>`;
+        // Status Badge
+        const statusBadge = p.is_active 
+            ? `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-200 uppercase">Aktif</span>`
+            : `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase">Selesai</span>`;
 
-        // Format Tanggal
-        const dateStr = p.end_date 
-            ? `${window.formatDate(p.start_date)} - ${window.formatDate(p.end_date)}`
-            : `${window.formatDate(p.start_date)} (Belum ditentukan)`;
+        // Format Tanggal Range
+        const dateRange = p.end_date 
+            ? `${window.formatDate(p.start_date)} — ${window.formatDate(p.end_date)}`
+            : `${window.formatDate(p.start_date)} (Belum Sembuh)`;
 
         const div = document.createElement('div');
-        div.className = 'p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md group relative';
+        div.className = `p-4 rounded-2xl bg-white dark:bg-slate-800 border ${borderClass} mb-3 shadow-sm hover:shadow-md transition-all relative group`;
+        
         div.innerHTML = `
             <div class="flex justify-between items-start">
-                <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-xl ${colorClass} border flex items-center justify-center flex-shrink-0">
-                        <i data-lucide="${icon}" class="w-5 h-5"></i>
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 rounded-xl ${colorTheme} flex items-center justify-center border border-white/20 shadow-sm flex-shrink-0">
+                        <i data-lucide="${iconName}" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h4 class="text-xs font-bold text-slate-800 dark:text-white">${santri.nama}</h4>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="text-[10px] font-bold capitalize text-slate-500">${p.category}</span>
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</h4>
                             ${statusBadge}
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-0.5"><i data-lucide="clock" class="w-3 h-3 inline mr-0.5"></i> ${dateStr}</p>
-                        <p class="text-[10px] text-slate-500 font-medium mt-1 bg-slate-50 dark:bg-slate-700/50 p-1.5 rounded-lg inline-block">
-                           "${p.reason}"
+                        <p class="text-[10px] text-slate-400 mt-0.5 font-medium">
+                            <i data-lucide="clock" class="w-3 h-3 inline mr-0.5"></i> ${dateRange}
+                        </p>
+                        <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100 dark:border-slate-700">
+                            "${p.reason || '-'}"
                         </p>
                     </div>
                 </div>
                 
-                <div class="flex flex-col gap-1 pl-2 border-l border-slate-100 dark:border-slate-700 ml-2">
-                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors" title="Edit">
-                        <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                <div class="flex flex-col gap-2">
+                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors" title="Edit Data">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
                     </button>
                     <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Hapus Permanen">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
-                    ${!isActive ? `
-                    <button onclick="window.togglePermitStatus('${p.id}')" class="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Aktifkan Lagi">
-                        <i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i>
-                    </button>` : `
-                    <button onclick="window.togglePermitStatus('${p.id}')" class="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors" title="Tandai Selesai">
-                        <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
-                    </button>`}
                 </div>
             </div>
         `;
-        fragment.appendChild(div);
+        container.appendChild(div);
     });
 
-    container.appendChild(fragment);
     if(window.lucide) window.lucide.createIcons();
 };
 
