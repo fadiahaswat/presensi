@@ -915,7 +915,7 @@ window.renderAttendanceList = function() {
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // --- LOGIC: AMBIL DATA KEMARIN (Smart Suggestion) ---
+    // --- LOGIC: AMBIL DATA KEMARIN (Untuk Smart Suggestion) ---
     const yesterday = new Date(appState.date);
     yesterday.setDate(yesterday.getDate() - 1);
     const prevDateKey = window.getLocalDateStr(yesterday);
@@ -944,15 +944,17 @@ window.renderAttendanceList = function() {
         // 1. Cek Izin Resmi (Active Permit)
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         
-        // 2. Cek Riwayat Kemarin
+        // 2. Cek Riwayat Kemarin (Smart Suggestion)
         let yesterdayStatus = null;
         if (prevDataFull) {
+            // Cek status terakhir kemarin (misal Isya)
             const lastSlotYesterday = prevDataFull['isya']?.[id]?.status?.shalat;
             if (['Sakit', 'Izin'].includes(lastSlotYesterday)) {
                 yesterdayStatus = lastSlotYesterday;
             }
         }
 
+        // Init Data Kosong
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -988,13 +990,13 @@ window.renderAttendanceList = function() {
             }
         }
 
-        // --- RENDER UI BARIS ---
+        // --- RENDER UI ---
         const clone = tplRow.content.cloneNode(true);
         const rowElement = clone.querySelector('.santri-row'); 
 
         clone.querySelector('.santri-name').textContent = santri.nama;
         
-        // Indikator Kamar + Smart Suggestion
+        // UX: Indikator Kamar + Smart Suggestion
         const kamarEl = clone.querySelector('.santri-kamar');
         if (yesterdayStatus && !activePermit) {
              kamarEl.innerHTML = `<span class="text-amber-500 font-bold">Kemarin ${yesterdayStatus}</span> • <span class="cursor-pointer underline decoration-dotted" onclick="window.toggleStatus('${id}', 'shalat', 'mandator')">Lanjut?</span>`;
@@ -1006,15 +1008,16 @@ window.renderAttendanceList = function() {
 
         const currentStatus = sData.status.shalat || 'Hadir';
 
-        // Badge Status pada Nama
+        // UX: Color Coding & Badge (Poin 5)
         if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus)) {
             const nameEl = clone.querySelector('.santri-name');
             const badge = document.createElement('span');
             
+            // Default Style (Manual)
             let badgeClass = 'bg-slate-100 text-slate-500 border-dashed';
             let icon = '';
 
-            // Jika Resmi -> Solid Border & Icon Dokumen
+            // Jika Resmi (Permit Active) -> Solid Border & Icon
             if (activePermit) {
                 badgeClass = 'border-solid shadow-sm';
                 icon = '<i data-lucide="file-check" class="w-3 h-3 inline mr-1"></i>';
@@ -1029,13 +1032,14 @@ window.renderAttendanceList = function() {
             badge.innerHTML = `${icon}${currentStatus}`;
             nameEl.appendChild(badge);
 
-            // Quick Convert Link (Hanya jika manual)
+            // UX: Quick Convert Button (Poin 2)
+            // Jika status Sakit/Izin TAPI Manual (tidak ada activePermit), tawarkan convert
             if (!activePermit && (currentStatus === 'Sakit' || currentStatus === 'Izin')) {
                 const convertBtn = document.createElement('button');
                 convertBtn.className = "ml-2 text-[9px] text-indigo-500 font-bold underline decoration-indigo-300 decoration-2 underline-offset-2 hover:text-indigo-700";
                 convertBtn.textContent = "Buat Surat?";
                 convertBtn.onclick = (e) => {
-                    e.stopPropagation();
+                    e.stopPropagation(); // Stop trigger row click
                     window.quickConvertPermit(id, currentStatus);
                 };
                 nameEl.appendChild(convertBtn);
@@ -1055,33 +1059,29 @@ window.renderAttendanceList = function() {
             const curr = sData.status[act.id];
             const ui = STATUS_UI[curr] || STATUS_UI['Hadir'];
             
-            // Logic Lock
+            // UX: Visual Lock Indicator (Poin 1)
+            // Jika ada permit resmi, tombol dibuat semi-transparent & ada icon gembok
             let isLocked = false;
             if (activePermit && (act.category === 'fardu' || act.category === 'kbm')) {
                 isLocked = true;
             }
 
-            // --- REVISI UTAMA DISINI ---
-            // Gunakan warna asli (ui.class) meski terkunci
-            // Tambahkan 'opacity-90' dan 'cursor-not-allowed' untuk indikasi halus
-            let baseClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all ${ui.class}`;
-
             if (isLocked) {
-                btn.className = `${baseClass} opacity-90 cursor-not-allowed`; // Warna TETAP, Opacity turun dikit
-                btn.textContent = ui.label; // Label TETAP (H/S/I)
-                
-                // Saat diklik -> Muncul Gembok di Toast
-                btn.onclick = () => window.showToast("🔒 Status dikunci oleh Surat Izin.", "warning");
+                btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center border font-black text-lg bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80`;
+                btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i>`;
+                // Toast Warning saat diklik
+                btn.onclick = () => window.showToast("🔒 Status dikunci oleh Surat Izin. Ubah di menu Perizinan.", "warning");
             } else {
-                btn.className = `${baseClass} active:scale-95`;
+                // Normal Button
+                btn.className = `btn-status w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border-2 font-black text-lg transition-all active:scale-95 ${ui.class}`;
                 btn.textContent = ui.label;
                 btn.onclick = () => window.toggleStatus(id, act.id, act.type);
             }
             
             lbl.textContent = act.label;
             
-            // Highlight Rings (Outline) - Tetap muncul meski Locked
-            if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
+            // Highlight Manual Status
+            if (!isLocked && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
                 let ringColor = 'ring-slate-300';
                 if (curr === 'Sakit') ringColor = 'ring-amber-400';
                 else if (curr === 'Izin') ringColor = 'ring-blue-400';
@@ -3712,61 +3712,69 @@ window.renderActivePermitsWidget = function() {
     container.innerHTML = '';
     
     const combinedList = [];
-    const processedNis = new Set(); 
-    const todayStr = window.getLocalDateStr(); // Ambil tanggal hari ini YYYY-MM-DD
+    const processedNis = new Set(); // Mencegah duplikasi
 
-    // A. Permit Resmi
+    // A. Permit Resmi (Jangka Panjang)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     const activePermits = appState.permits.filter(p => {
+        // Cek Sakit yg sudah sembuh
         const isRecoveredSakit = (p.category === 'sakit' && p.end_date !== null);
         return classNisList.includes(p.nis) && p.is_active && !isRecoveredSakit;
     });
 
     activePermits.forEach(p => {
-        // Cek Expired
-        let isExpired = false;
-        let isTodayEnd = false;
-
-        if (p.end_date) {
-            if (p.end_date < todayStr) isExpired = true;
-            if (p.end_date === todayStr) isTodayEnd = true;
-        }
-
         combinedList.push({
             type: 'permit',
             id: p.id,
             nis: p.nis,
             category: p.category,
             startTime: p.start_date,
-            endTime: p.end_date,
-            isExpired: isExpired,
-            isTodayEnd: isTodayEnd
+            endTime: p.end_date
         });
         processedNis.add(p.nis);
     });
 
-    // B. Presensi Manual Harian (Tidak berubah logikanya)
+    // B. Presensi Manual Harian
     const dateKey = appState.date;
     const dayData = appState.attendanceData[dateKey];
+
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
             const id = String(s.nis || s.id);
-            if (processedNis.has(id)) return; 
+            if (processedNis.has(id)) return; // Skip jika sudah ada permit
+
             let foundStatus = null;
+            
+            // Cek urut dari sesi TERAKHIR ke AWAL (Isya -> Shubuh)
+            // Tujuannya: Menemukan status TERKINI.
             const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
+            
             for (const slot of slots) {
                 const st = dayData[slot]?.[id]?.status?.shalat;
-                if (st && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
-                    foundStatus = st; break;
-                } else if (st === 'Hadir' || st === 'Ya') {
-                    foundStatus = 'Hadir'; break; 
+                if (st) {
+                    if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
+                        foundStatus = st; // Masalah ditemukan
+                        break; // Stop, kita pakai status terakhir ini
+                    } else if (st === 'Hadir' || st === 'Ya') {
+                        // Jika status terakhir adalah Hadir, berarti dia sudah sembuh/kembali
+                        // Jangan tampilkan di widget
+                        foundStatus = 'Hadir'; 
+                        break; 
+                    }
                 }
             }
+
             if (foundStatus && foundStatus !== 'Hadir') {
                 let category = foundStatus.toLowerCase(); 
                 if (foundStatus === 'Alpa') category = 'alpa';
+
                 combinedList.push({
-                    type: 'manual', id: null, nis: id, category: category, startTime: dateKey, endTime: null
+                    type: 'manual',
+                    id: null,
+                    nis: id,
+                    category: category,
+                    startTime: dateKey,
+                    endTime: null
                 });
             }
         });
@@ -3775,12 +3783,17 @@ window.renderActivePermitsWidget = function() {
     if (badgeCount) badgeCount.textContent = combinedList.length;
 
     if (combinedList.length === 0) {
-        container.innerHTML = `<div class="text-center py-6"><p class="text-[10px] font-bold text-slate-400">Semua santri ada di pondok</p></div>`;
+        container.innerHTML = `
+            <div class="text-center py-6">
+                <div class="inline-flex p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-300 mb-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                </div>
+                <p class="text-[10px] font-bold text-slate-400">Semua santri ada di pondok</p>
+            </div>
+        `;
+        if (window.lucide) window.lucide.createIcons();
         return;
     }
-
-    // Urutkan: Expired paling atas
-    combinedList.sort((a, b) => (b.isExpired ? 1 : 0) - (a.isExpired ? 1 : 0));
 
     combinedList.forEach(item => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === item.nis);
@@ -3789,45 +3802,50 @@ window.renderActivePermitsWidget = function() {
         let colorClass, iconName, btnLabel, btnAction;
         const cat = item.category.toLowerCase();
 
-        // Style Dasar
-        if (cat === 'sakit') { colorClass = 'bg-amber-100 text-amber-600 border-amber-200'; iconName = 'thermometer'; btnLabel = 'Sembuh'; } 
-        else if (cat === 'izin') { colorClass = 'bg-blue-100 text-blue-600 border-blue-200'; iconName = 'file-text'; btnLabel = 'Kembali'; } 
-        else if (cat === 'pulang') { colorClass = 'bg-indigo-100 text-indigo-600 border-indigo-200'; iconName = 'bus'; btnLabel = 'Tiba'; } 
-        else { colorClass = 'bg-red-100 text-red-600 border-red-200'; iconName = 'x-circle'; btnLabel = 'Hadir'; }
-
-        // UX: Style Khusus Expired / Deadline Hari Ini
-        let containerClass = 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700';
-        let alertMsg = '';
-
-        if (item.isExpired) {
-            containerClass = 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 animate-pulse';
-            alertMsg = `<span class="text-[9px] font-black text-red-500 ml-1">⚠️ LEWAT BATAS</span>`;
-        } else if (item.isTodayEnd) {
-            containerClass = 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800';
-            alertMsg = `<span class="text-[9px] font-black text-orange-500 ml-1">⚠️ PULANG HARI INI</span>`;
+        if (cat === 'sakit') {
+            colorClass = 'bg-amber-100 text-amber-600 border-amber-200';
+            iconName = 'thermometer';
+            btnLabel = 'Sembuh';
+        } else if (cat === 'izin') {
+            colorClass = 'bg-blue-100 text-blue-600 border-blue-200';
+            iconName = 'file-text';
+            btnLabel = 'Kembali';
+        } else if (cat === 'pulang') {
+            colorClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
+            iconName = 'bus';
+            btnLabel = 'Tiba';
+        } else { 
+            colorClass = 'bg-red-100 text-red-600 border-red-200';
+            iconName = 'x-circle';
+            btnLabel = 'Hadir';
         }
 
+        // --- FIX TOMBOL ACTION ---
         if (item.type === 'permit') {
             if (cat === 'sakit') btnAction = `window.markAsRecovered('${item.id}'); window.renderActivePermitsWidget();`;
             else btnAction = `window.markAsReturned('${item.id}'); window.renderActivePermitsWidget();`;
         } else {
+            // Untuk manual, kita kirim NIS dan Statusnya (Capitalized)
             const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); 
             btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
         }
 
         let timeInfo = '';
         if (item.endTime) timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
-        else timeInfo = `<span class="text-[9px] text-slate-400">${item.type === 'manual' ? 'Manual Hari Ini' : `Sejak ${window.formatDate(item.startTime)}`}</span>`;
+        else {
+            const label = item.type === 'manual' ? 'Manual Hari Ini' : `Sejak ${window.formatDate(item.startTime)}`;
+            timeInfo = `<span class="text-[9px] text-slate-400">${label}</span>`;
+        }
 
         const div = document.createElement('div');
-        div.className = `flex items-center justify-between p-2.5 rounded-xl border shadow-sm transition-all hover:shadow-md ${containerClass}`;
+        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md';
         div.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0 border">
                     <i data-lucide="${iconName}" class="w-3.5 h-3.5"></i>
                 </div>
                 <div class="min-w-0">
-                    <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate">${santri.nama} ${alertMsg}</h4>
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate">${santri.nama}</h4>
                     <div class="flex items-center gap-1.5 leading-none mt-0.5">
                         <span class="text-[9px] font-bold uppercase tracking-wider ${colorClass.split(' ')[1]}">${item.category}</span>
                         <span class="text-[9px] text-slate-300">•</span>
