@@ -1012,6 +1012,27 @@ window.renderAttendanceList = function() {
         clone.querySelector('.santri-name').textContent = santri.nama;
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         clone.querySelector('.santri-avatar').textContent = santri.nama.substring(0,2).toUpperCase();
+        
+        // UX #4: Smart Suggestion - Check Yesterday's Status
+        let yesterdayStatus = null;
+        const yesterday = new Date(dateKey);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = yesterday.toISOString().split('T')[0];
+        
+        if (!activePermit && appState.attendanceData[yesterdayKey]) {
+            // Check yesterday's last session (Isya -> Maghrib -> Ashar -> Shubuh)
+            const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
+            for (const slotId of slots) {
+                const yesterdaySlotData = appState.attendanceData[yesterdayKey][slotId];
+                if (yesterdaySlotData && yesterdaySlotData[id]) {
+                    const status = yesterdaySlotData[id].status?.shalat;
+                    if (['Sakit', 'Izin'].includes(status)) {
+                        yesterdayStatus = status;
+                        break;
+                    }
+                }
+            }
+        }
 
         // Highlight Row berdasarkan status Shalat
         const currentStatus = sData.status.shalat || 'Hadir';
@@ -1020,16 +1041,92 @@ window.renderAttendanceList = function() {
             const badge = document.createElement('span');
             let badgeClass = 'bg-slate-100 text-slate-500';
             let rowClass = '';
+            
+            // UX #5: Differentiate Manual vs Permit badges
+            const isFromPermit = activePermit !== null;
 
-            if (currentStatus === 'Sakit') { badgeClass = 'bg-amber-100 text-amber-600 border-amber-200'; rowClass = 'ring-amber-200 bg-amber-50/30'; }
-            else if (currentStatus === 'Izin') { badgeClass = 'bg-blue-100 text-blue-600 border-blue-200'; rowClass = 'ring-blue-200 bg-blue-50/30'; }
-            else if (currentStatus === 'Pulang') { badgeClass = 'bg-purple-100 text-purple-600 border-purple-200'; rowClass = 'ring-purple-200 bg-purple-50/30'; }
-            else if (currentStatus === 'Alpa') { badgeClass = 'bg-red-100 text-red-600 border-red-200'; rowClass = 'ring-red-200 bg-red-50/30'; }
+            if (currentStatus === 'Sakit') { 
+                badgeClass = isFromPermit 
+                    ? 'bg-amber-200 text-amber-800 border-2 border-solid border-amber-400 shadow-sm' 
+                    : 'bg-amber-100/70 text-amber-600 border border-dashed border-amber-300'; 
+                rowClass = 'ring-amber-200 bg-amber-50/30'; 
+            }
+            else if (currentStatus === 'Izin') { 
+                badgeClass = isFromPermit 
+                    ? 'bg-blue-200 text-blue-800 border-2 border-solid border-blue-400 shadow-sm' 
+                    : 'bg-blue-100/70 text-blue-600 border border-dashed border-blue-300'; 
+                rowClass = 'ring-blue-200 bg-blue-50/30'; 
+            }
+            else if (currentStatus === 'Pulang') { 
+                badgeClass = isFromPermit 
+                    ? 'bg-purple-200 text-purple-800 border-2 border-solid border-purple-400 shadow-sm' 
+                    : 'bg-purple-100/70 text-purple-600 border border-dashed border-purple-300'; 
+                rowClass = 'ring-purple-200 bg-purple-50/30'; 
+            }
+            else if (currentStatus === 'Alpa') { 
+                badgeClass = 'bg-red-100 text-red-600 border-red-200'; 
+                rowClass = 'ring-red-200 bg-red-50/30'; 
+            }
 
-            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle ${badgeClass}`;
-            badge.textContent = currentStatus;
+            badge.className = `ml-2 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider align-middle ${badgeClass}`;
+            
+            // Add file icon for permit
+            if (isFromPermit) {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'file-badge');
+                icon.className = 'w-2.5 h-2.5 inline-block mr-0.5';
+                badge.appendChild(icon);
+            }
+            
+            const text = document.createTextNode(currentStatus);
+            badge.appendChild(text);
+            
             nameEl.appendChild(badge);
+            
+            // UX #2: Quick Convert button for manual Sakit/Izin
+            if (!isFromPermit && (currentStatus === 'Sakit' || currentStatus === 'Izin')) {
+                const quickConvertBtn = document.createElement('button');
+                quickConvertBtn.className = 'ml-1.5 px-2 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300 transition-colors';
+                quickConvertBtn.textContent = 'Buat Surat';
+                quickConvertBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    window.openQuickConvertModal(id, currentStatus);
+                };
+                nameEl.appendChild(quickConvertBtn);
+            }
+            
             if(rowElement) rowElement.classList.add('ring-1', ...rowClass.split(' '));
+        }
+        
+        // UX #4: Yesterday Status Suggestion
+        if (yesterdayStatus && currentStatus === 'Hadir') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'col-span-full mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800';
+            alertDiv.innerHTML = `
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0"></i>
+                        <span class="text-[10px] font-bold text-amber-700 dark:text-amber-300">Kemarin ${yesterdayStatus}</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="window.continueYesterdayStatus('${id}', '${yesterdayStatus}')" class="px-2 py-1 rounded bg-amber-500 text-white text-[9px] font-bold hover:bg-amber-600 transition-colors">
+                            Lanjut ${yesterdayStatus}?
+                        </button>
+                        <button onclick="this.closest('.col-span-full').remove()" class="px-2 py-1 rounded bg-emerald-500 text-white text-[9px] font-bold hover:bg-emerald-600 transition-colors">
+                            Sudah Sembuh
+                        </button>
+                    </div>
+                </div>
+            `;
+            // Insert before the button container
+            const parentRow = clone.querySelector('.santri-row');
+            if (parentRow) {
+                // Find the activity container and insert before it
+                const activitySection = clone.querySelector('.activity-container')?.parentElement;
+                if (activitySection) {
+                    activitySection.parentElement.insertBefore(alertDiv, activitySection);
+                }
+            }
         }
 
         const btnCont = clone.querySelector('.activity-container');
@@ -1048,6 +1145,25 @@ window.renderAttendanceList = function() {
             btn.textContent = ui.label;
             lbl.textContent = act.label;
 
+            // UX #1: Locked Status Indicator for Permit
+            if (activePermit && (act.category === 'fardu' || act.category === 'kbm')) {
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                // Add lock icon to button
+                const lockIcon = document.createElement('i');
+                lockIcon.setAttribute('data-lucide', 'lock');
+                lockIcon.className = 'w-3 h-3 absolute top-0.5 right-0.5';
+                btn.style.position = 'relative';
+                btn.appendChild(lockIcon);
+                
+                // Override onclick to show toast
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    window.showToast("🔒 Status dikunci oleh Surat Izin. Ubah di menu Perizinan.", "warning");
+                };
+            } else {
+                btn.onclick = () => window.toggleStatus(id, act.id, act.type);
+            }
+
             // Highlight Tombol
             if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(curr)) {
                 let ringColor = 'ring-slate-300';
@@ -1058,7 +1174,6 @@ window.renderAttendanceList = function() {
                 btn.classList.add('ring-2', 'ring-offset-1', ringColor);
             }
 
-            btn.onclick = () => window.toggleStatus(id, act.id, act.type);
             btnCont.appendChild(bClone);
         });
 
@@ -2282,6 +2397,59 @@ window.updatePermitCount = function() {
     const checked = document.querySelectorAll('input[name="permit_santri_select"]:checked').length;
     const el = document.getElementById('permit-selected-count');
     if(el) el.textContent = checked;
+    
+    // UX #6: Show/hide bulk edit section for perpulangan
+    const bulkEditSection = document.getElementById('bulk-edit-section');
+    if (currentPermitTab === 'pulang' && checked >= 3) {
+        if (!bulkEditSection) {
+            // Create bulk edit section dynamically
+            const transportField = document.getElementById('field-transport');
+            if (transportField) {
+                const section = document.createElement('div');
+                section.id = 'bulk-edit-section';
+                section.className = 'mt-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 space-y-2';
+                section.innerHTML = `
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="zap" class="w-4 h-4 text-indigo-600"></i>
+                        <h4 class="text-xs font-bold text-indigo-700 dark:text-indigo-300">Set Default Massal (${checked} santri)</h4>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="bulk-pickup" class="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 text-xs font-bold">
+                            <option value="">-- Pilih Penjemputan --</option>
+                            <option value="Dijemput">🚗 Dijemput</option>
+                            <option value="Sendiri">🚶 Pulang Sendiri</option>
+                            <option value="Rombongan">🚌 Rombongan</option>
+                        </select>
+                        <select id="bulk-vehicle" class="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-indigo-200 text-xs font-bold">
+                            <option value="">-- Pilih Kendaraan --</option>
+                            <option value="Mobil Pribadi">Mobil Pribadi</option>
+                            <option value="Motor">Motor</option>
+                            <option value="Bus Umum">Bus Umum</option>
+                            <option value="Kereta">Kereta</option>
+                            <option value="Pesawat">Pesawat</option>
+                            <option value="Kapal">Kapal</option>
+                        </select>
+                    </div>
+                    <button onclick="window.applyBulkDefaults()" class="w-full mt-2 py-2 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 transition-colors">
+                        Terapkan ke Semua yang Dipilih
+                    </button>
+                `;
+                transportField.parentElement.insertBefore(section, transportField.nextSibling);
+                if (window.lucide) window.lucide.createIcons();
+            }
+        } else {
+            // Update count in existing section
+            const header = bulkEditSection.querySelector('h4');
+            if (header) {
+                header.textContent = `Set Default Massal (${checked} santri)`;
+            }
+        }
+    } else {
+        // Hide or remove bulk edit section
+        if (bulkEditSection) {
+            bulkEditSection.remove();
+        }
+    }
 };
 
 window.savePermit = function() {
@@ -3754,6 +3922,20 @@ window.renderActivePermitsWidget = function() {
 
         let colorClass, iconName, btnLabel, btnAction;
         const cat = item.category.toLowerCase();
+        
+        // UX #3: Check if permit is expired or ending today
+        const today = appState.date;
+        let isExpired = false;
+        let isEndingToday = false;
+        let expiredBadge = '';
+        
+        if (item.endTime && item.type === 'permit') {
+            if (item.endTime < today) {
+                isExpired = true;
+            } else if (item.endTime === today) {
+                isEndingToday = true;
+            }
+        }
 
         if (cat === 'sakit') {
             colorClass = 'bg-amber-100 text-amber-600 border-amber-200';
@@ -3772,6 +3954,15 @@ window.renderActivePermitsWidget = function() {
             iconName = 'x-circle';
             btnLabel = 'Hadir';
         }
+        
+        // UX #3: Override color for expired/ending
+        if (isExpired) {
+            colorClass = 'bg-red-100 text-red-600 border-red-200';
+            expiredBadge = '<span class="px-1.5 py-0.5 bg-red-500 text-white text-[8px] font-black rounded animate-pulse">TELAT</span>';
+        } else if (isEndingToday) {
+            colorClass = 'bg-orange-100 text-orange-600 border-orange-200';
+            expiredBadge = '<span class="px-1.5 py-0.5 bg-orange-500 text-white text-[8px] font-black rounded">HARI INI</span>';
+        }
 
         // --- FIX TOMBOL ACTION ---
         if (item.type === 'permit') {
@@ -3781,6 +3972,24 @@ window.renderActivePermitsWidget = function() {
             // Untuk manual, kita kirim NIS dan Statusnya (Capitalized)
             const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); 
             btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
+        }
+        
+        // UX #3: Add action buttons for expired permits
+        let actionButtons = `<button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0 shadow-sm">
+                ${btnLabel}
+            </button>`;
+        
+        if (isExpired && item.type === 'permit') {
+            actionButtons = `
+                <div class="flex gap-1.5">
+                    <button onclick="${btnAction}" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors">
+                        Sudah Kembali
+                    </button>
+                    <button onclick="window.markAsAlpaFromExpired('${item.nis}', '${item.id}')" class="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold hover:bg-red-500 hover:text-white transition-colors">
+                        Tandai Alpa
+                    </button>
+                </div>
+            `;
         }
 
         let timeInfo = '';
@@ -3803,12 +4012,11 @@ window.renderActivePermitsWidget = function() {
                         <span class="text-[9px] font-bold uppercase tracking-wider ${colorClass.split(' ')[1]}">${item.category}</span>
                         <span class="text-[9px] text-slate-300">•</span>
                         ${timeInfo}
+                        ${expiredBadge}
                     </div>
                 </div>
             </div>
-            <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0 shadow-sm">
-                ${btnLabel}
-            </button>
+            ${actionButtons}
         `;
         container.appendChild(div);
     });
@@ -3846,6 +4054,183 @@ window.resolveManualStatus = function(nis, statusType) {
     } else {
         window.showToast("Tidak ada data yang perlu diubah", "info");
     }
+};
+
+// UX #3: Mark expired permit as Alpa
+window.markAsAlpaFromExpired = function(nis, permitId) {
+    const dateKey = appState.date;
+    const dayData = appState.attendanceData[dateKey];
+    
+    if (!dayData) {
+        // Create data for today if it doesn't exist
+        appState.attendanceData[dateKey] = {};
+    }
+
+    let changed = false;
+
+    // Loop through all slots today and mark as Alpa
+    Object.values(SLOT_WAKTU).forEach(slot => {
+        if (!appState.attendanceData[dateKey][slot.id]) {
+            appState.attendanceData[dateKey][slot.id] = {};
+        }
+        
+        const slotData = appState.attendanceData[dateKey][slot.id];
+        
+        if (!slotData[nis]) {
+            slotData[nis] = { status: {}, note: '' };
+            slot.activities.forEach(act => {
+                slotData[nis].status[act.id] = act.type === 'mandator' ? 'Hadir' : (act.category === 'sunnah' ? 'Tidak' : 'Ya');
+            });
+        }
+        
+        const studentData = slotData[nis];
+        
+        // Mark Shalat and KBM as Alpa
+        slot.activities.forEach(act => {
+            if (act.category === 'fardu' || act.category === 'kbm') {
+                studentData.status[act.id] = 'Alpa';
+                changed = true;
+            } else {
+                studentData.status[act.id] = 'Tidak';
+            }
+        });
+        
+        studentData.note = '[Auto] Alpa - Terlambat kembali dari izin';
+    });
+    
+    // Deactivate the permit
+    const permit = appState.permits.find(p => p.id === permitId);
+    if (permit) {
+        permit.is_active = false;
+    }
+
+    if (changed) {
+        window.saveData();
+        localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
+        window.renderActivePermitsWidget();
+        window.renderAttendanceList();
+        window.showToast("Ditandai sebagai Alpa karena terlambat kembali", "success");
+    }
+};
+
+// UX #2: Open Quick Convert Modal
+window.openQuickConvertModal = function(nis, statusType) {
+    // Open the permit modal in daily mode
+    if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
+    
+    currentModalMode = 'daily';
+    const modal = document.getElementById('modal-permit');
+    modal.classList.remove('hidden');
+    
+    // Reset State Select All
+    isAllSelected = false;
+    const btnSelect = document.getElementById('btn-select-all-permit');
+    if(btnSelect) btnSelect.textContent = "Pilih Semua";
+
+    // Setup for daily mode
+    const tabSakit = document.getElementById('tab-btn-sakit');
+    const tabIzin = document.getElementById('tab-btn-izin');
+    const tabPulang = document.getElementById('tab-btn-pulang');
+    const modalTitle = modal.querySelector('h3');
+    const modalDesc = modal.querySelector('p');
+
+    tabSakit.classList.remove('hidden');
+    tabIzin.classList.remove('hidden');
+    tabPulang.classList.add('hidden');
+    
+    // Set tab based on status type
+    const tab = statusType.toLowerCase() === 'sakit' ? 'sakit' : 'izin';
+    window.setPermitTab(tab);
+    
+    if(modalTitle) modalTitle.textContent = "Input Perizinan Harian";
+    if(modalDesc) modalDesc.textContent = "Sakit & Izin Kegiatan";
+    
+    // Auto-select the santri and pre-fill date
+    window.renderPermitChecklist(FILTERED_SANTRI);
+    
+    // Check the specific santri checkbox
+    setTimeout(() => {
+        const checkbox = document.querySelector(`input[name="permit_santri_select"][value="${nis}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+            window.updatePermitCount();
+        }
+        
+        // Pre-fill start date with current date
+        const startDateInput = document.getElementById('permit-start-date');
+        if (startDateInput) {
+            startDateInput.value = appState.date;
+        }
+    }, 100);
+    
+    window.updatePermitCount();
+    window.renderPermitList();
+};
+
+// UX #4: Continue Yesterday's Status
+window.continueYesterdayStatus = function(nis, statusType) {
+    const dateKey = appState.date;
+    const dayData = appState.attendanceData[dateKey];
+    
+    if (!dayData) return;
+
+    let changed = false;
+
+    // Loop through all slots today and set the status
+    Object.values(SLOT_WAKTU).forEach(slot => {
+        if (!dayData[slot.id]) {
+            dayData[slot.id] = {};
+        }
+        
+        const slotData = dayData[slot.id];
+        
+        if (!slotData[nis]) {
+            slotData[nis] = { status: {}, note: '' };
+            slot.activities.forEach(act => {
+                slotData[nis].status[act.id] = act.type === 'mandator' ? 'Hadir' : (act.category === 'sunnah' ? 'Tidak' : 'Ya');
+            });
+        }
+        
+        const studentData = slotData[nis];
+        
+        // Set status for Shalat and KBM
+        slot.activities.forEach(act => {
+            if (act.category === 'fardu' || act.category === 'kbm') {
+                studentData.status[act.id] = statusType;
+                changed = true;
+            } else if (act.category === 'dependent') {
+                studentData.status[act.id] = 'Tidak';
+            }
+        });
+        
+        studentData.note = `[Lanjutan] ${statusType} dari kemarin`;
+    });
+
+    if (changed) {
+        window.saveData();
+        window.renderAttendanceList();
+        window.showToast(`Status ${statusType} berhasil dilanjutkan untuk hari ini`, "success");
+    }
+};
+
+// UX #6: Apply Bulk Defaults for Perpulangan
+window.applyBulkDefaults = function() {
+    const bulkPickup = document.getElementById('bulk-pickup').value;
+    const bulkVehicle = document.getElementById('bulk-vehicle').value;
+    
+    if (!bulkPickup && !bulkVehicle) {
+        return window.showToast("Pilih minimal satu default untuk diterapkan", "warning");
+    }
+    
+    // Apply to main form fields
+    if (bulkPickup) {
+        document.getElementById('permit-pickup').value = bulkPickup;
+    }
+    if (bulkVehicle) {
+        document.getElementById('permit-vehicle').value = bulkVehicle;
+    }
+    
+    window.showToast("Default berhasil diterapkan! Simpan untuk melanjutkan", "success");
 };
 
 // Start App
