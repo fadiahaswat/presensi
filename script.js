@@ -1103,6 +1103,11 @@ window.toggleStatus = function(id, actId, type) {
     // Simpan status baru
     sData.status[actId] = next;
     
+    // Jika status manual diubah, hapus flag [Auto] agar tidak dianggap izin resmi lagi
+    if (sData.note && sData.note.includes('[Auto]')) {
+        sData.note = '';
+    }
+    
     // 2. LOGIKA DEPENDENCY (Jika Shalat Berubah)
     if(actId === 'shalat') {
         const activities = SLOT_WAKTU[slotId].activities;
@@ -1111,25 +1116,17 @@ window.toggleStatus = function(id, actId, type) {
         activities.forEach(act => {
             if (act.id === 'shalat') return; // Skip diri sendiri
 
-            // KASUS A: Shalat jadi S/I/A (Tidak Hadir)
-            // Semua kegiatan lain ikut "Sakit/Izin" atau "Tidak"
             if (isNonHadir) {
-                if(act.type === 'mandator') sData.status[act.id] = next; // KBM ikut S/I/A
-                else sData.status[act.id] = 'Tidak'; // Sunnah/Dependent jadi Strip (-)
+                if(act.type === 'mandator') sData.status[act.id] = next; 
+                else sData.status[act.id] = 'Tidak'; 
             } 
-            
-            // KASUS B: Shalat kembali jadi H (Hadir)
-            // --- PERBAIKAN DISINI ---
             else if (next === 'Hadir') {
-                // 1. KBM (Wajib) -> Kembali ke Hadir
                 if (act.category === 'kbm' || act.category === 'fardu') {
                     sData.status[act.id] = 'Hadir';
                 }
-                // 2. Dependent (Dzikir/Rawatib) -> Kembali ke Ya (karena shalat hadir)
                 else if (act.category === 'dependent') {
                     sData.status[act.id] = 'Ya';
                 }
-                // 3. Sunnah Murni (Tahajjud/Dhuha) -> Tetap Tidak (Defaultnya)
                 else if (act.category === 'sunnah') {
                     sData.status[act.id] = 'Tidak'; 
                 }
@@ -1138,7 +1135,8 @@ window.toggleStatus = function(id, actId, type) {
     }
 
     window.saveData();
-    window.renderAttendanceList();
+    window.renderAttendanceList(); // Refresh List Absen
+    window.renderActivePermitsWidget(); // [FIX] Refresh Widget Dashboard
 };
 
 // Fungsi untuk membuka Modal Menu Bulk (Akan dipanggil dari HTML)
