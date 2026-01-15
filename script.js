@@ -1873,8 +1873,7 @@ window.updateReportTab = function() {
     }
 
     // --- AGGREGATION LOGIC ---
-    // Kita hitung statistik untuk SETIAP santri dalam rentang tanggal
-    const santriStats = {}; // { nis: { fardu: {h:0, m:0}, kbm: {h:0}, score: 0 } }
+    const santriStats = {}; 
 
     FILTERED_SANTRI.forEach(s => {
         santriStats[s.nis || s.id] = { 
@@ -1923,7 +1922,7 @@ window.updateReportTab = function() {
 
                             // Hitung Point
                             if(st === 'Hadir' || st === 'Ya') point = weight;
-                            else if(st === 'Sakit' || st === 'Izin') point = weight * 0.5;
+                            else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; // Pulang dianggap izin
                             else point = 0;
 
                             // Akumulasi Score Global
@@ -1967,19 +1966,25 @@ window.updateReportTab = function() {
         let shalatCol, kbmCol, sunnahCol;
 
         if (appState.reportMode === 'daily') {
-            // MODE HARIAN: Tampilkan Badge S/A/I untuk Shalat
+            // MODE HARIAN: Tampilkan Badge S/A/M/I (Shubuh Ashar Maghrib Isya)
             const dateKey = appState.date;
             const dayData = appState.attendanceData[dateKey] || {};
             
             let badges = '';
             ['shubuh', 'ashar', 'maghrib', 'isya'].forEach(sid => {
                 const st = dayData[sid]?.[id]?.status?.shalat;
-                let color = 'bg-slate-100 text-slate-300';
-                let label = sid[0].toUpperCase();
+                
+                // --- PERBAIKAN WARNA DI SINI ---
+                let color = 'bg-slate-100 text-slate-300'; // Default (Tidak/Belum isi)
+                
                 if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
-                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
-                else if(st === 'Sakit' || st === 'Izin') color = 'bg-amber-100 text-amber-600';
-                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black">${label}</span>`;
+                else if(st === 'Sakit') color = 'bg-amber-100 text-amber-600'; // Kuning
+                else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';    // Biru
+                else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600'; // Ungu
+                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';      // Merah
+                
+                let label = sid[0].toUpperCase(); // S, A, M, I
+                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black" title="${sid}: ${st||'-'}">${label}</span>`;
             });
             shalatCol = `<div class="flex justify-center gap-1">${badges}</div>`;
             kbmCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.kbm.h}</span>`;
