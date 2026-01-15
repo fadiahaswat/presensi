@@ -3831,14 +3831,30 @@ window.renderActivePermitsWidget = function() {
     container.innerHTML = '';
     
     const combinedList = [];
-    const processedNis = new Set(); // Mencegah duplikasi
+    const processedNis = new Set(); 
+    const currentDate = appState.date; // Fokus pada Tanggal Dashboard
 
-    // A. Permit Resmi (Jangka Panjang)
+    // A. Permit Resmi (Filter: Berlaku pada Tanggal Ini)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
+    
     const activePermits = appState.permits.filter(p => {
-        // Cek Sakit yg sudah sembuh
-        const isRecoveredSakit = (p.category === 'sakit' && p.end_date !== null);
-        return classNisList.includes(p.nis) && p.is_active && !isRecoveredSakit;
+        // 1. Filter Kelas
+        if (!classNisList.includes(p.nis)) return false;
+        
+        // 2. Logic Tanggal: Permit harus mencakup hari ini
+        const start = p.start_date;
+        const end = p.end_date; // Bisa null kalau sakit belum sembuh
+
+        // Belum mulai (Future Permit) -> Skip
+        if (start > currentDate) return false;
+
+        // Sudah selesai (Past Permit) -> Skip
+        if (end && end < currentDate) return false;
+
+        // Jika Sakit & sudah sembuh hari ini (end == current), cek sesi
+        // Tapi untuk widget sederhana, kita tampilkan saja jika tanggalnya masuk range.
+        
+        return true;
     });
 
     activePermits.forEach(p => {
@@ -3848,42 +3864,34 @@ window.renderActivePermitsWidget = function() {
             nis: p.nis,
             category: p.category,
             startTime: p.start_date,
-            endTime: p.end_date
+            endTime: p.end_date,
+            is_active: p.is_active
         });
         processedNis.add(p.nis);
     });
 
-    // B. Presensi Manual Harian
-    const dateKey = appState.date;
-    const dayData = appState.attendanceData[dateKey];
+    // B. Presensi Manual Harian (Yang tidak punya surat tapi statusnya bukan Hadir)
+    const dayData = appState.attendanceData[currentDate];
 
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
             const id = String(s.nis || s.id);
-            if (processedNis.has(id)) return; // Skip jika sudah ada permit
+            if (processedNis.has(id)) return; // Skip jika sudah tercover permit resmi
 
             let foundStatus = null;
-            
-            // Cek urut dari sesi TERAKHIR ke AWAL (Isya -> Shubuh)
-            // Tujuannya: Menemukan status TERKINI.
+            // Cek status terkini (urutan: Isya -> Shubuh)
             const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
-            
             for (const slot of slots) {
                 const st = dayData[slot]?.[id]?.status?.shalat;
-                if (st) {
-                    if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
-                        foundStatus = st; // Masalah ditemukan
-                        break; // Stop, kita pakai status terakhir ini
-                    } else if (st === 'Hadir' || st === 'Ya') {
-                        // Jika status terakhir adalah Hadir, berarti dia sudah sembuh/kembali
-                        // Jangan tampilkan di widget
-                        foundStatus = 'Hadir'; 
-                        break; 
-                    }
+                if (st && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
+                    foundStatus = st;
+                    break;
+                } else if (st === 'Hadir') {
+                    break; // Sudah hadir di sesi terakhir, jangan tampilkan
                 }
             }
 
-            if (foundStatus && foundStatus !== 'Hadir') {
+            if (foundStatus) {
                 let category = foundStatus.toLowerCase(); 
                 if (foundStatus === 'Alpa') category = 'alpa';
 
@@ -3892,7 +3900,7 @@ window.renderActivePermitsWidget = function() {
                     id: null,
                     nis: id,
                     category: category,
-                    startTime: dateKey,
+                    startTime: currentDate,
                     endTime: null
                 });
             }
@@ -3904,10 +3912,10 @@ window.renderActivePermitsWidget = function() {
     if (combinedList.length === 0) {
         container.innerHTML = `
             <div class="text-center py-6">
-                <div class="inline-flex p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-300 mb-2">
+                <div class="inline-flex p-3 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-300 mb-2 border border-slate-100 dark:border-slate-700">
                     <i data-lucide="check-circle" class="w-5 h-5"></i>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400">Semua santri ada di pondok</p>
+                <p class="text-[10px] font-bold text-slate-400">Semua santri lengkap / Hadir</p>
             </div>
         `;
         if (window.lucide) window.lucide.createIcons();
@@ -3930,7 +3938,7 @@ window.renderActivePermitsWidget = function() {
             iconName = 'file-text';
             btnLabel = 'Kembali';
         } else if (cat === 'pulang') {
-            colorClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
+            colorClass = 'bg-purple-100 text-purple-600 border-purple-200';
             iconName = 'bus';
             btnLabel = 'Tiba';
         } else { 
@@ -3939,25 +3947,21 @@ window.renderActivePermitsWidget = function() {
             btnLabel = 'Hadir';
         }
 
-        // --- FIX TOMBOL ACTION ---
+        // Action Logic
         if (item.type === 'permit') {
-            if (cat === 'sakit') btnAction = `window.markAsRecovered('${item.id}'); window.renderActivePermitsWidget();`;
-            else btnAction = `window.markAsReturned('${item.id}'); window.renderActivePermitsWidget();`;
+            if (cat === 'sakit') btnAction = `window.markAsRecovered('${item.id}')`;
+            else btnAction = `window.markAsReturned('${item.id}')`;
         } else {
-            // Untuk manual, kita kirim NIS dan Statusnya (Capitalized)
             const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); 
             btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
         }
 
         let timeInfo = '';
         if (item.endTime) timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
-        else {
-            const label = item.type === 'manual' ? 'Manual Hari Ini' : `Sejak ${window.formatDate(item.startTime)}`;
-            timeInfo = `<span class="text-[9px] text-slate-400">${label}</span>`;
-        }
+        else timeInfo = `<span class="text-[9px] text-slate-400">${item.type === 'manual' ? 'Hari Ini' : 'Sejak ' + window.formatDate(item.startTime)}</span>`;
 
         const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md';
+        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md mb-2';
         div.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0 border">
