@@ -3371,41 +3371,28 @@ window.savePermitLogic = function() {
 window.markAsRecovered = function(id) {
     const permit = appState.permits.find(p => p.id === id);
     if(permit) {
-        // --- PERBAIKAN: Konfirmasi Waktu Sembuh ---
-        // True  = Mulai sesi ini sudah ikut kegiatan (Sehat Sekarang)
-        // False = Mulai sesi DEPAN baru ikut (Masih Sakit Sesi Ini)
-        const isNow = confirm("Apakah santri sudah bisa ikut kegiatan DI SESI INI?\n\n[OK] = Ya, Sekarang sudah hadir.\n[Cancel] = Tidak, Baru hadir sesi depan.");
+        const isNow = confirm("Apakah santri sembuh MULAI SESI INI?\n\n[OK] = Ya, Sesi ini sudah sehat.\n[Cancel] = Tidak, Sesi DEPAN baru sehat.");
         
         permit.end_date = appState.date; 
         
-        // Logika menentukan 'end_session' (Sesi TERAKHIR dianggap sakit)
+        const slots = ['shubuh', 'ashar', 'maghrib', 'isya'];
+        const currIdx = slots.indexOf(appState.currentSlotId);
+
         if (isNow) {
-            // Jika sembuh SEKARANG, maka sesi sakit terakhir adalah sesi SEBELUMNYA.
-            // Contoh: Sembuh di Ashar. Sesi sakit terakhir = Shubuh. Ashar = Sehat.
-            const slots = ['shubuh', 'ashar', 'maghrib', 'isya'];
-            const currIdx = slots.indexOf(appState.currentSlotId);
-            
-            if (currIdx === 0) {
-                // Kasus khusus: Sembuh di Shubuh (awal hari)
-                // Kita set end_session ke null atau string khusus agar dianggap sembuh total hari ini
-                permit.end_session = 'kemarin'; 
-            } else {
-                const prevIdx = currIdx - 1;
-                permit.end_session = slots[prevIdx];
-            }
+            // Jika sembuh SEKARANG: end_session adalah sesi SEBELUMNYA.
+            // Agar sesi saat ini > end_session -> sehingga dianggap sehat.
+            if (currIdx === 0) permit.end_session = 'kemarin'; 
+            else permit.end_session = slots[currIdx - 1];
         } else {
-            // Jika sembuh NANTI, maka sesi sakit terakhir adalah sesi INI.
-            // Contoh: Klik Sembuh di Ashar (tapi baru ikut Maghrib).
-            // Sesi sakit terakhir = Ashar. Maghrib = Sehat.
+            // Jika sembuh NANTI: end_session adalah sesi INI.
+            // Sesi ini masih dianggap sakit.
             permit.end_session = appState.currentSlotId;
         }
 
         localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
-        
         window.showToast("Status kesembuhan diperbarui", "success");
         
-        // Refresh semua komponen
-        window.renderPermitList();
+        // PENTING: Trigger re-render untuk menjalankan logika 'Clean Up' di renderAttendanceList
         window.renderAttendanceList(); 
         window.renderActivePermitsWidget();
     }
