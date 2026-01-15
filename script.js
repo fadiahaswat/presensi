@@ -3895,30 +3895,39 @@ window.renderActivePermitsWidget = function() {
     const processedNis = new Set(); 
     const currentDate = appState.date; // Fokus pada Tanggal Dashboard
 
-    // A. Permit Resmi (Filter: Berlaku pada Tanggal Ini)
+    // ============================================================
+    // A. SUMBER DATA: PERMIT RESMI (SURAT)
+    // ============================================================
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     
-    const activePermits = appState.permits.filter(p => {
+    // Ambil SEMUA permit, jangan filter is_active dulu
+    const relevantPermits = appState.permits.filter(p => {
         // 1. Filter Kelas
         if (!classNisList.includes(p.nis)) return false;
         
-        // 2. Logic Tanggal: Permit harus mencakup hari ini
+        // 2. Logic Tanggal: Permit harus relevan dengan hari ini
         const start = p.start_date;
-        const end = p.end_date; // Bisa null kalau sakit belum sembuh
+        const end = p.end_date; 
 
-        // Belum mulai (Future Permit) -> Skip
+        // Jika tanggal start > hari ini (Masa depan) -> Skip
         if (start > currentDate) return false;
 
-        // Sudah selesai (Past Permit) -> Skip
-        if (end && end < currentDate) return false;
+        // Jika permit belum ada end_date (Sakit berkepanjangan) -> Masuk
+        if (!end) return true;
 
-        // Jika Sakit & sudah sembuh hari ini (end == current), cek sesi
-        // Tapi untuk widget sederhana, kita tampilkan saja jika tanggalnya masuk range.
-        
-        return true;
+        // Jika permit sudah ada end_date:
+        // Masukkan jika hari ini berada dalam range (start <= now <= end)
+        // ATAU jika permit itu baru saja selesai HARI INI (end == currentDate)
+        if (currentDate >= start && currentDate <= end) return true;
+
+        return false;
     });
 
-    activePermits.forEach(p => {
+    relevantPermits.forEach(p => {
+        // Tentukan status "Sudah Selesai" khusus hari ini
+        // Selesai jika: !is_active ATAU (end_date ada DAN end_date < hari ini.. tapi filter diatas sudah handle range)
+        // Fokus: Jika !is_active, berarti sudah diabsen hadir/sembuh.
+        
         combinedList.push({
             type: 'permit',
             id: p.id,
@@ -3926,29 +3935,42 @@ window.renderActivePermitsWidget = function() {
             category: p.category,
             startTime: p.start_date,
             endTime: p.end_date,
-            is_active: p.is_active
+            isActive: p.is_active, // Status aktif/tidak dari database permit
+            reason: p.reason
         });
+        
+        // Tandai NIS ini sudah diproses agar tidak duplikat dengan manual
+        // KECUALI jika permitnya sudah tidak aktif, mungkin di manual ada status baru? 
+        // Tapi biasanya permit menang. Kita keep processed agar rapi.
         processedNis.add(p.nis);
     });
 
-    // B. Presensi Manual Harian (Yang tidak punya surat tapi statusnya bukan Hadir)
+    // ============================================================
+    // B. SUMBER DATA: MANUAL (PRESENSI HARIAN)
+    // ============================================================
     const dayData = appState.attendanceData[currentDate];
 
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
             const id = String(s.nis || s.id);
-            if (processedNis.has(id)) return; // Skip jika sudah tercover permit resmi
+            if (processedNis.has(id)) return; // Skip jika sudah ada di permit
 
             let foundStatus = null;
             // Cek status terkini (urutan: Isya -> Shubuh)
             const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
             for (const slot of slots) {
                 const st = dayData[slot]?.[id]?.status?.shalat;
+                
+                // Ambil status S/I/P/A
                 if (st && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
                     foundStatus = st;
                     break;
-                } else if (st === 'Hadir') {
-                    break; // Sudah hadir di sesi terakhir, jangan tampilkan
+                } 
+                // Jika ketemu 'Hadir' di slot terakhir, berarti aman (tidak perlu masuk widget)
+                // KECUALI kita punya log history dia tadi sakit. 
+                // Tapi untuk manual, karena datanya ditimpa, kita hanya bisa tampilkan status SAAT INI.
+                else if (st === 'Hadir') {
+                    break; 
                 }
             }
 
@@ -3958,18 +3980,24 @@ window.renderActivePermitsWidget = function() {
 
                 combinedList.push({
                     type: 'manual',
-                    id: null,
+                    id: null, // Manual tidak punya ID permit
                     nis: id,
                     category: category,
                     startTime: currentDate,
-                    endTime: null
+                    endTime: null,
+                    isActive: true, // Manual yang tampil disini pasti statusnya masih S/I/A
+                    reason: 'Presensi Manual'
                 });
             }
         });
     }
 
+    // Update Badge Count (Total List)
     if (badgeCount) badgeCount.textContent = combinedList.length;
 
+    // ============================================================
+    // C. RENDER TAMPILAN
+    // ============================================================
     if (combinedList.length === 0) {
         container.innerHTML = `
             <div class="text-center py-6">
@@ -3990,6 +4018,7 @@ window.renderActivePermitsWidget = function() {
         let colorClass, iconName, btnLabel, btnAction;
         const cat = item.category.toLowerCase();
 
+        // Config Warna & Icon
         if (cat === 'sakit') {
             colorClass = 'bg-amber-100 text-amber-600 border-amber-200';
             iconName = 'thermometer';
@@ -4008,21 +4037,49 @@ window.renderActivePermitsWidget = function() {
             btnLabel = 'Hadir';
         }
 
-        // Action Logic
-        if (item.type === 'permit') {
-            if (cat === 'sakit') btnAction = `window.markAsRecovered('${item.id}')`;
-            else btnAction = `window.markAsReturned('${item.id}')`;
+        // --- LOGIKA TOMBOL / STATUS ---
+        let actionHTML = '';
+
+        if (item.isActive) {
+            // JIKA MASIH AKTIF -> TAMPILKAN TOMBOL AKSI
+            if (item.type === 'permit') {
+                if (cat === 'sakit') btnAction = `window.markAsRecovered('${item.id}')`;
+                else btnAction = `window.markAsReturned('${item.id}')`;
+            } else {
+                // Manual
+                const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); 
+                btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
+            }
+
+            actionHTML = `
+                <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-[10px] font-bold hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors flex-shrink-0 shadow-sm flex items-center gap-1">
+                    ${btnLabel} <i data-lucide="arrow-right-circle" class="w-3 h-3"></i>
+                </button>
+            `;
         } else {
-            const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); 
-            btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
+            // JIKA SUDAH SELESAI (SUDAH SEMBUH/HADIR) -> TAMPILKAN KETERANGAN
+            let doneText = "Sudah Hadir";
+            if (cat === 'sakit') doneText = "Sudah Sembuh";
+            else if (cat === 'izin' || cat === 'pulang') doneText = "Sudah Kembali";
+
+            actionHTML = `
+                <div class="ml-2 px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 text-[9px] font-bold flex items-center gap-1 opacity-80">
+                    <i data-lucide="check-check" class="w-3 h-3"></i> ${doneText}
+                </div>
+            `;
         }
 
+        // Info Waktu
         let timeInfo = '';
         if (item.endTime) timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
-        else timeInfo = `<span class="text-[9px] text-slate-400">${item.type === 'manual' ? 'Hari Ini' : 'Sejak ' + window.formatDate(item.startTime)}</span>`;
+        else timeInfo = `<span class="text-[9px] text-slate-400">${item.type === 'manual' ? 'Manual Hari Ini' : 'Sejak ' + window.formatDate(item.startTime)}</span>`;
+
+        // Style Card (Jika sudah selesai, buat agak transparan/abu-abu agar fokus ke yang aktif)
+        const opacityClass = item.isActive ? 'opacity-100' : 'opacity-60 bg-slate-50';
 
         const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md mb-2';
+        div.className = `flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm transition-all mb-2 ${opacityClass} ${item.isActive ? 'bg-white dark:bg-slate-800' : ''}`;
+        
         div.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0 border">
@@ -4037,9 +4094,7 @@ window.renderActivePermitsWidget = function() {
                     </div>
                 </div>
             </div>
-            <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0 shadow-sm">
-                ${btnLabel}
-            </button>
+            ${actionHTML}
         `;
         container.appendChild(div);
     });
