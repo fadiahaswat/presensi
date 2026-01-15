@@ -4332,23 +4332,29 @@ window.savePermitEdit = function() {
     const end = document.getElementById('edit-permit-end').value;
     const isActive = document.getElementById('edit-permit-active').checked;
 
-    if(!reason || !start) return window.showToast("Data tidak boleh kosong", "warning");
+    if(!reason || !start) return window.showToast("Alasan dan Tanggal Mulai wajib diisi", "warning");
 
-    const permit = appState.permits.find(p => p.id === id);
-    if(!permit) return;
+    // Cari index data di array
+    const index = appState.permits.findIndex(p => p.id === id);
+    if(index === -1) return;
 
     // Update Data
-    permit.reason = reason;
-    permit.start_date = start;
-    permit.end_date = end || null; // Bisa null kalau sakit belum sembuh
-    permit.is_active = isActive;
+    appState.permits[index].reason = reason;
+    appState.permits[index].start_date = start;
+    
+    // Logic End Date: Jika kosong string, jadikan null (Sakit belum sembuh)
+    appState.permits[index].end_date = end ? end : null;
+    
+    appState.permits[index].is_active = isActive;
 
+    // Simpan ke Storage
     localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
 
+    // Tutup Modal & Refresh
     window.closeModal('modal-edit-permit');
-    window.showToast("Perubahan disimpan", "success");
+    window.showToast("Perubahan berhasil disimpan", "success");
 
-    // Refresh semua view yang terdampak
+    // Refresh Semua UI Terkait
     window.renderPermitHistory();
     window.renderActivePermitsWidget();
     window.renderAttendanceList();
