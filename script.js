@@ -263,7 +263,16 @@ window.getPembinaanStatus = function(alpaCount) {
 window.initApp = async function() {
     const loadingEl = document.getElementById('view-loading');
     
-    // 1. Load Settings & LocalStorage Data (Presensi Harian)
+    // ============================================================
+    // 1. RENDERING UI DASAR (SEGERA) - OPTIMASI
+    // ============================================================
+    // Kita panggil ini DULUAN agar Tanggal & Jam langsung muncul
+    // tanpa menunggu loading data santri selesai.
+    window.startClock();
+    window.updateDateDisplay();
+    if(window.lucide) window.lucide.createIcons(); // Render icon agar tidak kotak-kotak
+    
+    // Load Settings & LocalStorage Data (Presensi Harian)
     try {
         const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
         if(savedSettings) {
@@ -295,7 +304,7 @@ window.initApp = async function() {
             throw new Error("Library data belum termuat.");
         }
 
-        // Tunggu sampai data selesai diambil
+        // Tunggu sampai data selesai diambil (Proses Berat)
         const [kelasData, santriData] = await Promise.all([
             window.loadClassData(),
             window.loadSantriData()
@@ -355,11 +364,6 @@ window.initApp = async function() {
         window.showToast("Gagal memuat data: " + e.message, 'error');
         if(loadingEl) loadingEl.classList.add('opacity-0', 'pointer-events-none');
     }
-
-    // 5. Start UI Clocks
-    window.startClock();
-    window.updateDateDisplay();
-    if(window.lucide) window.lucide.createIcons();
 };
 
 window.populateClassDropdown = function() {
