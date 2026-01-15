@@ -4310,16 +4310,16 @@ window.togglePermitStatus = function(id) {
 // 3. Fungsi Edit (Buka Modal)
 window.openEditHistory = function(id) {
     const permit = appState.permits.find(p => p.id === id);
-    if(!permit) return;
+    if(!permit) return window.showToast("Data tidak ditemukan", "error");
 
-    // Isi Form
+    // Isi Form Modal dengan Data Lama
     document.getElementById('edit-permit-id').value = permit.id;
     document.getElementById('edit-permit-reason').value = permit.reason || '';
     document.getElementById('edit-permit-start').value = permit.start_date || '';
     document.getElementById('edit-permit-end').value = permit.end_date || '';
     document.getElementById('edit-permit-active').checked = permit.is_active;
 
-    // Tampilkan Modal
+    // Buka Modal
     const modal = document.getElementById('modal-edit-permit');
     modal.classList.remove('hidden');
 };
