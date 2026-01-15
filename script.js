@@ -3669,91 +3669,89 @@ window.renderActivePermitsWidget = function() {
     container.innerHTML = '';
     
     const combinedList = [];
-    const processedNis = new Set(); // Untuk mencegah duplikasi (Permit vs Manual)
+    const processedNis = new Set(); // Mencegah duplikasi
 
-    // A. AMBIL DARI DATABASE PERIZINAN (Resmi/Jangka Panjang)
+    // A. Permit Resmi (Jangka Panjang)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     const activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
 
     activePermits.forEach(p => {
         combinedList.push({
-            type: 'permit', // Penanda sumber data
-            id: p.id,       // ID Permit
+            type: 'permit',
+            id: p.id,
             nis: p.nis,
-            category: p.category, // sakit, izin, pulang
+            category: p.category,
             startTime: p.start_date,
             endTime: p.end_date
         });
         processedNis.add(p.nis);
     });
 
-    // B. AMBIL DARI PRESENSI HARIAN (Manual/Harian)
-    // Cek apakah ada santri yang diabsen S/I/P/A hari ini tapi TIDAK punya surat izin
+    // B. Presensi Manual Harian
     const dateKey = appState.date;
     const dayData = appState.attendanceData[dateKey];
 
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
             const id = String(s.nis || s.id);
-            
-            // Jika sudah ada di list permit, skip (Prioritas Permit)
-            if (processedNis.has(id)) return;
+            if (processedNis.has(id)) return; // Skip jika sudah ada permit
 
-            // Cek status di semua slot hari ini
             let foundStatus = null;
             
-            // Urutan prioritas pengecekan: Isya -> Maghrib -> Ashar -> Shubuh
-            // Kita ambil status terakhir yang ditemukan
-            ['isya', 'maghrib', 'ashar', 'shubuh'].forEach(slot => {
-                if (foundStatus) return; // Sudah ketemu, stop
+            // Cek urut dari sesi TERAKHIR ke AWAL (Isya -> Shubuh)
+            // Tujuannya: Menemukan status TERKINI.
+            const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
+            
+            for (const slot of slots) {
                 const st = dayData[slot]?.[id]?.status?.shalat;
-                
-                // Jika statusnya bukan Normal (Hadir/Ya/Tidak)
-                if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
-                    foundStatus = st;
+                if (st) {
+                    if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
+                        foundStatus = st; // Masalah ditemukan
+                        break; // Stop, kita pakai status terakhir ini
+                    } else if (st === 'Hadir' || st === 'Ya') {
+                        // Jika status terakhir adalah Hadir, berarti dia sudah sembuh/kembali
+                        // Jangan tampilkan di widget
+                        foundStatus = 'Hadir'; 
+                        break; 
+                    }
                 }
-            });
+            }
 
-            if (foundStatus) {
-                // Konversi status teks presensi ke kategori sistem
+            if (foundStatus && foundStatus !== 'Hadir') {
                 let category = foundStatus.toLowerCase(); 
-                if (foundStatus === 'Alpa') category = 'alpa'; // Tambahan handling Alpa
+                if (foundStatus === 'Alpa') category = 'alpa';
 
                 combinedList.push({
-                    type: 'manual', // Penanda sumber data
-                    id: null,       // Tidak punya ID permit
+                    type: 'manual',
+                    id: null,
                     nis: id,
                     category: category,
-                    startTime: dateKey, // Mulai hari ini
+                    startTime: dateKey,
                     endTime: null
                 });
             }
         });
     }
 
-    // Update Badge Count
     if (badgeCount) badgeCount.textContent = combinedList.length;
 
-    // Handle Empty State
     if (combinedList.length === 0) {
         container.innerHTML = `
             <div class="text-center py-6">
                 <div class="inline-flex p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-300 mb-2">
                     <i data-lucide="check-circle" class="w-5 h-5"></i>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400">Nihil absensi (Semua Hadir/Pondok)</p>
+                <p class="text-[10px] font-bold text-slate-400">Semua santri ada di pondok</p>
             </div>
         `;
         if (window.lucide) window.lucide.createIcons();
         return;
     }
 
-    // C. RENDER GABUNGAN
     combinedList.forEach(item => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === item.nis);
         if (!santri) return;
 
-        // Styling UI
         let colorClass, iconName, btnLabel, btnAction;
         const cat = item.category.toLowerCase();
 
@@ -3769,40 +3767,31 @@ window.renderActivePermitsWidget = function() {
             colorClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
             iconName = 'bus';
             btnLabel = 'Tiba';
-        } else { // Alpa
+        } else { 
             colorClass = 'bg-red-100 text-red-600 border-red-200';
             iconName = 'x-circle';
-            btnLabel = 'Hadir'; // Jika Alpa, tombolnya tandai Hadir
+            btnLabel = 'Hadir';
         }
 
-        // --- LOGIKA TOMBOL AKSI (PERBAIKAN ERROR) ---
+        // --- FIX TOMBOL ACTION ---
         if (item.type === 'permit') {
-            // Jika dari Permit: Gunakan fungsi lama dengan ID Permit
-            if (cat === 'sakit') {
-                btnAction = `window.markAsRecovered('${item.id}'); window.renderActivePermitsWidget();`;
-            } else {
-                btnAction = `window.markAsReturned('${item.id}'); window.renderActivePermitsWidget();`;
-            }
+            if (cat === 'sakit') btnAction = `window.markAsRecovered('${item.id}'); window.renderActivePermitsWidget();`;
+            else btnAction = `window.markAsReturned('${item.id}'); window.renderActivePermitsWidget();`;
         } else {
-            // Jika Manual: Gunakan fungsi BARU dengan NIS & Status (karena tidak ada ID Permit)
-            // Status harus dikirim dengan format Capital case sesuai presensi (Sakit, Izin, etc)
-            const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); // sakit -> Sakit
+            // Untuk manual, kita kirim NIS dan Statusnya (Capitalized)
+            const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); 
             btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
         }
 
-        // Info Waktu
         let timeInfo = '';
-        if (item.endTime) {
-            timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
-        } else {
-            // Jika manual, tampilkan "Hari Ini" atau tanggalnya
+        if (item.endTime) timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
+        else {
             const label = item.type === 'manual' ? 'Manual Hari Ini' : `Sejak ${window.formatDate(item.startTime)}`;
             timeInfo = `<span class="text-[9px] text-slate-400">${label}</span>`;
         }
 
         const div = document.createElement('div');
         div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md';
-        
         div.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
                 <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0 border">
@@ -3817,19 +3806,16 @@ window.renderActivePermitsWidget = function() {
                     </div>
                 </div>
             </div>
-            
             <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0 shadow-sm">
                 ${btnLabel}
             </button>
         `;
-        
         container.appendChild(div);
     });
 
     if (window.lucide) window.lucide.createIcons();
 };
 
-// FUNGSI BARU: Menangani tombol "Sembuh/Hadir" untuk input manual harian
 window.resolveManualStatus = function(nis, statusType) {
     const dateKey = appState.date;
     const dayData = appState.attendanceData[dateKey];
@@ -3838,14 +3824,14 @@ window.resolveManualStatus = function(nis, statusType) {
 
     let changed = false;
 
-    // Loop semua slot hari ini (Shubuh - Isya)
-    // Jika ada status yang sama, ubah jadi 'Hadir'
+    // Loop semua slot hari ini. Jika ada status yang sama (misal 'Sakit'), ubah jadi 'Hadir'.
     Object.keys(dayData).forEach(slotId => {
         const studentData = dayData[slotId][nis];
         if (studentData && studentData.status && studentData.status.shalat === statusType) {
-            studentData.status.shalat = 'Hadir'; // Reset ke Hadir
-            // Opsional: Hapus catatan otomatis jika ada
-            if (studentData.note && studentData.note.includes('[Auto]')) {
+            studentData.status.shalat = 'Hadir'; 
+            
+            // Hapus catatan otomatis jika ada, agar bersih
+            if (studentData.note && (studentData.note.includes('[Auto]') || studentData.note.includes('Lanjutan'))) {
                 studentData.note = '';
             }
             changed = true;
@@ -3858,7 +3844,7 @@ window.resolveManualStatus = function(nis, statusType) {
         window.renderAttendanceList(); // Refresh list jika sedang dibuka
         window.showToast("Status berhasil diubah menjadi Hadir", "success");
     } else {
-        window.showToast("Data status tidak ditemukan", "warning");
+        window.showToast("Tidak ada data yang perlu diubah", "info");
     }
 };
 
