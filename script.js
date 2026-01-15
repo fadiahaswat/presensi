@@ -547,7 +547,7 @@ window.updateDashboard = function() {
     window.drawDonutChart();
     if(window.lucide) window.lucide.createIcons();
 
-    window.renderTodayProblems(); // Pindahkan logic render masalah kesini
+
 
     window.updateLocationStatus();
 };
