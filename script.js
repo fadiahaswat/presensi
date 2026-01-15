@@ -3648,5 +3648,99 @@ window.renderKBMBanner = function() {
     if(window.lucide) window.lucide.createIcons();
 };
 
+window.renderActivePermitsWidget = function() {
+    const container = document.getElementById('dashboard-active-permits-list');
+    const badgeCount = document.getElementById('active-permit-count');
+    
+    if (!container) return; // Safety check
+
+    container.innerHTML = '';
+    
+    // 1. Ambil & Filter Data
+    // Kita cari permit yang statusnya active DAN santrinya ada di kelas yang sedang dipilih
+    const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
+    const activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
+
+    // Update Badge Count
+    if (badgeCount) badgeCount.textContent = activePermits.length;
+
+    // 2. Handle Empty State
+    if (activePermits.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-6">
+                <div class="inline-flex p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-300 mb-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                </div>
+                <p class="text-[10px] font-bold text-slate-400">Semua santri ada di pondok</p>
+            </div>
+        `;
+        if (window.lucide) window.lucide.createIcons();
+        return;
+    }
+
+    // 3. Render List Items
+    activePermits.forEach(p => {
+        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === p.nis);
+        if (!santri) return;
+
+        // Tentukan Warna & Icon berdasarkan Kategori
+        let colorClass, iconName, btnLabel, btnAction;
+        
+        if (p.category === 'sakit') {
+            colorClass = 'bg-amber-100 text-amber-600 border-amber-200';
+            iconName = 'thermometer';
+            btnLabel = 'Sembuh';
+            // Panggil markAsRecovered lalu refresh widget ini
+            btnAction = `window.markAsRecovered('${p.id}'); window.renderActivePermitsWidget();`;
+        } else if (p.category === 'izin') {
+            colorClass = 'bg-blue-100 text-blue-600 border-blue-200';
+            iconName = 'file-text';
+            btnLabel = 'Kembali';
+            btnAction = `window.markAsReturned('${p.id}'); window.renderActivePermitsWidget();`;
+        } else { // Pulang
+            colorClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
+            iconName = 'bus';
+            btnLabel = 'Tiba';
+            btnAction = `window.markAsReturned('${p.id}'); window.renderActivePermitsWidget();`;
+        }
+
+        // Info Waktu
+        let timeInfo = '';
+        if (p.end_date) {
+            timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(p.end_date)}</span>`;
+        } else {
+            timeInfo = `<span class="text-[9px] text-slate-400">Sejak ${window.formatDate(p.start_date)}</span>`;
+        }
+
+        // HTML Item
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md';
+        
+        div.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0 border">
+                    <i data-lucide="${iconName}" class="w-3.5 h-3.5"></i>
+                </div>
+                <div class="min-w-0">
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate">${santri.nama}</h4>
+                    <div class="flex items-center gap-1.5 leading-none mt-0.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider ${colorClass.split(' ')[1]}">${p.category}</span>
+                        <span class="text-[9px] text-slate-300">•</span>
+                        ${timeInfo}
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0">
+                ${btnLabel}
+            </button>
+        `;
+        
+        container.appendChild(div);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+};
+
 // Start App
 window.onload = window.initApp;
