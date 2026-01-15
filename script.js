@@ -829,7 +829,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
             stats.isFilled = true;
             if (status === 'Hadir') stats.h++;
             else if (status === 'Sakit') stats.s++;
-            else if (status === 'Izin') stats.i++;
+            else if (status === 'Izin' || status === 'Pulang') stats.i++;
             else if (status === 'Alpa') stats.a++;
             stats.total++;
         }
@@ -982,7 +982,7 @@ window.renderAttendanceList = function() {
         slot.activities.forEach(act => {
             let targetStatus = null;
             if (activePermit) {
-                if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.type; 
+                if (act.category === 'fardu' || act.category === 'kbm') targetStatus = activePermit.status_label; 
                 else targetStatus = 'Tidak'; 
             } else if (isAutoMarked) {
                 // Reset jika permit dihapus
@@ -998,8 +998,8 @@ window.renderAttendanceList = function() {
         });
 
         if (activePermit) {
-            const autoNote = `[Auto] ${activePermit.type} s/d ${window.formatDate(activePermit.end)}`;
-            if (!sData.note || sData.note === '-' || (isAutoMarked && !sData.note.includes(activePermit.type))) {
+            const autoNote = `[Auto] ${activePermit.status_label} s/d ${window.formatDate(activePermit.end_date)}`;
+            if (!sData.note || sData.note === '-' || (isAutoMarked && !sData.note.includes(activePermit.status_label))) {
                 sData.note = autoNote;
                 hasAutoChanges = true;
             }
@@ -2435,7 +2435,7 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
         if (currentDateStr < permit.start_date) return null;
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
-        return { type: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason}` };
+        return { status_label: 'Sakit', label: 'S', note: `[Sakit] ${permit.reason}` };
     }
 
     // --- 2. LOGIKA IZIN & PULANG ---
@@ -2444,7 +2444,7 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
         if (currentDateStr === permit.start_date && SESSION_ORDER[currentSlotId] < SESSION_ORDER[permit.start_session]) return null;
 
         if (currentDateStr > permit.end_date) {
-             return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline ${window.formatDate(permit.end_date)}` };
+             return { status_label: 'Alpa', label: 'A', note: `[Terlambat] Deadline ${window.formatDate(permit.end_date)}` };
         }
 
         if (currentDateStr === permit.end_date) {
@@ -2453,7 +2453,7 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
             const slotStartHour = SLOT_WAKTU[currentSlotId].startHour; 
             
             if (slotStartHour >= deadlineHour) {
-                return { type: 'Alpa', label: 'A', note: `[Terlambat] Deadline jam ${deadlineTime}` };
+                return { status_label: 'Alpa', label: 'A', note: `[Terlambat] Deadline jam ${deadlineTime}` };
             }
         }
 
@@ -2462,7 +2462,7 @@ window.checkActivePermit = function(nis, currentDateStr, currentSlotId) {
         const label = cat === 'pulang' ? 'Pulang' : 'Izin';
         const code = cat === 'pulang' ? 'P' : 'I';
         
-        return { type: label, label: code, end: permit.end_date, note: `[${label}] ${permit.reason}` };
+        return { status_label: label, label: code, end_date: permit.end_date, note: `[${label}] ${permit.reason}` };
     }
 };
 
