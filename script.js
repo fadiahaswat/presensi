@@ -3653,67 +3653,142 @@ window.renderActivePermitsWidget = function() {
     const container = document.getElementById('dashboard-active-permits-list');
     const badgeCount = document.getElementById('active-permit-count');
     
-    if (!container) return; // Safety check
+    if (!container) return; 
 
     container.innerHTML = '';
     
-    // 1. Ambil & Filter Data
-    // Kita cari permit yang statusnya active DAN santrinya ada di kelas yang sedang dipilih
+    const combinedList = [];
+    const processedNis = new Set(); // Untuk mencegah duplikasi (Permit vs Manual)
+
+    // A. AMBIL DARI DATABASE PERIZINAN (Resmi/Jangka Panjang)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     const activePermits = appState.permits.filter(p => classNisList.includes(p.nis) && p.is_active);
 
-    // Update Badge Count
-    if (badgeCount) badgeCount.textContent = activePermits.length;
+    activePermits.forEach(p => {
+        combinedList.push({
+            type: 'permit', // Penanda sumber data
+            id: p.id,       // ID Permit
+            nis: p.nis,
+            category: p.category, // sakit, izin, pulang
+            startTime: p.start_date,
+            endTime: p.end_date
+        });
+        processedNis.add(p.nis);
+    });
 
-    // 2. Handle Empty State
-    if (activePermits.length === 0) {
+    // B. AMBIL DARI PRESENSI HARIAN (Manual/Harian)
+    // Cek apakah ada santri yang diabsen S/I/P/A hari ini tapi TIDAK punya surat izin
+    const dateKey = appState.date;
+    const dayData = appState.attendanceData[dateKey];
+
+    if (dayData) {
+        FILTERED_SANTRI.forEach(s => {
+            const id = String(s.nis || s.id);
+            
+            // Jika sudah ada di list permit, skip (Prioritas Permit)
+            if (processedNis.has(id)) return;
+
+            // Cek status di semua slot hari ini
+            let foundStatus = null;
+            
+            // Urutan prioritas pengecekan: Isya -> Maghrib -> Ashar -> Shubuh
+            // Kita ambil status terakhir yang ditemukan
+            ['isya', 'maghrib', 'ashar', 'shubuh'].forEach(slot => {
+                if (foundStatus) return; // Sudah ketemu, stop
+                const st = dayData[slot]?.[id]?.status?.shalat;
+                
+                // Jika statusnya bukan Normal (Hadir/Ya/Tidak)
+                if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
+                    foundStatus = st;
+                }
+            });
+
+            if (foundStatus) {
+                // Konversi status teks presensi ke kategori sistem
+                let category = foundStatus.toLowerCase(); 
+                if (foundStatus === 'Alpa') category = 'alpa'; // Tambahan handling Alpa
+
+                combinedList.push({
+                    type: 'manual', // Penanda sumber data
+                    id: null,       // Tidak punya ID permit
+                    nis: id,
+                    category: category,
+                    startTime: dateKey, // Mulai hari ini
+                    endTime: null
+                });
+            }
+        });
+    }
+
+    // Update Badge Count
+    if (badgeCount) badgeCount.textContent = combinedList.length;
+
+    // Handle Empty State
+    if (combinedList.length === 0) {
         container.innerHTML = `
             <div class="text-center py-6">
                 <div class="inline-flex p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-300 mb-2">
                     <i data-lucide="check-circle" class="w-5 h-5"></i>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400">Semua santri ada di pondok</p>
+                <p class="text-[10px] font-bold text-slate-400">Nihil absensi (Semua Hadir/Pondok)</p>
             </div>
         `;
         if (window.lucide) window.lucide.createIcons();
         return;
     }
 
-    // 3. Render List Items
-    activePermits.forEach(p => {
-        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === p.nis);
+    // C. RENDER GABUNGAN
+    combinedList.forEach(item => {
+        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === item.nis);
         if (!santri) return;
 
-        // Tentukan Warna & Icon berdasarkan Kategori
+        // Styling UI
         let colorClass, iconName, btnLabel, btnAction;
-        
-        if (p.category === 'sakit') {
+        const cat = item.category.toLowerCase();
+
+        if (cat === 'sakit') {
             colorClass = 'bg-amber-100 text-amber-600 border-amber-200';
             iconName = 'thermometer';
             btnLabel = 'Sembuh';
-            // Panggil markAsRecovered lalu refresh widget ini
-            btnAction = `window.markAsRecovered('${p.id}'); window.renderActivePermitsWidget();`;
-        } else if (p.category === 'izin') {
+        } else if (cat === 'izin') {
             colorClass = 'bg-blue-100 text-blue-600 border-blue-200';
             iconName = 'file-text';
             btnLabel = 'Kembali';
-            btnAction = `window.markAsReturned('${p.id}'); window.renderActivePermitsWidget();`;
-        } else { // Pulang
+        } else if (cat === 'pulang') {
             colorClass = 'bg-indigo-100 text-indigo-600 border-indigo-200';
             iconName = 'bus';
             btnLabel = 'Tiba';
-            btnAction = `window.markAsReturned('${p.id}'); window.renderActivePermitsWidget();`;
+        } else { // Alpa
+            colorClass = 'bg-red-100 text-red-600 border-red-200';
+            iconName = 'x-circle';
+            btnLabel = 'Hadir'; // Jika Alpa, tombolnya tandai Hadir
+        }
+
+        // --- LOGIKA TOMBOL AKSI (PERBAIKAN ERROR) ---
+        if (item.type === 'permit') {
+            // Jika dari Permit: Gunakan fungsi lama dengan ID Permit
+            if (cat === 'sakit') {
+                btnAction = `window.markAsRecovered('${item.id}'); window.renderActivePermitsWidget();`;
+            } else {
+                btnAction = `window.markAsReturned('${item.id}'); window.renderActivePermitsWidget();`;
+            }
+        } else {
+            // Jika Manual: Gunakan fungsi BARU dengan NIS & Status (karena tidak ada ID Permit)
+            // Status harus dikirim dengan format Capital case sesuai presensi (Sakit, Izin, etc)
+            const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1); // sakit -> Sakit
+            btnAction = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
         }
 
         // Info Waktu
         let timeInfo = '';
-        if (p.end_date) {
-            timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(p.end_date)}</span>`;
+        if (item.endTime) {
+            timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
         } else {
-            timeInfo = `<span class="text-[9px] text-slate-400">Sejak ${window.formatDate(p.start_date)}</span>`;
+            // Jika manual, tampilkan "Hari Ini" atau tanggalnya
+            const label = item.type === 'manual' ? 'Manual Hari Ini' : `Sejak ${window.formatDate(item.startTime)}`;
+            timeInfo = `<span class="text-[9px] text-slate-400">${label}</span>`;
         }
 
-        // HTML Item
         const div = document.createElement('div');
         div.className = 'flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md';
         
@@ -3725,14 +3800,14 @@ window.renderActivePermitsWidget = function() {
                 <div class="min-w-0">
                     <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate">${santri.nama}</h4>
                     <div class="flex items-center gap-1.5 leading-none mt-0.5">
-                        <span class="text-[9px] font-bold uppercase tracking-wider ${colorClass.split(' ')[1]}">${p.category}</span>
+                        <span class="text-[9px] font-bold uppercase tracking-wider ${colorClass.split(' ')[1]}">${item.category}</span>
                         <span class="text-[9px] text-slate-300">•</span>
                         ${timeInfo}
                     </div>
                 </div>
             </div>
             
-            <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0">
+            <button onclick="${btnAction}" class="ml-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-colors flex-shrink-0 shadow-sm">
                 ${btnLabel}
             </button>
         `;
