@@ -520,17 +520,19 @@ window.handleGoogleCallback = function(response) {
 window.handleLogout = function() {
     if(!confirm("Keluar dari akun ini?")) return;
 
-    // Hapus sesi
+    if(clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+    }
+
     localStorage.removeItem(APP_CONFIG.googleAuthKey);
     appState.selectedClass = null;
     
-    // Reset UI
     document.getElementById('view-main').classList.add('hidden');
     document.getElementById('view-login').classList.remove('hidden');
     document.getElementById('login-pin').value = "";
     document.getElementById('login-kelas').value = "";
     
-    // Refresh halaman agar data bersih
     location.reload();
 };
 
