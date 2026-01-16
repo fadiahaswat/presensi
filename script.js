@@ -586,6 +586,7 @@ window.updateDashboard = function() {
     }
 
     // 3. Render List Slot
+    window.renderSchoolStatsWidget();
     window.renderSlotList();
     window.renderKBMBanner();
     window.renderActivePermitsWidget();
