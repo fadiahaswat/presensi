@@ -263,42 +263,57 @@ window.getPembinaanStatus = function(alpaCount) {
 window.initApp = async function() {
     const loadingEl = document.getElementById('view-loading');
     
+    // ============================================================
+    // 1. FASE UI INSTANT (Prioritas Utama)
+    // ============================================================
+    // Kita pisahkan blok ini agar Tanggal MUNCUL DULUAN apapun yang terjadi.
+    
+    // A. Tampilkan Tanggal (Safe Mode)
     try {
-        // ============================================================
-        // 1. FASE INSTANT (Render UI Dasar Detik-0)
-        // ============================================================
-        
-        // A. Nyalakan Jam Header
-        window.startClock();
-        
-        // B. Pastikan Tanggal Hari Ini Ter-set
         if (!appState.date) {
             appState.date = window.getLocalDateStr();
         }
         window.updateDateDisplay();
+    } catch (e) {
+        console.error("Date Error:", e);
+        // Fallback manual jika error
+        const elDate = document.getElementById('current-date-display');
+        if(elDate) elDate.textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    }
 
-        // C. Tentukan Slot Waktu (Shubuh/Ashar/dll) SEKARANG JUGA
-        // Jangan tunggu load data, hitung murni dari jam sistem HP
+    // B. Tentukan Slot Waktu
+    try {
         appState.currentSlotId = window.determineCurrentSlot();
+    } catch (e) {
+        console.error("Slot Error:", e);
+        appState.currentSlotId = 'shubuh'; // Default aman
+    }
 
-        // D. Load Settings (Mode Gelap) agar tidak flickering
-        const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
-        if(savedSettings) {
-            appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
-            if(appState.settings.darkMode) document.documentElement.classList.add('dark');
-        }
-
-        // E. FORCE RENDER DASHBOARD (KARTU JAM) SEKARANG!
-        // Ini kuncinya: Kartu langsung muncul walau data santri belum ada
-        window.updateDashboard(); 
+    // C. Nyalakan Jam (Dengan Pengaman Notifikasi)
+    try {
+        window.startClock(); 
+    } catch (e) {
+        console.error("Clock Error:", e);
+    }
+    
+    // D. Render Icon
+    try {
         if(window.lucide) window.lucide.createIcons();
+    } catch (e) {}
 
-        // ============================================================
-        // 2. FASE LOAD DATA (Background Process)
-        // ============================================================
-        
-        // Load Data Lokal (Storage)
+
+    // ============================================================
+    // 2. FASE LOAD DATA (Background)
+    // ============================================================
+    try {
+        // Load Settings & LocalStorage
         try {
+            const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
+            if(savedSettings) {
+                appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
+                if(appState.settings.darkMode) document.documentElement.classList.add('dark');
+            }
+
             const savedData = localStorage.getItem(APP_CONFIG.storageKey);
             if(savedData) appState.attendanceData = JSON.parse(savedData);
 
@@ -307,8 +322,11 @@ window.initApp = async function() {
             
             const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
             if(savedPermits) appState.permits = JSON.parse(savedPermits);
-        } catch (e) {
-            console.error("Storage Error:", e);
+
+            // Render Dashboard Awal (Data Lokal)
+            window.updateDashboard(); 
+        } catch (storageError) {
+            console.error("Storage Error:", storageError);
         }
 
         // Fetch Data Berat (Santri & Kelas) dengan Timeout
@@ -318,7 +336,7 @@ window.initApp = async function() {
         ]);
 
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Koneksi lambat (Timeout)")), 8000)
+            setTimeout(() => reject(new Error("Koneksi lambat")), 8000)
         );
 
         try {
@@ -330,12 +348,10 @@ window.initApp = async function() {
 
         } catch (fetchError) {
             console.error("Data Fetch Error:", fetchError);
-            window.showToast("Gagal memuat data santri (Offline/Lambat)", 'warning');
+            window.showToast("Mode Offline / Koneksi Lambat", 'info');
         }
 
-        // ============================================================
-        // 3. FASE AUTH (Cek Login)
-        // ============================================================
+        // Cek Login
         const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
         if(savedAuth) {
             try {
@@ -352,15 +368,12 @@ window.initApp = async function() {
                     if(FILTERED_SANTRI.length > 0) {
                         document.getElementById('view-login').classList.add('hidden');
                         document.getElementById('view-main').classList.remove('hidden');
-                        
-                        // Update Dashboard LAGI setelah data santri masuk (untuk angka statistik)
                         window.updateDashboard(); 
                         window.updateProfileInfo();
                         window.fetchAttendanceFromSupabase();
                     }
                 }
             } catch(authError) {
-                console.error("Auto-login error:", authError);
                 localStorage.removeItem(APP_CONFIG.googleAuthKey);
             }
         }
@@ -368,7 +381,9 @@ window.initApp = async function() {
     } catch (criticalError) {
         console.error("Critical Init Error:", criticalError);
     } finally {
-        // Hilangkan Loading Screen
+        // ============================================================
+        // FINAL: PASTI HILANGKAN LOADING
+        // ============================================================
         if(loadingEl) {
             loadingEl.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => { loadingEl.style.display = 'none'; }, 500); 
