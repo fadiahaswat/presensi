@@ -255,7 +255,7 @@ const STATUS_UI = {
 };
 
 // Tambahkan 'kemarin': 0 agar logika matematika berjalan
-const SESSION_ORDER = { 'kemarin': 0, 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
+const SESSION_ORDER = { 'kemarin': 0, 'shubuh': 1, 'sekolah': 2, 'ashar': 3, 'maghrib': 4, 'isya': 5 };
 
 // ==========================================
 // KONFIGURASI PEMBINAAN (Disciplinary Rules)
