@@ -2405,52 +2405,6 @@ window.updatePermitCount = function() {
     if(el) el.textContent = checked;
 };
 
-window.savePermit = function() {
-    // Ambil santri yang dicentang
-    const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]:checked');
-    const selectedNis = Array.from(checkboxes).map(cb => cb.value);
-
-    const type = document.getElementById('permit-type').value;
-    const session = document.getElementById('permit-session').value;
-    const start = document.getElementById('permit-start').value;
-    const end = document.getElementById('permit-end').value;
-
-    if(selectedNis.length === 0) return window.showToast("Pilih minimal 1 santri", "warning");
-    if(!start || !end) return window.showToast("Lengkapi tanggal", "warning");
-    if(start > end) return window.showToast("Tanggal mulai tidak boleh > selesai", "warning");
-
-    // Simpan data per santri
-    let count = 0;
-    selectedNis.forEach(nis => {
-        const newPermit = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // ID Unik
-            nis: nis,
-            type,
-            session,
-            start,
-            end,
-            timestamp: new Date().toISOString()
-        };
-        appState.permits.push(newPermit);
-        count++;
-    });
-
-    localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
-    
-    window.showToast(`${count} izin berhasil disimpan`, "success");
-    window.renderPermitList(); 
-    
-    // Uncheck semua setelah simpan
-    checkboxes.forEach(cb => cb.checked = false);
-    window.updatePermitCount();
-
-    // Refresh dashboard jika tanggal relevan
-    if (appState.date >= start && appState.date <= end) {
-        window.renderAttendanceList(); 
-        window.updateDashboard();
-    }
-};
-
 window.deletePermit = function(id) {
     if(!confirm("Hapus data izin ini? Status akan dikembalikan ke default.")) return;
     
