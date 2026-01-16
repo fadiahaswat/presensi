@@ -872,13 +872,15 @@ window.calculateSlotStats = function(slotId, customDate = null) {
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        const status = slotData[id]?.status?.shalat; // Primary Activity Status
+        const firstActId = SLOT_WAKTU[slotId].activities[0].id;
+        const status = slotData[id]?.status?.[firstActId]; 
         
         if (status) {
             stats.isFilled = true;
-            if (status === 'Hadir') stats.h++;
+            // Telat dihitung Hadir di statistik angka
+            if (status === 'Hadir' || status === 'Telat') stats.h++; 
             else if (status === 'Sakit') stats.s++;
-            else if (status === 'Izin') stats.i++;
+            else if (status === 'Izin' || status === 'Pulang') stats.i++;
             else if (status === 'Alpa') stats.a++;
             stats.total++;
         }
