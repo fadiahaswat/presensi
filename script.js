@@ -4591,5 +4591,50 @@ window.savePembinaan = function() {
     }
 };
 
+window.renderSchoolStatsWidget = function() {
+    const stats = window.calculateSlotStats('sekolah');
+    
+    document.getElementById('sch-stat-h').textContent = stats.h;
+    document.getElementById('sch-stat-s').textContent = stats.s;
+    document.getElementById('sch-stat-i').textContent = stats.i;
+    document.getElementById('sch-stat-a').textContent = stats.a;
+
+    const total = stats.total || 1;
+    const pct = Math.round((stats.h / total) * 100);
+    
+    document.getElementById('school-pct-badge').textContent = `${pct}%`;
+    document.getElementById('school-progress-bar').style.width = `${pct}%`;
+
+    // Render List Tidak Hadir
+    const listContainer = document.getElementById('school-absent-list');
+    if(!listContainer) return;
+    listContainer.innerHTML = '';
+
+    const dateKey = appState.date;
+    const slotData = appState.attendanceData[dateKey]?.['sekolah'];
+
+    if(slotData) {
+        FILTERED_SANTRI.forEach(s => {
+            const id = String(s.nis || s.id);
+            const st = slotData[id]?.status?.kbm_sekolah;
+            if(st && st !== 'Hadir') { // Termasuk Sakit, Izin, Alpa
+                let color = 'text-slate-500';
+                if(st === 'Sakit') color = 'text-amber-500';
+                else if(st === 'Izin') color = 'text-blue-500';
+                else if(st === 'Alpa') color = 'text-red-500';
+                else if(st === 'Telat') color = 'text-teal-500';
+
+                // Tampilkan Telat juga kalau mau dipantau, atau exclude jika dihitung hadir
+                const item = document.createElement('div');
+                item.className = "flex justify-between items-center px-2 py-1 bg-slate-50 dark:bg-slate-800/50 rounded text-xs";
+                item.innerHTML = `<span class="font-bold text-slate-700 dark:text-slate-200">${s.nama}</span> <span class="font-black ${color} text-[10px] uppercase">${st}</span>`;
+                listContainer.appendChild(item);
+            }
+        });
+    } else {
+        listContainer.innerHTML = '<p class="text-center text-[10px] text-slate-400">Belum ada data sekolah</p>';
+    }
+};
+
 // Start App
 window.onload = window.initApp;
