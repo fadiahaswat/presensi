@@ -3989,21 +3989,23 @@ window.renderActivePermitsWidget = function() {
             visualActive = false; // Jika database bilang false, maka false
         }
 
-        combinedList.push({
-            type: 'permit',
-            id: p.id,
-            nis: p.nis,
-            category: p.category,
-            startTime: p.start_date,
-            endTime: p.end_date,
-            isActive: visualActive, 
-            reason: p.reason
-        });
+        // Filter tambahan: Pastikan Permit juga hanya S/I/P (jaga-jaga jika ada kategori lain)
+        if (['sakit', 'izin', 'pulang'].includes(catSafe)) {
+            combinedList.push({
+                type: 'permit',
+                id: p.id,
+                nis: p.nis,
+                category: p.category,
+                startTime: p.start_date,
+                endTime: p.end_date,
+                isActive: visualActive, 
+                reason: p.reason
+            });
 
-        // PENTING: Hanya block Manual Check jika permit ini MASIH AKTIF.
-        // Jika permit sudah selesai (abu-abu), kita izinkan cek manual (siapa tau sakit lagi)
-        if (visualActive) {
-            processedNis.add(p.nis);
+            // PENTING: Hanya block Manual Check jika permit ini MASIH AKTIF.
+            if (visualActive) {
+                processedNis.add(p.nis);
+            }
         }
     });
 
@@ -4021,7 +4023,9 @@ window.renderActivePermitsWidget = function() {
             const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
             for (const slot of slots) {
                 const st = dayData[slot]?.[id]?.status?.shalat;
-                if (st && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
+                
+                // [PERBAIKAN DISINI] Hapus 'Alpa' dari daftar pencarian
+                if (st && ['Sakit', 'Izin', 'Pulang'].includes(st)) {
                     foundStatus = st;
                     break;
                 }
@@ -4029,8 +4033,7 @@ window.renderActivePermitsWidget = function() {
 
             if (foundStatus) {
                 let category = foundStatus.toLowerCase(); 
-                if (foundStatus === 'Alpa') category = 'alpa';
-
+                
                 combinedList.push({
                     type: 'manual', // Penanda ini data manual
                     id: null,
@@ -4049,7 +4052,7 @@ window.renderActivePermitsWidget = function() {
     if (badgeCount) badgeCount.textContent = combinedList.filter(i => i.isActive).length;
     combinedList.sort((a, b) => (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1);
 
-    // Render HTML (Bagian ini sama seperti sebelumnya, pastikan di-copy juga)
+    // Render HTML
     if (combinedList.length === 0) {
         container.innerHTML = `<div class="text-center py-6 text-slate-400 text-[10px] font-bold">Semua santri lengkap / Hadir</div>`;
         return;
@@ -4065,7 +4068,7 @@ window.renderActivePermitsWidget = function() {
         if (cat === 'sakit') { colorClass = 'bg-amber-100 text-amber-600 border-amber-200'; iconName = 'thermometer'; } 
         else if (cat === 'izin') { colorClass = 'bg-blue-100 text-blue-600 border-blue-200'; iconName = 'file-text'; } 
         else if (cat === 'pulang') { colorClass = 'bg-purple-100 text-purple-600 border-purple-200'; iconName = 'bus'; } 
-        else { colorClass = 'bg-red-100 text-red-600 border-red-200'; iconName = 'x-circle'; }
+        else { colorClass = 'bg-slate-100 text-slate-600 border-slate-200'; iconName = 'help-circle'; }
 
         let btnHTML = '';
         if (item.isActive) {
