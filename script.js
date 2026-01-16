@@ -263,123 +263,100 @@ window.getPembinaanStatus = function(alpaCount) {
 window.initApp = async function() {
     const loadingEl = document.getElementById('view-loading');
     
+    // 1. FASE UI INSTANT
     try {
-        // ============================================================
-        // 1. RENDERING UI DASAR (SEGERA)
-        // ============================================================
-        // Bungkus try-catch kecil agar jika UI error, aplikasi tetap lanjut loading
-        try {
-            window.startClock();
-            window.updateDateDisplay();
-            if(window.lucide) window.lucide.createIcons();
-        } catch (uiError) {
-            console.error("UI Init Error:", uiError);
-        }
-        
-        // 2. Load Local Storage (Pengaturan & Data Harian)
-        try {
-            const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
-            if(savedSettings) {
-                appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
-                if(appState.settings.darkMode) document.documentElement.classList.add('dark');
-            }
-
-            const savedData = localStorage.getItem(APP_CONFIG.storageKey);
-            if(savedData) appState.attendanceData = JSON.parse(savedData);
-
-            const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
-            if(savedLog) appState.activityLog = JSON.parse(savedLog);
-
-            appState.permits = []; // Inisialisasi default
-            
-            const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
-            if(savedPermits) appState.permits = JSON.parse(savedPermits);
-
-        } catch (storageError) {
-            console.error("Storage Error:", storageError);
-            // Lanjut saja meski storage error (misal Incognito mode), jangan bikin stuck
-        }
-
-        // 3. Determine Slot Waktu
+        if (!appState.date) appState.date = window.getLocalDateStr();
+        window.updateDateDisplay();
         appState.currentSlotId = window.determineCurrentSlot();
+        window.startClock(); 
+        if(window.lucide) window.lucide.createIcons();
+    } catch (e) { console.error(e); }
 
-        // 4. FETCH DATA EXTERNAL (DENGAN TIMEOUT PENGAMAN)
-        // Kita batasi waktu loading data maksimal 8 detik. Jika lebih, anggap timeout agar tidak stuck.
+    // 2. FASE LOAD DATA & AUTO LOGIN (Anti-Race Condition)
+    let isDataLoaded = false;
+
+    try {
+        // Load Storage Lokal
+        const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
+        if(savedSettings) {
+            appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
+            if(appState.settings.darkMode) document.documentElement.classList.add('dark');
+        }
+        const savedData = localStorage.getItem(APP_CONFIG.storageKey);
+        if(savedData) appState.attendanceData = JSON.parse(savedData);
+        
+        const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
+        if(savedPermits) appState.permits = JSON.parse(savedPermits);
+        
+        window.updateDashboard(); // Render awal dengan data lokal
+
+        // Fetch Data Berat dengan Timeout
         const dataLoadingPromise = Promise.all([
             window.loadClassData ? window.loadClassData() : Promise.resolve({}),
             window.loadSantriData ? window.loadSantriData() : Promise.resolve([])
         ]);
 
-        // Membuat Timer Timeout 8 Detik
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Koneksi lambat (Timeout)")), 8000)
+            setTimeout(() => reject(new Error("Timeout")), 8000)
         );
 
+        // --- CORE FIX: Tunggu Data Dulu, Baru Auto Login ---
         try {
-            // Balapan: Mana duluan selesai, Data loaded atau Timeout?
             const [kelasData, santriData] = await Promise.race([dataLoadingPromise, timeoutPromise]);
-
             MASTER_KELAS = kelasData || {};
             MASTER_SANTRI = santriData || [];
             window.populateClassDropdown();
+            isDataLoaded = true;
 
-        } catch (fetchError) {
-            console.error("Data Fetch Error:", fetchError);
-            window.showToast("Gagal memuat data santri (Offline/Lambat)", 'warning');
-            // Tetap lanjut agar aplikasi terbuka walau data mungkin kosong
-        }
+            // ==> AUTO LOGIN DIJALANKAN DI SINI SETELAH DATA SIAP <==
+            const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
+            if(savedAuth) {
+                try {
+                    const authData = JSON.parse(savedAuth);
+                    
+                    // Validasi Kelas (Hanya jika online/data loaded)
+                    if (isDataLoaded && (!authData.kelas || !MASTER_KELAS[authData.kelas])) {
+                        throw new Error("Kelas tidak valid.");
+                    }
 
-        // ============================================================
-        // 5. AUTO LOGIN CHECK
-        // ============================================================
-        const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
-        if(savedAuth) {
-            try {
-                const authData = JSON.parse(savedAuth);
-                
-                // Pastikan data kelas valid sebelum auto-login
-                if (authData.kelas && MASTER_KELAS[authData.kelas]) {
                     appState.selectedClass = authData.kelas;
                     appState.userProfile = authData.profile;
                     
-                    // Filter ulang santri
                     FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
                         const sKelas = String(s.kelas || s.rombel || "").trim();
                         return sKelas === appState.selectedClass;
                     }).sort((a,b) => a.nama.localeCompare(b.nama));
 
-                    if(FILTERED_SANTRI.length > 0) {
+                    if(FILTERED_SANTRI.length > 0 || !isDataLoaded) {
                         document.getElementById('view-login').classList.add('hidden');
                         document.getElementById('view-main').classList.remove('hidden');
+                        
                         window.updateDashboard(); 
                         window.updateProfileInfo();
-                        window.fetchAttendanceFromSupabase(); // Sync background
+                        window.fetchAttendanceFromSupabase();
+                        
                         setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
+                    } else {
+                         throw new Error("Data santri kosong.");
                     }
-                } else {
-                    // Jika data kelas tidak sinkron, paksa login ulang
-                    throw new Error("Data kelas tidak valid");
+                } catch(authError) {
+                    console.error("Auto-login reject:", authError);
+                    localStorage.removeItem(APP_CONFIG.googleAuthKey);
                 }
-            } catch(authError) {
-                console.error("Auto-login error:", authError);
-                localStorage.removeItem(APP_CONFIG.googleAuthKey);
             }
+
+        } catch (fetchError) {
+            console.error("Data Fetch Error/Timeout:", fetchError);
+            window.showToast("Mode Offline / Koneksi Lambat", 'warning');
+            // Tetap izinkan akses jika ada auth tersimpan (Mode Offline)
         }
 
     } catch (criticalError) {
         console.error("Critical Init Error:", criticalError);
-        alert("Terjadi kesalahan sistem: " + criticalError.message);
     } finally {
-        // ============================================================
-        // FINAL: HILANGKAN LOADING SCREEN (WAJIB JALAN)
-        // ============================================================
-        // Apapun yang terjadi (Sukses/Error), kode ini PASTI dijalankan.
         if(loadingEl) {
             loadingEl.classList.add('opacity-0', 'pointer-events-none');
-            // Hapus elemen dari DOM total setelah animasi selesai agar tidak menghalangi klik
-            setTimeout(() => {
-                loadingEl.style.display = 'none';
-            }, 500); 
+            setTimeout(() => { loadingEl.style.display = 'none'; }, 500); 
         }
     }
 };
