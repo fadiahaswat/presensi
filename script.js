@@ -999,6 +999,16 @@ window.renderAttendanceList = function() {
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
+            if (slot.id === 'sekolah') {
+                const shubuhData = appState.attendanceData[dateKey]?.['shubuh']?.[id];
+                if (shubuhData?.status?.shalat === 'Sakit') {
+                    defStatus['kbm_sekolah'] = 'Sakit';
+                    // Tambahkan catatan otomatis tapi bisa diedit
+                    // Kita simpan di object sData nanti, tapi karena ini blok inisialisasi, 
+                    // kita harus set note di object dbSlot[id] nanti.
+                }
+            }
+
             if (prevSlotData && prevSlotData[id]) {
                 const prevSt = prevSlotData[id].status?.shalat;
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
@@ -1014,6 +1024,10 @@ window.renderAttendanceList = function() {
                 }
             }
             dbSlot[id] = { status: defStatus, note: '' };
+
+            if (slot.id === 'sekolah' && appState.attendanceData[dateKey]?.['shubuh']?.[id]?.status?.shalat === 'Sakit') {
+                dbSlot[id].note = '[Auto] Sakit sejak Shubuh';
+            }
         }
 
         const sData = dbSlot[id];
