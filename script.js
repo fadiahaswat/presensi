@@ -4071,124 +4071,102 @@ window.resolveManualStatus = function(nis, statusType) {
 
 window.renderPermitHistory = function() {
     const container = document.getElementById('permit-history-list');
-    const filterCat = document.getElementById('hist-filter-cat')?.value || 'all'; // Jika nanti mau tambah filter kategori
-    const searchQuery = document.getElementById('hist-search')?.value.toLowerCase() || ''; // Jika ada search box di profil
-
     if (!container) return;
     container.innerHTML = '';
 
-    // 1. Ambil SEMUA permit & Urutkan (Terbaru di atas)
-    // Kita copy array agar tidak merusak urutan asli di appState
-    let history = [...appState.permits].sort((a, b) => {
-        // Prioritaskan timestamp pembuatan, kalau tidak ada pakai start_date
-        const dateA = new Date(a.timestamp || a.start_date);
-        const dateB = new Date(b.timestamp || b.start_date);
-        return dateB - dateA; // Descending
-    });
+    // 1. Ambil History dari PERMITS
+    let history = [...appState.permits].map(p => ({...p, source: 'permit'}));
 
-    // 2. Filter Data (Berdasarkan Kelas & Search)
+    // 2. [BARU] Scan History dari MANUAL (Attendance Data)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     
-    history = history.filter(p => {
-        // Cek apakah santri ini milik kelas yang sedang login
-        if (!classNisList.includes(String(p.nis))) return false;
-
-        const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
-        if (!santri) return false;
-
-        const matchName = santri.nama.toLowerCase().includes(searchQuery);
-        const matchCat = filterCat === 'all' || p.category === filterCat;
+    // Loop semua tanggal di attendanceData
+    Object.keys(appState.attendanceData).forEach(date => {
+        const daySlots = appState.attendanceData[date];
         
-        return matchName && matchCat;
+        // Loop santri di kelas ini
+        classNisList.forEach(nis => {
+            // Cek apakah ada status S/I/P di hari ini (ambil slot terakhir yg sakit)
+            let foundSt = null;
+            ['isya', 'maghrib', 'ashar', 'shubuh'].forEach(slot => {
+                const st = daySlots[slot]?.[nis]?.status?.shalat;
+                if(st && ['Sakit','Izin','Pulang'].includes(st)) foundSt = st;
+            });
+
+            // Cek apakah ini sudah tercover permit (biar ga duplikat)
+            const coveredByPermit = history.some(p => 
+                p.nis === nis && p.start_date === date && p.category === foundSt?.toLowerCase()
+            );
+
+            if (foundSt && !coveredByPermit) {
+                // Tambahkan sebagai history manual
+                history.push({
+                    id: `manual_${date}_${nis}`,
+                    nis: nis,
+                    category: foundSt.toLowerCase(),
+                    reason: "Input Manual (Presensi)",
+                    start_date: date,
+                    end_date: date, // Manual biasanya harian
+                    is_active: false, // Anggap selesai karena history harian
+                    source: 'manual',
+                    timestamp: date
+                });
+            }
+        });
     });
 
+    // 3. Sorting & Rendering (Sama seperti sebelumnya)
+    history.sort((a, b) => new Date(b.timestamp || b.start_date) - new Date(a.timestamp || a.start_date));
+
+    // Filter hanya kelas ini
+    history = history.filter(p => classNisList.includes(String(p.nis)));
+
     if (history.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl">
-                <i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-3 text-slate-300"></i>
-                <p class="text-xs font-bold text-slate-400">Belum ada riwayat perizinan</p>
-            </div>`;
-        if(window.lucide) window.lucide.createIcons();
+        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs font-bold">Belum ada riwayat</div>`;
         return;
     }
 
-    // 3. Render List
     history.forEach(p => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
-        
-        // Tentukan Style Berdasarkan Kategori
+        if(!santri) return;
+
         let colorTheme = 'bg-slate-100 text-slate-500';
         let iconName = 'file-text';
-        let borderClass = 'border-slate-200';
+        if (p.category === 'sakit') { colorTheme = 'bg-amber-100 text-amber-600'; iconName = 'thermometer'; }
+        else if (p.category === 'izin') { colorTheme = 'bg-blue-100 text-blue-600'; iconName = 'calendar'; }
+        else if (p.category === 'pulang') { colorTheme = 'bg-purple-100 text-purple-600'; iconName = 'bus'; }
 
-        if (p.category === 'sakit') {
-            colorTheme = 'bg-amber-100 text-amber-600';
-            borderClass = 'border-amber-200';
-            iconName = 'thermometer';
-        } else if (p.category === 'izin') {
-            colorTheme = 'bg-blue-100 text-blue-600';
-            borderClass = 'border-blue-200';
-            iconName = 'calendar';
-        } else if (p.category === 'pulang') {
-            colorTheme = 'bg-purple-100 text-purple-600';
-            borderClass = 'border-purple-200';
-            iconName = 'bus';
+        // Badge Status
+        let badge = '';
+        if (p.source === 'manual') {
+            badge = `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">MANUAL</span>`;
+        } else {
+            // Logic Active/Selesai Permit
+            let isActive = p.is_active;
+            const catSafe = (p.category||'').toLowerCase();
+            if(catSafe === 'sakit' && p.end_date) isActive = false;
+            
+            badge = isActive 
+                ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">AKTIF</span>`
+                : `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">SELESAI</span>`;
         }
-
-        // Status Badge
-        let visualActive = p.is_active;
-
-        // Jika kategori Sakit DAN sudah ada tanggal sembuh (end_date), anggap Selesai
-        if (p.category === 'sakit' && p.end_date) {
-            visualActive = false;
-        }
-
-        // Status Badge
-        const statusBadge = visualActive 
-            ? `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-200 uppercase">Aktif</span>`
-            : `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase">Selesai</span>`;
-
-        // Format Tanggal Range
-        const dateRange = p.end_date 
-            ? `${window.formatDate(p.start_date)} — ${window.formatDate(p.end_date)}`
-            : `${window.formatDate(p.start_date)} (Belum Sembuh)`;
 
         const div = document.createElement('div');
-        div.className = `p-4 rounded-2xl bg-white dark:bg-slate-800 border ${borderClass} mb-3 shadow-sm hover:shadow-md transition-all relative group`;
-        
+        div.className = `p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 mb-3 shadow-sm`;
         div.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div class="flex gap-3">
-                    <div class="w-10 h-10 rounded-xl ${colorTheme} flex items-center justify-center border border-white/20 shadow-sm flex-shrink-0">
-                        <i data-lucide="${iconName}" class="w-5 h-5"></i>
+            <div class="flex gap-3">
+                <div class="w-10 h-10 rounded-xl ${colorTheme} flex items-center justify-center border border-white/20 shadow-sm flex-shrink-0"><i data-lucide="${iconName}" class="w-5 h-5"></i></div>
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</h4>
+                        ${badge}
                     </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</h4>
-                            ${statusBadge}
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-0.5 font-medium">
-                            <i data-lucide="clock" class="w-3 h-3 inline mr-0.5"></i> ${dateRange}
-                        </p>
-                        <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100 dark:border-slate-700">
-                            "${p.reason || '-'}"
-                        </p>
-                    </div>
+                    <p class="text-[10px] text-slate-400 mt-0.5 font-medium"><i data-lucide="clock" class="w-3 h-3 inline mr-0.5"></i> ${window.formatDate(p.start_date)} ${p.end_date && p.end_date !== p.start_date ? '— ' + window.formatDate(p.end_date) : ''}</p>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100">"${p.reason || '-'}"</p>
                 </div>
-                
-                <div class="flex flex-col gap-2">
-                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors" title="Edit Data">
-                        <i data-lucide="edit-2" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Hapus Permanen">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </div>
-        `;
+            </div>`;
         container.appendChild(div);
     });
-
     if(window.lucide) window.lucide.createIcons();
 };
 
