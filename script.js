@@ -4177,7 +4177,15 @@ window.renderPermitHistory = function() {
         }
 
         // Status Badge
-        const statusBadge = p.is_active 
+        let visualActive = p.is_active;
+
+        // Jika kategori Sakit DAN sudah ada tanggal sembuh (end_date), anggap Selesai
+        if (p.category === 'sakit' && p.end_date) {
+            visualActive = false;
+        }
+
+        // Status Badge
+        const statusBadge = visualActive 
             ? `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-200 uppercase">Aktif</span>`
             : `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase">Selesai</span>`;
 
