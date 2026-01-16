@@ -170,13 +170,27 @@ const SLOT_WAKTU = {
             iconBg: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-800 dark:text-emerald-200'
         },
         activities: [
-            // category: fardu (sholat utama), dependent (ikut sholat), kbm (belajar), sunnah (mandiri)
             { id: 'shalat', label: 'Shubuh', type: 'mandator', category: 'fardu' },
             { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah', category: 'dependent' },
             { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah', category: 'dependent' },
-            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', category: 'kbm' },
+            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', category: 'kbm' }, // KBM Asrama
             { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah', category: 'sunnah' },
             { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [0] }
+    ]},
+    // --- SESI BARU: SEKOLAH ---
+    sekolah: { 
+        id: 'sekolah', label: 'Sekolah', subLabel: '06:00 - 15:00', theme: 'cyan', 
+        startHour: 6, 
+        style: {
+            icon: 'graduation-cap', 
+            gradient: 'from-cyan-50 to-blue-100 dark:from-cyan-900/40 dark:to-blue-900/20',
+            border: 'hover:border-cyan-300 dark:hover:border-cyan-700',
+            text: 'text-cyan-700 dark:text-cyan-300',
+            iconBg: 'bg-cyan-100 text-cyan-600 dark:bg-cyan-800 dark:text-cyan-200'
+        },
+        activities: [
+            // Kategori khusus 'school' agar terpisah statistiknya
+            { id: 'kbm_sekolah', label: 'KBM Sekolah', type: 'mandator', category: 'school' } 
     ]},
     ashar: { 
         id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', 
@@ -205,7 +219,7 @@ const SLOT_WAKTU = {
         activities: [
             { id: 'shalat', label: 'Maghrib', type: 'mandator', category: 'fardu' },
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'dependent' },
-            { id: 'dhuha', label: 'Dhuha', type: 'sunnah', category: 'sunnah' }, // BARU: Dhuha
+            { id: 'dhuha', label: 'Dhuha', type: 'sunnah', category: 'sunnah' },
             { id: 'puasa', label: 'Puasa', type: 'sunnah', category: 'sunnah' },
             { id: 'tahsin', label: 'Tahsin', type: 'mandator', category: 'kbm', showOnDays: [4, 5] },
             { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [3] },
@@ -231,10 +245,11 @@ const SLOT_WAKTU = {
 // Di script.js
 const STATUS_UI = {
     'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
+    'Telat': { class: 'bg-teal-500 text-white border-teal-500', label: 'T' }, // <-- BARU
     'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
     'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
     'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
-    'Pulang': { class: 'bg-purple-100 text-purple-600 border-purple-300', label: 'P' }, // <-- STATUS BARU
+    'Pulang': { class: 'bg-purple-100 text-purple-600 border-purple-300', label: 'P' },
     'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };
