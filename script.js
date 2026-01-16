@@ -3361,30 +3361,43 @@ window.savePermitLogic = function() {
 window.markAsRecovered = function(id) {
     const permit = appState.permits.find(p => p.id === id);
     if(permit) {
-        const isNow = confirm("Apakah santri sembuh MULAI SESI INI?\n\n[OK] = Ya, Sesi ini sudah sehat.\n[Cancel] = Tidak, Sesi DEPAN baru sehat.");
+        // PERBAIKAN: Dialog yang lebih jelas & Logika Default yang Aman
+        // Default (OK) sekarang adalah: Sembuh SEKARANG (Sesi ini tetap dihitung sakit, baru sehat sesi depan)
+        // Ini mencegah status Shubuh berubah jadi Hadir.
+        
+        const keepSick = confirm(
+            "Konfirmasi Kesembuhan:\n\n" +
+            "[OK] = Baru Sembuh SEKARANG (Sesi ini tetap tercatat Sakit)\n" +
+            "[Cancel] = Sudah sehat SEJAK AWAL sesi ini (Ubah status sesi ini jadi Hadir)"
+        );
         
         permit.end_date = appState.date; 
         
-        const slots = ['shubuh', 'ashar', 'maghrib', 'isya'];
+        // Logika Index Sesi
+        const slots = ['shubuh', 'ashar', 'maghrib', 'isya']; // Pastikan urutan ini sesuai dengan SESSION_ORDER
         const currIdx = slots.indexOf(appState.currentSlotId);
 
-        if (isNow) {
-            // Jika sembuh SEKARANG: end_session adalah sesi SEBELUMNYA.
-            // Agar sesi saat ini > end_session -> sehingga dianggap sehat.
+        if (keepSick) {
+            // Pilihan OK (Default): Sembuh NANTI/SEKARANG.
+            // Sesi saat ini (Shubuh) masih dianggap Sakit.
+            // End Session = Sesi Saat Ini.
+            permit.end_session = appState.currentSlotId;
+        } else {
+            // Pilihan Cancel: Sembuh DARI TADI.
+            // Sesi saat ini dianggap sudah sehat (Hadir).
+            // End Session = Sesi Sebelumnya.
             if (currIdx === 0) permit.end_session = 'kemarin'; 
             else permit.end_session = slots[currIdx - 1];
-        } else {
-            // Jika sembuh NANTI: end_session adalah sesi INI.
-            // Sesi ini masih dianggap sakit.
-            permit.end_session = appState.currentSlotId;
         }
 
+        // Simpan
         localStorage.setItem(APP_CONFIG.permitKey, JSON.stringify(appState.permits));
         window.showToast("Status kesembuhan diperbarui", "success");
         
-        // PENTING: Trigger re-render untuk menjalankan logika 'Clean Up' di renderAttendanceList
+        // Refresh UI
         window.renderAttendanceList(); 
         window.renderActivePermitsWidget();
+        window.renderPermitHistory(); // Refresh profil juga
     }
 };
 
