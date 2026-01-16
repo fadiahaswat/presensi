@@ -3867,6 +3867,29 @@ window.renderActivePermitsWidget = function() {
     });
 
     relevantPermits.forEach(p => {
+        // --- LOGIKA BARU MULAI ---
+        // Default ikut status asli database
+        let visualActive = p.is_active;
+
+        // TAPI, jika kategori Sakit dan sudah punya tanggal sembuh (end_date)
+        if (p.category === 'sakit' && p.is_active && p.end_date) {
+             const currDate = appState.date;
+             
+             // 1. Jika tanggal hari ini > tanggal sembuh -> Sudah Sembuh (Nonaktif)
+             if (currDate > p.end_date) {
+                 visualActive = false;
+             } 
+             // 2. Jika hari ini == tanggal sembuh, cek sesinya
+             else if (currDate === p.end_date && p.end_session) {
+                  // Bandingkan sesi sekarang dengan sesi akhir sakit
+                  // (Membutuhkan SESSION_ORDER yang sudah ada 'kemarin': 0)
+                  if (SESSION_ORDER[appState.currentSlotId] > SESSION_ORDER[p.end_session]) {
+                      visualActive = false;
+                  }
+             }
+        }
+        // --- LOGIKA BARU SELESAI ---
+
         combinedList.push({
             type: 'permit',
             id: p.id,
@@ -3874,7 +3897,7 @@ window.renderActivePermitsWidget = function() {
             category: p.category,
             startTime: p.start_date,
             endTime: p.end_date,
-            isActive: p.is_active, // Ini kuncinya (True = Belum Sembuh, False = Sudah)
+            isActive: visualActive, // <--- GUNAKAN VARIABEL BARU INI (Bukan p.is_active lagi)
             reason: p.reason
         });
         processedNis.add(p.nis);
