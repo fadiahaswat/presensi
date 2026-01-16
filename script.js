@@ -4304,5 +4304,25 @@ window.savePermitEdit = function() {
     window.renderAttendanceList();
 };
 
+// --- GLOBAL VARIABLES UNTUK FIX ---
+let saveTimeout = null;   // Untuk Debounce Save
+let clockInterval = null; // Untuk Memory Leak Clock
+
+// Helper: Debounce Save (Mencegah simpan data berlebihan)
+window.debounceSave = function() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        window.saveData();
+    }, 500); // Tunggu 500ms setelah perubahan terakhir baru simpan
+};
+
+// Helper: Sanitize Input (Mencegah XSS)
+window.sanitizeInput = function(str) {
+    if (!str) return "";
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+};
+
 // Start App
 window.onload = window.initApp;
