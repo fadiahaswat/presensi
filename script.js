@@ -3217,6 +3217,7 @@ window.sendLocalNotification = function(title, body, type = 'info') {
 
 // 3. Penjadwal Otomatis (Cek Waktu Setiap Menit)
 window.checkScheduledNotifications = function() {
+    if (!("Notification" in window)) return;
     if (Notification.permission !== "granted") return;
 
     const now = new Date();
