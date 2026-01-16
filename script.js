@@ -1299,81 +1299,51 @@ window.renderAttendanceList = function() {
 
 window.toggleStatus = function(id, actId, type) {
     const slotId = appState.currentSlotId;
-    const sData = appState.attendanceData[appState.date]?.[slotId]?.[id];
+    const dateKey = appState.date;
     
-    if(!sData) return; // Safety
+    // Safety check data
+    if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
+    if(!appState.attendanceData[dateKey][slotId]) appState.attendanceData[dateKey][slotId] = {};
+    if(!appState.attendanceData[dateKey][slotId][id]) appState.attendanceData[dateKey][slotId][id] = { status: {}, note: '' };
 
-    const curr = sData.status[actId];
-    let next = 'Hadir';
+    const sData = appState.attendanceData[dateKey][slotId][id];
+    const curr = sData.status[actId] || (type === 'mandator' ? 'Hadir' : 'Ya');
+    let next = '';
 
-    // 1. Tentukan Status Berikutnya (Cycle)
+    // LOGIKA SIKLUS STATUS
     if(type === 'mandator') {
-        if(curr === 'Hadir') next = 'Sakit';
-        else if(curr === 'Sakit') next = 'Izin';
-        else if(curr === 'Izin') next = 'Alpa';
-        else next = 'Hadir';
-    } else {
-        next = (curr === 'Ya') ? 'Tidak' : 'Ya';
-    }
-
-    // 1. Tentukan Status Berikutnya (Cycle)
-    if(type === 'mandator') {
-        // Khusus Sekolah: Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
         if (actId === 'kbm_sekolah') {
+            // Siklus Sekolah: Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
             if(curr === 'Hadir') next = 'Telat';
             else if(curr === 'Telat') next = 'Sakit';
             else if(curr === 'Sakit') next = 'Izin';
             else if(curr === 'Izin') next = 'Alpa';
             else next = 'Hadir';
-        } 
-        // Normal (Shalat/KBM Asrama): Hadir -> Sakit -> Izin -> Alpa
-        else {
+        } else {
+            // Siklus Shalat: Hadir -> Sakit -> Izin -> Alpa -> Hadir
             if(curr === 'Hadir') next = 'Sakit';
             else if(curr === 'Sakit') next = 'Izin';
             else if(curr === 'Izin') next = 'Alpa';
             else next = 'Hadir';
         }
     } else {
+        // Siklus Sunnah: Ya -> Tidak -> Ya
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
     }
-    
-    // Simpan status baru
+
     sData.status[actId] = next;
     
-    // Jika status manual diubah, hapus flag [Auto] agar tidak dianggap izin resmi lagi
-    if (sData.note && sData.note.includes('[Auto]')) {
-        sData.note = '';
-    }
-    
-    // 2. LOGIKA DEPENDENCY (Jika Shalat Berubah)
-    if(actId === 'shalat') {
-        const activities = SLOT_WAKTU[slotId].activities;
-        const isNonHadir = ['Sakit', 'Izin', 'Alpa'].includes(next);
-
-        activities.forEach(act => {
-            if (act.id === 'shalat') return; // Skip diri sendiri
-
-            if (isNonHadir) {
-                if(act.type === 'mandator') sData.status[act.id] = next; 
-                else sData.status[act.id] = 'Tidak'; 
-            } 
-            else if (next === 'Hadir') {
-                if (act.category === 'kbm' || act.category === 'fardu') {
-                    sData.status[act.id] = 'Hadir';
-                }
-                else if (act.category === 'dependent') {
-                    sData.status[act.id] = 'Ya';
-                }
-                else if (act.category === 'sunnah') {
-                    sData.status[act.id] = 'Tidak'; 
-                }
-            }
-        });
-    }
-
+    // Simpan & Refresh UI
     window.saveData();
-    window.renderAttendanceList(); // Refresh List Absen
-    window.renderActivePermitsWidget(); // [FIX] Refresh Widget Dashboard
+    
+    // Update tampilan baris ini saja agar cepat (opsional) atau render ulang semua
+    // Untuk keamanan render ulang semua saja dulu
+    window.renderAttendanceList();
+    
+    // Update statistik dashboard jika hari ini
+    if (appState.date === window.getLocalDateStr()) {
+        window.updateDashboard();
+    }
 };
 
 // Fungsi untuk membuka Modal Menu Bulk (Akan dipanggil dari HTML)
