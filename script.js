@@ -244,14 +244,38 @@ const SLOT_WAKTU = {
 
 // Di script.js
 const STATUS_UI = {
-    'Hadir': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'H' },
-    'Telat': { class: 'bg-teal-500 text-white border-teal-500', label: 'T' }, // <-- BARU
-    'Ya': { class: 'bg-emerald-500 text-white border-emerald-500', label: 'Y' },
-    'Sakit': { class: 'bg-amber-100 text-amber-600 border-amber-300', label: 'S' },
-    'Izin': { class: 'bg-blue-100 text-blue-600 border-blue-300', label: 'I' },
-    'Pulang': { class: 'bg-purple-100 text-purple-600 border-purple-300', label: 'P' },
-    'Alpa': { class: 'bg-red-50 text-red-500 border-red-200', label: 'A' },
-    'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
+    'Hadir': { 
+        class: 'bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/40 hover:shadow-emerald-500/60', 
+        label: 'H' 
+    },
+    'Telat': { 
+        class: 'bg-gradient-to-br from-teal-400 to-teal-600 border-teal-500 text-white shadow-lg shadow-teal-500/40 hover:shadow-teal-500/60', 
+        label: 'T' 
+    },
+    'Ya': { 
+        class: 'bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/40 hover:shadow-emerald-500/60', 
+        label: 'Y' 
+    },
+    'Sakit': { 
+        class: 'bg-gradient-to-br from-amber-400 to-orange-500 border-amber-500 text-white shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60', 
+        label: 'S' 
+    },
+    'Izin': { 
+        class: 'bg-gradient-to-br from-blue-400 to-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60', 
+        label: 'I' 
+    },
+    'Pulang': { 
+        class: 'bg-gradient-to-br from-violet-400 to-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60', 
+        label: 'P' 
+    },
+    'Alpa': { 
+        class: 'bg-gradient-to-br from-rose-500 to-red-600 border-red-500 text-white shadow-lg shadow-red-500/40 hover:shadow-red-500/60', 
+        label: 'A' 
+    },
+    'Tidak': { 
+        class: 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 hover:border-slate-300 hover:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50', 
+        label: '-' 
+    }
 };
 
 // Tambahkan 'kemarin': 0 agar logika matematika berjalan
