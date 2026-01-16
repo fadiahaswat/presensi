@@ -3851,57 +3851,50 @@ window.renderActivePermitsWidget = function() {
     const badgeCount = document.getElementById('active-permit-count');
     
     if (!container) return; 
-
     container.innerHTML = '';
     
     const combinedList = [];
-    const processedNis = new Set(); 
+    const processedNis = new Set(); // Hanya mencatat NIS yang AKTIF sakitnya
     const currentDate = appState.date; 
 
-    // 1. AMBIL DATA PERMIT (SURAT)
+    // 1. DATA PERMIT (SURAT)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     
+    // Filter permit yang relevan (Aktif ATAU selesai hari ini)
     const relevantPermits = appState.permits.filter(p => {
         if (!classNisList.includes(p.nis)) return false;
+        if (p.start_date > currentDate) return false; // Masa depan skip
         
-        const start = p.start_date;
-        const end = p.end_date; 
-
-        // Skip masa depan
-        if (start > currentDate) return false;
-
-        // Tampilkan jika:
-        // a. Masih aktif (end_date null atau range masuk)
-        // b. ATAU baru saja selesai HARI INI (end == currentDate)
-        if (!end) return true;
-        if (currentDate >= start && currentDate <= end) return true;
-
+        // Tampilkan jika belum ada end_date (aktif selamanya) 
+        // ATAU range tanggal mencakup hari ini
+        if (!p.end_date) return true;
+        if (currentDate >= p.start_date && currentDate <= p.end_date) return true;
         return false;
     });
 
     relevantPermits.forEach(p => {
-        // --- LOGIKA BARU MULAI ---
-        // Default ikut status asli database
         let visualActive = p.is_active;
+        const catSafe = (p.category || '').toLowerCase();
 
-        // TAPI, jika kategori Sakit dan sudah punya tanggal sembuh (end_date)
-        if (p.category === 'sakit' && p.is_active && p.end_date) {
-             const currDate = appState.date;
-             
-             // 1. Jika tanggal hari ini > tanggal sembuh -> Sudah Sembuh (Nonaktif)
-             if (currDate > p.end_date) {
-                 visualActive = false;
-             } 
-             // 2. Jika hari ini == tanggal sembuh, cek sesinya
-             else if (currDate === p.end_date && p.end_session) {
-                  // Bandingkan sesi sekarang dengan sesi akhir sakit
-                  // (Membutuhkan SESSION_ORDER yang sudah ada 'kemarin': 0)
+        // Logika Visual Selesai (Abu-abu)
+        if (catSafe === 'sakit' && p.end_date) {
+             // Jika hari ini > tanggal sembuh -> nonaktif
+             if (currentDate > p.end_date) visualActive = false;
+             // Jika hari ini == tanggal sembuh, cek sesi
+             else if (currentDate === p.end_date && p.end_session) {
+                  // Jika sesi sekarang > sesi akhir sakit -> nonaktif
                   if (SESSION_ORDER[appState.currentSlotId] > SESSION_ORDER[p.end_session]) {
                       visualActive = false;
                   }
              }
         }
-        // --- LOGIKA BARU SELESAI ---
+        // Logika Izin/Pulang Selesai
+        else if ((catSafe === 'izin' || catSafe === 'pulang') && p.end_date && currentDate > p.end_date) {
+             visualActive = false;
+        }
+        else if (!p.is_active) {
+            visualActive = false; // Jika database bilang false, maka false
+        }
 
         combinedList.push({
             type: 'permit',
@@ -3910,30 +3903,34 @@ window.renderActivePermitsWidget = function() {
             category: p.category,
             startTime: p.start_date,
             endTime: p.end_date,
-            isActive: visualActive, // <--- GUNAKAN VARIABEL BARU INI (Bukan p.is_active lagi)
+            isActive: visualActive, 
             reason: p.reason
         });
-        processedNis.add(p.nis);
+
+        // PENTING: Hanya block Manual Check jika permit ini MASIH AKTIF.
+        // Jika permit sudah selesai (abu-abu), kita izinkan cek manual (siapa tau sakit lagi)
+        if (visualActive) {
+            processedNis.add(p.nis);
+        }
     });
 
-    // 2. AMBIL DATA MANUAL (PRESENSI HARIAN)
+    // 2. DATA MANUAL (PRESENSI HARIAN)
     const dayData = appState.attendanceData[currentDate];
 
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
             const id = String(s.nis || s.id);
+            // Skip jika sudah tercover permit AKTIF
             if (processedNis.has(id)) return; 
 
             let foundStatus = null;
-            // Cek status terkini
+            // Cek status dari Isya mundur ke Shubuh (prioritas status terakhir)
             const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
             for (const slot of slots) {
                 const st = dayData[slot]?.[id]?.status?.shalat;
                 if (st && ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(st)) {
                     foundStatus = st;
                     break;
-                } else if (st === 'Hadir') {
-                    break; 
                 }
             }
 
@@ -3942,38 +3939,26 @@ window.renderActivePermitsWidget = function() {
                 if (foundStatus === 'Alpa') category = 'alpa';
 
                 combinedList.push({
-                    type: 'manual',
+                    type: 'manual', // Penanda ini data manual
                     id: null,
                     nis: id,
                     category: category,
                     startTime: currentDate,
                     endTime: null,
-                    isActive: true, // Manual yang muncul disini pasti statusnya Non-Hadir
+                    isActive: true, // Manual yang tampil pasti Aktif
                     reason: 'Presensi Manual'
                 });
             }
         });
     }
 
-    // Update Badge
+    // Update Badge & Sorting
     if (badgeCount) badgeCount.textContent = combinedList.filter(i => i.isActive).length;
+    combinedList.sort((a, b) => (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1);
 
-    // 3. SORTING: YANG MASIH AKTIF (HIJAU) DI ATAS, YANG SUDAH SELESAI (ABU) DI BAWAH
-    combinedList.sort((a, b) => {
-        return (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
-    });
-
-    // 4. RENDER UI
+    // Render HTML (Bagian ini sama seperti sebelumnya, pastikan di-copy juga)
     if (combinedList.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-6">
-                <div class="inline-flex p-3 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-300 mb-2 border border-slate-100 dark:border-slate-700">
-                    <i data-lucide="check-circle" class="w-5 h-5"></i>
-                </div>
-                <p class="text-[10px] font-bold text-slate-400">Semua santri lengkap / Hadir</p>
-            </div>
-        `;
-        if (window.lucide) window.lucide.createIcons();
+        container.innerHTML = `<div class="text-center py-6 text-slate-400 text-[10px] font-bold">Semua santri lengkap / Hadir</div>`;
         return;
     }
 
@@ -3984,86 +3969,48 @@ window.renderActivePermitsWidget = function() {
         let colorClass, iconName;
         const cat = item.category.toLowerCase();
 
-        // Config Warna Icon & Kategori
-        if (cat === 'sakit') {
-            colorClass = 'bg-amber-100 text-amber-600 border-amber-200';
-            iconName = 'thermometer';
-        } else if (cat === 'izin') {
-            colorClass = 'bg-blue-100 text-blue-600 border-blue-200';
-            iconName = 'file-text';
-        } else if (cat === 'pulang') {
-            colorClass = 'bg-purple-100 text-purple-600 border-purple-200';
-            iconName = 'bus';
-        } else { 
-            colorClass = 'bg-red-100 text-red-600 border-red-200';
-            iconName = 'x-circle';
-        }
+        if (cat === 'sakit') { colorClass = 'bg-amber-100 text-amber-600 border-amber-200'; iconName = 'thermometer'; } 
+        else if (cat === 'izin') { colorClass = 'bg-blue-100 text-blue-600 border-blue-200'; iconName = 'file-text'; } 
+        else if (cat === 'pulang') { colorClass = 'bg-purple-100 text-purple-600 border-purple-200'; iconName = 'bus'; } 
+        else { colorClass = 'bg-red-100 text-red-600 border-red-200'; iconName = 'x-circle'; }
 
-        // --- LOGIKA TOMBOL (HIJAU vs ABU-ABU) ---
         let btnHTML = '';
-        
         if (item.isActive) {
-            // KONDISI: BELUM SEMBUH / BELUM KEMBALI
-            // Tampilan: Tombol Hijau (Emerald), Bisa Diklik
-            
             let label = "Sembuh";
             let action = "";
             
-            if (cat === 'sakit') { label = "Sembuh"; action = `window.markAsRecovered('${item.id}')`; }
-            else if (cat === 'izin' || cat === 'pulang') { label = "Tiba/Kembali"; action = `window.markAsReturned('${item.id}')`; }
-            else { label = "Hadirkan"; action = `window.resolveManualStatus('${item.nis}', 'Alpa')`; } // Manual Alpa
-
-            // Khusus Manual non-Alpa
-            if(item.type === 'manual' && cat !== 'alpa') {
-                const capStatus = cat.charAt(0).toUpperCase() + cat.slice(1);
-                action = `window.resolveManualStatus('${item.nis}', '${capStatus}')`;
+            // Logic Action
+            if (item.type === 'manual') {
+                // Jika manual, tombolnya "Hadirkan"
+                action = `window.resolveManualStatus('${item.nis}', '${cat.charAt(0).toUpperCase() + cat.slice(1)}')`;
                 label = "Hadirkan";
+            } else {
+                // Jika permit
+                if (cat === 'sakit') { action = `window.markAsRecovered('${item.id}')`; }
+                else { label = "Kembali"; action = `window.markAsReturned('${item.id}')`; }
             }
 
             btnHTML = `
-                <button onclick="${action}" class="ml-2 px-3 py-2 rounded-xl bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-1">
+                <button onclick="${action}" class="ml-2 px-3 py-2 rounded-xl bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-md flex items-center gap-1">
                     <i data-lucide="check" class="w-3 h-3"></i> ${label}
-                </button>
-            `;
-        } 
-        else {
-            // KONDISI: SUDAH SEMBUH / SUDAH KEMBALI HARI INI
-            // Tampilan: Tombol Abu-abu (Slate), Disabled, Flat
-            
-            let doneLabel = "Sudah Sembuh";
-            if (cat === 'izin' || cat === 'pulang') doneLabel = "Sudah Kembali";
-            
+                </button>`;
+        } else {
             btnHTML = `
                 <button disabled class="ml-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold cursor-not-allowed flex items-center gap-1">
-                    <i data-lucide="check-check" class="w-3 h-3"></i> ${doneLabel}
-                </button>
-            `;
+                    <i data-lucide="check-check" class="w-3 h-3"></i> Selesai
+                </button>`;
         }
 
-        // Info Waktu
-        let timeInfo = '';
-        if (item.endTime) timeInfo = `<span class="text-[9px] text-slate-400">s/d ${window.formatDate(item.endTime)}</span>`;
-        else timeInfo = `<span class="text-[9px] text-slate-400">${item.type === 'manual' ? 'Manual Hari Ini' : 'Sejak ' + window.formatDate(item.startTime)}</span>`;
-
-        // Style Card: Jika sudah selesai, buat agak transparan
-        const containerClass = item.isActive 
-            ? 'bg-white dark:bg-slate-800 opacity-100 border-slate-100 dark:border-slate-700 shadow-sm' // Aktif: Terang
-            : 'bg-slate-50 dark:bg-slate-900 opacity-60 border-slate-100 grayscale-[0.5]'; // Selesai: Redup
-
         const div = document.createElement('div');
-        div.className = `flex items-center justify-between p-3 rounded-2xl border transition-all mb-2 ${containerClass}`;
-        
+        div.className = `flex items-center justify-between p-3 rounded-2xl border transition-all mb-2 ${item.isActive ? 'bg-white dark:bg-slate-800 shadow-sm' : 'bg-slate-50 dark:bg-slate-900 opacity-60 grayscale'}`;
         div.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-9 h-9 rounded-xl ${colorClass} flex items-center justify-center flex-shrink-0 border shadow-sm">
-                    <i data-lucide="${iconName}" class="w-4 h-4"></i>
-                </div>
+                <div class="w-9 h-9 rounded-xl ${colorClass} flex items-center justify-center flex-shrink-0 border shadow-sm"><i data-lucide="${iconName}" class="w-4 h-4"></i></div>
                 <div class="min-w-0">
                     <h4 class="text-xs font-bold text-slate-800 dark:text-white truncate">${santri.nama}</h4>
-                    <div class="flex items-center gap-1.5 leading-none mt-1">
-                        <span class="text-[9px] font-black uppercase tracking-wider ${colorClass.split(' ')[1]}">${item.category}</span>
-                        <span class="text-[9px] text-slate-300">•</span>
-                        ${timeInfo}
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span class="text-[9px] font-black uppercase ${colorClass.split(' ')[1]}">${item.category}</span>
+                        <span class="text-[9px] text-slate-400">• ${item.type === 'manual' ? 'Manual' : window.formatDate(item.startTime)}</span>
                     </div>
                 </div>
             </div>
@@ -4071,7 +4018,6 @@ window.renderActivePermitsWidget = function() {
         `;
         container.appendChild(div);
     });
-
     if (window.lucide) window.lucide.createIcons();
 };
 
