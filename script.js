@@ -243,38 +243,55 @@ const SLOT_WAKTU = {
 };
 
 // Di script.js
+// Konfigurasi Tampilan Status (Flat Design Modern)
 const STATUS_UI = {
     'Hadir': { 
-        class: 'bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/40 hover:shadow-emerald-500/60', 
-        label: 'H' 
+        class: 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-200', 
+        label: 'H',
+        cardBg: 'bg-white dark:bg-slate-800',
+        text: 'text-slate-800 dark:text-white'
     },
     'Telat': { 
-        class: 'bg-gradient-to-br from-teal-400 to-teal-600 border-teal-500 text-white shadow-lg shadow-teal-500/40 hover:shadow-teal-500/60', 
-        label: 'T' 
+        class: 'bg-teal-500 border-teal-600 text-white shadow-teal-200', 
+        label: 'T',
+        cardBg: 'bg-teal-50 dark:bg-teal-900/20',
+        text: 'text-teal-800 dark:text-teal-100'
     },
     'Ya': { 
-        class: 'bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-500/40 hover:shadow-emerald-500/60', 
-        label: 'Y' 
+        class: 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-200', 
+        label: 'Y',
+        cardBg: 'bg-white dark:bg-slate-800',
+        text: 'text-slate-800 dark:text-white'
     },
     'Sakit': { 
-        class: 'bg-gradient-to-br from-amber-400 to-orange-500 border-amber-500 text-white shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60', 
-        label: 'S' 
+        class: 'bg-amber-500 border-amber-600 text-white shadow-amber-200', 
+        label: 'S',
+        cardBg: 'bg-amber-50 dark:bg-amber-900/20',
+        text: 'text-amber-800 dark:text-amber-100'
     },
     'Izin': { 
-        class: 'bg-gradient-to-br from-blue-400 to-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/40 hover:shadow-blue-500/60', 
-        label: 'I' 
+        class: 'bg-blue-500 border-blue-600 text-white shadow-blue-200', 
+        label: 'I',
+        cardBg: 'bg-blue-50 dark:bg-blue-900/20',
+        text: 'text-blue-800 dark:text-blue-100'
     },
     'Pulang': { 
-        class: 'bg-gradient-to-br from-violet-400 to-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60', 
-        label: 'P' 
+        class: 'bg-purple-500 border-purple-600 text-white shadow-purple-200', 
+        label: 'P',
+        cardBg: 'bg-purple-50 dark:bg-purple-900/20',
+        text: 'text-purple-800 dark:text-purple-100'
     },
     'Alpa': { 
-        class: 'bg-gradient-to-br from-rose-500 to-red-600 border-red-500 text-white shadow-lg shadow-red-500/40 hover:shadow-red-500/60', 
-        label: 'A' 
+        class: 'bg-rose-500 border-rose-600 text-white shadow-rose-200', 
+        label: 'A',
+        cardBg: 'bg-rose-50 dark:bg-rose-900/20',
+        text: 'text-rose-800 dark:text-rose-100'
     },
     'Tidak': { 
-        class: 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 hover:border-slate-300 hover:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50', 
-        label: '-' 
+        class: 'bg-white border-slate-200 text-slate-300 hover:border-slate-300 hover:text-slate-400', 
+        label: '-',
+        cardBg: 'bg-white dark:bg-slate-800',
+        text: 'text-slate-800 dark:text-white'
     }
 };
 
