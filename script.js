@@ -1717,27 +1717,26 @@ window.toggleNotifications = function() {
 };
 
 window.saveData = function() {
-    try {
-        // 1. Simpan ke HP (Cara Lama - Tetap Biarkan)
-        localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
-        
-        // Indikator visual simpan (Centang hijau)
-        if(appState.settings.autoSave) {
-            const indicator = document.getElementById('save-indicator');
-            if(indicator) {
-                indicator.innerHTML = '<i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>';
-                if(window.lucide) window.lucide.createIcons();
-                setTimeout(() => indicator.innerHTML = '', 1000);
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        try {
+            localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
+            
+            if(appState.settings.autoSave) {
+                const indicator = document.getElementById('save-indicator');
+                if(indicator) {
+                    indicator.innerHTML = '<i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>';
+                    if(window.lucide) window.lucide.createIcons();
+                    setTimeout(() => indicator.innerHTML = '', 1000);
+                }
             }
+
+            window.syncToSupabase();
+
+        } catch (e) {
+            window.showToast("Gagal menyimpan lokal: " + e.message, "error");
         }
-
-        // 2. KIRIM KE SUPABASE (Cara Baru)
-        // Kita kirim di background agar aplikasi tidak macet
-        window.syncToSupabase();
-
-    } catch (e) {
-        window.showToast("Gagal menyimpan lokal: " + e.message, "error");
-    }
+    }, 300);
 };
 
 window.updateQuickStats = function() {
