@@ -2290,8 +2290,11 @@ window.startClock = function() {
         }
         window.checkScheduledNotifications();    
     };
+    
+    if(clockInterval) clearInterval(clockInterval);
+    
     updateClock();
-    setInterval(updateClock, 1000);
+    clockInterval = setInterval(updateClock, 1000);
 };
 
 window.handleGantiPin = function() {
