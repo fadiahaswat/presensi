@@ -3578,18 +3578,16 @@ window.renderDashboardPembinaan = function() {
     const badge = document.getElementById('pembinaan-count-badge');
     const cardTitle = document.querySelector('#dashboard-pembinaan-card h3');
     
-    // Ubah Judul Widget
-    if(cardTitle) cardTitle.innerHTML = `<i data-lucide="heart-handshake" class="w-4 h-4 text-emerald-500 mr-2 inline"></i>Perlu Pembinaan`;
+    // Ubah Judul Widget agar mencakup semua (yang sudah & belum dibina)
+    if(cardTitle) cardTitle.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 mr-2 inline"></i>Pelanggaran Hari Ini`;
 
     if(!container) return;
 
-    // 1. Cari Alpa yang BELUM DIBINA (Hari Ini)
-    // Jika ingin menampilkan hutang pembinaan dari hari-hari sebelumnya, logika dateKey bisa diperluas.
-    // Untuk sekarang kita fokus hari ini dulu sesuai logic dashboard.
     const dateKey = appState.date;
     const dayData = appState.attendanceData[dateKey];
     
-    let pendingPembinaan = [];
+    let violationList = [];
+    let pendingCount = 0;
     
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
@@ -3599,51 +3597,92 @@ window.renderDashboardPembinaan = function() {
                 const sData = dayData[slot.id]?.[id];
                 const st = sData?.status?.shalat;
                 
-                // Syarat Masuk List: Status ALPA dan BELUM ada data coaching
-                if (st === 'Alpa' && (!sData.coaching || !sData.coaching.done)) {
-                    pendingPembinaan.push({
+                // Syarat: Status ALPA (Tidak peduli sudah dibina atau belum)
+                if (st === 'Alpa') {
+                    const isCoached = sData.coaching && sData.coaching.done;
+                    
+                    // Hitung yang belum dibina untuk badge notifikasi
+                    if(!isCoached) pendingCount++;
+
+                    violationList.push({
                         ...s,
                         slotLabel: slot.label,
                         slotId: slot.id,
-                        date: dateKey
+                        date: dateKey,
+                        isCoached: isCoached,
+                        coachingInfo: sData.coaching // Bawa info jika perlu ditampilkan
                     });
                 }
             });
         });
     }
 
-    // Update Badge
+    // Update Badge (Merah jika ada pending, Hijau jika semua beres)
     if(badge) {
-        badge.textContent = `${pendingPembinaan.length} Pending`;
-        badge.className = pendingPembinaan.length > 0 
-            ? "px-2 py-0.5 rounded-md bg-red-500 text-white text-[10px] font-bold shadow-sm animate-pulse"
-            : "px-2 py-0.5 rounded-md bg-slate-100 text-slate-400 text-[10px] font-bold";
+        if (pendingCount > 0) {
+            badge.textContent = `${pendingCount} Perlu Dibina`;
+            badge.className = "px-2 py-0.5 rounded-md bg-red-500 text-white text-[10px] font-bold shadow-sm animate-pulse";
+        } else if (violationList.length > 0) {
+            badge.textContent = `Tuntas (${violationList.length})`;
+            badge.className = "px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-600 text-[10px] font-bold border border-emerald-200";
+        } else {
+            badge.textContent = "0 Pelanggaran";
+            badge.className = "px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-bold";
+        }
     }
 
-    // 2. Render UI
+    // Render UI
     container.innerHTML = '';
     
-    if (pendingPembinaan.length === 0) {
+    if (violationList.length === 0) {
         container.innerHTML = `
             <div class="text-center py-8">
                 <div class="inline-flex p-3 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 mb-2 border border-emerald-100 dark:border-emerald-800">
-                    <i data-lucide="check-circle" class="w-6 h-6"></i>
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400">Semua pelanggaran sudah dibina</p>
+                <p class="text-[10px] font-bold text-slate-400">Nihil pelanggaran hari ini</p>
             </div>`;
     } else {
-        pendingPembinaan.forEach(p => {
+        // SORTING: Yang BELUM DIBINA taruh paling atas
+        violationList.sort((a, b) => (a.isCoached === b.isCoached) ? 0 : a.isCoached ? 1 : -1);
+
+        violationList.forEach(p => {
             const div = document.createElement('div');
-            div.className = 'flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 mb-2 shadow-sm hover:shadow-md transition-all';
             
-            // JSON stringify data untuk dikirim ke modal
-            const dataStr = JSON.stringify({
-                id: p.nis || p.id,
-                nama: p.nama,
-                slotId: p.slotId,
-                date: p.date,
-                slotLabel: p.slotLabel
-            }).replace(/"/g, "&quot;");
+            // Visual Distinction: Jika sudah dibina, buat agak transparan/abu
+            const bgClass = p.isCoached 
+                ? "bg-slate-50 dark:bg-slate-900 opacity-75 grayscale-[0.5] border-slate-100" 
+                : "bg-white dark:bg-slate-800 border-red-100 dark:border-red-900/30 shadow-sm";
+            
+            div.className = `flex items-center justify-between p-3 rounded-xl border mb-2 transition-all ${bgClass}`;
+            
+            let actionHtml = '';
+
+            if (p.isCoached) {
+                // TAMPILAN SUDAH DIBINA (Tetap Muncul)
+                actionHtml = `
+                    <div class="text-right">
+                         <span class="px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 text-[10px] font-bold border border-slate-200 dark:border-slate-600 flex items-center gap-1 cursor-default">
+                            <i data-lucide="check-check" class="w-3 h-3 text-emerald-500"></i> Sudah Dibina
+                        </span>
+                    </div>
+                `;
+            } else {
+                // TAMPILAN BELUM DIBINA (Tombol Action Hijau)
+                const dataStr = JSON.stringify({
+                    id: p.nis || p.id,
+                    nama: p.nama,
+                    slotId: p.slotId,
+                    date: p.date,
+                    slotLabel: p.slotLabel
+                }).replace(/"/g, "&quot;");
+
+                actionHtml = `
+                    <button onclick="window.openPembinaanModal(${dataStr})" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-1">
+                        <i data-lucide="heart-handshake" class="w-3 h-3"></i> Bina
+                    </button>
+                `;
+            }
 
             div.innerHTML = `
                 <div class="flex items-center gap-3">
@@ -3658,9 +3697,7 @@ window.renderDashboardPembinaan = function() {
                         </p>
                     </div>
                 </div>
-                <button onclick="window.openPembinaanModal(${dataStr})" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-1">
-                    <i data-lucide="heart-handshake" class="w-3 h-3"></i> Bina
-                </button>
+                ${actionHtml}
             `;
             container.appendChild(div);
         });
