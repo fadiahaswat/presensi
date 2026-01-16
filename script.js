@@ -1241,6 +1241,27 @@ window.toggleStatus = function(id, actId, type) {
     } else {
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
     }
+
+    // 1. Tentukan Status Berikutnya (Cycle)
+    if(type === 'mandator') {
+        // Khusus Sekolah: Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
+        if (actId === 'kbm_sekolah') {
+            if(curr === 'Hadir') next = 'Telat';
+            else if(curr === 'Telat') next = 'Sakit';
+            else if(curr === 'Sakit') next = 'Izin';
+            else if(curr === 'Izin') next = 'Alpa';
+            else next = 'Hadir';
+        } 
+        // Normal (Shalat/KBM Asrama): Hadir -> Sakit -> Izin -> Alpa
+        else {
+            if(curr === 'Hadir') next = 'Sakit';
+            else if(curr === 'Sakit') next = 'Izin';
+            else if(curr === 'Izin') next = 'Alpa';
+            else next = 'Hadir';
+        }
+    } else {
+        next = (curr === 'Ya') ? 'Tidak' : 'Ya';
+    }
     
     // Simpan status baru
     sData.status[actId] = next;
