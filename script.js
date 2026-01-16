@@ -64,9 +64,6 @@ const UI_COLORS = {
     error: 'bg-red-500'
 };
 
-let saveTimeout;
-let clockInterval;
-
 window.sanitizeHTML = function(str) {
     if(!str) return '';
     const div = document.createElement('div');
