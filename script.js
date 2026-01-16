@@ -1727,16 +1727,17 @@ window.updateQuickStats = function() {
 
 window.drawDonutChart = function() {
     const canvas = document.getElementById('weekly-chart');
-    if(!canvas) return;
     
-    // --- FIX ERROR: Cek apakah canvas punya ukuran (tidak hidden) ---
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return; // Stop jika hidden/nol
-
+    // ✅ FIX: Check existence + visibility
+    if(!canvas || canvas.offsetParent === null) return;
+    
     const ctx = canvas.getContext('2d');
     if(!ctx) return;
     
-    // --- 1. Setup Resolusi Layar (Agar tidak buram) ---
+    // ✅ FIX: Check dimension sebelum render
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
     const dpr = window.devicePixelRatio || 1;
     
     if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
@@ -1750,16 +1751,19 @@ window.drawDonutChart = function() {
     const centerX = width / 2;
     const centerY = height / 2;
     
-    // --- FIX ERROR: Pastikan radius tidak negatif ---
+    // ✅ FIX: Prevent negative radius
     let radius = Math.min(width, height) / 2 - 10;
-    if (radius <= 0) radius = 0; // Safety prevent negative radius
+    if (radius <= 0) {
+        console.warn("Canvas too small for chart");
+        return;
+    }
 
     ctx.clearRect(0, 0, width, height);
 
-    // --- 2. Hitung Data (Total & Rata-rata) ---
+    // ... rest of chart logic (tidak berubah)
     let stats = { h: 0, s: 0, i: 0, a: 0 };
-    let totalPeristiwa = 0; // Total insiden (misal: 60 kejadian dari 2 sesi)
-    let activeSlots = 0;    // Jumlah sesi yang sudah diisi (misal: 2 sesi)
+    let totalPeristiwa = 0;
+    let activeSlots = 0;
 
     if(appState.selectedClass) {
         Object.values(SLOT_WAKTU).forEach(slot => {
@@ -1775,9 +1779,7 @@ window.drawDonutChart = function() {
         });
     }
 
-    // --- 3. ISI ANGKA KE KOTAK LEGENDA ---
     const divider = activeSlots > 0 ? activeSlots : 1;
-
     const setLegend = (id, val) => {
         const el = document.getElementById(id);
         if(el) el.textContent = val; 
@@ -1788,9 +1790,7 @@ window.drawDonutChart = function() {
     setLegend('legend-izin', Math.round(stats.i / divider));
     setLegend('legend-alpa', Math.round(stats.a / divider));
 
-    // --- 4. Menggambar Grafik Lingkaran ---
     if (totalPeristiwa === 0 || radius === 0) {
-        // Jika Data Kosong atau Radius 0: Gambar lingkaran abu-abu (hanya jika radius > 0)
         if(radius > 0) {
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
@@ -1803,12 +1803,11 @@ window.drawDonutChart = function() {
         return;
     }
 
-    // Definisi Segmen Warna
     const segments = [
-        { value: stats.h, color: '#10b981' }, // Emerald (Hadir)
-        { value: stats.s, color: '#f59e0b' }, // Amber (Sakit)
-        { value: stats.i, color: '#3b82f6' }, // Blue (Izin)
-        { value: stats.a, color: '#f43f5e' }  // Rose (Alpa)
+        { value: stats.h, color: '#10b981' },
+        { value: stats.s, color: '#f59e0b' },
+        { value: stats.i, color: '#3b82f6' },
+        { value: stats.a, color: '#f43f5e' }
     ];
 
     let startAngle = -Math.PI / 2;
@@ -1829,16 +1828,13 @@ window.drawDonutChart = function() {
         }
     });
 
-    // Tulis Persentase di Tengah
     const percentHadir = Math.round((stats.h / totalPeristiwa) * 100);
     drawCenterText(ctx, centerX, centerY, `${percentHadir}%`, "Hadir");
     
-    // Update teks badge kecil di pojok kanan HTML
     const statsText = document.getElementById('dash-stats-text');
     if(statsText) statsText.textContent = `${percentHadir}% KEHADIRAN`;
 };
 
-// --- FUNGSI PEMBANTU (Letakkan di luar fungsi di atas, atau pastikan sudah ada) ---
 function drawCenterText(ctx, x, y, mainText, subText) {
     ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#1e293b';
     ctx.font = '800 28px "Plus Jakarta Sans", sans-serif'; 
