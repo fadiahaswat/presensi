@@ -1986,8 +1986,20 @@ window.updateReportTab = function() {
     const tbody = document.getElementById('daily-recap-tbody');
     const rangeLabel = document.getElementById('report-date-range');
     
-    if(!tbody) return;
+    // 1. UPDATE HEADER TABEL (Menambahkan Kolom Sekolah)
+    const thead = document.querySelector('#tab-report thead tr');
+    if (thead) {
+        thead.innerHTML = `
+            <th class="p-3 font-bold w-8 text-center">No</th>
+            <th class="p-3 font-bold min-w-[120px]">Nama Santri</th>
+            <th class="p-3 font-bold text-center">Shalat</th>
+            <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400">Sekolah</th> <th class="p-3 font-bold text-center">KBM Asrama</th>
+            <th class="p-3 font-bold text-center">Sunnah</th>
+            <th class="p-3 font-bold text-center">Nilai</th>
+        `;
+    }
     
+    if(!tbody) return;
     tbody.innerHTML = '';
     
     // Update Label Tanggal
@@ -1995,7 +2007,7 @@ window.updateReportTab = function() {
     if(rangeLabel) rangeLabel.textContent = range.label;
 
     if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-xs text-slate-400">Pilih kelas terlebih dahulu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-xs text-slate-400">Pilih kelas terlebih dahulu</td></tr>';
         return;
     }
 
@@ -2005,6 +2017,7 @@ window.updateReportTab = function() {
     FILTERED_SANTRI.forEach(s => {
         santriStats[s.nis || s.id] = { 
             fardu: { h:0, total:0 }, 
+            school: { h:0, total:0 }, // Statistik Sekolah
             kbm: { h:0, total:0 }, 
             sunnah: { y:0, total:0 },
             scoreTotal: 0,
@@ -2043,13 +2056,14 @@ window.updateReportTab = function() {
                             let point = 0;
 
                             // Tentukan Bobot
-                            if(act.category === 'fardu') weight = 3;
+                            if (act.category === 'school') weight = 4; // Bobot Sekolah Besar
+                            else if(act.category === 'fardu') weight = 3;
                             else if(act.category === 'kbm') weight = 2;
                             else weight = 1;
 
                             // Hitung Point
-                            if(st === 'Hadir' || st === 'Ya') point = weight;
-                            else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; // Pulang dianggap izin
+                            if(st === 'Hadir' || st === 'Ya' || st === 'Telat') point = weight;
+                            else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; 
                             else point = 0;
 
                             // Akumulasi Score Global
@@ -2060,7 +2074,12 @@ window.updateReportTab = function() {
                             if(act.category === 'fardu') {
                                 stats.fardu.total++;
                                 if(st === 'Hadir') stats.fardu.h++;
-                            } else if(act.category === 'kbm') {
+                            } 
+                            else if (act.category === 'school') { // Kategori Sekolah
+                                stats.school.total++;
+                                if(st === 'Hadir' || st === 'Telat') stats.school.h++;
+                            }
+                            else if(act.category === 'kbm') {
                                 stats.kbm.total++;
                                 if(st === 'Hadir') stats.kbm.h++;
                             } else {
@@ -2079,6 +2098,15 @@ window.updateReportTab = function() {
     // --- RENDER TABLE ---
     const fragment = document.createDocumentFragment();
 
+    // Helper visual bar kecil
+    const makeBar = (pct, color) => `
+        <div class="flex flex-col items-center">
+            <span class="text-[10px] font-bold ${pct<60?'text-red-500':'text-slate-600'}">${pct}%</span>
+            <div class="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full ${color}" style="width: ${pct}%"></div>
+            </div>
+        </div>`;
+
     FILTERED_SANTRI.forEach((s, idx) => {
         const id = String(s.nis || s.id);
         const stats = santriStats[id];
@@ -2089,50 +2117,57 @@ window.updateReportTab = function() {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-50 dark:border-slate-700/50";
 
-        // Logic Tampilan Kolom (Beda Daily vs Period)
-        let shalatCol, kbmCol, sunnahCol;
+        // Logic Tampilan Kolom
+        let shalatCol, schoolCol, kbmCol, sunnahCol;
 
         if (appState.reportMode === 'daily') {
-            // MODE HARIAN: Tampilkan Badge S/A/M/I (Shubuh Ashar Maghrib Isya)
+            // MODE HARIAN: Tampilkan Badge
             const dateKey = appState.date;
             const dayData = appState.attendanceData[dateKey] || {};
             
+            // 1. Badge Shalat (S, A, M, I)
             let badges = '';
             ['shubuh', 'ashar', 'maghrib', 'isya'].forEach(sid => {
                 const st = dayData[sid]?.[id]?.status?.shalat;
-                
-                // --- PERBAIKAN WARNA DI SINI ---
-                let color = 'bg-slate-100 text-slate-300'; // Default (Tidak/Belum isi)
+                let color = 'bg-slate-100 text-slate-300';
                 
                 if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
-                else if(st === 'Sakit') color = 'bg-amber-100 text-amber-600'; // Kuning
-                else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';    // Biru
-                else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600'; // Ungu
-                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';      // Merah
+                else if(st === 'Sakit') color = 'bg-amber-100 text-amber-600';
+                else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';
+                else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';
+                else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
                 
-                let label = sid[0].toUpperCase(); // S, A, M, I
-                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black" title="${sid}: ${st||'-'}">${label}</span>`;
+                let label = sid[0].toUpperCase(); 
+                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black">${label}</span>`;
             });
             shalatCol = `<div class="flex justify-center gap-1">${badges}</div>`;
+
+            // 2. Badge Sekolah (Khusus)
+            const stSchool = dayData['sekolah']?.[id]?.status?.kbm_sekolah;
+            let schColor = 'bg-slate-100 text-slate-300';
+            let schLabel = '-';
+            
+            if(stSchool === 'Hadir') { schColor = 'bg-cyan-100 text-cyan-600'; schLabel = 'H'; }
+            else if(stSchool === 'Telat') { schColor = 'bg-teal-100 text-teal-600'; schLabel = 'T'; }
+            else if(stSchool === 'Sakit') { schColor = 'bg-amber-100 text-amber-600'; schLabel = 'S'; }
+            else if(stSchool === 'Izin') { schColor = 'bg-blue-100 text-blue-600'; schLabel = 'I'; }
+            else if(stSchool === 'Alpa') { schColor = 'bg-red-100 text-red-600'; schLabel = 'A'; }
+
+            schoolCol = `<div class="flex justify-center"><span class="w-6 h-6 flex items-center justify-center rounded-lg ${schColor} text-[10px] font-black shadow-sm">${schLabel}</span></div>`;
+
+            // 3. KBM & Sunnah (Angka)
             kbmCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.kbm.h}</span>`;
             sunnahCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.sunnah.y}</span>`;
         } 
         else {
-            // MODE PERIODE (Mingguan/Bulanan): Tampilkan Persentase
+            // MODE PERIODE: Tampilkan Persentase Bar
             const pctFardu = stats.fardu.total ? Math.round((stats.fardu.h / stats.fardu.total)*100) : 0;
+            const pctSchool = stats.school.total ? Math.round((stats.school.h / stats.school.total)*100) : 0;
             const pctKbm = stats.kbm.total ? Math.round((stats.kbm.h / stats.kbm.total)*100) : 0;
             const pctSunnah = stats.sunnah.total ? Math.round((stats.sunnah.y / stats.sunnah.total)*100) : 0;
 
-            // Helper visual bar kecil
-            const makeBar = (pct, color) => `
-                <div class="flex flex-col items-center">
-                    <span class="text-[10px] font-bold ${pct<60?'text-red-500':'text-slate-600'}">${pct}%</span>
-                    <div class="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full ${color}" style="width: ${pct}%"></div>
-                    </div>
-                </div>`;
-
             shalatCol = makeBar(pctFardu, 'bg-emerald-500');
+            schoolCol = makeBar(pctSchool, 'bg-cyan-500'); // Bar Cyan untuk Sekolah
             kbmCol = makeBar(pctKbm, 'bg-blue-500');
             sunnahCol = makeBar(pctSunnah, 'bg-amber-500');
         }
@@ -2150,7 +2185,7 @@ window.updateReportTab = function() {
                 ${appState.reportMode !== 'daily' ? `<div class="text-[9px] text-slate-400 mt-0.5">Total Point: ${stats.scoreTotal}</div>` : ''}
             </td>
             <td class="p-3 text-center align-middle">${shalatCol}</td>
-            <td class="p-3 text-center align-middle">${kbmCol}</td>
+            <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td> <td class="p-3 text-center align-middle">${kbmCol}</td>
             <td class="p-3 text-center align-middle">${sunnahCol}</td>
             <td class="p-3 text-center font-black ${scoreColor} text-sm">${finalScore}</td>
         `;
