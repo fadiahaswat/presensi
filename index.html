@@ -33,9 +33,10 @@
         /* --- Base & Reset --- */
         body { 
             -webkit-tap-highlight-color: transparent; 
-            overflow: hidden; 
+            overflow: hidden; /* Mencegah scroll ganda */
             overscroll-behavior-y: none;
             touch-action: manipulation;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
         
         /* --- Safe Area Padding --- */
@@ -97,105 +98,88 @@
             100% { transform: translateX(100%); }
         }
 
-        /* =========================================
-           DESKTOP DASHBOARD MODE (Responsive Magic)
-           ========================================= */
-        @media (min-width: 1024px) {
-            
-            /* 1. SIDEBAR NAVIGATION 
-               Mengubah Menu Bawah menjadi Sidebar Kiri */
-            nav.fixed {
-                position: fixed !important;
-                top: 20px !important;
-                left: 20px !important;
-                bottom: 20px !important;
-                right: auto !important;
-                width: 90px !important; /* Sidebar ramping */
-                max-width: none !important;
-                padding: 0 !important;
-                z-index: 50;
+        /* ==================================================================
+           DESKTOP FIX: MODE SIMULATOR HP (AGAR TIDAK GEPENG / AMBURADUL)
+           ================================================================== */
+        @media (min-width: 768px) {
+            body {
+                /* Background Desktop */
+                background-color: #f1f5f9; 
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
             }
+            .dark body { background-color: #020617; }
 
-            nav .bg-white\/80 {
-                height: 100% !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                border-radius: 24px !important;
-                padding: 20px 0 !important;
-                display: flex !important;
-            }
-
-            nav .grid {
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 20px !important;
+            /* KONTAINER UTAMA: Batasi Lebar agar Proporsional */
+            #view-login, 
+            #view-main, 
+            #view-attendance, 
+            #view-loading {
+                position: relative !important; /* Supaya bisa ditengah */
                 width: 100% !important;
+                max-width: 480px !important; /* KUNCI: Lebar maksimal seperti HP */
+                height: 95vh !important; /* Sedikit jarak atas bawah */
+                max-height: 900px;
+                margin: auto !important;
+                
+                /* Estetika Border HP */
+                border-radius: 24px;
+                box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.25);
+                border: 8px solid rgba(255,255,255,0.5);
+                overflow: hidden; /* Agar sudut tumpul rapi */
+                background: inherit; /* Ikuti background mode */
+            }
+
+            /* Fix Background Blobs agar tetap Full Screen di Desktop */
+            .blob-bg {
+                position: fixed !important;
+                inset: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                z-index: -1;
+            }
+
+            /* Fix Posisi Navbar Bawah agar menempel di Kontainer HP */
+            nav.fixed {
+                position: absolute !important; /* Ikut container, bukan layar */
+                bottom: 24px !important;
+                left: 16px !important;
+                right: 16px !important;
+                width: auto !important;
+                max-width: none !important;
+            }
+
+            /* Fix Posisi Modal Popup agar di tengah Kontainer HP */
+            .fixed.inset-0 {
+                position: absolute !important;
+                width: 100%;
+                height: 100%;
+                border-radius: 16px; /* Ikuti radius container */
             }
             
-            /* Tooltip Hover pada Menu Desktop */
-            .nav-btn {
-                position: relative;
-                width: 50px !important;
-                height: 50px !important;
-                margin: 0 auto !important;
-                border-radius: 16px !important;
+            /* Fix Toast Notification */
+            #toast-container {
+                position: absolute !important;
+                top: 20px !important;
+                right: 16px !important;
+                left: auto !important;
+                width: auto !important;
             }
-            .nav-btn:hover { background: rgba(16, 185, 129, 0.1); }
+
+            /* Fix Input Data View */
+            #view-attendance {
+                background: white;
+            }
+            .dark #view-attendance {
+                background: #0f172a;
+            }
             
-            /* 2. MAIN CONTENT LAYOUT 
-               Memberi margin kiri agar tidak tertutup sidebar */
-            #view-main, #tab-profile, #tab-analysis, #tab-report {
-                margin-left: 120px !important; /* Memberi ruang untuk sidebar */
-                width: calc(100% - 140px) !important; /* Lebar sisa */
-                max-width: 1400px !important; /* Batas maksimal agar tidak terlalu lebar */
-                padding-bottom: 20px !important;
-            }
-
-            /* 3. GRID SYSTEM DASHBOARD 
-               Mengubah tumpukan vertikal menjadi Grid 2 Kolom atau lebih */
-            #main-content {
-                display: grid !important;
-                grid-template-columns: 1fr 1fr 300px !important; /* 3 Kolom: Kiri, Tengah, Kanan(Kecil) */
-                grid-template-rows: auto auto auto 1fr !important;
-                gap: 24px !important;
-                align-content: start !important;
-                padding-right: 20px !important;
-            }
-
-            /* --- Mengatur Posisi Item Dashboard --- */
-            
-            /* Header (Selamat Datang) -> Full Lebar */
-            header { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; }
-
-            /* Banner KBM -> Kolom Kiri & Tengah */
-            #kbm-active-banner { grid-column: 1 / 3; grid-row: 2; margin-bottom: 0 !important; height: 100%; }
-
-            /* Date Navigator -> Kolom Kanan */
-            #main-content > .glass-card:nth-of-type(1) { grid-column: 3 / 4; grid-row: 2; height: 100%; justify-content: center; }
-
-            /* Kartu Hitam Besar (Current Slot) -> Kolom Kiri */
-            #dash-main-card { grid-column: 1 / 2; grid-row: 3; margin-bottom: 0 !important; min-height: 300px; }
-
-            /* Statistik Chart & Grid (Panel Besar) -> Kolom Tengah & Kanan */
-            .glass-card.animate-slide-up.shadow-xl { grid-column: 2 / 4; grid-row: 3; margin-bottom: 0 !important; }
-
-            /* Lokasi -> Kolom Kiri (Bawah Kartu Hitam) */
-            #location-status-card { grid-column: 1 / 2; grid-row: 4; display: block !important; margin-bottom: 0 !important; }
-
-            /* Status Aktif & Input Button -> Kolom Tengah (Bawah Chart) */
-            .animate-slide-up.mb-6.mt-4 { grid-column: 2 / 3; grid-row: 4; margin: 0 !important; }
-
-            /* Pembinaan -> Kolom Kanan (Bawah Chart) */
-            #dashboard-pembinaan-card { grid-column: 3 / 4; grid-row: 4; margin-bottom: 0 !important; }
-
-            /* List Jadwal Lainnya -> Full Lebar di Bawah */
-            .animate-slide-up.pb-safe { grid-column: 1 / -1; grid-row: 5; }
-
-            /* Perbaikan Visual Desktop */
-            #dash-other-slots {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                gap: 16px;
+            /* Sembunyikan Scrollbar Body Desktop */
+            ::-webkit-scrollbar {
+                width: 0px;
+                background: transparent;
             }
         }
     </style>
@@ -1574,6 +1558,7 @@
     
 </body>
 </html>
+
 
 
 
