@@ -3674,60 +3674,60 @@ window.renderDashboardPembinaan = function() {
 
 window.renderPembinaanManagement = function() {
     const container = document.getElementById('pembinaan-full-list');
-    
-    // Safety check: elemen harus ada
     if(!container) return;
 
-    // 1. Akumulasi Data Pelanggaran (All Time)
+    // 1. Akumulasi Data Pelanggaran (HANYA YANG SUDAH DIBINA)
     let problemList = [];
     let counts = { l1: 0, l2: 0, l3: 0 }; 
 
-    // Pastikan attendanceData siap
     if (!appState.attendanceData) appState.attendanceData = {};
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
         
-        // Cari Tanggal-Tanggal Pelanggaran
         let dates = [];
         Object.keys(appState.attendanceData).forEach(date => {
             const dayData = appState.attendanceData[date];
             if (!dayData) return;
 
             let slots = [];
-            let slotIds = []; // Simpan ID slot juga untuk keperluan hapus nanti
-
+            
             Object.values(SLOT_WAKTU).forEach(slot => {
-                const st = dayData[slot.id]?.[id]?.status?.shalat;
-                if (st === 'Alpa') {
-                    slots.push(slot.label);
-                    slotIds.push(slot.id);
+                const sData = dayData[slot.id]?.[id];
+                const st = sData?.status?.shalat;
+                
+                // --- LOGIKA POIN BARU ---
+                // Hanya hitung poin JIKA Alpa DAN sudah ada data coaching (done: true)
+                if (st === 'Alpa' && sData.coaching && sData.coaching.done) {
+                    slots.push({
+                        label: slot.label,
+                        id: slot.id,
+                        action: sData.coaching.action // Simpan info tindakan utk ditampilkan
+                    });
                 }
             });
 
             if (slots.length > 0) {
-                dates.push({ date: date, slots: slots, slotIds: slotIds });
+                dates.push({ date: date, slots: slots });
             }
         });
 
-        // Urutkan tanggal dari terbaru (agar history paling baru di atas)
         dates.sort((a,b) => b.date.localeCompare(a.date));
 
-        // Hitung Poin (1 Hari Alpa = 1 Poin, atau ubah logika di sini jika mau per slot)
-        const totalAlpa = dates.length; 
+        // Hitung Total Poin (Total Slot yang sudah dibina)
+        const totalAlpa = dates.reduce((acc, curr) => acc + curr.slots.length, 0);
 
         if (totalAlpa > 0) {
-            const status = window.getPembinaanStatus(totalAlpa); // Pastikan fungsi ini ada di helper
+            const status = window.getPembinaanStatus(totalAlpa); 
             problemList.push({ ...s, totalAlpa, status, dates });
 
-            // Hitung statistik level
             if (status.level === 1) counts.l1++;
             else if (status.level <= 3) counts.l2++;
             else counts.l3++;
         }
     });
 
-    // Update Statistik Header Profil (Pastikan elemen ID ini ada di HTML)
+    // Update Statistik Header
     const elC1 = document.getElementById('count-level-1');
     const elC2 = document.getElementById('count-level-2');
     const elC3 = document.getElementById('count-level-3');
@@ -3735,56 +3735,49 @@ window.renderPembinaanManagement = function() {
     if(elC2) elC2.textContent = counts.l2;
     if(elC3) elC3.textContent = counts.l3;
 
-    // 2. Render List UI
+    // 2. Render List
     container.innerHTML = '';
-    
     if (problemList.length === 0) {
         container.innerHTML = `
             <div class="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-100 rounded-3xl">
                 <div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
                     <i data-lucide="shield-check" class="w-8 h-8 text-emerald-500"></i>
                 </div>
-                <p class="text-sm font-bold text-slate-600">Alhamdulillah, Nihil Pelanggaran</p>
-                <p class="text-xs text-slate-400">Semua santri tertib presensi.</p>
+                <p class="text-sm font-bold text-slate-600">Nihil Poin Pelanggaran</p>
+                <p class="text-xs text-slate-400 text-center max-w-[200px]">
+                    Santri tertib atau pelanggaran belum dibina oleh Musyrif.
+                </p>
             </div>`;
         if(window.lucide) window.lucide.createIcons();
         return;
     }
 
-    // Urutkan santri berdasarkan poin pelanggaran terbanyak
     problemList.sort((a, b) => b.totalAlpa - a.totalAlpa);
 
     problemList.forEach(p => {
-        // Bar Progress Visual (Max 40 poin sebagai 100%)
         const percentage = Math.min((p.totalAlpa / 40) * 100, 100);
         const detailId = `detail-${p.nis || p.id}`;
         
-        // Generate List Tanggal (Detail Accordion)
         let detailHtml = '';
         p.dates.forEach(d => {
             const dateDisplay = window.formatDate(d.date);
-            const slotString = d.slots.join(', ');
             
-            // Item Detail Pelanggaran
+            // Render slot dengan info pembinaan
+            const slotHtml = d.slots.map(s => `
+                <div class="mt-1 flex items-start gap-2">
+                    <span class="px-1.5 py-0.5 bg-red-50 text-red-600 text-[9px] font-bold rounded border border-red-100 uppercase shrink-0">${s.label}</span>
+                    <span class="text-[10px] text-slate-500 italic">" ${s.action} "</span>
+                </div>
+            `).join('');
+
             detailHtml += `
-                <div class="flex justify-between items-center py-3 px-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors group">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-400"></i>
-                            <span class="text-xs font-bold text-slate-700">${dateDisplay}</span>
-                        </div>
-                        <div class="flex gap-1 ml-5">
-                            ${d.slots.map(s => `<span class="px-1.5 py-0.5 bg-red-50 text-red-600 text-[9px] font-bold rounded border border-red-100 uppercase">${s}</span>`).join('')}
-                        </div>
+                <div class="py-3 px-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
+                        <span class="text-xs font-bold text-slate-700">${dateDisplay}</span>
                     </div>
-                    
-                    <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button onclick="window.jumpToDate('${d.date}')" class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all" title="Edit di Presensi">
-                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                        </button>
-                        <button onclick="window.deleteViolationRecord('${p.nis || p.id}', '${d.date}')" class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all" title="Hapus Pelanggaran">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
+                    <div class="ml-5">
+                        ${slotHtml}
                     </div>
                 </div>
             `;
@@ -3792,54 +3785,41 @@ window.renderPembinaanManagement = function() {
 
         const div = document.createElement('div');
         div.className = 'mb-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300';
-        
         div.innerHTML = `
             <div onclick="document.getElementById('${detailId}').classList.toggle('hidden')" class="p-5 cursor-pointer relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-r ${p.status.level >= 4 ? 'from-red-50/50' : 'from-slate-50/50'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                
                 <div class="relative flex justify-between items-start mb-3">
                     <div class="flex gap-4">
                         <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-sm font-black text-slate-500 dark:text-slate-300 shadow-inner">
                             ${p.nama.substring(0,2).toUpperCase()}
                         </div>
-                        
                         <div>
                             <h4 class="font-bold text-slate-800 dark:text-white text-base">${p.nama}</h4>
                             <div class="flex items-center gap-2 mt-1">
                                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${p.status.color}">
                                     ${p.status.label}
                                 </span>
-                                <span class="text-[10px] text-slate-400">• Level ${p.status.level}</span>
                             </div>
                         </div>
                     </div>
-                    
                     <div class="text-right">
-                        <span class="text-3xl font-black ${p.totalAlpa > 10 ? 'text-red-500' : 'text-slate-700'}">${p.totalAlpa}</span>
+                        <span class="text-3xl font-black text-slate-700 dark:text-white">${p.totalAlpa}</span>
                         <span class="text-[10px] text-slate-400 font-bold uppercase block -mt-1 tracking-wider">Poin</span>
                     </div>
                 </div>
                 
                 <div class="relative w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-3">
-                    <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-400 via-orange-400 to-red-500 transition-all duration-1000" style="width: ${percentage}%"></div>
+                    <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-400 via-orange-400 to-red-500" style="width: ${percentage}%"></div>
                 </div>
                 
-                <div class="flex justify-between items-end relative">
-                    <div>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Tindakan Selanjutnya</p>
-                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200">${p.status.action}</p>
-                    </div>
-                    <button class="text-[10px] font-bold text-slate-400 group-hover:text-indigo-500 flex items-center gap-1 transition-colors bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
-                        Detail <i data-lucide="chevron-down" class="w-3 h-3 group-hover:translate-y-0.5 transition-transform"></i>
+                <div class="flex justify-between items-center">
+                    <p class="text-[10px] text-slate-400">Total Pelanggaran Tervalidasi</p>
+                    <button class="text-[10px] font-bold text-slate-400 group-hover:text-emerald-500 flex items-center gap-1 transition-colors">
+                        Riwayat Pembinaan <i data-lucide="chevron-down" class="w-3 h-3"></i>
                     </button>
                 </div>
             </div>
             
             <div id="${detailId}" class="hidden bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700 animate-slideDown">
-                <div class="px-4 py-2 bg-slate-100/50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                    <span>Riwayat Pelanggaran</span>
-                    <span>${p.dates.length} Hari</span>
-                </div>
                 ${detailHtml}
             </div>
         `;
