@@ -2207,6 +2207,7 @@ window.determineCurrentSlot = function() {
     if (h >= 19) return 'isya';
     if (h >= 18) return 'maghrib';
     if (h >= 15) return 'ashar';
+    if (h >= 6)  return 'sekolah'; // <-- JAM 06:00 - 15:00 = SEKOLAH
     return 'shubuh';
 };
 
