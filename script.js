@@ -3575,85 +3575,99 @@ window.showStatDetails = function(statusType) {
 
 window.renderDashboardPembinaan = function() {
     const container = document.getElementById('dashboard-pembinaan-list');
-    const card = document.getElementById('dashboard-pembinaan-card');
     const badge = document.getElementById('pembinaan-count-badge');
-    
-    // Pastikan elemen ada (judul widget di HTML mungkin perlu disesuaikan manual atau kita biarkan default)
-    // Kita ubah judul card secara dinamis jika ada ID-nya, jika tidak biarkan.
     const cardTitle = document.querySelector('#dashboard-pembinaan-card h3');
-    if(cardTitle) cardTitle.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 mr-2 inline"></i>Pelanggaran Hari Ini`;
+    
+    // Ubah Judul Widget
+    if(cardTitle) cardTitle.innerHTML = `<i data-lucide="heart-handshake" class="w-4 h-4 text-emerald-500 mr-2 inline"></i>Perlu Pembinaan`;
 
-    if(!container || !card) return;
+    if(!container) return;
 
-    // 1. Filter Hanya Alpa HARI INI (Sesuai Tanggal Dashboard)
+    // 1. Cari Alpa yang BELUM DIBINA (Hari Ini)
+    // Jika ingin menampilkan hutang pembinaan dari hari-hari sebelumnya, logika dateKey bisa diperluas.
+    // Untuk sekarang kita fokus hari ini dulu sesuai logic dashboard.
     const dateKey = appState.date;
     const dayData = appState.attendanceData[dateKey];
     
-    let todayViolations = [];
+    let pendingPembinaan = [];
     
     if (dayData) {
         FILTERED_SANTRI.forEach(s => {
             const id = String(s.nis || s.id);
-            let violationSlots = [];
             
-            // Cek setiap slot (Shubuh - Isya) pada hari ini
             Object.values(SLOT_WAKTU).forEach(slot => {
-                const st = dayData[slot.id]?.[id]?.status?.shalat;
-                if (st === 'Alpa') {
-                    violationSlots.push(slot.label);
+                const sData = dayData[slot.id]?.[id];
+                const st = sData?.status?.shalat;
+                
+                // Syarat Masuk List: Status ALPA dan BELUM ada data coaching
+                if (st === 'Alpa' && (!sData.coaching || !sData.coaching.done)) {
+                    pendingPembinaan.push({
+                        ...s,
+                        slotLabel: slot.label,
+                        slotId: slot.id,
+                        date: dateKey
+                    });
                 }
             });
-
-            if (violationSlots.length > 0) {
-                todayViolations.push({
-                    ...s,
-                    slots: violationSlots
-                });
-            }
         });
     }
 
     // Update Badge
-    if(badge) badge.textContent = `${todayViolations.length} Santri`;
+    if(badge) {
+        badge.textContent = `${pendingPembinaan.length} Pending`;
+        badge.className = pendingPembinaan.length > 0 
+            ? "px-2 py-0.5 rounded-md bg-red-500 text-white text-[10px] font-bold shadow-sm animate-pulse"
+            : "px-2 py-0.5 rounded-md bg-slate-100 text-slate-400 text-[10px] font-bold";
+    }
 
     // 2. Render UI
-    if (todayViolations.length === 0) {
-        // Tampilkan State Kosong yang Rapi
+    container.innerHTML = '';
+    
+    if (pendingPembinaan.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-6">
+            <div class="text-center py-8">
                 <div class="inline-flex p-3 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 mb-2 border border-emerald-100 dark:border-emerald-800">
-                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    <i data-lucide="check-circle" class="w-6 h-6"></i>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400">Nihil pelanggaran hari ini</p>
+                <p class="text-[10px] font-bold text-slate-400">Semua pelanggaran sudah dibina</p>
             </div>`;
     } else {
-        container.innerHTML = '';
-        todayViolations.forEach(p => {
+        pendingPembinaan.forEach(p => {
             const div = document.createElement('div');
-            div.className = 'flex items-center justify-between p-3 rounded-xl bg-red-50/80 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 mb-2 transition-all hover:bg-red-100/80';
+            div.className = 'flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 mb-2 shadow-sm hover:shadow-md transition-all';
+            
+            // JSON stringify data untuk dikirim ke modal
+            const dataStr = JSON.stringify({
+                id: p.nis || p.id,
+                nama: p.nama,
+                slotId: p.slotId,
+                date: p.date,
+                slotLabel: p.slotLabel
+            }).replace(/"/g, "&quot;");
+
             div.innerHTML = `
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-xs font-black text-red-500 border border-red-100 shadow-sm">
+                    <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-500 border border-slate-200">
                         ${p.nama.substring(0,2).toUpperCase()}
                     </div>
                     <div>
                         <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${p.nama}</h4>
                         <p class="text-[10px] text-red-500 font-medium flex items-center gap-1">
-                            <i data-lucide="x-circle" class="w-3 h-3"></i>
-                            Alpa: ${p.slots.join(', ')}
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                            Alpa ${p.slotLabel}
                         </p>
                     </div>
                 </div>
-                <button onclick="window.quickOpen('${appState.currentSlotId}')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-slate-400 hover:text-emerald-500 hover:border-emerald-200 border border-transparent shadow-sm transition-all">
-                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                <button onclick="window.openPembinaanModal(${dataStr})" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-1">
+                    <i data-lucide="heart-handshake" class="w-3 h-3"></i> Bina
                 </button>
             `;
             container.appendChild(div);
         });
     }
     
-    // Pastikan card terlihat (kecuali fitur dimatikan total, tapi user minta tampil)
-    card.classList.remove('hidden');
+    const card = document.getElementById('dashboard-pembinaan-card');
+    if(card) card.classList.remove('hidden');
     
     if(window.lucide) window.lucide.createIcons();
 };
