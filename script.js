@@ -2671,44 +2671,37 @@ window.runAnalysis = function() {
     const range = window.getDateRange(appState.analysisMode);
     document.getElementById('analysis-date-range').textContent = range.label;
 
-    // --- INIT COUNTERS ---
     let stats = {
-        fardu: { h:0, m:0, total:0 }, // m = masalah (s/i/a)
+        fardu: { h:0, m:0, total:0 },
         kbm: { h:0, m:0, total:0 },
         sunnah: { y:0, t:0, total:0 }
     };
 
-    // --- LOOP DATES ---
-    // Loop dari start date sampai end date
     let curr = new Date(range.start);
     const end = new Date(range.end);
-    
-    // Safety break loop (max 366 days)
     let loopGuard = 0;
 
     while(curr <= end && loopGuard < 370) {
-        // Generate safe date key (YYYY-MM-DD) using local time components
-        // to avoid timezone issues with toISOString()
+        const prevTime = curr.getTime();
+        
         const y = curr.getFullYear();
         const m = String(curr.getMonth()+1).padStart(2,'0');
         const d = String(curr.getDate()).padStart(2,'0');
         const safeDateKey = `${y}-${m}-${d}`;
 
         const dayData = appState.attendanceData[safeDateKey];
-        const dayNum = curr.getDay(); // 0-6
+        const dayNum = curr.getDay();
 
         if (dayData) {
             Object.values(SLOT_WAKTU).forEach(slot => {
                 const sData = dayData[slot.id]?.[santriId];
                 if(sData) {
                     slot.activities.forEach(act => {
-                        // Skip jika kegiatan tidak ada di hari ini
                         if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
 
                         const st = sData.status[act.id];
                         if(!st) return;
 
-                        // Logic Kategori
                         if(act.category === 'fardu') {
                             stats.fardu.total++;
                             if(st === 'Hadir') stats.fardu.h++;
@@ -2720,7 +2713,6 @@ window.runAnalysis = function() {
                             else stats.kbm.m++;
                         }
                         else if(act.category === 'sunnah' || act.category === 'dependent') {
-                            // Dependent (rawatib) kita anggap sunnah di analisis ini
                             stats.sunnah.total++;
                             if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
                             else stats.sunnah.t++;
@@ -2730,18 +2722,19 @@ window.runAnalysis = function() {
             });
         }
         
-        // Next Day
         curr.setDate(curr.getDate() + 1);
         loopGuard++;
+        
+        if(curr.getTime() === prevTime) {
+            console.error("Date increment stuck! Breaking loop.");
+            break;
+        }
     }
 
-    // --- RENDER STATS ---
     window.renderBar('fardu', stats.fardu.h, stats.fardu.m);
     window.renderBar('kbm', stats.kbm.h, stats.kbm.m);
-    window.renderBar('sunnah', stats.sunnah.y, stats.sunnah.t); // y=Yes, t=No
+    window.renderBar('sunnah', stats.sunnah.y, stats.sunnah.t);
 
-    // --- TOTAL SCORE ---
-    // Bobot: Fardu (50%), KBM (30%), Sunnah (20%)
     const pctFardu = stats.fardu.total ? (stats.fardu.h / stats.fardu.total) * 100 : 0;
     const pctKbm = stats.kbm.total ? (stats.kbm.h / stats.kbm.total) * 100 : 0;
     const pctSunnah = stats.sunnah.total ? (stats.sunnah.y / stats.sunnah.total) * 100 : 0;
@@ -2757,14 +2750,12 @@ window.runAnalysis = function() {
     
     document.getElementById('anl-total-score').textContent = `${finalScore}%`;
     
-    // Teks Kesimpulan
     const elVerdict = document.getElementById('anl-verdict');
     if(finalScore >= 90) { elVerdict.textContent = "Mumtaz (Sangat Baik)"; elVerdict.className = "text-sm font-bold text-emerald-500"; }
     else if(finalScore >= 75) { elVerdict.textContent = "Jayyid (Baik)"; elVerdict.className = "text-sm font-bold text-blue-500"; }
     else if(finalScore >= 60) { elVerdict.textContent = "Maqbul (Cukup)"; elVerdict.className = "text-sm font-bold text-amber-500"; }
     else { elVerdict.textContent = "Naqis (Kurang)"; elVerdict.className = "text-sm font-bold text-red-500"; }
 
-    // Persentase Kategori
     document.getElementById('anl-score-fardu').textContent = Math.round(pctFardu) + '%';
     document.getElementById('anl-score-kbm').textContent = Math.round(pctKbm) + '%';
     document.getElementById('anl-score-sunnah').textContent = Math.round(pctSunnah) + '%';
