@@ -64,6 +64,26 @@ const UI_COLORS = {
     error: 'bg-red-500'
 };
 
+let saveTimeout;
+let clockInterval;
+
+window.sanitizeHTML = function(str) {
+    if(!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+};
+
+let lucideTimeout;
+window.refreshIcons = function() {
+    clearTimeout(lucideTimeout);
+    lucideTimeout = setTimeout(() => {
+        if(window.lucide) window.lucide.createIcons();
+    }, 100);
+};
+
+
+
 // ==========================================
 // HELPER FUNCTIONS
 // ==========================================
