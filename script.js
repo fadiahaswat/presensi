@@ -1761,13 +1761,11 @@ window.updateQuickStats = function() {
 window.drawDonutChart = function() {
     const canvas = document.getElementById('weekly-chart');
     
-    // ✅ FIX: Check existence + visibility
     if(!canvas || canvas.offsetParent === null) return;
     
     const ctx = canvas.getContext('2d');
     if(!ctx) return;
     
-    // ✅ FIX: Check dimension sebelum render
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
@@ -1784,7 +1782,6 @@ window.drawDonutChart = function() {
     const centerX = width / 2;
     const centerY = height / 2;
     
-    // ✅ FIX: Prevent negative radius
     let radius = Math.min(width, height) / 2 - 10;
     if (radius <= 0) {
         console.warn("Canvas too small for chart");
@@ -1793,7 +1790,6 @@ window.drawDonutChart = function() {
 
     ctx.clearRect(0, 0, width, height);
 
-    // ... rest of chart logic (tidak berubah)
     let stats = { h: 0, s: 0, i: 0, a: 0 };
     let totalPeristiwa = 0;
     let activeSlots = 0;
@@ -1813,6 +1809,7 @@ window.drawDonutChart = function() {
     }
 
     const divider = activeSlots > 0 ? activeSlots : 1;
+
     const setLegend = (id, val) => {
         const el = document.getElementById(id);
         if(el) el.textContent = val; 
