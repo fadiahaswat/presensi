@@ -239,7 +239,8 @@ const STATUS_UI = {
     'Tidak': { class: 'bg-slate-100 text-slate-300 border-slate-200', label: '-' }
 };
 
-const SESSION_ORDER = { 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
+// Tambahkan 'kemarin': 0 agar logika matematika berjalan
+const SESSION_ORDER = { 'kemarin': 0, 'shubuh': 1, 'ashar': 2, 'maghrib': 3, 'isya': 4 };
 
 // ==========================================
 // KONFIGURASI PEMBINAAN (Disciplinary Rules)
