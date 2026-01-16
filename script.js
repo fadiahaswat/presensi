@@ -289,6 +289,8 @@ window.initApp = async function() {
 
             const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
             if(savedLog) appState.activityLog = JSON.parse(savedLog);
+
+            appState.permits = []; // Inisialisasi default
             
             const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
             if(savedPermits) appState.permits = JSON.parse(savedPermits);
