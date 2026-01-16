@@ -984,13 +984,14 @@ window.renderAttendanceList = function() {
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
 
+    // Pastikan struktur data ada
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Variabel Ringkasan
+    // Variabel Ringkasan Count
     let summaryCount = { Sakit: 0, Izin: 0, Pulang: 0, Alpa: 0, Telat: 0 };
     let summaryList = []; 
 
@@ -998,10 +999,11 @@ window.renderAttendanceList = function() {
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
 
+    // Filter List Santri
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(appState.searchQuery.toLowerCase());
         if(appState.filterProblemOnly) {
-            const st = dbSlot[String(s.nis || s.id)]?.status?.shalat; // atau kbm_sekolah
+            const st = dbSlot[String(s.nis || s.id)]?.status?.shalat; // atau kbm_sekolah, tergantung slot
             return matchName && ['Alpa','Sakit','Izin','Pulang','Telat'].includes(st);
         }
         return matchName;
@@ -1016,7 +1018,7 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- 1. INISIALISASI DATA KOSONG ---
+        // --- 1. INISIALISASI DATA (LOGIKA AUTO-FILL) ---
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -1024,7 +1026,7 @@ window.renderAttendanceList = function() {
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
-            // Sugesti Sakit (Sekolah ikut Shubuh)
+            // LOGIKA: Jika Slot Sekolah & Shubuh Sakit -> Otomatis Sekolah Sakit
             if (slot.id === 'sekolah') {
                 const shubuhData = appState.attendanceData[dateKey]?.['shubuh']?.[id];
                 if (shubuhData?.status?.shalat === 'Sakit') {
@@ -1032,17 +1034,17 @@ window.renderAttendanceList = function() {
                 }
             }
 
-            // Sugesti Status Berlanjut (Izin/Sakit/Pulang dari sesi sebelumnya)
+            // LOGIKA: Mewarisi status Sakit/Izin/Pulang dari sesi sebelumnya
             if (prevSlotData && prevSlotData[id]) {
                 const prevSt = prevSlotData[id].status?.shalat;
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
-                    // Cek key utama (shalat atau kbm_sekolah)
-                    const mainKey = slot.activities[0].id; 
+                    // Tentukan key aktivitas utama (shalat / kbm_sekolah)
+                    const mainKey = slot.activities[0].id;
                     defStatus[mainKey] = prevSt;
                     
                     slot.activities.forEach(a => {
                         if (a.id === mainKey) return;
-                        if (a.category === 'fardu' || a.category === 'kbm' || a.category === 'school') {
+                        if (['fardu','kbm','school'].includes(a.category)) {
                             defStatus[a.id] = prevSt;
                         } else {
                             defStatus[a.id] = 'Tidak';
@@ -1052,6 +1054,7 @@ window.renderAttendanceList = function() {
             }
             dbSlot[id] = { status: defStatus, note: '' };
 
+            // Tambah catatan otomatis jika auto-fill dari Shubuh
             if (slot.id === 'sekolah' && appState.attendanceData[dateKey]?.['shubuh']?.[id]?.status?.shalat === 'Sakit') {
                 dbSlot[id].note = '[Auto] Sakit sejak Shubuh';
             }
@@ -1059,14 +1062,14 @@ window.renderAttendanceList = function() {
 
         const sData = dbSlot[id];
         
-        // --- 2. CEK PERMIT / SURAT IZIN RESMI ---
+        // --- 2. CEK SURAT IZIN RESMI (PERMIT) ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
         if (activePermit) {
             slot.activities.forEach(act => {
                 let target = null;
-                // Sekolah, Fardu, KBM wajib ikut status Izin
+                // Sekolah, Shalat, KBM wajib ikut status Izin
                 if (['fardu','kbm','school'].includes(act.category)) target = activePermit.type;
                 else target = 'Tidak';
                 
@@ -1082,7 +1085,7 @@ window.renderAttendanceList = function() {
             }
         } 
         else if (isAutoMarked) {
-            // Reset jika permit sudah dihapus/habis
+            // Reset jika surat izin sudah dihapus/habis masa berlakunya
             slot.activities.forEach(act => {
                 if (['fardu','kbm','school'].includes(act.category)) sData.status[act.id] = 'Hadir';
                 else if (act.category === 'dependent') sData.status[act.id] = 'Ya';
@@ -1092,9 +1095,9 @@ window.renderAttendanceList = function() {
             hasAutoChanges = true;
         }
 
-        // --- 3. HITUNG RINGKASAN STATUS UTAMA ---
+        // --- 3. TENTUKAN STATUS UTAMA ---
         // Ambil status dari aktivitas pertama (biasanya Shalat atau KBM Sekolah)
-        const mainActId = slot.activities[0].id;
+        const mainActId = slot.activities[0].id; 
         const currentStatus = sData.status[mainActId] || 'Hadir';
         
         if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
@@ -1102,56 +1105,105 @@ window.renderAttendanceList = function() {
             summaryList.push({ nama: santri.nama, status: currentStatus });
         }
 
-        // --- 4. RENDER UI KARTU SANTRI ---
+        // --- 4. RENDER TAMPILAN KARTU (DESAIN BARU IF-ELSE) ---
         const clone = tplRow.content.cloneNode(true);
         const cardContainer = clone.querySelector('.santri-card-container') || clone.querySelector('div'); 
         
-        // Logika Warna Kartu (Background Redup)
-        let theme = { bg: "bg-white dark:bg-slate-800", border: "border-slate-100 dark:border-slate-700", text: "text-slate-800 dark:text-white" };
+        // Default Theme (Hadir / Strip)
+        let theme = { 
+            bg: "bg-white dark:bg-slate-800", 
+            border: "border-slate-100 dark:border-slate-700", 
+            text: "text-slate-800 dark:text-white",
+            shadow: "shadow-sm"
+        };
 
-        if (currentStatus === 'Sakit') { theme.bg = "bg-amber-50/80 dark:bg-amber-900/10"; theme.border = "border-amber-200"; theme.text = "text-amber-900 dark:text-amber-100"; }
-        else if (currentStatus === 'Izin') { theme.bg = "bg-blue-50/80 dark:bg-blue-900/10"; theme.border = "border-blue-200"; theme.text = "text-blue-900 dark:text-blue-100"; }
-        else if (currentStatus === 'Pulang') { theme.bg = "bg-purple-50/80 dark:bg-purple-900/10"; theme.border = "border-purple-200"; theme.text = "text-purple-900 dark:text-purple-100"; }
-        else if (currentStatus === 'Alpa') { theme.bg = "bg-red-50/80 dark:bg-red-900/10"; theme.border = "border-red-200"; theme.text = "text-red-900 dark:text-red-100"; }
-        else if (currentStatus === 'Telat') { theme.bg = "bg-teal-50/80 dark:bg-teal-900/10"; theme.border = "border-teal-200"; theme.text = "text-teal-900 dark:text-teal-100"; }
+        // Kustomisasi Desain Berdasarkan Status (IF-ELSE STYLE)
+        if (currentStatus === 'Sakit') {
+            theme.bg = "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10";
+            theme.border = "border-amber-200 dark:border-amber-700/50";
+            theme.text = "text-amber-800 dark:text-amber-100";
+            theme.shadow = "shadow-amber-100 dark:shadow-none";
+        } 
+        else if (currentStatus === 'Izin') {
+            theme.bg = "bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/10";
+            theme.border = "border-blue-200 dark:border-blue-700/50";
+            theme.text = "text-blue-800 dark:text-blue-100";
+            theme.shadow = "shadow-blue-100 dark:shadow-none";
+        } 
+        else if (currentStatus === 'Pulang') {
+            theme.bg = "bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-900/20 dark:to-fuchsia-900/10";
+            theme.border = "border-purple-200 dark:border-purple-700/50";
+            theme.text = "text-purple-800 dark:text-purple-100";
+            theme.shadow = "shadow-purple-100 dark:shadow-none";
+        } 
+        else if (currentStatus === 'Alpa') {
+            theme.bg = "bg-gradient-to-br from-rose-50 to-red-50 dark:from-red-900/20 dark:to-rose-900/10";
+            theme.border = "border-red-200 dark:border-red-700/50";
+            theme.text = "text-red-800 dark:text-red-100";
+            theme.shadow = "shadow-red-100 dark:shadow-none";
+        }
+        else if (currentStatus === 'Telat') {
+            theme.bg = "bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/10";
+            theme.border = "border-teal-200 dark:border-teal-700/50";
+            theme.text = "text-teal-800 dark:text-teal-100";
+            theme.shadow = "shadow-teal-100 dark:shadow-none";
+        }
 
-        let cardClasses = `relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300 shadow-sm ${theme.bg} ${theme.border}`;
+        // Terapkan Class ke Kartu
+        let cardClasses = `relative flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300 ${theme.bg} ${theme.border} ${theme.text} ${theme.shadow} hover:shadow-md`;
         
-        if (activePermit) cardClasses += " border-l-4 border-l-amber-500"; // Penanda ada surat izin
+        // Penanda Garis Kiri Tebal jika ada Surat Izin Resmi
+        if (activePermit) {
+            if(currentStatus === 'Sakit') cardClasses += " border-l-[6px] border-l-amber-500";
+            else if(currentStatus === 'Izin') cardClasses += " border-l-[6px] border-l-blue-500";
+            else if(currentStatus === 'Pulang') cardClasses += " border-l-[6px] border-l-purple-500";
+        }
 
         cardContainer.className = cardClasses;
 
+        // Nama & Kamar
         const nameEl = clone.querySelector('.santri-name');
         nameEl.textContent = santri.nama;
-        nameEl.className = `santri-name font-bold text-sm ${theme.text}`;
+        // Warna nama mengikuti tema kartu agar serasi
+        nameEl.className = `santri-name font-bold text-sm ${theme.text}`; 
+        
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         
+        // Avatar (Inisial)
         const avatar = clone.querySelector('.santri-avatar');
         avatar.textContent = santri.nama.substring(0,2).toUpperCase();
-        if(currentStatus !== 'Hadir') avatar.classList.add('opacity-80');
+        if(currentStatus !== 'Hadir') avatar.classList.add('opacity-70'); // Agak transparan kalau absen
 
-        // Badge Status di samping Nama
+        // --- BADGE STATUS (Di samping nama) ---
         if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
             const badge = document.createElement('span');
-            // Ambil style dari STATUS_UI untuk konsistensi
-            const uiStyle = STATUS_UI[currentStatus]; 
-            // Kita ambil class background gradientnya saja, tapi dipotong agar tidak terlalu heboh di badge kecil
-            // Atau pakai style manual simple:
-            let simpleClass = 'bg-slate-100 text-slate-600';
-            if(currentStatus === 'Sakit') simpleClass = 'bg-amber-100 text-amber-700';
-            if(currentStatus === 'Izin') simpleClass = 'bg-blue-100 text-blue-700';
-            if(currentStatus === 'Pulang') simpleClass = 'bg-purple-100 text-purple-700';
-            if(currentStatus === 'Alpa') simpleClass = 'bg-red-100 text-red-700';
-            if(currentStatus === 'Telat') simpleClass = 'bg-teal-100 text-teal-700';
-
-            badge.className = `ml-2 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 align-middle ${simpleClass}`;
             
-            let icon = activePermit ? '<i data-lucide="file-badge-2" class="w-3 h-3"></i>' : '';
+            // Style Badge Manual (IF-ELSE)
+            let badgeClass = 'ml-2 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 align-middle shadow-sm ';
+            let icon = '';
+            
+            if (activePermit) {
+                icon = '<i data-lucide="file-badge-2" class="w-3 h-3"></i>'; // Ikon Surat
+                // Badge Solid (Tegas)
+                if(currentStatus === 'Sakit') badgeClass += 'bg-amber-500 text-white';
+                else if(currentStatus === 'Izin') badgeClass += 'bg-blue-500 text-white';
+                else if(currentStatus === 'Pulang') badgeClass += 'bg-purple-500 text-white';
+            } else {
+                icon = '<i data-lucide="user-pen" class="w-3 h-3"></i>'; // Ikon Manual
+                // Badge Outline (Ringan)
+                if(currentStatus === 'Sakit') badgeClass += 'bg-white border border-amber-200 text-amber-600';
+                else if(currentStatus === 'Izin') badgeClass += 'bg-white border border-blue-200 text-blue-600';
+                else if(currentStatus === 'Pulang') badgeClass += 'bg-white border border-purple-200 text-purple-600';
+                else if(currentStatus === 'Alpa') badgeClass += 'bg-white border border-red-200 text-red-600';
+                else if(currentStatus === 'Telat') badgeClass += 'bg-white border border-teal-200 text-teal-600';
+            }
+            
+            badge.className = badgeClass;
             badge.innerHTML = `${icon} ${currentStatus}`;
             nameEl.appendChild(badge);
         }
 
-        // --- 5. RENDER TOMBOL AKTIVITAS (BAGIAN UTAMA) ---
+        // --- RENDER TOMBOL PRESENSI ---
         const btnCont = clone.querySelector('.activity-container');
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
@@ -1161,19 +1213,22 @@ window.renderAttendanceList = function() {
             const lbl = bClone.querySelector('.lbl-status');
             
             const curr = sData.status[act.id] || 'Tidak';
-            const ui = STATUS_UI[curr] || STATUS_UI['Tidak']; // Fallback aman
             
+            // Ambil style tombol dari CONFIG global agar konsisten
+            const ui = STATUS_UI[curr] || STATUS_UI['Tidak']; 
+            
+            // Cek konflik dengan surat izin
             const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
 
-            // Gunakan class dari STATUS_UI langsung
-            let btnClass = `btn-status w-12 h-12 rounded-xl flex items-center justify-center border font-black text-lg transition-all duration-300 ${ui.class} `;
+            // Base Style Tombol
+            let btnClass = `btn-status w-12 h-12 rounded-2xl flex items-center justify-center border-2 font-black text-lg transition-all duration-300 ${ui.class} `;
             
             if (hasPermitConflict) {
-                // Efek Ring Kuning jika ada konflik surat izin
+                // Efek "Glow" Kuning jika status manual beda dengan surat izin
                 btnClass += ' ring-4 ring-yellow-300/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 opacity-90 relative z-10';
             } else {
                 // Efek tekan normal
-                btnClass += ' active:scale-90 hover:scale-105';
+                btnClass += ' active:scale-90 hover:scale-105 hover:-translate-y-0.5';
             }
 
             btn.className = btnClass;
@@ -1188,15 +1243,17 @@ window.renderAttendanceList = function() {
             };
             
             lbl.textContent = act.label;
-            lbl.className = `lbl-status text-[10px] font-bold mt-1 text-center ${theme.text} opacity-70`;
+            lbl.className = `lbl-status text-[10px] font-bold mt-1.5 text-center ${theme.text} opacity-70 tracking-tight`;
             btnCont.appendChild(bClone);
         });
 
-        // Note Input
+        // Note Input (Catatan)
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         noteInp.value = sData.note || "";
-        noteInp.className = `input-note w-full text-xs p-2 rounded-lg border focus:ring-2 outline-none transition-all bg-white/40 dark:bg-black/20 ${theme.border} focus:border-emerald-500 focus:ring-emerald-200 placeholder-slate-400`;
+        
+        // Style Input Note mengikuti tema kartu
+        noteInp.className = `input-note w-full text-xs p-2.5 rounded-xl border focus:ring-2 outline-none transition-all bg-white/50 dark:bg-black/20 ${theme.border} focus:border-emerald-500 focus:ring-emerald-200 placeholder-slate-400 font-medium text-slate-700 dark:text-slate-200`;
         
         noteInp.onchange = (e) => {
             sData.note = e.target.value;
@@ -1209,10 +1266,12 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
-    // --- 6. UPDATE WIDGET RINGKASAN BAWAH ---
+    // --- UPDATE WIDGET RINGKASAN BAWAH (Floating Widget) ---
     const summaryWidget = document.getElementById('att-summary-widget');
     const summaryBadges = document.getElementById('att-summary-badges');
     const summaryNames = document.getElementById('att-summary-names');
+    
+    // Hitung total masalah
     const totalProblem = summaryCount.Sakit + summaryCount.Izin + summaryCount.Pulang + summaryCount.Alpa + summaryCount.Telat;
 
     if (summaryWidget && summaryBadges && summaryNames) {
@@ -1221,9 +1280,9 @@ window.renderAttendanceList = function() {
             summaryBadges.innerHTML = '';
             summaryNames.innerHTML = '';
 
-            // Render Badges Angka
+            // Render Badges Angka (Ringkasan)
             const makeBadge = (count, label, colorClass) => {
-                if(count > 0) summaryBadges.innerHTML += `<div class="px-3 py-1 rounded-lg font-bold text-xs whitespace-nowrap border ${colorClass}">${count} ${label}</div>`;
+                if(count > 0) summaryBadges.innerHTML += `<div class="px-3 py-1.5 rounded-xl font-bold text-xs whitespace-nowrap border shadow-sm ${colorClass}">${count} ${label}</div>`;
             };
 
             makeBadge(summaryCount.Sakit, 'Sakit', 'bg-amber-100 text-amber-700 border-amber-200');
@@ -1232,7 +1291,7 @@ window.renderAttendanceList = function() {
             makeBadge(summaryCount.Alpa, 'Alpa', 'bg-red-100 text-red-700 border-red-200');
             makeBadge(summaryCount.Telat, 'Telat', 'bg-teal-100 text-teal-700 border-teal-200');
 
-            // Render Detail Nama
+            // Render Detail Nama (List di bawah)
             summaryList.forEach(item => {
                 let color = 'bg-slate-100 text-slate-600';
                 if(item.status === 'Sakit') color = 'bg-amber-50 text-amber-600 border border-amber-100';
@@ -1242,8 +1301,8 @@ window.renderAttendanceList = function() {
                 else if(item.status === 'Telat') color = 'bg-teal-50 text-teal-600 border border-teal-100';
 
                 const badge = document.createElement('span');
-                badge.className = `px-2 py-1 rounded text-[10px] font-bold ${color}`;
-                badge.textContent = `${item.nama} (${item.status[0]})`;
+                badge.className = `px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm ${color}`;
+                badge.textContent = `${item.nama}`;
                 summaryNames.appendChild(badge);
             });
 
