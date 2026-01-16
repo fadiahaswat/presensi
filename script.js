@@ -4074,10 +4074,10 @@ window.renderPermitHistory = function() {
     if (!container) return;
     container.innerHTML = '';
 
-    // 1. Ambil History dari PERMITS
+    // 1. Ambil History dari PERMITS (Surat Resmi)
     let history = [...appState.permits].map(p => ({...p, source: 'permit'}));
 
-    // 2. [BARU] Scan History dari MANUAL (Attendance Data)
+    // 2. Scan History dari MANUAL (Presensi Harian)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     
     // Loop semua tanggal di attendanceData
@@ -4093,9 +4093,13 @@ window.renderPermitHistory = function() {
                 if(st && ['Sakit','Izin','Pulang'].includes(st)) foundSt = st;
             });
 
-            // Cek apakah ini sudah tercover permit (biar ga duplikat)
+            // Cek apakah ini sudah tercover permit resmi (biar ga duplikat)
+            // Logic: Jika di tanggal ini sudah ada permit dengan kategori sama, jangan tampilkan manualnya
             const coveredByPermit = history.some(p => 
-                p.nis === nis && p.start_date === date && p.category === foundSt?.toLowerCase()
+                String(p.nis) === nis && 
+                p.category === foundSt?.toLowerCase() &&
+                // Cek range tanggal permit
+                (date >= p.start_date && (!p.end_date || date <= p.end_date))
             );
 
             if (foundSt && !coveredByPermit) {
@@ -4104,69 +4108,134 @@ window.renderPermitHistory = function() {
                     id: `manual_${date}_${nis}`,
                     nis: nis,
                     category: foundSt.toLowerCase(),
-                    reason: "Input Manual (Presensi)",
+                    reason: "Input Manual (Tanpa Surat)",
                     start_date: date,
                     end_date: date, // Manual biasanya harian
-                    is_active: false, // Anggap selesai karena history harian
+                    is_active: false, // Manual dianggap 'selesai' karena tercatat per hari
                     source: 'manual',
-                    timestamp: date
+                    timestamp: date // Field helper sorting
                 });
             }
         });
     });
 
-    // 3. Sorting & Rendering (Sama seperti sebelumnya)
+    // 3. Sorting (Terbaru di atas)
     history.sort((a, b) => new Date(b.timestamp || b.start_date) - new Date(a.timestamp || a.start_date));
 
     // Filter hanya kelas ini
     history = history.filter(p => classNisList.includes(String(p.nis)));
 
     if (history.length === 0) {
-        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs font-bold">Belum ada riwayat</div>`;
+        container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl"><i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-3 text-slate-300"></i><p class="text-xs font-bold text-slate-400">Belum ada riwayat perizinan</p></div>`;
+        if(window.lucide) window.lucide.createIcons();
         return;
     }
 
+    // 4. Render UI
     history.forEach(p => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
         if(!santri) return;
 
         let colorTheme = 'bg-slate-100 text-slate-500';
         let iconName = 'file-text';
-        if (p.category === 'sakit') { colorTheme = 'bg-amber-100 text-amber-600'; iconName = 'thermometer'; }
-        else if (p.category === 'izin') { colorTheme = 'bg-blue-100 text-blue-600'; iconName = 'calendar'; }
-        else if (p.category === 'pulang') { colorTheme = 'bg-purple-100 text-purple-600'; iconName = 'bus'; }
+        let borderClass = 'border-slate-200';
 
-        // Badge Status
-        let badge = '';
-        if (p.source === 'manual') {
-            badge = `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">MANUAL</span>`;
-        } else {
-            // Logic Active/Selesai Permit
-            let isActive = p.is_active;
-            const catSafe = (p.category||'').toLowerCase();
-            if(catSafe === 'sakit' && p.end_date) isActive = false;
-            
-            badge = isActive 
-                ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">AKTIF</span>`
-                : `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold border border-slate-200">SELESAI</span>`;
+        // Styling Kategori
+        if (p.category === 'sakit') { 
+            colorTheme = 'bg-amber-100 text-amber-600'; 
+            borderClass = 'border-amber-200';
+            iconName = 'thermometer'; 
+        }
+        else if (p.category === 'izin') { 
+            colorTheme = 'bg-blue-100 text-blue-600'; 
+            borderClass = 'border-blue-200';
+            iconName = 'calendar'; 
+        }
+        else if (p.category === 'pulang') { 
+            colorTheme = 'bg-purple-100 text-purple-600'; 
+            borderClass = 'border-purple-200';
+            iconName = 'bus'; 
         }
 
-        const div = document.createElement('div');
-        div.className = `p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 mb-3 shadow-sm`;
-        div.innerHTML = `
-            <div class="flex gap-3">
-                <div class="w-10 h-10 rounded-xl ${colorTheme} flex items-center justify-center border border-white/20 shadow-sm flex-shrink-0"><i data-lucide="${iconName}" class="w-5 h-5"></i></div>
-                <div class="flex-1">
-                    <div class="flex justify-between items-start">
-                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">${santri.nama}</h4>
-                        ${badge}
-                    </div>
-                    <p class="text-[10px] text-slate-400 mt-0.5 font-medium"><i data-lucide="clock" class="w-3 h-3 inline mr-0.5"></i> ${window.formatDate(p.start_date)} ${p.end_date && p.end_date !== p.start_date ? '— ' + window.formatDate(p.end_date) : ''}</p>
-                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100">"${p.reason || '-'}"</p>
+        // --- LOGIKA BADGE STATUS (PERBAIKAN) ---
+        let badge = '';
+        
+        if (p.source === 'manual') {
+            // Badge Manual
+            badge = `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase tracking-wider">MANUAL</span>`;
+        } else {
+            // Badge Permit Resmi (Aktif/Selesai)
+            let isActive = p.is_active;
+            const catSafe = (p.category || '').toLowerCase();
+            
+            // Cek ulang logika selesai visual
+            if (catSafe === 'sakit' && p.end_date) isActive = false;
+            if ((catSafe === 'izin' || catSafe === 'pulang') && p.end_date && p.end_date < window.getLocalDateStr()) isActive = false;
+
+            if (isActive) {
+                badge = `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-200 uppercase tracking-wider shadow-sm">AKTIF</span>`;
+            } else {
+                badge = `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase tracking-wider">SELESAI</span>`;
+            }
+        }
+
+        // --- LOGIKA TOMBOL CRUD (DIPULIHKAN) ---
+        // Hanya muncul jika source == 'permit' (Karena manual diedit lewat absen harian)
+        let actionButtons = '';
+        if (p.source === 'permit') {
+            actionButtons = `
+                <div class="flex flex-col gap-2 ml-2 pl-2 border-l border-slate-100 dark:border-slate-700">
+                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100" title="Edit Data">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-100" title="Hapus Permanen">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
                 </div>
-            </div>`;
+            `;
+        } else {
+            // Jika manual, kosong atau tombol info
+            actionButtons = `
+                 <div class="flex flex-col gap-2 ml-2 pl-2 border-l border-slate-100 dark:border-slate-700 opacity-50">
+                    <button disabled class="p-2 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed">
+                        <i data-lucide="lock" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        const dateDisplay = p.end_date && p.end_date !== p.start_date
+            ? `${window.formatDate(p.start_date)} — ${window.formatDate(p.end_date)}`
+            : window.formatDate(p.start_date);
+
+        const div = document.createElement('div');
+        div.className = `p-4 rounded-2xl bg-white dark:bg-slate-800 border ${borderClass} mb-3 shadow-sm hover:shadow-md transition-all relative group`;
+        
+        div.innerHTML = `
+            <div class="flex justify-between items-stretch">
+                <div class="flex gap-3 flex-1">
+                    <div class="w-10 h-10 rounded-xl ${colorTheme} flex items-center justify-center border border-white/20 shadow-sm flex-shrink-0">
+                        <i data-lucide="${iconName}" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${santri.nama}</h4>
+                            ${badge}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 font-medium flex items-center gap-1">
+                            <i data-lucide="clock" class="w-3 h-3"></i> ${dateDisplay}
+                        </p>
+                        <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100 dark:border-slate-700 max-w-full truncate">
+                            "${p.reason || '-'}"
+                        </p>
+                    </div>
+                </div>
+                ${actionButtons}
+            </div>
+        `;
         container.appendChild(div);
     });
+    
     if(window.lucide) window.lucide.createIcons();
 };
 
