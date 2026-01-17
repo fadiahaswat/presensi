@@ -14,6 +14,11 @@ const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 console.log("Supabase Siap!");
 
+let saveTimeout = null;
+let clockInterval = null;
+let lucideTimeout = null;
+let modalStack = [];
+
 // ==========================================
 // CONFIG & CONSTANTS
 // ==========================================
@@ -4576,10 +4581,6 @@ window.savePermitEdit = function() {
     window.renderActivePermitsWidget();
     window.renderAttendanceList();
 };
-
-// --- GLOBAL VARIABLES UNTUK FIX ---
-let saveTimeout = null;   // Untuk Debounce Save
-let clockInterval = null; // Untuk Memory Leak Clock
 
 // Helper: Debounce Save (Mencegah simpan data berlebihan)
 window.debounceSave = function() {
