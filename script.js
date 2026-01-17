@@ -3196,13 +3196,16 @@ window.syncToSupabase = async function() {
 
         if (error) throw error;
         
-        console.log("✅ Data tersimpan di Awan (Supabase)");
+        console.log("✅ Data tersimpan di Cloud (Supabase)");
         
     } catch (error) {
         console.error("❌ Supabase Sync Error:", error);
         
-        if(window.logActivity) {
-            window.logActivity('Sync Error', `Gagal sinkronisasi cloud: ${error.message}`);
+        // Don't spam user with errors
+        if(error.message && !error.message.includes('fetch')) {
+            if(window.logActivity) {
+                window.logActivity('Sync Error', `Gagal cloud sync: ${error.message}`);
+            }
         }
     }
 };
@@ -3240,20 +3243,25 @@ window.fetchAttendanceFromSupabase = async function() {
 
             localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
 
-            window.renderSlotList();
-            window.updateQuickStats();
-            window.drawDonutChart();
-            window.renderDashboardPembinaan();
+            // Refresh UI safely
+            if(typeof window.renderSlotList === 'function') window.renderSlotList();
+            if(typeof window.updateQuickStats === 'function') window.updateQuickStats();
+            if(typeof window.drawDonutChart === 'function') window.drawDonutChart();
+            if(typeof window.renderDashboardPembinaan === 'function') window.renderDashboardPembinaan();
             
-            console.log(`✅ Berhasil load ${data.length} data dari Supabase.`);
+            console.log(`✅ Loaded ${data.length} records from Cloud`);
         } else {
-            console.log("☁️ Tidak ada data di Cloud untuk tanggal ini.");
+            console.log("☁️ No cloud data for this date");
         }
 
     } catch (err) {
         console.error("❌ Fetch Supabase Error:", err);
-        if(window.logActivity) {
-            window.logActivity('Fetch Error', `Gagal ambil data cloud: ${err.message}`);
+        
+        // Only show toast if not network error
+        if(err.message && !err.message.includes('fetch') && !err.message.includes('network')) {
+            if(window.logActivity) {
+                window.logActivity('Fetch Error', `Cloud fetch failed: ${err.message}`);
+            }
         }
     }
 };
