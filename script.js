@@ -19,6 +19,12 @@ let clockInterval = null;
 let lucideTimeout = null;
 let modalStack = [];
 
+window.addEventListener('beforeunload', () => {
+    if(clockInterval) clearInterval(clockInterval);
+    if(saveTimeout) clearTimeout(saveTimeout);
+    if(lucideTimeout) clearTimeout(lucideTimeout);
+});
+
 // ==========================================
 // CONFIG & CONSTANTS
 // ==========================================
