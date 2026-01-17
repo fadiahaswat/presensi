@@ -2405,6 +2405,11 @@ window.restoreData = function() {
 };
 
 window.startClock = function() {
+    if(clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+    }
+    
     const updateClock = () => {
         const el = document.getElementById('dash-clock');
         if(el) {
@@ -2413,10 +2418,13 @@ window.startClock = function() {
             const secEl = document.getElementById('dash-clock-sec');
             if(secEl) secEl.textContent = String(now.getSeconds()).padStart(2, '0');
         }
-        window.checkScheduledNotifications();    
+        
+        try {
+            window.checkScheduledNotifications();
+        } catch(e) {
+            console.error('Notification error:', e);
+        }
     };
-    
-    if(clockInterval) clearInterval(clockInterval);
     
     updateClock();
     clockInterval = setInterval(updateClock, 1000);
