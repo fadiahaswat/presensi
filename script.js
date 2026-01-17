@@ -4785,5 +4785,46 @@ window.openModal = function(modalId) {
     modal.setAttribute('role', 'dialog'); // Accessibility
 };
 
+window.deepClone = function(obj) {
+    try {
+        return JSON.parse(JSON.stringify(obj));
+    } catch(e) {
+        console.error('Deep clone error:', e);
+        return obj;
+    }
+};
+
+// Debounce helper
+window.debounce = function(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
+
+// Throttle helper
+window.throttle = function(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+};
+
+// Safe array access
+window.safeArrayAccess = function(arr, index, defaultValue = null) {
+    return arr && arr[index] !== undefined ? arr[index] : defaultValue;
+};
+
 // Start App
 window.onload = window.initApp;
