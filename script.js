@@ -1049,9 +1049,7 @@ window.renderAttendanceList = function() {
     
     container.innerHTML = '';
     
-    // ==========================================
-    // 1. LOGIC ABSENSI (ASLI - TIDAK DIUBAH)
-    // ==========================================
+    // --- START LOGIC ABSENSI (ORIGINAL - TIDAK DIUBAH) ---
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
@@ -1096,7 +1094,7 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- START: LOGIC AUTO-FILL & INHERITANCE ---
+        // Logika Auto-Fill & Pewarisan Status
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -1172,132 +1170,134 @@ window.renderAttendanceList = function() {
             summaryCount[currentStatus] = (summaryCount[currentStatus] || 0) + 1;
             summaryList.push({ nama: santri.nama, status: currentStatus });
         }
-        // --- END: LOGIC ---
+        // --- END LOGIC ABSENSI ---
 
         // ==========================================
-        // 2. IMPLEMENTASI UI BARU (MODERN & MINIMALIS)
+        // MODERN UI IMPLEMENTATION
         // ==========================================
         
         const clone = tplRow.content.cloneNode(true);
-        // Menggunakan selector yang lebih spesifik untuk container kartu
-        const cardRoot = clone.querySelector('.santri-card-root'); 
+        const cardContainer = clone.querySelector('.santri-row');
         
         const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
         const cardStyle = uiConfig.card;
 
-        // A. CARD STYLING (Modern Squircle)
-        // shadow-sm yang halus, rounded-3xl, border tipis
-        cardRoot.className = `santri-card-root group relative p-5 rounded-[24px] border transition-all duration-300 mb-4 flex flex-col gap-4 shadow-[0_2px_15px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)] ${cardStyle.bg} ${cardStyle.border}`;
+        // CARD STYLING - Ultra modern dengan subtle glow
+        cardContainer.className = `santri-row relative overflow-hidden transition-all duration-500 ease-out hover:scale-[1.01] mb-5 ${cardStyle.bg} ${cardStyle.border} border rounded-3xl p-6 shadow-lg ${cardStyle.glow} hover:shadow-xl`;
         
-        // B. HEADER INFO (Avatar & Nama)
+        // HEADER SECTION
+        const headerDiv = clone.querySelector('.header-section');
+        headerDiv.className = "flex items-start gap-4 mb-6";
+        
+        // Avatar - Gradient background
         const avatarEl = clone.querySelector('.santri-avatar');
-        const nameEl = clone.querySelector('.santri-name');
-        const kamarEl = clone.querySelector('.santri-kamar');
-        const badgeContainer = clone.querySelector('.santri-badge-area');
+        const initials = santri.nama.substring(0,2).toUpperCase();
+        avatarEl.className = "w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center font-black text-xl bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 shadow-inner";
+        avatarEl.textContent = initials;
+        
+        // Info Column
+        const infoCol = clone.querySelector('.info-column');
+        infoCol.className = "flex-1 min-w-0";
+        
+        // Name Row
+        const nameRow = clone.querySelector('.name-row');
+        nameRow.className = "flex items-center gap-2 mb-2";
+        
+        const nameText = clone.querySelector('.santri-name');
+        nameText.className = "text-xl font-bold text-gray-900 tracking-tight leading-none";
+        nameText.textContent = window.sanitizeHTML(santri.nama);
+        
+        // Status Badge (conditional)
+        const statusBadgeContainer = clone.querySelector('.status-badge-container');
+        if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
+            const badge = document.createElement('span');
+            badge.className = `px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${uiConfig.badge}`;
+            badge.textContent = currentStatus;
+            statusBadgeContainer.appendChild(badge);
+        }
+        
+        // Room Info
+        const roomRow = clone.querySelector('.room-row');
+        roomRow.className = "flex items-center gap-2";
+        
+        const roomLabel = clone.querySelector('.room-label');
+        roomLabel.className = "px-2 py-0.5 rounded-md bg-gray-100 text-[9px] font-black text-gray-400 uppercase tracking-wider";
+        roomLabel.textContent = "KAMAR";
+        
+        const roomValue = clone.querySelector('.santri-kamar');
+        roomValue.className = "text-sm font-medium text-gray-600";
+        roomValue.textContent = santri.asrama || santri.kelas || "-";
 
-        // Avatar: Huruf inisial
-        if(avatarEl) {
-            avatarEl.textContent = santri.nama.substring(0,2).toUpperCase();
-            // Jika status 'Tidak', avatar abu-abu. Jika ada status, beri sedikit tint warna status
-            if (currentStatus === 'Hadir' || currentStatus === 'Ya' || currentStatus === 'Tidak') {
-                avatarEl.className = "santri-avatar w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500";
+        // ACTIVITY BUTTONS SECTION
+        const btnCont = clone.querySelector('.activity-container');
+        btnCont.className = "grid grid-cols-5 gap-3 mt-4";
+        btnCont.innerHTML = ''; // Clear template buttons
+
+        slot.activities.forEach(act => {
+            if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
+
+            const bClone = tplBtn.content.cloneNode(true);
+            const btnWrapper = bClone.querySelector('.btn-wrapper');
+            btnWrapper.className = "flex flex-col items-center gap-2 w-full";
+
+            const btn = bClone.querySelector('.btn-status');
+            const lbl = bClone.querySelector('.lbl-status');
+            
+            const curr = sData.status?.[act.id] || 'Tidak';
+            const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
+            const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
+
+            // Button Styling - Modern squircle dengan hover effect
+            let btnClass = `btn-status w-full aspect-square rounded-2xl flex items-center justify-center font-black text-2xl transition-all duration-300 cursor-pointer select-none ${uiBtn.class}`;
+            
+            if (hasPermitConflict) {
+                btnClass += ' ring-4 ring-rose-300/50 animate-pulse';
             } else {
-                 // Avatar berwarna sesuai status untuk visual cue instan
-                avatarEl.className = `santri-avatar w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold ${uiConfig.badge}`;
+                btnClass += ' active:scale-90 hover:-translate-y-0.5';
             }
-        }
 
-        // Nama & Kamar
-        if(nameEl) nameEl.textContent = santri.nama;
-        if(kamarEl) kamarEl.textContent = santri.asrama || santri.kelas || "-";
-
-        // Badge Status Utama (di sebelah nama)
-        // Hanya muncul jika statusnya BUKAN Hadir/Ya/Tidak untuk menjaga kebersihan visual (Clean Look)
-        if(badgeContainer) {
-            badgeContainer.innerHTML = ''; // Reset
-            if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
-                const badge = document.createElement('span');
-                badge.className = `px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide shadow-sm ${uiConfig.badge}`;
-                badge.textContent = currentStatus;
-                badgeContainer.appendChild(badge);
-            }
-        }
-
-        // C. ACTIVITY BUTTONS (GRID LAYOUT)
-        const btnCont = clone.querySelector('.activity-grid');
-        if (btnCont) {
-            slot.activities.forEach(act => {
-                if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
-
-                const bClone = tplBtn.content.cloneNode(true);
-                const btnAction = bClone.querySelector('.btn-action');
-                const btnLabel = bClone.querySelector('.btn-label');
-                
-                const curr = sData.status?.[act.id] || 'Tidak';
-                const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
-                const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
-
-                // Button Style: Squircle (App Icon style)
-                // Transisi scale saat diklik memberikan kesan 'tactile'
-                let btnClass = `btn-action w-full aspect-square rounded-[18px] flex items-center justify-center font-bold text-lg transition-all duration-200 select-none cursor-pointer ${uiBtn.class} `;
-                
+            btn.className = btnClass;
+            btn.textContent = uiBtn.label;
+            
+            // Click Handler
+            btn.onclick = (e) => {
+                e.stopPropagation();
                 if (hasPermitConflict) {
-                    // Indikasi visual jika dikunci oleh perizinan (Locked look)
-                    btnClass += ' ring-2 ring-rose-200 opacity-80 cursor-not-allowed striped-bg'; 
-                } else {
-                    btnClass += ' active:scale-90 hover:-translate-y-0.5';
+                    if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
+                    if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
                 }
+                window.toggleStatus(id, act.id, act.type);
+            };
+            
+            // Label - Clean typography
+            lbl.className = "lbl-status text-[11px] font-semibold text-gray-500 text-center truncate w-full";
+            lbl.textContent = act.label;
+            
+            btnCont.appendChild(bClone);
+        });
 
-                btnAction.className = btnClass;
-                btnAction.textContent = uiBtn.label;
-                
-                // Logic Klik
-                btnAction.onclick = (e) => {
-                    e.stopPropagation();
-                    // Interaksi konfirmasi jika konflik perizinan
-                    if (hasPermitConflict) {
-                        if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
-                        if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
-                    }
-                    window.toggleStatus(id, act.id, act.type);
-                };
-                
-                if(btnLabel) {
-                    btnLabel.textContent = act.label;
-                    // Label menjadi tebal jika aktif
-                    btnLabel.className = `btn-label text-[10px] text-center truncate w-full mt-1 ${curr !== 'Tidak' ? 'font-bold text-gray-600' : 'font-medium text-gray-400'}`;
-                }
-                
-                btnCont.appendChild(bClone);
-            });
-        }
-
-        // D. NOTE SECTION (Minimalist Chat Bubble Style)
-        const noteBox = clone.querySelector('.note-container');
-        const noteInp = clone.querySelector('.note-input');
-        const noteToggle = clone.querySelector('.note-toggle-btn');
+        // NOTE SECTION
+        const noteBox = clone.querySelector('.note-section');
+        const noteInp = clone.querySelector('.input-note');
         
         if (noteInp && noteBox) {
             noteInp.value = sData.note || "";
-            // Style input seperti bubble chat
-            noteInp.className = `note-input w-full text-xs font-medium p-3 rounded-2xl bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-2 focus:ring-emerald-100 transition-all placeholder-gray-400 text-gray-700`;
+            noteInp.className = "input-note w-full text-sm font-medium p-4 rounded-2xl bg-gray-50/80 backdrop-blur-sm border-0 focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:bg-white placeholder-gray-400 text-gray-700 transition-all duration-300";
+            noteInp.placeholder = "Tambahkan catatan...";
             
             noteInp.onchange = (e) => {
                 sData.note = window.sanitizeHTML(e.target.value);
                 window.saveData();
             };
             
-            // Tombol ikon pensil kecil untuk toggle
-            if(noteToggle) {
-                noteToggle.onclick = () => {
+            const editBtn = clone.querySelector('.btn-edit-note');
+            if(editBtn) {
+                editBtn.onclick = () => {
                     noteBox.classList.toggle('hidden');
-                    if(!noteBox.classList.contains('hidden')) noteInp.focus();
+                    if (!noteBox.classList.contains('hidden')) {
+                        noteInp.focus();
+                    }
                 };
-                // Jika sudah ada catatan, buka otomatis tapi transparan
-                if(sData.note) {
-                    noteBox.classList.remove('hidden');
-                    noteToggle.classList.add('text-emerald-500'); // Highlight icon
-                }
             }
         }
 
@@ -1307,7 +1307,7 @@ window.renderAttendanceList = function() {
     container.appendChild(fragment);
     
     // ==========================================
-    // 3. SUMMARY WIDGET (Modern Pills)
+    // SUMMARY WIDGET - Modern Pills Design
     // ==========================================
     const summaryWidget = document.getElementById('att-summary-widget');
     const summaryBadges = document.getElementById('att-summary-badges');
@@ -1318,17 +1318,16 @@ window.renderAttendanceList = function() {
     if (summaryWidget && summaryBadges && summaryNames) {
         if (totalProblem > 0) {
             summaryWidget.classList.remove('hidden');
-            // Pastikan container widget juga modern
-            summaryWidget.className = "mb-6 p-5 bg-white border border-rose-100 rounded-[24px] shadow-sm"; 
-            
             summaryBadges.innerHTML = '';
             summaryNames.innerHTML = '';
 
             const makeBadge = (count, label, uiType) => {
                 const ui = STATUS_UI[uiType];
                 if(count > 0) {
-                    // Badge berbentuk Pill
-                    summaryBadges.innerHTML += `<div class="px-4 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 ${ui.badge}">${label} <span class="bg-white/50 px-1.5 rounded-md text-[10px]">${count}</span></div>`;
+                    const pill = document.createElement('div');
+                    pill.className = `px-4 py-2 rounded-full font-bold text-sm shadow-md transition-transform hover:scale-105 ${ui.badge}`;
+                    pill.textContent = `${count} ${label}`;
+                    summaryBadges.appendChild(pill);
                 }
             };
 
@@ -1338,13 +1337,12 @@ window.renderAttendanceList = function() {
             makeBadge(summaryCount.Alpa, 'Alpa', 'Alpa'); 
             makeBadge(summaryCount.Telat, 'Telat', 'Telat');
 
-            // List Nama Ringkas
             summaryList.forEach(item => {
                 const ui = STATUS_UI[item.status] || STATUS_UI['Tidak'];
-                const pill = document.createElement('span');
-                pill.className = `px-2 py-1 rounded-md text-[10px] font-bold ${ui.badge} inline-block m-0.5 border border-transparent opacity-90`;
-                pill.textContent = item.nama;
-                summaryNames.appendChild(pill);
+                const badge = document.createElement('span');
+                badge.className = `px-3 py-1.5 rounded-xl text-xs font-semibold ${ui.badge} inline-block m-1 transition-all hover:scale-105`;
+                badge.textContent = window.sanitizeHTML(item.nama);
+                summaryNames.appendChild(badge);
             });
         } else {
             summaryWidget.classList.add('hidden');
