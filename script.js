@@ -1025,7 +1025,9 @@ window.renderAttendanceList = function() {
     
     container.innerHTML = '';
     
-    // --- START LOGIC ABSENSI (ORIGINAL - TIDAK DIUBAH) ---
+    // ==========================================
+    // 1. LOGIC ABSENSI (ASLI - TIDAK DIUBAH)
+    // ==========================================
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
@@ -1070,7 +1072,7 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // Logika Auto-Fill & Pewarisan Status
+        // --- START: LOGIC AUTO-FILL & INHERITANCE ---
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -1146,115 +1148,89 @@ window.renderAttendanceList = function() {
             summaryCount[currentStatus] = (summaryCount[currentStatus] || 0) + 1;
             summaryList.push({ nama: santri.nama, status: currentStatus });
         }
-        // --- END LOGIC ABSENSI ---
+        // --- END: LOGIC ---
 
         // ==========================================
-        // 3. IMPLEMENTASI UI (CLEAN UI & SOFT)
+        // 2. IMPLEMENTASI UI BARU (MODERN & MINIMALIS)
         // ==========================================
         
         const clone = tplRow.content.cloneNode(true);
-        const cardContainer = clone.querySelector('.santri-row') || clone.querySelector('div');
+        // Menggunakan selector yang lebih spesifik untuk container kartu
+        const cardRoot = clone.querySelector('.santri-card-root'); 
         
         const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
         const cardStyle = uiConfig.card;
 
-        // A. STYLE KARTU UTAMA
-        // Rounded-32px, Border tipis, Shadow halus
-        cardContainer.className = `santri-row relative p-6 rounded-[32px] border transition-all duration-300 mb-6 flex flex-col gap-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] ${cardStyle.bg} ${cardStyle.border}`;
+        // A. CARD STYLING (Modern Squircle)
+        // shadow-sm yang halus, rounded-3xl, border tipis
+        cardRoot.className = `santri-card-root group relative p-5 rounded-[24px] border transition-all duration-300 mb-4 flex flex-col gap-4 shadow-[0_2px_15px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)] ${cardStyle.bg} ${cardStyle.border}`;
         
-        // B. HEADER BARU (Avatar + Nama + Badge)
-        // Kita membangun ulang struktur header secara manual agar sesuai referensi
-        let headerDiv = document.createElement('div');
-        headerDiv.className = "flex items-start gap-4"; 
-        
-        // 1. AVATAR (Kiri) - Rounded 2xl
-        const avatarEl = document.createElement('div');
-        avatarEl.className = "w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-500 font-bold text-lg shrink-0";
-        avatarEl.textContent = santri.nama.substring(0,2).toUpperCase();
-        headerDiv.appendChild(avatarEl);
+        // B. HEADER INFO (Avatar & Nama)
+        const avatarEl = clone.querySelector('.santri-avatar');
+        const nameEl = clone.querySelector('.santri-name');
+        const kamarEl = clone.querySelector('.santri-kamar');
+        const badgeContainer = clone.querySelector('.santri-badge-area');
 
-        // 2. INFO COLUMN (Kanan)
-        const infoCol = document.createElement('div');
-        infoCol.className = "flex-1";
-        
-        // Baris Nama
-        const nameRow = document.createElement('div');
-        nameRow.className = "flex items-center gap-2 mb-1";
-        
-        const nameText = document.createElement('h2');
-        nameText.className = "text-lg font-bold text-gray-900 leading-tight line-clamp-1";
-        nameText.textContent = window.sanitizeHTML(santri.nama);
-        nameRow.appendChild(nameText);
-
-        // BADGE STATUS (Hanya muncul jika bukan Hadir/Ya/Tidak)
-        if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
-            const badge = document.createElement('span');
-            badge.className = `px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${uiConfig.badge}`;
-            badge.textContent = currentStatus;
-            nameRow.appendChild(badge);
+        // Avatar: Huruf inisial
+        if(avatarEl) {
+            avatarEl.textContent = santri.nama.substring(0,2).toUpperCase();
+            // Jika status 'Tidak', avatar abu-abu. Jika ada status, beri sedikit tint warna status
+            if (currentStatus === 'Hadir' || currentStatus === 'Ya' || currentStatus === 'Tidak') {
+                avatarEl.className = "santri-avatar w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500";
+            } else {
+                 // Avatar berwarna sesuai status untuk visual cue instan
+                avatarEl.className = `santri-avatar w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold ${uiConfig.badge}`;
+            }
         }
-        infoCol.appendChild(nameRow);
 
-        // Baris Kamar (Tertiary Info)
-        const roomRow = document.createElement('div');
-        roomRow.className = "text-sm text-gray-500 flex items-center gap-2";
-        const roomLabel = document.createElement('span');
-        roomLabel.className = "bg-gray-100 px-1.5 rounded text-[10px] font-bold tracking-wider text-gray-400 uppercase";
-        roomLabel.textContent = "KAMAR";
-        const roomValue = document.createElement('span');
-        roomValue.className = "text-gray-600";
-        roomValue.textContent = santri.asrama || santri.kelas || "-";
-        
-        roomRow.appendChild(roomLabel);
-        roomRow.appendChild(roomValue);
-        infoCol.appendChild(roomRow);
+        // Nama & Kamar
+        if(nameEl) nameEl.textContent = santri.nama;
+        if(kamarEl) kamarEl.textContent = santri.asrama || santri.kelas || "-";
 
-        headerDiv.appendChild(infoCol);
-        
-        // Masukkan Header ke dalam Card (Hapus isi lama card terlebih dahulu jika perlu, tapi kita prepend saja)
-        // Membersihkan konten default template agar tidak duplikat
-        const oldName = clone.querySelector('.santri-name'); if(oldName) oldName.remove();
-        const oldKamar = clone.querySelector('.santri-kamar'); if(oldKamar) oldKamar.remove();
-        const oldAvatar = clone.querySelector('.santri-avatar'); if(oldAvatar) oldAvatar.remove();
-        
-        cardContainer.prepend(headerDiv);
+        // Badge Status Utama (di sebelah nama)
+        // Hanya muncul jika statusnya BUKAN Hadir/Ya/Tidak untuk menjaga kebersihan visual (Clean Look)
+        if(badgeContainer) {
+            badgeContainer.innerHTML = ''; // Reset
+            if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
+                const badge = document.createElement('span');
+                badge.className = `px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide shadow-sm ${uiConfig.badge}`;
+                badge.textContent = currentStatus;
+                badgeContainer.appendChild(badge);
+            }
+        }
 
-        // C. ACTIVITY TRACKER (Buttons)
-        const btnCont = clone.querySelector('.activity-container');
+        // C. ACTIVITY BUTTONS (GRID LAYOUT)
+        const btnCont = clone.querySelector('.activity-grid');
         if (btnCont) {
-            // Layout GRID 5 Kolom presisi
-            btnCont.className = "activity-container grid grid-cols-5 gap-3 items-start mt-2"; 
-            btnCont.style.cssText = ""; // Reset inline styles
-
             slot.activities.forEach(act => {
                 if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
                 const bClone = tplBtn.content.cloneNode(true);
-                const btnWrapper = bClone.querySelector('div');
-                if(btnWrapper) btnWrapper.className = "flex flex-col items-center gap-2 w-full"; 
-
-                const btn = bClone.querySelector('.btn-status');
-                const lbl = bClone.querySelector('.lbl-status');
+                const btnAction = bClone.querySelector('.btn-action');
+                const btnLabel = bClone.querySelector('.btn-label');
                 
                 const curr = sData.status?.[act.id] || 'Tidak';
                 const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
                 const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
 
-                // STYLE TOMBOL (SQUIRCLE)
-                let btnClass = `btn-status w-full aspect-square rounded-2xl flex items-center justify-center font-bold text-xl transition-all duration-200 ${uiBtn.class} `;
+                // Button Style: Squircle (App Icon style)
+                // Transisi scale saat diklik memberikan kesan 'tactile'
+                let btnClass = `btn-action w-full aspect-square rounded-[18px] flex items-center justify-center font-bold text-lg transition-all duration-200 select-none cursor-pointer ${uiBtn.class} `;
                 
                 if (hasPermitConflict) {
-                    btnClass += ' ring-4 ring-rose-200 opacity-90'; 
+                    // Indikasi visual jika dikunci oleh perizinan (Locked look)
+                    btnClass += ' ring-2 ring-rose-200 opacity-80 cursor-not-allowed striped-bg'; 
                 } else {
-                    btnClass += ' active:scale-95 hover:shadow-md';
+                    btnClass += ' active:scale-90 hover:-translate-y-0.5';
                 }
 
-                btn.className = btnClass;
-                btn.textContent = uiBtn.label;
+                btnAction.className = btnClass;
+                btnAction.textContent = uiBtn.label;
                 
-                // Click Handler
-                btn.onclick = (e) => {
+                // Logic Klik
+                btnAction.onclick = (e) => {
                     e.stopPropagation();
+                    // Interaksi konfirmasi jika konflik perizinan
                     if (hasPermitConflict) {
                         if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
                         if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
@@ -1262,30 +1238,43 @@ window.renderAttendanceList = function() {
                     window.toggleStatus(id, act.id, act.type);
                 };
                 
-                // Label di bawah tombol
-                lbl.textContent = act.label;
-                lbl.className = `lbl-status text-[11px] font-medium text-gray-400 text-center truncate w-full`;
+                if(btnLabel) {
+                    btnLabel.textContent = act.label;
+                    // Label menjadi tebal jika aktif
+                    btnLabel.className = `btn-label text-[10px] text-center truncate w-full mt-1 ${curr !== 'Tidak' ? 'font-bold text-gray-600' : 'font-medium text-gray-400'}`;
+                }
                 
                 btnCont.appendChild(bClone);
             });
         }
 
-        // D. NOTE SECTION (Minimalist)
-        const noteBox = clone.querySelector('.note-section');
-        const noteInp = clone.querySelector('.input-note');
+        // D. NOTE SECTION (Minimalist Chat Bubble Style)
+        const noteBox = clone.querySelector('.note-container');
+        const noteInp = clone.querySelector('.note-input');
+        const noteToggle = clone.querySelector('.note-toggle-btn');
         
         if (noteInp && noteBox) {
             noteInp.value = sData.note || "";
-            // Input style: Background abu muda, tanpa border kecuali fokus
-            noteInp.className = `input-note w-full text-xs font-medium p-3 rounded-xl bg-gray-50 border-0 focus:ring-2 focus:ring-blue-200 focus:bg-white placeholder-gray-400 text-gray-700 transition-all`;
+            // Style input seperti bubble chat
+            noteInp.className = `note-input w-full text-xs font-medium p-3 rounded-2xl bg-gray-50 border-transparent focus:bg-white focus:border-gray-200 focus:ring-2 focus:ring-emerald-100 transition-all placeholder-gray-400 text-gray-700`;
             
             noteInp.onchange = (e) => {
                 sData.note = window.sanitizeHTML(e.target.value);
                 window.saveData();
             };
             
-            const editBtn = clone.querySelector('.btn-edit-note');
-            if(editBtn) editBtn.onclick = () => noteBox.classList.toggle('hidden');
+            // Tombol ikon pensil kecil untuk toggle
+            if(noteToggle) {
+                noteToggle.onclick = () => {
+                    noteBox.classList.toggle('hidden');
+                    if(!noteBox.classList.contains('hidden')) noteInp.focus();
+                };
+                // Jika sudah ada catatan, buka otomatis tapi transparan
+                if(sData.note) {
+                    noteBox.classList.remove('hidden');
+                    noteToggle.classList.add('text-emerald-500'); // Highlight icon
+                }
+            }
         }
 
         fragment.appendChild(clone);
@@ -1294,7 +1283,7 @@ window.renderAttendanceList = function() {
     container.appendChild(fragment);
     
     // ==========================================
-    // 4. SUMMARY WIDGET (Update Warna)
+    // 3. SUMMARY WIDGET (Modern Pills)
     // ==========================================
     const summaryWidget = document.getElementById('att-summary-widget');
     const summaryBadges = document.getElementById('att-summary-badges');
@@ -1305,13 +1294,18 @@ window.renderAttendanceList = function() {
     if (summaryWidget && summaryBadges && summaryNames) {
         if (totalProblem > 0) {
             summaryWidget.classList.remove('hidden');
+            // Pastikan container widget juga modern
+            summaryWidget.className = "mb-6 p-5 bg-white border border-rose-100 rounded-[24px] shadow-sm"; 
+            
             summaryBadges.innerHTML = '';
             summaryNames.innerHTML = '';
 
             const makeBadge = (count, label, uiType) => {
                 const ui = STATUS_UI[uiType];
-                // Badge ringkasan menggunakan style border dari config UI
-                if(count > 0) summaryBadges.innerHTML += `<div class="px-3 py-1.5 rounded-lg font-bold text-xs border bg-white shadow-sm ${ui.badge}">${count} ${label}</div>`;
+                if(count > 0) {
+                    // Badge berbentuk Pill
+                    summaryBadges.innerHTML += `<div class="px-4 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 ${ui.badge}">${label} <span class="bg-white/50 px-1.5 rounded-md text-[10px]">${count}</span></div>`;
+                }
             };
 
             makeBadge(summaryCount.Sakit, 'Sakit', 'Sakit');
@@ -1320,12 +1314,13 @@ window.renderAttendanceList = function() {
             makeBadge(summaryCount.Alpa, 'Alpa', 'Alpa'); 
             makeBadge(summaryCount.Telat, 'Telat', 'Telat');
 
+            // List Nama Ringkas
             summaryList.forEach(item => {
                 const ui = STATUS_UI[item.status] || STATUS_UI['Tidak'];
-                const badge = document.createElement('span');
-                badge.className = `px-2 py-1 rounded-md text-[10px] font-bold ${ui.badge} inline-block m-0.5 border border-transparent`;
-                badge.textContent = window.sanitizeHTML(item.nama);
-                summaryNames.appendChild(badge);
+                const pill = document.createElement('span');
+                pill.className = `px-2 py-1 rounded-md text-[10px] font-bold ${ui.badge} inline-block m-0.5 border border-transparent opacity-90`;
+                pill.textContent = item.nama;
+                summaryNames.appendChild(pill);
             });
         } else {
             summaryWidget.classList.add('hidden');
