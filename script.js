@@ -4346,64 +4346,63 @@ window.renderPermitHistory = function() {
     if (!container) return;
     container.innerHTML = '';
 
-    // 1. Ambil History dari PERMITS (Surat Resmi)
     let history = [...appState.permits].map(p => ({...p, source: 'permit'}));
-
-    // 2. Scan History dari MANUAL (Presensi Harian)
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     
-    // Loop semua tanggal di attendanceData
+    // Create Set for fast permit lookup
+    const permitLookup = new Set();
+    appState.permits.forEach(p => {
+        if(p.start_date && p.end_date) {
+            // Create keys for all dates in range
+            const start = new Date(p.start_date);
+            const end = new Date(p.end_date);
+            for(let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+                const key = `${p.nis}_${window.getLocalDateStr(d)}_${p.category}`;
+                permitLookup.add(key);
+            }
+        }
+    });
+    
+    // Scan manual entries
     Object.keys(appState.attendanceData).forEach(date => {
         const daySlots = appState.attendanceData[date];
         
-        // Loop santri di kelas ini
         classNisList.forEach(nis => {
-            // Cek apakah ada status S/I/P di hari ini (ambil slot terakhir yg sakit)
             let foundSt = null;
             ['isya', 'maghrib', 'ashar', 'shubuh'].forEach(slot => {
                 const st = daySlots[slot]?.[nis]?.status?.shalat;
                 if(st && ['Sakit','Izin','Pulang'].includes(st)) foundSt = st;
             });
 
-            // Cek apakah ini sudah tercover permit resmi (biar ga duplikat)
-            // Logic: Jika di tanggal ini sudah ada permit dengan kategori sama, jangan tampilkan manualnya
-            const coveredByPermit = history.some(p => 
-                String(p.nis) === nis && 
-                p.category === foundSt?.toLowerCase() &&
-                // Cek range tanggal permit
-                (date >= p.start_date && (!p.end_date || date <= p.end_date))
-            );
+            // Check if NOT covered by permit
+            const key = `${nis}_${date}_${foundSt?.toLowerCase()}`;
+            const coveredByPermit = permitLookup.has(key);
 
             if (foundSt && !coveredByPermit) {
-                // Tambahkan sebagai history manual
                 history.push({
                     id: `manual_${date}_${nis}`,
                     nis: nis,
                     category: foundSt.toLowerCase(),
                     reason: "Input Manual (Tanpa Surat)",
                     start_date: date,
-                    end_date: date, // Manual biasanya harian
-                    is_active: false, // Manual dianggap 'selesai' karena tercatat per hari
+                    end_date: date,
+                    is_active: false,
                     source: 'manual',
-                    timestamp: date // Field helper sorting
+                    timestamp: date
                 });
             }
         });
     });
 
-    // 3. Sorting (Terbaru di atas)
     history.sort((a, b) => new Date(b.timestamp || b.start_date) - new Date(a.timestamp || a.start_date));
-
-    // Filter hanya kelas ini
     history = history.filter(p => classNisList.includes(String(p.nis)));
 
     if (history.length === 0) {
         container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl"><i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-3 text-slate-300"></i><p class="text-xs font-bold text-slate-400">Belum ada riwayat perizinan</p></div>`;
-        if(window.lucide) window.lucide.createIcons();
+        window.refreshIcons();
         return;
     }
 
-    // 4. Render UI
     history.forEach(p => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
         if(!santri) return;
@@ -4412,7 +4411,6 @@ window.renderPermitHistory = function() {
         let iconName = 'file-text';
         let borderClass = 'border-slate-200';
 
-        // Styling Kategori
         if (p.category === 'sakit') { 
             colorTheme = 'bg-amber-100 text-amber-600'; 
             borderClass = 'border-amber-200';
@@ -4429,18 +4427,14 @@ window.renderPermitHistory = function() {
             iconName = 'bus'; 
         }
 
-        // --- LOGIKA BADGE STATUS (PERBAIKAN) ---
         let badge = '';
         
         if (p.source === 'manual') {
-            // Badge Manual
             badge = `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase tracking-wider">MANUAL</span>`;
         } else {
-            // Badge Permit Resmi (Aktif/Selesai)
             let isActive = p.is_active;
             const catSafe = (p.category || '').toLowerCase();
             
-            // Cek ulang logika selesai visual
             if (catSafe === 'sakit' && p.end_date) isActive = false;
             if ((catSafe === 'izin' || catSafe === 'pulang') && p.end_date && p.end_date < window.getLocalDateStr()) isActive = false;
 
@@ -4451,25 +4445,22 @@ window.renderPermitHistory = function() {
             }
         }
 
-        // --- LOGIKA TOMBOL CRUD (DIPULIHKAN) ---
-        // Hanya muncul jika source == 'permit' (Karena manual diedit lewat absen harian)
         let actionButtons = '';
         if (p.source === 'permit') {
             actionButtons = `
                 <div class="flex flex-col gap-2 ml-2 pl-2 border-l border-slate-100 dark:border-slate-700">
-                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100" title="Edit Data">
+                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100" title="Edit Data" aria-label="Edit izin ${window.sanitizeHTML(santri.nama)}">
                         <i data-lucide="edit-2" class="w-4 h-4"></i>
                     </button>
-                    <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-100" title="Hapus Permanen">
+                    <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-100" title="Hapus Permanen" aria-label="Hapus izin ${window.sanitizeHTML(santri.nama)}">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>
             `;
         } else {
-            // Jika manual, kosong atau tombol info
             actionButtons = `
                  <div class="flex flex-col gap-2 ml-2 pl-2 border-l border-slate-100 dark:border-slate-700 opacity-50">
-                    <button disabled class="p-2 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed">
+                    <button disabled class="p-2 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed" aria-label="Manual entry tidak bisa diedit">
                         <i data-lucide="lock" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -4491,14 +4482,14 @@ window.renderPermitHistory = function() {
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${santri.nama}</h4>
+                            <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${window.sanitizeHTML(santri.nama)}</h4>
                             ${badge}
                         </div>
                         <p class="text-[10px] text-slate-400 mt-1 font-medium flex items-center gap-1">
                             <i data-lucide="clock" class="w-3 h-3"></i> ${dateDisplay}
                         </p>
                         <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100 dark:border-slate-700 max-w-full truncate">
-                            "${p.reason || '-'}"
+                            "${window.sanitizeHTML(p.reason || '-')}"
                         </p>
                     </div>
                 </div>
@@ -4508,7 +4499,7 @@ window.renderPermitHistory = function() {
         container.appendChild(div);
     });
     
-    if(window.lucide) window.lucide.createIcons();
+    window.refreshIcons();
 };
 
 // 1. Fungsi Hapus (Khusus History)
