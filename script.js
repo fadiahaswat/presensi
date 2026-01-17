@@ -4725,5 +4725,28 @@ window.renderSchoolStatsWidget = function() {
     }
 };
 
+window.openModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if(!modal) return;
+    
+    const baseZIndex = 1000;
+    const zIndex = baseZIndex + (modalStack.length * 10);
+    
+    modal.style.zIndex = zIndex;
+    modal.classList.remove('hidden');
+    modalStack.push(modalId);
+    
+    const escHandler = (e) => {
+        if(e.key === 'Escape') {
+            window.closeModal(modalId);
+        }
+    };
+    
+    document.addEventListener('keydown', escHandler);
+    modal._escHandler = escHandler;
+    modal.setAttribute('aria-modal', 'true'); // Accessibility
+    modal.setAttribute('role', 'dialog'); // Accessibility
+};
+
 // Start App
 window.onload = window.initApp;
