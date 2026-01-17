@@ -266,51 +266,44 @@ const SLOT_WAKTU = {
 
 // Di script.js
 // Konfigurasi Tampilan Status (Flat Design Modern)
+// Konfigurasi Tampilan Status (Gaya Outline Seperti Screenshot)
 const STATUS_UI = {
     'Hadir': { 
-        class: 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-200', 
-        label: 'H',
+        // Biru Outline (Hadir)
+        class: 'bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-400', 
+        label: 'H', // Bisa diganti icon check jika mau
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
     },
     'Telat': { 
-        class: 'bg-teal-500 border-teal-600 text-white shadow-teal-200', 
-        label: 'T',
-        cardBg: 'bg-teal-50 dark:bg-teal-900/20',
-        text: 'text-teal-800 dark:text-teal-100'
+        class: 'bg-teal-50 border-teal-500 text-teal-600 dark:bg-teal-900/20 dark:border-teal-400 dark:text-teal-400', 
+        label: 'T'
     },
     'Ya': { 
-        class: 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-200', 
-        label: 'Y',
-        cardBg: 'bg-white dark:bg-slate-800',
-        text: 'text-slate-800 dark:text-white'
+        // Sama seperti Hadir untuk Sunnah
+        class: 'bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-400', 
+        label: 'H' // Menggunakan simbol 'I' (input) atau 'Y' sesuai selera
     },
     'Sakit': { 
-        class: 'bg-amber-500 border-amber-600 text-white shadow-amber-200', 
-        label: 'S',
-        cardBg: 'bg-amber-50 dark:bg-amber-900/20',
-        text: 'text-amber-800 dark:text-amber-100'
+        class: 'bg-amber-50 border-amber-500 text-amber-600 dark:bg-amber-900/20 dark:border-amber-400 dark:text-amber-400', 
+        label: 'S'
     },
     'Izin': { 
-        class: 'bg-blue-500 border-blue-600 text-white shadow-blue-200', 
-        label: 'I',
-        cardBg: 'bg-blue-50 dark:bg-blue-900/20',
-        text: 'text-blue-800 dark:text-blue-100'
+        // Biru Muda Outline (Seperti di Screenshot 'I')
+        class: 'bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-indigo-400', 
+        label: 'I'
     },
     'Pulang': { 
-        class: 'bg-purple-500 border-purple-600 text-white shadow-purple-200', 
-        label: 'P',
-        cardBg: 'bg-purple-50 dark:bg-purple-900/20',
-        text: 'text-purple-800 dark:text-purple-100'
+        class: 'bg-purple-50 border-purple-500 text-purple-600 dark:bg-purple-900/20 dark:border-purple-400 dark:text-purple-400', 
+        label: 'P'
     },
     'Alpa': { 
-        class: 'bg-rose-500 border-rose-600 text-white shadow-rose-200', 
-        label: 'A',
-        cardBg: 'bg-rose-50 dark:bg-rose-900/20',
-        text: 'text-rose-800 dark:text-rose-100'
+        class: 'bg-red-50 border-red-500 text-red-600 dark:bg-red-900/20 dark:border-red-400 dark:text-red-400', 
+        label: 'A'
     },
     'Tidak': { 
-        class: 'bg-white border-slate-200 text-slate-300 hover:border-slate-300 hover:text-slate-400', 
+        // Abu-abu Kosong (Seperti tanda '-' di screenshot)
+        class: 'bg-slate-50 border-slate-200 text-slate-300 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500', 
         label: '-',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
