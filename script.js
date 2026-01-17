@@ -1151,20 +1151,23 @@ window.renderAttendanceList = function() {
         const clone = tplRow.content.cloneNode(true);
         const cardContainer = clone.querySelector('.santri-row') || clone.querySelector('div');
         
+        // Ambil konfigurasi UI
         const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
+        const cardStyle = uiConfig.card || { bg: 'bg-white', border: 'border-slate-200' };
 
-        // 1. Container Styling (Rounded modern, shadow halus, border tipis)
-        cardContainer.className = `santri-row relative overflow-hidden transition-all duration-300 hover:shadow-lg p-4 rounded-[1.5rem] border flex flex-col gap-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700`;
+        // TERAPKAN LOGIKA KARTU:
+        // H/Y/Telat = Biasa (Putih)
+        // Sisanya = Tint BG + Solid Border
+        cardContainer.className = `santri-row group relative p-5 rounded-[1.75rem] border transition-all duration-300 hover:shadow-lg mb-4 flex flex-col gap-3 ${cardStyle.bg} ${cardStyle.border}`;
         
-        // Border Kiri Warna-warni (Indikator Cepat untuk Status Non-Hadir)
-        if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus) || activePermit) {
-            cardContainer.classList.add('border-l-[6px]'); // Border kiri tebal
-            if(currentStatus === 'Sakit') cardContainer.classList.add('border-l-amber-500');
-            else if(currentStatus === 'Izin') cardContainer.classList.add('border-l-blue-500');
-            else if(currentStatus === 'Pulang') cardContainer.classList.add('border-l-purple-500');
-            else if(currentStatus === 'Alpa') cardContainer.classList.add('border-l-rose-500');
+        // Tambahkan shadow halus jika kartu putih (supaya tidak flat)
+        if(currentStatus === 'Hadir' || currentStatus === 'Ya' || currentStatus === 'Telat' || currentStatus === 'Tidak') {
+            cardContainer.classList.add('shadow-sm');
+        } else {
+            // Jika kartu berwarna (Masalah), shadow lebih tipis atau glow
+             cardContainer.classList.add('shadow-md');
         }
-
+        
         // 2. Name & Avatar Styling
         const nameEl = clone.querySelector('.santri-name');
         nameEl.textContent = window.sanitizeHTML(santri.nama);
