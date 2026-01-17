@@ -363,7 +363,10 @@ window.getPembinaanStatus = function(alpaCount) {
 // ==========================================
 
 window.initApp = async function() {
-        try {
+    // [PERBAIKAN] Definisikan loadingEl di sini agar dikenali di block finally
+    const loadingEl = document.getElementById('view-loading');
+
+    try {
         // 1. UI RENDERING (Synchronous)
         try {
             window.startClock();
@@ -468,6 +471,7 @@ window.initApp = async function() {
         console.error("Critical Init Error:", criticalError);
         alert("Terjadi kesalahan sistem: " + criticalError.message);
     } finally {
+        // [FIX] loadingEl sekarang sudah terdefinisi
         if(loadingEl) {
             loadingEl.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => {
