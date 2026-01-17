@@ -266,86 +266,39 @@ const SLOT_WAKTU = {
 
 const STATUS_UI = {
     'Hadir': { 
-        class: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-emerald-700 border border-emerald-200/60 shadow-sm shadow-emerald-100/50 hover:shadow-md hover:shadow-emerald-200/40 z-10', 
-        label: 'H', 
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-emerald-100/50',
-            glow: 'shadow-emerald-50/30'
-        },
-        badge: 'bg-emerald-500/10 text-emerald-700 border border-emerald-200/50 backdrop-blur-sm'
+        class: 'bg-emerald-500 text-white border-emerald-500',
+        label: 'H'
     },
     'Ya': { 
-        class: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-emerald-700 border border-emerald-200/60 shadow-sm shadow-emerald-100/50 hover:shadow-md hover:shadow-emerald-200/40 z-10', 
-        label: 'Y',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-emerald-100/50',
-            glow: 'shadow-emerald-50/30'
-        },
-        badge: 'bg-emerald-500/10 text-emerald-700 border border-emerald-200/50 backdrop-blur-sm'
+        class: 'bg-emerald-500 text-white border-emerald-500',
+        label: 'Y'
     },
     'Telat': { 
-        class: 'bg-gradient-to-br from-teal-50 to-teal-100/50 text-teal-700 border-2 border-dashed border-teal-300/70 shadow-sm shadow-teal-100/50 hover:shadow-md hover:shadow-teal-200/40 z-10', 
-        label: 'T',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-teal-100/50',
-            glow: 'shadow-teal-50/30'
-        },
-        badge: 'bg-teal-500/10 text-teal-700 border border-dashed border-teal-300/50 backdrop-blur-sm'
+        class: 'bg-teal-400 text-white border-teal-400 border-dashed',
+        label: 'T'
     },
     'Izin': { 
-        class: 'bg-gradient-to-br from-blue-50 to-blue-100/50 text-blue-700 border border-blue-200/60 shadow-sm shadow-blue-100/50 hover:shadow-md hover:shadow-blue-200/40 z-10', 
-        label: 'I',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-blue-100/50',
-            glow: 'shadow-blue-50/30'
-        },
-        badge: 'bg-blue-500/10 text-blue-700 border border-blue-200/50 backdrop-blur-sm'
+        class: 'bg-blue-500 text-white border-blue-500',
+        label: 'I'
     },
     'Sakit': { 
-        class: 'bg-gradient-to-br from-amber-50 to-amber-100/50 text-amber-700 border border-amber-200/60 shadow-sm shadow-amber-100/50 hover:shadow-md hover:shadow-amber-200/40 z-10', 
-        label: 'S',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-amber-100/50',
-            glow: 'shadow-amber-50/30'
-        },
-        badge: 'bg-amber-500/10 text-amber-700 border border-amber-200/50 backdrop-blur-sm'
+        class: 'bg-amber-100 text-amber-600 border-amber-300',
+        label: 'S'
     },
     'Alpa': { 
-        class: 'bg-gradient-to-br from-rose-50 to-rose-100/50 text-rose-700 border border-rose-200/60 shadow-sm shadow-rose-100/50 hover:shadow-md hover:shadow-rose-200/40 z-10', 
-        label: 'A',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-rose-100/50',
-            glow: 'shadow-rose-50/30'
-        },
-        badge: 'bg-rose-500/10 text-rose-700 border border-rose-200/50 backdrop-blur-sm'
+        class: 'bg-red-50 text-red-500 border-red-200',
+        label: 'A'
     },
     'Pulang': { 
-        class: 'bg-gradient-to-br from-purple-50 to-purple-100/50 text-purple-700 border border-purple-200/60 shadow-sm shadow-purple-100/50 hover:shadow-md hover:shadow-purple-200/40 z-10', 
-        label: 'P',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-purple-100/50',
-            glow: 'shadow-purple-50/30'
-        },
-        badge: 'bg-purple-500/10 text-purple-700 border border-purple-200/50 backdrop-blur-sm'
+        class: 'bg-purple-100 text-purple-600 border-purple-300',
+        label: 'P'
     },
     'Tidak': { 
-        class: 'bg-white text-gray-400 border border-gray-200/60 hover:border-gray-300/80 hover:text-gray-500 hover:bg-gray-50/50 shadow-sm', 
-        label: '·',
-        card: { 
-            bg: 'bg-white', 
-            border: 'border-gray-100/50',
-            glow: 'shadow-gray-50/20'
-        },
-        badge: 'bg-gray-500/5 text-gray-500 border border-gray-200/40'
+        class: 'bg-slate-100 text-slate-300 border-slate-200 dark:bg-slate-700 dark:text-slate-500 dark:border-slate-600',
+        label: '-'
     }
 };
+
 
 // Tambahkan 'kemarin': 0 agar logika matematika berjalan
 const SESSION_ORDER = { 'kemarin': 0, 'shubuh': 1, 'sekolah': 2, 'ashar': 3, 'maghrib': 4, 'isya': 5 };
