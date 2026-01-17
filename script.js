@@ -14,15 +14,6 @@ const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 console.log("Supabase Siap!");
 
-// --- KONFIGURASI DEVELOPER ---
-const BYPASS_LOGIN = true; // Set 'true' untuk matikan login, 'false' untuk nyalakan
-const MOCK_USER = {
-    email: "dev@santri.app",
-    name: "Developer Mode",
-    picture: "https://ui-avatars.com/api/?name=Dev+Mode&background=0D8ABC&color=fff"
-};
-// -----------------------------
-
 let saveTimeout = null;
 let clockInterval = null;
 let lucideTimeout = null;
