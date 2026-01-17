@@ -76,14 +76,18 @@ window.sanitizeHTML = function(str) {
     return div.textContent; // Return text, NOT innerHTML
 };
 
-let lucideTimeout;
 window.refreshIcons = function() {
     clearTimeout(lucideTimeout);
     lucideTimeout = setTimeout(() => {
-        if(window.lucide) window.lucide.createIcons();
-    }, 100);
+        if(window.lucide) {
+            try {
+                window.lucide.createIcons();
+            } catch(e) {
+                console.warn('Lucide render error:', e);
+            }
+        }
+    }, 150);
 };
-
 
 
 // ==========================================
