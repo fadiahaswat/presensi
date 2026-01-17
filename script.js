@@ -1215,10 +1215,10 @@ window.renderAttendanceList = function() {
         const editBtn = clone.querySelector('.btn-edit-note');
         editBtn.className = "w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all";
         
-        // ACTIVITY BUTTONS SECTION
+        // ACTIVITY BUTTONS SECTION - HORIZONTAL LAYOUT
         const btnCont = clone.querySelector('.activity-container');
-        btnCont.className = "grid grid-cols-5 gap-3 justify-items-center pt-1";
-        btnCont.innerHTML = ''; // Clear template
+        btnCont.className = "flex gap-3 overflow-x-auto hide-scrollbar pb-2 pt-1";
+        btnCont.innerHTML = '';
 
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
