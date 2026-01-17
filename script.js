@@ -1611,7 +1611,20 @@ window.viewRekapBulanan = function() {
 
 window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
-    if(modal) modal.classList.add('hidden');
+    if(!modal) return;
+    
+    modal.classList.add('hidden');
+    
+    const index = modalStack.indexOf(modalId);
+    if(index > -1) modalStack.splice(index, 1);
+    
+    if(modal._escHandler) {
+        document.removeEventListener('keydown', modal._escHandler);
+        delete modal._escHandler;
+    }
+    
+    modal.removeAttribute('aria-modal');
+    modal.removeAttribute('role');
 };
 
 window.generateRekapBulanan = function() {
