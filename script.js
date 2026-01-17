@@ -264,51 +264,54 @@ const SLOT_WAKTU = {
     ]}
 };
 
-// Konfigurasi Tampilan Status (Refined Design)
+// Konfigurasi Tampilan Status: GAMIFIED 3D POP STYLE
+// Menggunakan 'shadow-[0_3px_0_rgb(...)]' untuk efek layer tebal
 const STATUS_UI = {
     'Hadir': { 
-        // POSITIF KUAT (Solid Green)
-        class: 'bg-emerald-500 border-2 border-emerald-500 text-white shadow-emerald-200/50 hover:bg-emerald-600 hover:border-emerald-600 dark:shadow-none', 
+        // HIJAU SOLID 3D (Sangat Mencolok)
+        // Bg Emerald cerah + Shadow Emerald Gelap
+        class: 'bg-emerald-500 text-white border-none shadow-[0_4px_0_#059669] hover:shadow-[0_2px_0_#059669] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:shadow-[0_4px_0_#047857]', 
         label: 'H',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
     },
     'Ya': { 
-        // POSITIF KUAT (Sama dengan Hadir)
-        class: 'bg-emerald-500 border-2 border-emerald-500 text-white shadow-emerald-200/50 hover:bg-emerald-600 hover:border-emerald-600 dark:shadow-none', 
+        // SAMA SEPERTI HADIR
+        class: 'bg-emerald-500 text-white border-none shadow-[0_4px_0_#059669] hover:shadow-[0_2px_0_#059669] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:shadow-[0_4px_0_#047857]', 
         label: 'Y'
     },
     'Telat': { 
-        // PERINGATAN RINGAN (Dashed Green)
-        // Border dashed memberikan kesan "Hadir tapi tidak penuh"
-        class: 'bg-emerald-50 border-2 border-dashed border-emerald-400 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-500 dark:text-emerald-400', 
+        // PUTIH dengan OUTLINE DASHED + TEXT HIJAU
+        // Memberikan kesan "Ada yang kurang" (dashed) tapi tetap positif (hijau)
+        class: 'bg-emerald-50 text-emerald-700 border-2 border-dashed border-emerald-400 shadow-none hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-500', 
         label: 'T'
     },
     'Sakit': { 
-        // NETRAL (Outline Amber)
-        class: 'bg-amber-50 border-2 border-amber-400 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-500 dark:text-amber-400', 
+        // KUNING LAYER (3D Tint)
+        // Background terang + Layer bawah Gelap
+        class: 'bg-amber-100 text-amber-800 border-none shadow-[0_4px_0_#d97706] hover:shadow-[0_2px_0_#d97706] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-amber-900/50 dark:text-amber-300 dark:shadow-[0_4px_0_#b45309]', 
         label: 'S'
     },
     'Izin': { 
-        // NETRAL (Outline Blue)
-        class: 'bg-blue-50 border-2 border-blue-400 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-500 dark:text-blue-400', 
+        // BIRU LAYER (3D Tint)
+        class: 'bg-blue-100 text-blue-800 border-none shadow-[0_4px_0_#2563eb] hover:shadow-[0_2px_0_#2563eb] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-blue-900/50 dark:text-blue-300 dark:shadow-[0_4px_0_#1d4ed8]', 
         label: 'I'
     },
     'Pulang': { 
-        // NETRAL (Outline Purple)
-        class: 'bg-purple-50 border-2 border-purple-400 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:border-purple-500 dark:text-purple-400', 
+        // UNGU LAYER (3D Tint)
+        class: 'bg-purple-100 text-purple-800 border-none shadow-[0_4px_0_#9333ea] hover:shadow-[0_2px_0_#9333ea] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-purple-900/50 dark:text-purple-300 dark:shadow-[0_4px_0_#7e22ce]', 
         label: 'P'
     },
     'Alpa': { 
-        // NEGATIF (Solid Rose/Red)
-        // Menggunakan Solid agar admin langsung "aware" ada yang bolos
-        // Jika ingin tetap outline, ganti ke style seperti 'Sakit' tapi warna Rose
-        class: 'bg-rose-100 border-2 border-rose-500 text-rose-700 hover:bg-rose-200 dark:bg-rose-900/30 dark:border-rose-500 dark:text-rose-400', 
+        // MERAH SOLID 3D (Peringatan Keras)
+        // Merah pekat agar beda level dengan Sakit/Izin
+        class: 'bg-rose-500 text-white border-none shadow-[0_4px_0_#be123c] hover:shadow-[0_2px_0_#be123c] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-rose-600 dark:shadow-[0_4px_0_#9f1239]', 
         label: 'A'
     },
     'Tidak': { 
-        // DEFAULT (Gray Outline)
-        class: 'bg-slate-50 border-2 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-600', 
+        // DEFAULT (INSET / TENGGELAM)
+        // Memberikan efek "Slot Kosong"
+        class: 'bg-slate-100 text-slate-400 border border-slate-200 shadow-inner hover:bg-slate-200 hover:text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500', 
         label: '-',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
