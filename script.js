@@ -1828,13 +1828,21 @@ window.saveData = function() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
         try {
-            localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
+            const dataStr = JSON.stringify(appState.attendanceData);
+            
+            // Check localStorage quota (iOS Safari limit ~5MB)
+            if(dataStr.length > 4500000) { // 4.5MB limit
+                console.warn('Data mendekati batas storage!');
+                window.showToast('Data hampir penuh. Pertimbangkan export.', 'warning');
+            }
+            
+            localStorage.setItem(APP_CONFIG.storageKey, dataStr);
             
             if(appState.settings.autoSave) {
                 const indicator = document.getElementById('save-indicator');
                 if(indicator) {
                     indicator.innerHTML = '<i data-lucide="check" class="w-5 h-5 text-emerald-500"></i>';
-                    if(window.lucide) window.lucide.createIcons();
+                    window.refreshIcons();
                     setTimeout(() => indicator.innerHTML = '', 1000);
                 }
             }
@@ -1842,9 +1850,14 @@ window.saveData = function() {
             window.syncToSupabase();
 
         } catch (e) {
-            window.showToast("Gagal menyimpan lokal: " + e.message, "error");
+            if(e.name === 'QuotaExceededError') {
+                window.showToast("Storage penuh! Hapus data lama.", "error");
+            } else {
+                window.showToast("Gagal menyimpan: " + e.message, "error");
+            }
+            console.error('Save error:', e);
         }
-    }, 300);
+    }, 500); // Increased debounce for better batching
 };
 
 window.updateQuickStats = function() {
