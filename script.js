@@ -3603,17 +3603,26 @@ window.toggleSelectAllPermit = function() {
     const btn = document.getElementById('btn-select-all-permit');
     const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]');
     
-    isAllSelected = !isAllSelected; // Toggle status
+    isAllSelected = !isAllSelected;
     
+    let actuallySelected = 0;
     checkboxes.forEach(cb => {
-        // Hanya centang yang terlihat (jika ada filter pencarian)
+        // Only toggle visible checkboxes
         if(cb.offsetParent !== null) {
             cb.checked = isAllSelected;
+            if(isAllSelected) actuallySelected++;
         }
     });
     
-    // Update Teks Tombol
-    if(btn) btn.textContent = isAllSelected ? "Batal Pilih" : "Pilih Semua";
+    // Update button text based on actual state
+    if(btn) {
+        if(isAllSelected) {
+            btn.innerHTML = '<i data-lucide="x-circle" class="w-4 h-4 mr-1"></i> Batal Pilih';
+        } else {
+            btn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4 mr-1"></i> Pilih Semua';
+        }
+        window.refreshIcons();
+    }
     
     window.updatePermitCount();
 };
