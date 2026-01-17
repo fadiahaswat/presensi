@@ -3726,6 +3726,9 @@ window.showStatDetails = function(statusType) {
     else if(statusType === 'Izin') colorClass = 'text-blue-500';
     else if(statusType === 'Alpa') colorClass = 'text-rose-500';
     else if(statusType === 'Hadir') colorClass = 'text-emerald-500';
+    // Tambahkan Handling Telat & Pulang (Jaga-jaga)
+    else if(statusType === 'Telat') colorClass = 'text-teal-500';
+    else if(statusType === 'Pulang') colorClass = 'text-purple-500';
     
     title.textContent = `Daftar ${statusType}`;
     title.className = `text-xl font-black ${colorClass}`;
