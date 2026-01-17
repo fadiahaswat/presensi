@@ -267,34 +267,42 @@ const SLOT_WAKTU = {
 const STATUS_UI = {
     'Hadir': { 
         class: 'bg-emerald-500 text-white border-emerald-500',
+        ring: 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'H'
     },
     'Ya': { 
         class: 'bg-emerald-500 text-white border-emerald-500',
+        ring: 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'Y'
     },
     'Telat': { 
-        class: 'bg-teal-400 text-white border-teal-400 border-dashed',
+        class: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700',
+        ring: 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'T'
     },
     'Izin': { 
-        class: 'bg-blue-500 text-white border-blue-500',
+        class: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700',
+        ring: 'ring-2 ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'I'
     },
     'Sakit': { 
-        class: 'bg-amber-100 text-amber-600 border-amber-300',
+        class: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',
+        ring: 'ring-2 ring-amber-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'S'
     },
     'Alpa': { 
-        class: 'bg-red-50 text-red-500 border-red-200',
+        class: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700',
+        ring: 'ring-2 ring-red-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'A'
     },
     'Pulang': { 
-        class: 'bg-purple-100 text-purple-600 border-purple-300',
+        class: 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',
+        ring: 'ring-2 ring-purple-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'P'
     },
     'Tidak': { 
-        class: 'bg-slate-100 text-slate-300 border-slate-200 dark:bg-slate-700 dark:text-slate-500 dark:border-slate-600',
+        class: 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-700 dark:text-slate-500 dark:border-slate-600',
+        ring: 'ring-2 ring-slate-300 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: '-'
     }
 };
