@@ -264,54 +264,53 @@ const SLOT_WAKTU = {
     ]}
 };
 
-// Konfigurasi Tampilan Status: GAMIFIED 3D POP STYLE
-// Menggunakan 'shadow-[0_3px_0_rgb(...)]' untuk efek layer tebal
+// Konfigurasi Tampilan Status: HYBRID 3D OUTLINE (Solid + Depth)
 const STATUS_UI = {
     'Hadir': { 
-        // HIJAU SOLID 3D (Sangat Mencolok)
-        // Bg Emerald cerah + Shadow Emerald Gelap
-        class: 'bg-emerald-500 text-white border-none shadow-[0_4px_0_#059669] hover:shadow-[0_2px_0_#059669] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:shadow-[0_4px_0_#047857]', 
+        // SOLID 3D BLOCK (Status Utama = Penuh)
+        // Hijau Pekat + Bayangan Hijau Tua
+        class: 'bg-emerald-500 text-white border-2 border-emerald-500 shadow-[0_4px_0_#065f46] hover:shadow-[0_2px_0_#065f46] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:border-emerald-600 dark:shadow-[0_4px_0_#022c22]', 
         label: 'H',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
     },
     'Ya': { 
         // SAMA SEPERTI HADIR
-        class: 'bg-emerald-500 text-white border-none shadow-[0_4px_0_#059669] hover:shadow-[0_2px_0_#059669] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:shadow-[0_4px_0_#047857]', 
+        class: 'bg-emerald-500 text-white border-2 border-emerald-500 shadow-[0_4px_0_#065f46] hover:shadow-[0_2px_0_#065f46] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:border-emerald-600 dark:shadow-[0_4px_0_#022c22]', 
         label: 'Y'
     },
     'Telat': { 
-        // PUTIH dengan OUTLINE DASHED + TEXT HIJAU
-        // Memberikan kesan "Ada yang kurang" (dashed) tapi tetap positif (hijau)
-        class: 'bg-emerald-50 text-emerald-700 border-2 border-dashed border-emerald-400 shadow-none hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-500', 
+        // DASHED 3D OUTLINE (Unik)
+        // Tengah Putih + Garis Putus-putus + Bayangan Solid
+        class: 'bg-emerald-50 text-emerald-700 border-2 border-dashed border-emerald-500 shadow-[0_4px_0_#10b981] hover:shadow-[0_2px_0_#10b981] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-400 dark:shadow-[0_4px_0_#064e3b]', 
         label: 'T'
     },
     'Sakit': { 
-        // KUNING LAYER (3D Tint)
-        // Background terang + Layer bawah Gelap
-        class: 'bg-amber-100 text-amber-800 border-none shadow-[0_4px_0_#d97706] hover:shadow-[0_2px_0_#d97706] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-amber-900/50 dark:text-amber-300 dark:shadow-[0_4px_0_#b45309]', 
+        // HOLLOW 3D (Berjenjang Outline)
+        // Tengah Kuning Muda + Border Kuning Tua + Bayangan Kuning Tua
+        class: 'bg-amber-50 text-amber-700 border-2 border-amber-500 shadow-[0_4px_0_#d97706] hover:shadow-[0_2px_0_#d97706] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-400 dark:shadow-[0_4px_0_#78350f]', 
         label: 'S'
     },
     'Izin': { 
-        // BIRU LAYER (3D Tint)
-        class: 'bg-blue-100 text-blue-800 border-none shadow-[0_4px_0_#2563eb] hover:shadow-[0_2px_0_#2563eb] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-blue-900/50 dark:text-blue-300 dark:shadow-[0_4px_0_#1d4ed8]', 
+        // HOLLOW 3D (Berjenjang Outline)
+        // Tengah Biru Muda + Border Biru Tua + Bayangan Biru Tua
+        class: 'bg-blue-50 text-blue-700 border-2 border-blue-500 shadow-[0_4px_0_#2563eb] hover:shadow-[0_2px_0_#2563eb] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400 dark:shadow-[0_4px_0_#1e3a8a]', 
         label: 'I'
     },
     'Pulang': { 
-        // UNGU LAYER (3D Tint)
-        class: 'bg-purple-100 text-purple-800 border-none shadow-[0_4px_0_#9333ea] hover:shadow-[0_2px_0_#9333ea] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-purple-900/50 dark:text-purple-300 dark:shadow-[0_4px_0_#7e22ce]', 
+        // HOLLOW 3D (Berjenjang Outline)
+        class: 'bg-purple-50 text-purple-700 border-2 border-purple-500 shadow-[0_4px_0_#9333ea] hover:shadow-[0_2px_0_#9333ea] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-400 dark:shadow-[0_4px_0_#581c87]', 
         label: 'P'
     },
     'Alpa': { 
-        // MERAH SOLID 3D (Peringatan Keras)
-        // Merah pekat agar beda level dengan Sakit/Izin
-        class: 'bg-rose-500 text-white border-none shadow-[0_4px_0_#be123c] hover:shadow-[0_2px_0_#be123c] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-rose-600 dark:shadow-[0_4px_0_#9f1239]', 
+        // SOLID 3D BLOCK (Peringatan Keras)
+        // Merah Pekat + Bayangan Merah Tua
+        class: 'bg-rose-500 text-white border-2 border-rose-500 shadow-[0_4px_0_#be123c] hover:shadow-[0_2px_0_#be123c] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-rose-600 dark:border-rose-600 dark:shadow-[0_4px_0_#881337]', 
         label: 'A'
     },
     'Tidak': { 
-        // DEFAULT (INSET / TENGGELAM)
-        // Memberikan efek "Slot Kosong"
-        class: 'bg-slate-100 text-slate-400 border border-slate-200 shadow-inner hover:bg-slate-200 hover:text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500', 
+        // INSET / TENGGELAM (Default Slot Kosong)
+        class: 'bg-slate-50 text-slate-300 border-2 border-slate-200 shadow-inner hover:bg-slate-100 hover:text-slate-400 hover:border-slate-300 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-600', 
         label: '-',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
