@@ -1309,6 +1309,10 @@ window.renderAttendanceList = function() {
     window.refreshIcons();
 };
 
+// ==========================================
+// PERBAIKAN FUNGSI TOGGLE STATUS
+// ==========================================
+
 window.toggleStatus = function(id, actId, type) {
     const slotId = appState.currentSlotId;
     const dateKey = appState.date;
@@ -1322,7 +1326,7 @@ window.toggleStatus = function(id, actId, type) {
     const curr = sData.status[actId] || (type === 'mandator' ? 'Hadir' : 'Ya');
     let next = '';
 
-    // LOGIKA SIKLUS STATUS
+    // 1. TENTUKAN STATUS BARU (LOGIKA SIKLUS)
     if(type === 'mandator') {
         if (actId === 'kbm_sekolah') {
             // Siklus Sekolah: Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
@@ -1332,7 +1336,7 @@ window.toggleStatus = function(id, actId, type) {
             else if(curr === 'Izin') next = 'Alpa';
             else next = 'Hadir';
         } else {
-            // Siklus Shalat: Hadir -> Sakit -> Izin -> Alpa -> Hadir
+            // Siklus Shalat/KBM: Hadir -> Sakit -> Izin -> Alpa -> Hadir
             if(curr === 'Hadir') next = 'Sakit';
             else if(curr === 'Sakit') next = 'Izin';
             else if(curr === 'Izin') next = 'Alpa';
@@ -1343,16 +1347,60 @@ window.toggleStatus = function(id, actId, type) {
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
     }
 
+    // Terapkan status baru ke tombol yang diklik
     sData.status[actId] = next;
-    
+
+    // 2. LOGIKA OTOMATIS (CASCADING)
+    // Cek konfigurasi kegiatan yang sedang diklik
+    const currentSlotConfig = SLOT_WAKTU[slotId];
+    const clickedActConfig = currentSlotConfig.activities.find(a => a.id === actId);
+
+    // JIKA YANG DIKLIK ADALAH 'FARDU' (SHALAT UTAMA)
+    // Maka kegiatan lain harus menyesuaikan
+    if (clickedActConfig && clickedActConfig.category === 'fardu') {
+        
+        const isNonHadir = ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(next);
+
+        currentSlotConfig.activities.forEach(otherAct => {
+            if (otherAct.id === actId) return; // Jangan ubah diri sendiri
+
+            if (isNonHadir) {
+                // KASUS: SHALAT TIDAK HADIR (S/I/A)
+                
+                if (otherAct.category === 'dependent') {
+                    // Dzikir/Rawatib -> Otomatis TIDAK
+                    sData.status[otherAct.id] = 'Tidak';
+                } 
+                else if (otherAct.category === 'kbm') {
+                    // Tahfizh/Conver -> Mengikuti status shalat (misal: Sakit)
+                    sData.status[otherAct.id] = next;
+                }
+                else if (otherAct.category === 'sunnah') {
+                    // Tahajjud/Dhuha -> Otomatis TIDAK
+                    sData.status[otherAct.id] = 'Tidak';
+                }
+
+            } else {
+                // KASUS: SHALAT KEMBALI HADIR
+                
+                if (otherAct.category === 'dependent') {
+                    // Dzikir/Rawatib -> Reset ke YA
+                    sData.status[otherAct.id] = 'Ya';
+                } 
+                else if (otherAct.category === 'kbm') {
+                    // Tahfizh/Conver -> Reset ke HADIR
+                    sData.status[otherAct.id] = 'Hadir';
+                }
+                // Untuk kategori 'sunnah' biasa (Tahajjud), biarkan apa adanya 
+                // agar tidak mereset inputan manual musyrif.
+            }
+        });
+    }
+
     // Simpan & Refresh UI
     window.saveData();
+    window.renderAttendanceList(); // Render ulang agar perubahan otomatis terlihat
     
-    // Update tampilan baris ini saja agar cepat (opsional) atau render ulang semua
-    // Untuk keamanan render ulang semua saja dulu
-    window.renderAttendanceList();
-    
-    // Update statistik dashboard jika hari ini
     if (appState.date === window.getLocalDateStr()) {
         window.updateDashboard();
     }
