@@ -2498,59 +2498,48 @@ let currentPermitTab = 'sakit';
 let currentModalMode = 'daily'; // 'daily' atau 'pulang'
 
 // Update fungsi Open Modal untuk menerima parameter mode
+let isAllSelected = false;
+
 window.openPermitModal = function(mode = 'daily') {
     if(!appState.selectedClass) return window.showToast("Pilih kelas terlebih dahulu!", "warning");
     
-    currentModalMode = mode;
-    const modal = document.getElementById('modal-permit');
-    modal.classList.remove('hidden');
-    
-    // Reset State Select All
+    // RESET STATE
     isAllSelected = false;
+    currentModalMode = mode;
+    
+    const modal = document.getElementById('modal-permit');
     const btnSelect = document.getElementById('btn-select-all-permit');
     if(btnSelect) btnSelect.textContent = "Pilih Semua";
 
-    // --- LOGIKA PEMISAHAN DESAIN ---
     const tabSakit = document.getElementById('tab-btn-sakit');
     const tabIzin = document.getElementById('tab-btn-izin');
     const tabPulang = document.getElementById('tab-btn-pulang');
-    const modalTitle = modal.querySelector('h3'); // Judul Modal
-    const modalDesc = modal.querySelector('p');   // Deskripsi Modal
+    const modalTitle = modal.querySelector('h3');
+    const modalDesc = modal.querySelector('p');
 
-    // Tampilkan semua dulu (reset)
     tabSakit.classList.remove('hidden');
     tabIzin.classList.remove('hidden');
     tabPulang.classList.remove('hidden');
 
     if (mode === 'daily') {
-        // MODE HARIAN (ORANGE): Sembunyikan Pulang
         tabPulang.classList.add('hidden');
-        
-        // Default ke tab Sakit
         window.setPermitTab('sakit');
-        
-        // Ubah Judul
         if(modalTitle) modalTitle.textContent = "Input Perizinan Harian";
         if(modalDesc) modalDesc.textContent = "Sakit & Izin Kegiatan";
-    } 
-    else {
-        // MODE PERPULANGAN (UNGU): Sembunyikan Sakit & Izin
+    } else {
         tabSakit.classList.add('hidden');
         tabIzin.classList.add('hidden');
-        
-        // Default ke tab Pulang
         window.setPermitTab('pulang');
-
-        // Ubah Judul
         if(modalTitle) modalTitle.textContent = "Manajemen Perpulangan";
         if(modalDesc) modalDesc.textContent = "Izin Pulang & Liburan";
     }
     
-    // Reset Form & Pencarian
     document.getElementById('permit-search-santri').value = '';
     window.renderPermitChecklist(FILTERED_SANTRI);
     window.updatePermitCount();
-    window.renderPermitList(); // List history tetap muncul (bisa difilter juga kalau mau)
+    window.renderPermitList();
+    
+    window.openModal('modal-permit'); // Use improved modal function
 };
 
 window.renderPermitChecklist = function(list) {
