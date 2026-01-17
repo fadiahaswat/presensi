@@ -1576,49 +1576,46 @@
 </template>
 
     <template id="tpl-santri-row">
-    <div class="santri-row group relative p-5 rounded-[1.75rem] border transition-all duration-300 mb-4" style="border-radius: 28px;">
-        
-        <div class="flex items-center gap-4 mb-5">
-            <div class="santri-avatar w-12 h-12 shrink-0 bg-white/50 dark:bg-black/20 flex items-center justify-center font-black text-xs text-slate-500 shadow-sm backdrop-blur-sm" style="border-radius: 18px;">
-                AH
-            </div>
+    <div class="santri-card-root">
+        <div class="flex items-start gap-4 w-full">
+            <div class="santri-avatar shrink-0">AH</div>
             
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center flex-wrap gap-2 mb-1">
-                    <h4 class="santri-name font-bold text-slate-800 dark:text-white text-[15px] truncate">
+            <div class="flex-1 min-w-0 pt-0.5">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                    <h4 class="santri-name font-bold text-gray-800 text-lg leading-tight tracking-tight truncate">
                         Nama Santri
                     </h4>
+                    <div class="santri-badge-area"></div>
                 </div>
-                <div class="flex items-center gap-2 opacity-75">
-                    <span class="px-2 py-[2px] rounded text-[9px] font-bold bg-white/60 border border-black/5 uppercase tracking-wide">
-                        KAMAR
-                    </span>
-                    <p class="santri-kamar text-[11px] font-medium truncate">
-                        1 - Abu Bakar
-                    </p>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5 text-gray-400">
+                        <span class="text-[9px] font-bold bg-gray-100 px-1.5 rounded text-gray-500 tracking-wider">KAMAR</span>
+                        <p class="santri-kamar text-xs font-medium">1 - Abu Bakar</p>
+                    </div>
+                    
+                    <button class="note-toggle-btn p-1.5 -mr-2 rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors" title="Catatan">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
                 </div>
             </div>
         </div>
         
-        <div class="activity-container" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; align-items: start;">
+        <div class="activity-grid grid grid-cols-5 gap-3 items-start mt-1">
             </div>
 
-        <div class="note-section hidden mt-4">
-             <input type="text" placeholder="Catatan..." class="input-note w-full text-xs font-semibold bg-white/50 border border-black/10 rounded-xl py-3 px-4 outline-none focus:bg-white transition-all">
+        <div class="note-container hidden mt-1">
+             <input type="text" placeholder="Tulis catatan..." class="note-input">
         </div>
     </div>
 </template>
 
 <template id="tpl-activity-btn">
-    <div class="flex flex-col items-center gap-2 cursor-pointer group/btn select-none w-full relative">
-        <div class="w-full aspect-square relative">
-            <button class="btn-status w-full h-full flex items-center justify-center font-black text-base transition-transform duration-100 active:scale-95" style="border-radius: 18px;">
-                -
-            </button>
+    <div class="flex flex-col items-center w-full">
+        <div class="btn-action">
+            -
         </div>
-        <span class="lbl-status text-[10px] font-bold text-slate-400 group-hover/btn:text-slate-600 dark:text-slate-400 transition-colors truncate w-full text-center">
-            Label
-        </span>
+        <span class="btn-label">Label</span>
     </div>
 </template>
     
@@ -1641,6 +1638,7 @@
     
 </body>
 </html>
+
 
 
 
