@@ -372,30 +372,7 @@ window.getPembinaanStatus = function(alpaCount) {
 // ==========================================
 
 window.initApp = async function() {
-    // 1. Cek apakah Mode Bypass aktif?
-    if (BYPASS_LOGIN) {
-        console.log("⚠️ BYPASS LOGIN ACTIVATED");
-        
-        // Simpura-pura sudah login
-        appState.isLoggedIn = true;
-        appState.currentUser = MOCK_USER;
-        
-        // Langsung render dashboard/halaman utama
-        // Sesuaikan nama fungsi ini dengan yang ada di kode Anda (misal: showDashboard, renderApp, dll)
-        if (typeof showDashboard === 'function') {
-            showDashboard(); 
-        } else {
-            // Jika tidak ada fungsi showDashboard, mungkin langsung render attendance list
-            window.renderAttendanceList();
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
-        }
-        
-        return; // Hentikan fungsi di sini agar Google Auth tidak dimuat
-    }
-    const loadingEl = document.getElementById('view-loading');
-    
-    try {
+        try {
         // 1. UI RENDERING (Synchronous)
         try {
             window.startClock();
