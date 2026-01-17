@@ -266,57 +266,57 @@ const SLOT_WAKTU = {
 
 const STATUS_UI = {
     'Hadir': { 
-        // HIJAU EMERALD (Solid & Jelas)
-        class: 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200 ring-2 ring-emerald-100 ring-offset-1 z-10', 
+        // Style: Soft Green Surface, Strong Text
+        class: 'bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm ring-1 ring-emerald-200', 
         label: 'H', 
-        card: { bg: 'bg-white', border: 'border-emerald-100' },
-        badge: 'bg-emerald-100 text-emerald-700'
+        card: { bg: 'bg-white', border: 'border-emerald-200' },
+        badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
     },
     'Ya': { 
-        // SAMA SEPERTI HADIR
-        class: 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200 ring-2 ring-emerald-100 ring-offset-1 z-10', 
+        // Sama dengan Hadir
+        class: 'bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm ring-1 ring-emerald-200', 
         label: 'Y',
-        card: { bg: 'bg-white', border: 'border-emerald-100' },
-        badge: 'bg-emerald-100 text-emerald-700'
+        card: { bg: 'bg-white', border: 'border-emerald-200' },
+        badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
     },
     'Telat': { 
-        // HIJAU TEAL + BORDER DASHED (Pembeda Visual)
-        class: 'bg-teal-50 text-teal-600 border-2 border-dashed border-teal-300 ring-2 ring-teal-100 ring-offset-1 z-10', 
+        // Style: Teal, Dashed border untuk indikasi "kurang sempurna"
+        class: 'bg-teal-50 text-teal-700 border-2 border-dashed border-teal-400', 
         label: 'T',
-        card: { bg: 'bg-white', border: 'border-teal-100' },
-        badge: 'bg-teal-100 text-teal-700 border border-dashed border-teal-300'
+        card: { bg: 'bg-white', border: 'border-teal-200' },
+        badge: 'bg-teal-50 text-teal-700 border border-dashed border-teal-400'
     },
     'Izin': { 
-        // BIRU (Satu-satunya yang biru)
-        class: 'bg-blue-50 text-blue-600 border-2 border-blue-200 ring-2 ring-blue-100 ring-offset-1 z-10', 
+        // Style: Corporate Blue
+        class: 'bg-blue-100 text-blue-700 border border-blue-200 shadow-sm ring-1 ring-blue-200', 
         label: 'I',
-        card: { bg: 'bg-white', border: 'border-blue-100' },
-        badge: 'bg-blue-100 text-blue-700'
+        card: { bg: 'bg-blue-50/30', border: 'border-blue-200' },
+        badge: 'bg-blue-100 text-blue-700 border border-blue-200'
     },
     'Sakit': { 
-        // KUNING AMBER
-        class: 'bg-amber-50 text-amber-600 border-2 border-amber-200 ring-2 ring-amber-100 ring-offset-1 z-10', 
+        // Style: Warning Amber
+        class: 'bg-amber-100 text-amber-700 border border-amber-200 shadow-sm ring-1 ring-amber-200', 
         label: 'S',
-        card: { bg: 'bg-white', border: 'border-amber-100' },
-        badge: 'bg-amber-100 text-amber-700'
+        card: { bg: 'bg-amber-50/30', border: 'border-amber-200' },
+        badge: 'bg-amber-100 text-amber-700 border border-amber-200'
     },
     'Alpa': { 
-        // MERAH ROSE
-        class: 'bg-rose-50 text-rose-600 border-2 border-rose-200 ring-2 ring-rose-100 ring-offset-1 z-10', 
+        // Style: Danger Rose
+        class: 'bg-rose-100 text-rose-700 border border-rose-200 shadow-sm ring-1 ring-rose-200', 
         label: 'A',
-        card: { bg: 'bg-white', border: 'border-rose-100' },
-        badge: 'bg-rose-100 text-rose-700'
+        card: { bg: 'bg-rose-50/30', border: 'border-rose-200' },
+        badge: 'bg-rose-100 text-rose-700 border border-rose-200'
     },
     'Pulang': { 
-        // UNGU PURPLE
-        class: 'bg-purple-50 text-purple-600 border-2 border-purple-200 ring-2 ring-purple-100 ring-offset-1 z-10', 
+        // Style: Royal Purple
+        class: 'bg-purple-100 text-purple-700 border border-purple-200 shadow-sm ring-1 ring-purple-200', 
         label: 'P',
-        card: { bg: 'bg-white', border: 'border-purple-100' },
-        badge: 'bg-purple-100 text-purple-700'
+        card: { bg: 'bg-purple-50/30', border: 'border-purple-200' },
+        badge: 'bg-purple-100 text-purple-700 border border-purple-200'
     },
     'Tidak': { 
-        // ABU-ABU (Strip)
-        class: 'bg-white text-gray-300 border-2 border-gray-200 hover:border-gray-300 hover:text-gray-400', 
+        // Style: Ghost / Inactive (Modern Minimalist)
+        class: 'bg-gray-50 text-gray-300 border border-gray-200 hover:bg-gray-100 hover:text-gray-400 hover:border-gray-300', 
         label: '-',
         card: { bg: 'bg-white', border: 'border-gray-100' },
         badge: 'bg-gray-100 text-gray-400'
