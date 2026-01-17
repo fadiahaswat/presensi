@@ -1784,21 +1784,31 @@ window.kirimLaporanWA = function() {
 };
 
 // Update parameter ke-3 (isPersistent) agar toast tidak hilang otomatis jika perlu
+const toastQueue = [];
+let isShowingToast = false;
+
 window.showToast = function(message, type = 'info', isPersistent = false) {
-    if(!appState.settings.notifications) return;
+    if(!appState.settings.notifications && !isPersistent) return;
     
     const container = document.getElementById('toast-container');
     if(!container) return;
     
     const toast = document.createElement('div');
-    toast.className = `${UI_COLORS[type] || UI_COLORS.info} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-[slideUp_0.3s_ease-out] mb-3 z-[100]`;
+    const icons = {
+        success: 'check-circle',
+        error: 'x-circle',
+        warning: 'alert-triangle',
+        info: 'info'
+    };
+    
+    toast.className = `${UI_COLORS[type] || UI_COLORS.info} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-[slideUp_0.3s_ease-out] mb-3 z-[9999]`;
     toast.innerHTML = `
-        <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info'}" class="w-5 h-5"></i>
-        <span class="font-bold text-xs">${message}</span>
+        <i data-lucide="${icons[type] || 'info'}" class="w-5 h-5" aria-hidden="true"></i>
+        <span class="font-bold text-xs" role="alert">${window.sanitizeHTML(message)}</span>
     `;
     
     container.appendChild(toast);
-    if(window.lucide) window.lucide.createIcons();
+    window.refreshIcons();
     
     if (!isPersistent) {
         setTimeout(() => {
@@ -1807,7 +1817,6 @@ window.showToast = function(message, type = 'info', isPersistent = false) {
             setTimeout(() => toast.remove(), 300);
         }, 3000);
     } else {
-        // Hapus otomatis setelah 10 detik just in case agar tidak nyangkut
         setTimeout(() => toast.remove(), 10000);
     }
     
