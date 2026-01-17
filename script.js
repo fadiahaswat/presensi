@@ -1329,20 +1329,13 @@ window.toggleStatus = function(id, actId, type) {
 
     // 1. TENTUKAN STATUS BARU (LOGIKA SIKLUS)
     if(type === 'mandator') {
-        if (actId === 'kbm_sekolah') {
-            // Siklus Sekolah: Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
-            if(curr === 'Hadir') next = 'Telat';
-            else if(curr === 'Telat') next = 'Sakit';
-            else if(curr === 'Sakit') next = 'Izin';
-            else if(curr === 'Izin') next = 'Alpa';
-            else next = 'Hadir';
-        } else {
-            // Siklus Shalat/KBM: Hadir -> Sakit -> Izin -> Alpa -> Hadir
-            if(curr === 'Hadir') next = 'Sakit';
-            else if(curr === 'Sakit') next = 'Izin';
-            else if(curr === 'Izin') next = 'Alpa';
-            else next = 'Hadir';
-        }
+        // SIKLUS UNIVERSAL (Sekolah & Shalat sama-sama bisa Telat)
+        // Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
+        if(curr === 'Hadir') next = 'Telat';
+        else if(curr === 'Telat') next = 'Sakit'; // <-- Masbuk/Telat
+        else if(curr === 'Sakit') next = 'Izin';
+        else if(curr === 'Izin') next = 'Alpa';
+        else next = 'Hadir';
     } else {
         // Siklus Sunnah: Ya -> Tidak -> Ya
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
