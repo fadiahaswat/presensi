@@ -360,16 +360,16 @@ window.initApp = async function() {
     const loadingEl = document.getElementById('view-loading');
     
     try {
-        // 1. RENDERING UI DASAR (SEGERA)
+        // 1. UI RENDERING (Synchronous)
         try {
             window.startClock();
             window.updateDateDisplay();
-            if(window.lucide) window.lucide.createIcons();
+            window.refreshIcons();
         } catch (uiError) {
             console.error("UI Init Error:", uiError);
         }
         
-        // 2. Load Local Storage (Pengaturan & Data Harian)
+        // 2. Local Storage (Synchronous)
         try {
             const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
             if(savedSettings) {
@@ -383,7 +383,6 @@ window.initApp = async function() {
             const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
             if(savedLog) appState.activityLog = JSON.parse(savedLog);
             
-            // ✅ FIX: Inisialisasi Permits dengan Default Empty Array
             appState.permits = [];
             const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
             if(savedPermits) {
@@ -400,10 +399,10 @@ window.initApp = async function() {
             if(!appState.permits) appState.permits = [];
         }
 
-        // 3. Determine Slot Waktu
+        // 3. Determine Slot
         appState.currentSlotId = window.determineCurrentSlot();
 
-        // 4. FETCH DATA EXTERNAL (DENGAN TIMEOUT PENGAMAN)
+        // 4. FETCH DATA (Async with timeout)
         const dataLoadingPromise = Promise.all([
             window.loadClassData ? window.loadClassData() : Promise.resolve({}),
             window.loadSantriData ? window.loadSantriData() : Promise.resolve([])
@@ -420,7 +419,7 @@ window.initApp = async function() {
             MASTER_SANTRI = santriData || [];
             window.populateClassDropdown();
 
-            // ✅ FIX: AUTO LOGIN CHECK (Setelah data dimuat)
+            // 5. AUTO LOGIN CHECK (AFTER DATA LOADED)
             const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
             if(savedAuth) {
                 try {
@@ -438,9 +437,13 @@ window.initApp = async function() {
                         if(FILTERED_SANTRI.length > 0) {
                             document.getElementById('view-login').classList.add('hidden');
                             document.getElementById('view-main').classList.remove('hidden');
+                            
                             window.updateDashboard(); 
                             window.updateProfileInfo();
-                            window.fetchAttendanceFromSupabase();
+                            
+                            // AWAIT SUPABASE SYNC
+                            await window.fetchAttendanceFromSupabase();
+                            
                             setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
                         }
                     } else {
