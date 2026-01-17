@@ -1217,7 +1217,7 @@ window.renderAttendanceList = function() {
         
         // ACTIVITY BUTTONS SECTION
         const btnCont = clone.querySelector('.activity-container');
-        btnCont.className = "flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1";
+        btnCont.className = "grid grid-cols-5 gap-3 justify-items-center pt-1";
         btnCont.innerHTML = ''; // Clear template
 
         slot.activities.forEach(act => {
@@ -1225,7 +1225,7 @@ window.renderAttendanceList = function() {
 
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
-            btnWrapper.className = "flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group select-none";
+            btnWrapper.className = "flex flex-col items-center gap-1.5 cursor-pointer group select-none w-full";
 
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
@@ -1234,16 +1234,15 @@ window.renderAttendanceList = function() {
             const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
             const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
 
-            // COMPACT BUTTON - Fixed 11x11, focus ring
-            let btnClass = `btn-status w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[1.5px] font-black text-sm group-hover:shadow-md ${uiBtn.class}`;
+            // 56px BUTTON - Prominent rings per status color
+            let btnClass = `btn-status w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[2.5px] font-black text-base ${uiBtn.class}`;
             
+            // PROMINENT RING - Always show, color matches status
+            btnClass += ` ${uiBtn.ring}`;
+            
+            // Extra ring for permit conflict
             if (hasPermitConflict) {
-                // Ring untuk permit conflict
-                if(activePermit.type === 'Sakit') btnClass += ' ring-2 ring-amber-400 dark:ring-amber-600';
-                else if(activePermit.type === 'Izin') btnClass += ' ring-2 ring-blue-400 dark:ring-blue-600';
-                else if(activePermit.type === 'Pulang') btnClass += ' ring-2 ring-purple-400 dark:ring-purple-600';
-            } else {
-                btnClass += ' ring-1 ring-transparent focus:ring-emerald-500/20';
+                btnClass += ' ring-4 ring-offset-4';
             }
 
             btn.className = btnClass;
@@ -1260,7 +1259,7 @@ window.renderAttendanceList = function() {
             };
             
             // LABEL - Compact typography
-            lbl.className = "lbl-status text-[9px] font-bold text-slate-400 w-14 text-center truncate group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
+            lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             lbl.textContent = act.label;
             
             btnCont.appendChild(bClone);
