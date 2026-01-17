@@ -3616,9 +3616,6 @@ window.extendPermit = function(id) {
     window.renderAttendanceList();
 };
 
-// Variable global untuk status select all
-let isAllSelected = false;
-
 window.toggleSelectAllPermit = function() {
     const btn = document.getElementById('btn-select-all-permit');
     const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]');
