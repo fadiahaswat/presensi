@@ -1170,21 +1170,28 @@ window.renderAttendanceList = function() {
         const clone = tplRow.content.cloneNode(true);
         const cardContainer = clone.querySelector('.santri-row') || clone.querySelector('div');
         
-        // Ambil konfigurasi UI
         const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
         const cardStyle = uiConfig.card || { bg: 'bg-white', border: 'border-slate-200' };
 
-        // TERAPKAN LOGIKA KARTU:
-        // H/Y/Telat = Biasa (Putih)
-        // Sisanya = Tint BG + Solid Border
-        cardContainer.className = `santri-row group relative p-5 rounded-[1.75rem] border transition-all duration-300 hover:shadow-lg mb-4 flex flex-col gap-3 ${cardStyle.bg} ${cardStyle.border}`;
+        // LOGIKA BARU KARTU:
+        // Gunakan bg dan border dari config. 
+        // Jika status masalah (selain H/Y/Telat/Tidak), border akan tebal (2px/solid).
         
-        // Tambahkan shadow halus jika kartu putih (supaya tidak flat)
-        if(currentStatus === 'Hadir' || currentStatus === 'Ya' || currentStatus === 'Telat' || currentStatus === 'Tidak') {
-            cardContainer.classList.add('shadow-sm');
+        let borderClass = cardStyle.border;
+        // Jika status masalah (Alpa/Sakit/Izin/Pulang), pertegas border
+        if(['Alpa', 'Sakit', 'Izin', 'Pulang'].includes(currentStatus)) {
+            borderClass = borderClass.replace('border-', 'border-2 border-'); 
+        }
+
+        cardContainer.className = `santri-row group relative p-5 rounded-[1.75rem] border transition-all duration-300 mb-4 flex flex-col gap-3 ${cardStyle.bg} ${borderClass}`;
+        
+        // Efek Shadow Kartu
+        if(['Hadir', 'Ya', 'Telat', 'Tidak'].includes(currentStatus)) {
+            // Kartu Putih: Shadow halus
+            cardContainer.classList.add('shadow-sm', 'hover:shadow-md');
         } else {
-            // Jika kartu berwarna (Masalah), shadow lebih tipis atau glow
-             cardContainer.classList.add('shadow-md');
+            // Kartu Berwarna: Shadow glow berwarna (opsional, atau shadow standar)
+            cardContainer.classList.add('shadow-md');
         }
         
         // 2. Name & Avatar Styling
