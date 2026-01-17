@@ -1576,41 +1576,48 @@
 </template>
 
     <template id="tpl-santri-row">
-    <div class="santri-row bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
-        <div class="flex justify-between items-start mb-4">
-            <div class="flex items-center gap-3.5">
-                <div class="santri-avatar w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center font-black text-xs text-slate-500 dark:text-slate-400 shadow-inner shrink-0 ring-1 ring-white/50">AF</div>
-                <div>
-                    <h4 class="santri-name font-bold text-slate-800 dark:text-white text-sm leading-tight line-clamp-1">Nama Santri</h4>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[8px] font-bold text-slate-500 uppercase tracking-wide">Kamar</span>
-                        <p class="santri-kamar text-[10px] font-medium text-slate-500 dark:text-slate-400">A1</p>
+    <div class="santri-row bg-white dark:bg-slate-800 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all hover:shadow-md mb-3">
+        <div class="flex items-center gap-4 mb-5">
+            <div class="santri-avatar w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-black text-sm text-slate-600 dark:text-slate-300 tracking-wider shadow-inner">
+                AH
+            </div>
+            
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                    <h4 class="santri-name font-black text-slate-800 dark:text-white text-base truncate">
+                        Nama Santri
+                    </h4>
                     </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-wider border border-slate-200 dark:border-slate-600">
+                        KAMAR
+                    </span>
+                    <p class="santri-kamar text-xs font-bold text-slate-500 dark:text-slate-400 truncate">
+                        1 - Abu Bakar ash-Shiddiq
+                    </p>
                 </div>
             </div>
-            <button class="btn-edit-note w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
-                <i data-lucide="message-square-plus" class="w-4 h-4"></i>
-            </button>
         </div>
         
-        <div class="activity-container flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1">
+        <div class="activity-container grid grid-cols-5 gap-3">
             </div>
 
-        <div class="note-section hidden mt-3 animate-fade-in border-t border-slate-100 dark:border-slate-700 pt-3">
-            <div class="relative">
-                <input type="text" placeholder="Catatan kejadian..." class="input-note w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 pl-3 pr-8 focus:border-emerald-500 outline-none transition-colors">
-                <i data-lucide="edit-3" class="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400"></i>
-            </div>
+        <div class="note-section hidden mt-4 animate-fade-in pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
+            <input type="text" placeholder="Tulis catatan..." class="input-note w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 outline-none focus:border-blue-500 transition-colors">
         </div>
     </div>
 </template>
 
-    <template id="tpl-activity-btn">
-        <div class="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group select-none">
-            <button class="btn-status w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[1.5px] font-black text-sm group-hover:shadow-md ring-1 ring-transparent focus:ring-emerald-500/20"></button>
-            <span class="lbl-status text-[9px] font-bold text-slate-400 w-14 text-center truncate group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight">Label</span>
-        </div>
-    </template>
+<template id="tpl-activity-btn">
+    <div class="flex flex-col items-center gap-2 cursor-pointer group select-none">
+        <button class="btn-status w-full aspect-square rounded-[18px] flex items-center justify-center border-[2.5px] text-xl font-bold transition-all duration-200 active:scale-95 hover:shadow-md">
+            -
+        </button>
+        <span class="lbl-status text-[10px] font-bold text-slate-400 group-hover:text-slate-600 transition-colors">
+            Label
+        </span>
+    </div>
+</template>
 
     <!-- Scripts -->
     <script src="data-kelas.js"></script>
@@ -1631,6 +1638,7 @@
     
 </body>
 </html>
+
 
 
 
