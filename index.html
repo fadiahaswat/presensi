@@ -1576,44 +1576,45 @@
 </template>
 
     <template id="tpl-santri-row">
-    <div class="santri-row bg-white dark:bg-slate-800 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all hover:shadow-md mb-3">
-        <div class="flex items-center gap-4 mb-5">
-            <div class="santri-avatar w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-black text-sm text-slate-600 dark:text-slate-300 tracking-wider shadow-inner">
+    <div class="santri-row bg-white dark:bg-slate-800 p-4 rounded-[1.5rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all hover:shadow-md mb-3">
+        
+        <div class="flex items-center gap-3 mb-4">
+            <div class="santri-avatar w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-black text-xs text-slate-500 dark:text-slate-300 shadow-inner">
                 AH
             </div>
             
             <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                    <h4 class="santri-name font-black text-slate-800 dark:text-white text-base truncate">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <h4 class="santri-name font-bold text-slate-800 dark:text-white text-sm truncate">
                         Nama Santri
                     </h4>
                     </div>
-                <div class="flex items-center gap-2">
-                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-wider border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center gap-1.5">
+                    <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[8px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200 dark:border-slate-600">
                         KAMAR
                     </span>
-                    <p class="santri-kamar text-xs font-bold text-slate-500 dark:text-slate-400 truncate">
-                        1 - Abu Bakar ash-Shiddiq
+                    <p class="santri-kamar text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
+                        1 - Abu Bakar
                     </p>
                 </div>
             </div>
         </div>
         
-        <div class="activity-container grid grid-cols-5 gap-3">
+        <div class="activity-container" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; align-items: start;">
             </div>
 
-        <div class="note-section hidden mt-4 animate-fade-in pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
-            <input type="text" placeholder="Tulis catatan..." class="input-note w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 outline-none focus:border-blue-500 transition-colors">
+        <div class="note-section hidden mt-3 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700 animate-fade-in">
+            <input type="text" placeholder="Catatan..." class="input-note w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 outline-none focus:border-emerald-500 transition-colors">
         </div>
     </div>
 </template>
 
 <template id="tpl-activity-btn">
-    <div class="flex flex-col items-center gap-2 cursor-pointer group select-none">
-        <button class="btn-status w-full aspect-square rounded-[18px] flex items-center justify-center border-[2.5px] text-xl font-bold transition-all duration-200 active:scale-95 hover:shadow-md">
+    <div class="flex flex-col items-center gap-1 cursor-pointer group select-none w-full">
+        <button class="btn-status w-full aspect-square rounded-[14px] flex items-center justify-center border-2 text-sm font-black transition-all duration-200 active:scale-95 hover:shadow-md">
             -
         </button>
-        <span class="lbl-status text-[10px] font-bold text-slate-400 group-hover:text-slate-600 transition-colors">
+        <span class="lbl-status text-[9px] font-bold text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors truncate w-full text-center">
             Label
         </span>
     </div>
@@ -1638,6 +1639,7 @@
     
 </body>
 </html>
+
 
 
 
