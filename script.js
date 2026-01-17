@@ -1294,6 +1294,7 @@ window.renderAttendanceList = function() {
                 else if(item.status === 'Izin') color = 'bg-blue-50 text-blue-600 border-blue-100';
                 else if(item.status === 'Alpa') color = 'bg-red-50 text-red-600 border-red-100';
                 else if(item.status === 'Telat') color = 'bg-teal-50 text-teal-600 border-teal-100';
+                else if(item.status === 'Pulang') color = 'bg-purple-50 text-purple-600 border-purple-100';
 
                 const badge = document.createElement('span');
                 badge.className = `px-2 py-1 rounded-lg text-[10px] font-bold border ${color}`;
