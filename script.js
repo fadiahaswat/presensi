@@ -111,8 +111,15 @@ window.parseJwt = function (token) {
 
 // Helper Tanggal yang Aman (Local Time YYYY-MM-DD)
 window.getLocalDateStr = function(dateObj = new Date()) {
-    const offset = dateObj.getTimezoneOffset() * 60000;
-    return new Date(dateObj.getTime() - offset).toISOString().split('T')[0];
+    try {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch(e) {
+        console.error('Date conversion error:', e);
+        return new Date().toISOString().split('T')[0];
+    }
 };
 
 // Format tanggal ke "Senin, 1 Jan 2025"
