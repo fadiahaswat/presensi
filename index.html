@@ -1576,48 +1576,41 @@
 </template>
 
     <template id="tpl-santri-row">
-    <div class="santri-card-root">
-        <div class="flex items-start gap-4 w-full">
-            <div class="santri-avatar shrink-0">AH</div>
-            
-            <div class="flex-1 min-w-0 pt-0.5">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <h4 class="santri-name font-bold text-gray-800 text-lg leading-tight tracking-tight truncate">
-                        Nama Santri
-                    </h4>
-                    <div class="santri-badge-area"></div>
-                </div>
-                
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-1.5 text-gray-400">
-                        <span class="text-[9px] font-bold bg-gray-100 px-1.5 rounded text-gray-500 tracking-wider">KAMAR</span>
-                        <p class="santri-kamar text-xs font-medium">1 - Abu Bakar</p>
+    <div class="santri-row bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center gap-3.5">
+                <div class="santri-avatar w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center font-black text-xs text-slate-500 dark:text-slate-400 shadow-inner shrink-0 ring-1 ring-white/50">AF</div>
+                <div>
+                    <h4 class="santri-name font-bold text-slate-800 dark:text-white text-sm leading-tight line-clamp-1">Nama Santri</h4>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[8px] font-bold text-slate-500 uppercase tracking-wide">Kamar</span>
+                        <p class="santri-kamar text-[10px] font-medium text-slate-500 dark:text-slate-400">A1</p>
                     </div>
-                    
-                    <button class="note-toggle-btn p-1.5 -mr-2 rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors" title="Catatan">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
                 </div>
             </div>
+            <button class="btn-edit-note w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
+                <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+            </button>
         </div>
         
-        <div class="activity-grid grid grid-cols-5 gap-3 items-start mt-1">
+        <div class="activity-container flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1">
             </div>
 
-        <div class="note-container hidden mt-1">
-             <input type="text" placeholder="Tulis catatan..." class="note-input">
+        <div class="note-section hidden mt-3 animate-fade-in border-t border-slate-100 dark:border-slate-700 pt-3">
+            <div class="relative">
+                <input type="text" placeholder="Catatan kejadian..." class="input-note w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 pl-3 pr-8 focus:border-emerald-500 outline-none transition-colors">
+                <i data-lucide="edit-3" class="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400"></i>
+            </div>
         </div>
     </div>
 </template>
 
-<template id="tpl-activity-btn">
-    <div class="flex flex-col items-center w-full">
-        <div class="btn-action">
-            -
+    <template id="tpl-activity-btn">
+        <div class="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group select-none">
+            <button class="btn-status w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[1.5px] font-black text-sm group-hover:shadow-md ring-1 ring-transparent focus:ring-emerald-500/20"></button>
+            <span class="lbl-status text-[9px] font-bold text-slate-400 w-14 text-center truncate group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight">Label</span>
         </div>
-        <span class="btn-label">Label</span>
-    </div>
-</template>
+    </template>
     
     <!-- Scripts -->
     <script src="data-kelas.js"></script>
@@ -1638,6 +1631,7 @@
     
 </body>
 </html>
+
 
 
 
