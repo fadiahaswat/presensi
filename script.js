@@ -3110,7 +3110,7 @@ window.deg2rad = function(deg) {
 window.verifyLocation = function() {
     return new Promise((resolve, reject) => {
         if (!GEO_CONFIG.useGeofencing) {
-            resolve(true); // Bypass jika fitur dimatikan
+            resolve(true);
             return;
         }
 
@@ -3119,43 +3119,58 @@ window.verifyLocation = function() {
             return;
         }
 
-        // Tampilkan loading toast manual karena proses GPS bisa 1-5 detik
-        const toastId = window.showToast("📡 Sedang memeriksa lokasi GPS...", "info", true); 
+        const toastId = window.showToast("📡 Memeriksa lokasi GPS...", "info", true);
+
+        const timeout = setTimeout(() => {
+            reject("Timeout: GPS tidak merespons dalam 10 detik");
+            if(toastId) toastId.remove();
+        }, 10000);
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
+                clearTimeout(timeout);
+                if(toastId) toastId.remove();
+                
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
                 let isInside = false;
                 let nearestDist = 9999999;
+                let nearestName = "Unknown";
 
-                // Cek jarak ke setiap titik target
                 GEO_CONFIG.locations.forEach(loc => {
                     const dist = window.getDistanceFromLatLonInMeters(userLat, userLng, loc.lat, loc.lng);
-                    if (dist < nearestDist) nearestDist = dist;
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestName = loc.name;
+                    }
                     
                     if (dist <= GEO_CONFIG.maxRadiusMeters) {
                         isInside = true;
                     }
                 });
 
-                // Hapus toast loading (logika hapus toast perlu penyesuaian sedikit jika showToast return ID, 
-                // tapi untuk simplisitas kita biarkan tertimpa toast baru)
-
                 if (isInside) {
                     resolve(true);
                 } else {
-                    reject(`Lokasi Anda terlalu jauh (${Math.round(nearestDist)}m). Harap mendekat ke titik absen.`);
+                    reject(`Lokasi Anda terlalu jauh (${Math.round(nearestDist)}m dari ${nearestName}). Radius maksimal: ${GEO_CONFIG.maxRadiusMeters}m.`);
                 }
             },
             (error) => {
+                clearTimeout(timeout);
+                if(toastId) toastId.remove();
+                
                 let msg = "Gagal mendeteksi lokasi.";
-                if(error.code === 1) msg = "Izin lokasi ditolak. Aktifkan GPS browser.";
-                else if(error.code === 2) msg = "Sinyal GPS tidak ditemukan.";
-                else if(error.code === 3) msg = "Waktu deteksi GPS habis.";
+                if(error.code === 1) msg = "Izin lokasi ditolak. Aktifkan GPS di browser.";
+                else if(error.code === 2) msg = "Sinyal GPS tidak ditemukan. Pastikan Anda di luar ruangan.";
+                else if(error.code === 3) msg = "Waktu deteksi GPS habis. Coba lagi.";
+                
                 reject(msg);
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            { 
+                enableHighAccuracy: true, 
+                timeout: 9000, 
+                maximumAge: 0 
+            }
         );
     });
 };
