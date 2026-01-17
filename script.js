@@ -264,56 +264,63 @@ const SLOT_WAKTU = {
     ]}
 };
 
-// Konfigurasi Tampilan Status: HYBRID 3D OUTLINE (Solid + Depth)
+// Konfigurasi Desain: DOUBLE LAYER BORDER
 const STATUS_UI = {
     'Hadir': { 
-        // SOLID 3D BLOCK (Status Utama = Penuh)
-        // Hijau Pekat + Bayangan Hijau Tua
-        class: 'bg-emerald-500 text-white border-2 border-emerald-500 shadow-[0_4px_0_#065f46] hover:shadow-[0_2px_0_#065f46] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:border-emerald-600 dark:shadow-[0_4px_0_#022c22]', 
+        // SOLID BASE + TEXT PUTIH
+        // Border Dalam: Emerald-300 (Tint), Border Luar: Emerald-600 (Solid)
+        class: 'bg-emerald-500 text-white border-4 border-emerald-300 shadow-[0_0_0_1.5px_#059669] hover:scale-105', 
         label: 'H',
-        cardBg: 'bg-white dark:bg-slate-800',
-        text: 'text-slate-800 dark:text-white'
+        // Konfigurasi Warna Kartu (Akan dipakai di logic render)
+        card: { bg: 'bg-white dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700' }
     },
     'Ya': { 
         // SAMA SEPERTI HADIR
-        class: 'bg-emerald-500 text-white border-2 border-emerald-500 shadow-[0_4px_0_#065f46] hover:shadow-[0_2px_0_#065f46] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-600 dark:border-emerald-600 dark:shadow-[0_4px_0_#022c22]', 
-        label: 'Y'
-    },
-    'Telat': { 
-        // DASHED 3D OUTLINE (Unik)
-        // Tengah Putih + Garis Putus-putus + Bayangan Solid
-        class: 'bg-emerald-50 text-emerald-700 border-2 border-dashed border-emerald-500 shadow-[0_4px_0_#10b981] hover:shadow-[0_2px_0_#10b981] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-400 dark:shadow-[0_4px_0_#064e3b]', 
-        label: 'T'
-    },
-    'Sakit': { 
-        // HOLLOW 3D (Berjenjang Outline)
-        // Tengah Kuning Muda + Border Kuning Tua + Bayangan Kuning Tua
-        class: 'bg-amber-50 text-amber-700 border-2 border-amber-500 shadow-[0_4px_0_#d97706] hover:shadow-[0_2px_0_#d97706] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-400 dark:shadow-[0_4px_0_#78350f]', 
-        label: 'S'
-    },
-    'Izin': { 
-        // HOLLOW 3D (Berjenjang Outline)
-        // Tengah Biru Muda + Border Biru Tua + Bayangan Biru Tua
-        class: 'bg-blue-50 text-blue-700 border-2 border-blue-500 shadow-[0_4px_0_#2563eb] hover:shadow-[0_2px_0_#2563eb] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400 dark:shadow-[0_4px_0_#1e3a8a]', 
-        label: 'I'
-    },
-    'Pulang': { 
-        // HOLLOW 3D (Berjenjang Outline)
-        class: 'bg-purple-50 text-purple-700 border-2 border-purple-500 shadow-[0_4px_0_#9333ea] hover:shadow-[0_2px_0_#9333ea] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-400 dark:shadow-[0_4px_0_#581c87]', 
-        label: 'P'
+        class: 'bg-emerald-500 text-white border-4 border-emerald-300 shadow-[0_0_0_1.5px_#059669] hover:scale-105', 
+        label: 'Y',
+        card: { bg: 'bg-white dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700' }
     },
     'Alpa': { 
-        // SOLID 3D BLOCK (Peringatan Keras)
-        // Merah Pekat + Bayangan Merah Tua
-        class: 'bg-rose-500 text-white border-2 border-rose-500 shadow-[0_4px_0_#be123c] hover:shadow-[0_2px_0_#be123c] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] dark:bg-rose-600 dark:border-rose-600 dark:shadow-[0_4px_0_#881337]', 
-        label: 'A'
+        // SOLID BASE + TEXT PUTIH (Khusus Alpa)
+        // Border Dalam: Rose-300, Border Luar: Rose-600
+        class: 'bg-rose-500 text-white border-4 border-rose-300 shadow-[0_0_0_1.5px_#be123c] hover:scale-105', 
+        label: 'A',
+        // Kartu Alpa: Merah Pudar + Garis Merah Solid
+        card: { bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-500' }
+    },
+    'Telat': { 
+        // TINT BASE (Pengecualian, Telat masuk kategori "biasa" untuk kartu)
+        class: 'bg-emerald-50 text-emerald-700 border-4 border-emerald-200 shadow-[0_0_0_1.5px_#059669] hover:scale-105', 
+        label: 'T',
+        card: { bg: 'bg-white dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700' }
+    },
+    'Sakit': { 
+        // TINT BASE + TEXT WARNA
+        // Border Dalam: Amber-200, Border Luar: Amber-500
+        class: 'bg-amber-50 text-amber-700 border-4 border-amber-200 shadow-[0_0_0_1.5px_#d97706] hover:scale-105', 
+        label: 'S',
+        // Kartu Sakit: Kuning Pudar + Garis Kuning Solid
+        card: { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-500' }
+    },
+    'Izin': { 
+        // TINT BASE + TEXT WARNA
+        class: 'bg-blue-50 text-blue-700 border-4 border-blue-200 shadow-[0_0_0_1.5px_#2563eb] hover:scale-105', 
+        label: 'I',
+        // Kartu Izin: Biru Pudar + Garis Biru Solid
+        card: { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-500' }
+    },
+    'Pulang': { 
+        // TINT BASE + TEXT WARNA
+        class: 'bg-purple-50 text-purple-700 border-4 border-purple-200 shadow-[0_0_0_1.5px_#9333ea] hover:scale-105', 
+        label: 'P',
+        // Kartu Pulang: Ungu Pudar + Garis Ungu Solid
+        card: { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-500' }
     },
     'Tidak': { 
-        // INSET / TENGGELAM (Default Slot Kosong)
-        class: 'bg-slate-50 text-slate-300 border-2 border-slate-200 shadow-inner hover:bg-slate-100 hover:text-slate-400 hover:border-slate-300 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-600', 
+        // DEFAULT GRAY
+        class: 'bg-slate-50 text-slate-400 border-4 border-slate-100 shadow-[0_0_0_1.5px_#cbd5e1]', 
         label: '-',
-        cardBg: 'bg-white dark:bg-slate-800',
-        text: 'text-slate-800 dark:text-white'
+        card: { bg: 'bg-white dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700' }
     }
 };
 
