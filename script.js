@@ -4670,35 +4670,50 @@ window.savePembinaan = function() {
     const rawData = document.getElementById('bina-target-data').value;
     if(!rawData) return;
 
-    const target = JSON.parse(rawData);
-    const dateBina = document.getElementById('bina-date').value;
-    const actionBina = document.getElementById('bina-action').value;
+    try {
+        const target = JSON.parse(rawData);
+        const dateBina = document.getElementById('bina-date').value;
+        const actionBina = document.getElementById('bina-action').value;
 
-    if(!dateBina || !actionBina) {
-        return window.showToast("Tanggal dan Bentuk Pembinaan wajib diisi!", "warning");
-    }
+        if(!dateBina || !actionBina) {
+            return window.showToast("Tanggal dan Bentuk Pembinaan wajib diisi!", "warning");
+        }
 
-    // Update Data
-    const dayData = appState.attendanceData[target.date];
-    if(dayData && dayData[target.slotId] && dayData[target.slotId][target.id]) {
-        const studentData = dayData[target.slotId][target.id];
-        
-        // Simpan Object Pembinaan
-        studentData.coaching = {
-            done: true,
-            date: dateBina,
-            action: actionBina,
-            musyrif: appState.userProfile ? appState.userProfile.email : 'Admin'
-        };
+        // Validate date
+        if(dateBina > window.getLocalDateStr()) {
+            return window.showToast("Tanggal pembinaan tidak boleh di masa depan", "warning");
+        }
 
-        window.saveData();
-        window.renderDashboardPembinaan(); // Refresh Widget Dashboard
-        window.renderPembinaanManagement(); // Refresh Profil (Poin Bertambah)
-        
-        window.showToast("Pembinaan berhasil dicatat. Poin ditambahkan.", "success");
-        document.getElementById('modal-input-pembinaan').classList.add('hidden');
-    } else {
-        window.showToast("Data presensi tidak ditemukan (mungkin terhapus)", "error");
+        const dayData = appState.attendanceData[target.date];
+        if(dayData && dayData[target.slotId] && dayData[target.slotId][target.id]) {
+            const studentData = dayData[target.slotId][target.id];
+            
+            studentData.coaching = {
+                done: true,
+                date: dateBina,
+                action: window.sanitizeHTML(actionBina),
+                musyrif: appState.userProfile ? appState.userProfile.email : 'Admin',
+                timestamp: new Date().toISOString()
+            };
+
+            window.saveData();
+            
+            // Refresh UI safely
+            if(typeof window.renderDashboardPembinaan === 'function') {
+                window.renderDashboardPembinaan();
+            }
+            if(typeof window.renderPembinaanManagement === 'function') {
+                window.renderPembinaanManagement();
+            }
+            
+            window.showToast("Pembinaan berhasil dicatat. Poin ditambahkan.", "success");
+            window.closeModal('modal-input-pembinaan');
+        } else {
+            window.showToast("Data presensi tidak ditemukan (mungkin terhapus)", "error");
+        }
+    } catch(e) {
+        console.error("Pembinaan save error:", e);
+        window.showToast("Gagal menyimpan: " + e.message, "error");
     }
 };
 
