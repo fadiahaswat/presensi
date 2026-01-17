@@ -264,53 +264,51 @@ const SLOT_WAKTU = {
     ]}
 };
 
-// Di script.js
-// Konfigurasi Tampilan Status (Flat Design Modern)
-// Konfigurasi Tampilan Status (Gaya Outline Seperti Screenshot)
-// Konfigurasi Tampilan Status (Solid Green vs Dashed vs Outline)
+// Konfigurasi Tampilan Status (Refined Design)
 const STATUS_UI = {
     'Hadir': { 
-        // HIJAU SOLID (Block)
-        // Menggunakan bg-emerald-500 (pekat) dan text-white
-        class: 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200 dark:bg-emerald-600 dark:border-emerald-600 dark:text-white dark:shadow-none', 
+        // POSITIF KUAT (Solid Green)
+        class: 'bg-emerald-500 border-2 border-emerald-500 text-white shadow-emerald-200/50 hover:bg-emerald-600 hover:border-emerald-600 dark:shadow-none', 
         label: 'H',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
     },
-    'Telat': { 
-        // HIJAU TINT + GARIS PUTUS-PUTUS (Dashed)
-        // Menggunakan border-dashed untuk efek "kurang sempurna"
-        class: 'bg-emerald-50 border-2 border-dashed border-emerald-400 text-emerald-600 dark:bg-emerald-900/20 dark:border-emerald-400 dark:text-emerald-400', 
-        label: 'T'
-    },
     'Ya': { 
-        // HIJAU SOLID (Block) - Sama seperti Hadir
-        class: 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200 dark:bg-emerald-600 dark:border-emerald-600 dark:text-white dark:shadow-none', 
+        // POSITIF KUAT (Sama dengan Hadir)
+        class: 'bg-emerald-500 border-2 border-emerald-500 text-white shadow-emerald-200/50 hover:bg-emerald-600 hover:border-emerald-600 dark:shadow-none', 
         label: 'Y'
     },
+    'Telat': { 
+        // PERINGATAN RINGAN (Dashed Green)
+        // Border dashed memberikan kesan "Hadir tapi tidak penuh"
+        class: 'bg-emerald-50 border-2 border-dashed border-emerald-400 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-500 dark:text-emerald-400', 
+        label: 'T'
+    },
     'Sakit': { 
-        // KUNING TINT (Outline Solid)
-        class: 'bg-amber-50 border-amber-500 text-amber-600 dark:bg-amber-900/20 dark:border-amber-400 dark:text-amber-400', 
+        // NETRAL (Outline Amber)
+        class: 'bg-amber-50 border-2 border-amber-400 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-500 dark:text-amber-400', 
         label: 'S'
     },
     'Izin': { 
-        // BIRU TINT (Outline Solid)
-        class: 'bg-blue-50 border-blue-500 text-blue-600 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-400', 
+        // NETRAL (Outline Blue)
+        class: 'bg-blue-50 border-2 border-blue-400 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-500 dark:text-blue-400', 
         label: 'I'
     },
     'Pulang': { 
-        // UNGU TINT (Outline Solid)
-        class: 'bg-purple-50 border-purple-500 text-purple-600 dark:bg-purple-900/20 dark:border-purple-400 dark:text-purple-400', 
+        // NETRAL (Outline Purple)
+        class: 'bg-purple-50 border-2 border-purple-400 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:border-purple-500 dark:text-purple-400', 
         label: 'P'
     },
     'Alpa': { 
-        // MERAH TINT (Outline Solid)
-        class: 'bg-red-50 border-red-500 text-red-600 dark:bg-red-900/20 dark:border-red-400 dark:text-red-400', 
+        // NEGATIF (Solid Rose/Red)
+        // Menggunakan Solid agar admin langsung "aware" ada yang bolos
+        // Jika ingin tetap outline, ganti ke style seperti 'Sakit' tapi warna Rose
+        class: 'bg-rose-100 border-2 border-rose-500 text-rose-700 hover:bg-rose-200 dark:bg-rose-900/30 dark:border-rose-500 dark:text-rose-400', 
         label: 'A'
     },
     'Tidak': { 
-        // ABU-ABU KOSONG (Default)
-        class: 'bg-slate-50 border-slate-200 text-slate-300 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500', 
+        // DEFAULT (Gray Outline)
+        class: 'bg-slate-50 border-2 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-500 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-600', 
         label: '-',
         cardBg: 'bg-white dark:bg-slate-800',
         text: 'text-slate-800 dark:text-white'
