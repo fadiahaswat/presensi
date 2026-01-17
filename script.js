@@ -1494,8 +1494,15 @@ window.applyBulkAction = function(targetCategory, value, specificId = null) {
 window.toggleProblemFilter = function() {
     appState.filterProblemOnly = !appState.filterProblemOnly;
     const btn = document.getElementById('btn-filter-problem');
-    if(appState.filterProblemOnly) btn.classList.add('text-red-500', 'bg-red-50');
-    else btn.classList.remove('text-red-500', 'bg-red-50');
+    
+    if(appState.filterProblemOnly) {
+        btn.classList.add('text-red-500', 'bg-red-50', 'border-red-200');
+        btn.classList.remove('text-slate-500', 'bg-white');
+    } else {
+        btn.classList.remove('text-red-500', 'bg-red-50', 'border-red-200');
+        btn.classList.add('text-slate-500', 'bg-white');
+    }
+    
     window.renderAttendanceList();
 };
 
