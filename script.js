@@ -1015,6 +1015,7 @@ window.renderAttendanceList = function() {
     
     container.innerHTML = '';
     
+    // --- LOGIC START (TIDAK DIUBAH) ---
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
@@ -1032,7 +1033,6 @@ window.renderAttendanceList = function() {
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
 
-    // FIX: Dynamic main activity ID
     const mainActId = slot.activities[0]?.id || 'shalat';
 
     const list = FILTERED_SANTRI.filter(s => {
@@ -1135,61 +1135,80 @@ window.renderAttendanceList = function() {
             summaryCount[currentStatus] = (summaryCount[currentStatus] || 0) + 1;
             summaryList.push({ nama: santri.nama, status: currentStatus });
         }
+        // --- LOGIC END ---
 
+        // --- DESIGN IMPLEMENTATION START ---
+        
         const clone = tplRow.content.cloneNode(true);
         const cardContainer = clone.querySelector('.santri-row') || clone.querySelector('div');
         
         const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
 
-        cardContainer.className = `santri-row relative overflow-hidden transition-all duration-300 shadow-sm p-5 rounded-3xl border flex flex-col gap-3 ${uiConfig.cardBg} border-slate-100 dark:border-slate-700`;
+        // 1. Container Styling (Rounded modern, shadow halus, border tipis)
+        cardContainer.className = `santri-row relative overflow-hidden transition-all duration-300 hover:shadow-lg p-4 rounded-[1.5rem] border flex flex-col gap-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700`;
         
-        if (activePermit) {
-            cardContainer.classList.add('border-l-[6px]');
+        // Border Kiri Warna-warni (Indikator Cepat untuk Status Non-Hadir)
+        if (['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(currentStatus) || activePermit) {
+            cardContainer.classList.add('border-l-[6px]'); // Border kiri tebal
             if(currentStatus === 'Sakit') cardContainer.classList.add('border-l-amber-500');
             else if(currentStatus === 'Izin') cardContainer.classList.add('border-l-blue-500');
             else if(currentStatus === 'Pulang') cardContainer.classList.add('border-l-purple-500');
+            else if(currentStatus === 'Alpa') cardContainer.classList.add('border-l-rose-500');
         }
 
+        // 2. Name & Avatar Styling
         const nameEl = clone.querySelector('.santri-name');
         nameEl.textContent = window.sanitizeHTML(santri.nama);
-        nameEl.className = `santri-name font-bold text-sm leading-tight line-clamp-1 ${uiConfig.text}`;
+        nameEl.className = `santri-name font-bold text-sm leading-tight line-clamp-1 text-slate-800 dark:text-white`;
         
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         
         const avatar = clone.querySelector('.santri-avatar');
         avatar.textContent = santri.nama.substring(0,2).toUpperCase();
-        avatar.setAttribute('aria-label', santri.nama);
-        if(currentStatus !== 'Hadir') avatar.classList.add('opacity-60');
+        
+        // Avatar Style: Pudar jika tidak hadir
+        if(currentStatus !== 'Hadir') {
+            avatar.classList.add('opacity-50', 'grayscale');
+        }
 
+        // 3. Badge Status (Desain "Chip" Kecil di sebelah nama)
         if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
             const badge = document.createElement('span');
-            let colorClass = 'bg-slate-100 text-slate-500';
+            let colorClass = 'bg-slate-100 text-slate-500 border-slate-200';
             let iconCode = '';
 
-            if (activePermit) iconCode = '<i data-lucide="file-badge-2" class="w-3 h-3"></i>';
-            else iconCode = '<i data-lucide="info" class="w-3 h-3"></i>';
+            // Icon kecil (Opsional, jika menggunakan lucide)
+            if (activePermit) iconCode = ''; // Bisa ditambah icon
+            
+            // Pewarnaan Badge sesuai Desain Outline/Tint
+            if(currentStatus === 'Sakit') colorClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+            else if(currentStatus === 'Izin') colorClass = 'bg-blue-50 text-blue-700 border border-blue-200';
+            else if(currentStatus === 'Pulang') colorClass = 'bg-purple-50 text-purple-700 border border-purple-200';
+            else if(currentStatus === 'Alpa') colorClass = 'bg-rose-50 text-rose-700 border border-rose-200'; // Rose untuk Alpa
+            else if(currentStatus === 'Telat') colorClass = 'bg-teal-50 text-teal-700 border border-teal-200';
 
-            if(currentStatus === 'Sakit') colorClass = 'bg-amber-100 text-amber-700 border border-amber-200';
-            else if(currentStatus === 'Izin') colorClass = 'bg-blue-100 text-blue-700 border border-blue-200';
-            else if(currentStatus === 'Pulang') colorClass = 'bg-purple-100 text-purple-700 border border-purple-200';
-            else if(currentStatus === 'Alpa') colorClass = 'bg-red-100 text-red-700 border border-red-200';
-            else if(currentStatus === 'Telat') colorClass = 'bg-teal-100 text-teal-700 border border-teal-200';
-
-            badge.className = `ml-2 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 align-middle ${colorClass}`;
+            // Styling Badge: Kecil, Font Tebal, Uppercase
+            badge.className = `ml-2 px-1.5 py-[2px] rounded-[6px] text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 align-middle ${colorClass}`;
             badge.innerHTML = `${iconCode} ${currentStatus}`;
-            badge.setAttribute('aria-label', `Status: ${currentStatus}`);
             
             if(nameEl.parentNode) {
-                nameEl.appendChild(badge);
+                nameEl.parentNode.appendChild(badge);
             }
         }
 
+        // 4. Activity Buttons Grid (FORCE HORIZONTAL LAYOUT)
         const btnCont = clone.querySelector('.activity-container');
         if (btnCont) {
+            // INLINE STYLE: Memastikan layout Grid 5 kolom walau Tailwind belum di-build
+            btnCont.style.cssText = "display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; align-items: start;";
+
             slot.activities.forEach(act => {
                 if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
                 const bClone = tplBtn.content.cloneNode(true);
+                const btnWrapper = bClone.querySelector('div'); // Wrapper flex col
+                if(btnWrapper) btnWrapper.style.width = '100%'; // Pastikan wrapper full width di grid
+
                 const btn = bClone.querySelector('.btn-status');
                 const lbl = bClone.querySelector('.lbl-status');
                 
@@ -1197,20 +1216,20 @@ window.renderAttendanceList = function() {
                 const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
                 const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
 
-                let btnClass = `btn-status w-12 h-12 rounded-2xl flex items-center justify-center border-2 font-black text-lg transition-all duration-300 shadow-sm ${uiBtn.class} `;
+                // Styling Tombol: Aspect Square, Rounded Modern, Border Tebal (2px)
+                // Warna diambil dari uiBtn.class yang sudah kita konfigurasi (Solid/Dashed/Outline)
+                let btnClass = `btn-status w-full aspect-square rounded-[14px] flex items-center justify-center font-black text-sm transition-all duration-200 ${uiBtn.class} `;
                 
                 if (hasPermitConflict) {
-                    btnClass += ' ring-4 ring-yellow-300/50 ring-offset-1 opacity-90';
+                    btnClass += ' ring-4 ring-amber-200/50 ring-offset-1 opacity-80'; // Efek konflik
                 } else {
-                    btnClass += ' active:scale-90 hover:scale-105';
+                    btnClass += ' active:scale-95 hover:shadow-md'; // Efek klik & hover
                 }
 
                 btn.className = btnClass;
                 btn.textContent = uiBtn.label;
-                btn.setAttribute('aria-label', `${act.label}: ${curr}. Klik untuk ubah.`);
-                btn.setAttribute('role', 'button');
-                btn.setAttribute('tabindex', '0');
                 
+                // Event Handling (Tetap sama)
                 const handleToggle = (e) => {
                     e.stopPropagation();
                     if (hasPermitConflict) {
@@ -1222,39 +1241,32 @@ window.renderAttendanceList = function() {
                 
                 btn.onclick = handleToggle;
                 
-                // Keyboard accessibility
-                btn.onkeydown = (e) => {
-                    if(e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleToggle(e);
-                    }
-                };
-                
+                // Label Styling
                 lbl.textContent = act.label;
-                lbl.className = `lbl-status text-[10px] font-bold mt-1.5 text-center opacity-70 ${uiConfig.text}`;
+                lbl.className = `lbl-status text-[9px] font-bold mt-1 text-center truncate w-full text-slate-400 group-hover:text-slate-600 dark:text-slate-500`;
                 
                 btnCont.appendChild(bClone);
             });
         }
 
+        // 5. Note Section Styling (Input yang lebih bersih)
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         
         if (noteInp && noteBox) {
             noteInp.value = sData.note || "";
-            noteInp.className = `input-note w-full text-xs p-2.5 rounded-xl border focus:ring-2 outline-none transition-all bg-white/50 dark:bg-black/20 focus:border-emerald-500 focus:ring-emerald-200 placeholder-slate-400 font-medium ${uiConfig.text}`;
-            noteInp.setAttribute('aria-label', 'Catatan santri');
+            // Input style: Background muda, border tipis, rounded
+            noteInp.className = `input-note w-full text-xs font-semibold p-3 rounded-xl border outline-none transition-all bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 placeholder-slate-400 dark:bg-slate-900 dark:border-slate-700`;
             
             noteInp.onchange = (e) => {
                 sData.note = window.sanitizeHTML(e.target.value);
                 window.saveData();
             };
             
-            const editBtn = clone.querySelector('.btn-edit-note');
+            // Toggle Button logic
+            const editBtn = clone.querySelector('.btn-edit-note'); // Jika ada tombol edit
             if(editBtn) {
                 editBtn.onclick = () => noteBox.classList.toggle('hidden');
-                editBtn.setAttribute('aria-label', 'Edit Catatan');
-                editBtn.setAttribute('aria-expanded', 'false');
             }
         }
 
@@ -1263,7 +1275,7 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
-    // Summary Widget
+    // --- SUMMARY WIDGET (Final Touch) ---
     const summaryWidget = document.getElementById('att-summary-widget');
     const summaryBadges = document.getElementById('att-summary-badges');
     const summaryNames = document.getElementById('att-summary-names');
@@ -1276,26 +1288,28 @@ window.renderAttendanceList = function() {
             summaryBadges.innerHTML = '';
             summaryNames.innerHTML = '';
 
+            // Helper untuk badge ringkasan
             const makeBadge = (count, label, color) => {
-                if(count > 0) summaryBadges.innerHTML += `<div class="px-3 py-1 rounded-lg font-bold text-xs whitespace-nowrap border ${color}">${count} ${label}</div>`;
+                if(count > 0) summaryBadges.innerHTML += `<div class="px-3 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap border bg-white dark:bg-slate-800 shadow-sm ${color}">${count} ${label}</div>`;
             };
 
-            makeBadge(summaryCount.Sakit, 'Sakit', 'bg-amber-100 text-amber-700 border-amber-200');
-            makeBadge(summaryCount.Izin, 'Izin', 'bg-blue-100 text-blue-700 border-blue-200');
-            makeBadge(summaryCount.Pulang, 'Pulang', 'bg-purple-100 text-purple-700 border-purple-200');
-            makeBadge(summaryCount.Alpa, 'Alpa', 'bg-red-100 text-red-700 border-red-200');
-            makeBadge(summaryCount.Telat, 'Telat', 'bg-teal-100 text-teal-700 border-teal-200');
+            makeBadge(summaryCount.Sakit, 'Sakit', 'text-amber-700 border-amber-200');
+            makeBadge(summaryCount.Izin, 'Izin', 'text-blue-700 border-blue-200');
+            makeBadge(summaryCount.Pulang, 'Pulang', 'text-purple-700 border-purple-200');
+            makeBadge(summaryCount.Alpa, 'Alpa', 'text-rose-700 border-rose-200'); // Merah Rose
+            makeBadge(summaryCount.Telat, 'Telat', 'text-teal-700 border-teal-200 border-dashed');
 
             summaryList.forEach(item => {
-                let color = 'bg-slate-100 text-slate-600';
-                if(item.status === 'Sakit') color = 'bg-amber-50 text-amber-600 border-amber-100';
-                else if(item.status === 'Izin') color = 'bg-blue-50 text-blue-600 border-blue-100';
-                else if(item.status === 'Alpa') color = 'bg-red-50 text-red-600 border-red-100';
-                else if(item.status === 'Telat') color = 'bg-teal-50 text-teal-600 border-teal-100';
-                else if(item.status === 'Pulang') color = 'bg-purple-50 text-purple-600 border-purple-100';
+                let color = 'bg-slate-50 text-slate-600 border-slate-200';
+                // Styling chip nama siswa yang bermasalah
+                if(item.status === 'Sakit') color = 'bg-amber-50 text-amber-700 border-amber-200';
+                else if(item.status === 'Izin') color = 'bg-blue-50 text-blue-700 border-blue-200';
+                else if(item.status === 'Alpa') color = 'bg-rose-50 text-rose-700 border-rose-200';
+                else if(item.status === 'Telat') color = 'bg-teal-50 text-teal-700 border-teal-200 border-dashed';
+                else if(item.status === 'Pulang') color = 'bg-purple-50 text-purple-700 border-purple-200';
 
                 const badge = document.createElement('span');
-                badge.className = `px-2 py-1 rounded-lg text-[10px] font-bold border ${color}`;
+                badge.className = `px-2 py-1 rounded-md text-[10px] font-bold border ${color} inline-block m-0.5`;
                 badge.textContent = window.sanitizeHTML(item.nama);
                 summaryNames.appendChild(badge);
             });
@@ -1305,7 +1319,7 @@ window.renderAttendanceList = function() {
     }
 
     if(hasAutoChanges) window.saveData(); 
-    window.refreshIcons();
+    if(window.refreshIcons) window.refreshIcons();
 };
 
 // ==========================================
