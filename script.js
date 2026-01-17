@@ -1126,72 +1126,98 @@ window.renderAttendanceList = function() {
         // --- END LOGIC ABSENSI ---
 
         // ==========================================
-        // MODERN UI IMPLEMENTATION
+        // COMPACT UI IMPLEMENTATION
+        // Static card, dark mode, minimal design
         // ==========================================
         
         const clone = tplRow.content.cloneNode(true);
         const cardContainer = clone.querySelector('.santri-row');
         
-        const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
-        const cardStyle = uiConfig.card;
-
-        // CARD STYLING - Ultra modern dengan subtle glow
-        cardContainer.className = `santri-row relative overflow-hidden transition-all duration-500 ease-out hover:scale-[1.01] mb-5 ${cardStyle.bg} ${cardStyle.border} border rounded-3xl p-6 shadow-lg ${cardStyle.glow} hover:shadow-xl`;
+        // STATIC CARD STYLING - Same for all
+        cardContainer.className = "santri-row bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm relative overflow-hidden transition-all hover:shadow-md mb-4";
         
-        // HEADER SECTION
-        const headerDiv = clone.querySelector('.header-section');
-        headerDiv.className = "flex items-start gap-4 mb-6";
-        
-        // Avatar - Gradient background
-        const avatarEl = clone.querySelector('.santri-avatar');
-        const initials = santri.nama.substring(0,2).toUpperCase();
-        avatarEl.className = "w-16 h-16 shrink-0 rounded-2xl flex items-center justify-center font-black text-xl bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 shadow-inner";
-        avatarEl.textContent = initials;
-        
-        // Info Column
-        const infoCol = clone.querySelector('.info-column');
-        infoCol.className = "flex-1 min-w-0";
-        
-        // Name Row
-        const nameRow = clone.querySelector('.name-row');
-        nameRow.className = "flex items-center gap-2 mb-2";
-        
-        const nameText = clone.querySelector('.santri-name');
-        nameText.className = "text-xl font-bold text-gray-900 tracking-tight leading-none";
-        nameText.textContent = window.sanitizeHTML(santri.nama);
-        
-        // Status Badge (conditional)
-        const statusBadgeContainer = clone.querySelector('.status-badge-container');
-        if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
-            const badge = document.createElement('span');
-            badge.className = `px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${uiConfig.badge}`;
-            badge.textContent = currentStatus;
-            statusBadgeContainer.appendChild(badge);
+        // Visual highlight untuk active permit (optional subtle ring)
+        if (activePermit) {
+            if(activePermit.type === 'Sakit') {
+                cardContainer.classList.add('ring-1', 'ring-amber-200', 'dark:ring-amber-800/50');
+            } else if(activePermit.type === 'Izin') {
+                cardContainer.classList.add('ring-1', 'ring-blue-200', 'dark:ring-blue-800/50');
+            } else if(activePermit.type === 'Pulang') {
+                cardContainer.classList.add('ring-1', 'ring-purple-200', 'dark:ring-purple-800/50');
+            }
         }
         
-        // Room Info
+        // HEADER SECTION
+        const headerContainer = clone.querySelector('.header-container');
+        headerContainer.className = "flex justify-between items-start mb-4";
+        
+        const infoSection = clone.querySelector('.info-section');
+        infoSection.className = "flex items-center gap-3.5";
+        
+        // AVATAR - Compact with ring effect
+        const avatarEl = clone.querySelector('.santri-avatar');
+        const initials = santri.nama.substring(0,2).toUpperCase();
+        avatarEl.className = "w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center font-black text-xs text-slate-500 dark:text-slate-400 shadow-inner shrink-0 ring-1 ring-white/50 dark:ring-black/20";
+        avatarEl.textContent = initials;
+        
+        // NAME & INFO
+        const nameContainer = clone.querySelector('.name-container');
+        nameContainer.className = "flex-1";
+        
+        const nameRow = clone.querySelector('.name-row');
+        nameRow.className = "flex items-center gap-2 mb-1";
+        
+        const nameText = clone.querySelector('.santri-name');
+        nameText.className = "font-bold text-slate-800 dark:text-white text-sm leading-tight line-clamp-1";
+        nameText.textContent = window.sanitizeHTML(santri.nama);
+        
+        // BADGE - Only for active permit (inline conditional)
+        const badgeContainer = clone.querySelector('.badge-container');
+        badgeContainer.innerHTML = '';
+        if (activePermit) {
+            const badge = document.createElement('span');
+            let badgeClass = 'px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border align-middle';
+            
+            if(activePermit.type === 'Sakit') {
+                badgeClass += ' bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700';
+            } else if(activePermit.type === 'Izin') {
+                badgeClass += ' bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700';
+            } else if(activePermit.type === 'Pulang') {
+                badgeClass += ' bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700';
+            }
+            
+            badge.className = badgeClass;
+            badge.textContent = activePermit.type;
+            badgeContainer.appendChild(badge);
+        }
+        
+        // ROOM INFO
         const roomRow = clone.querySelector('.room-row');
         roomRow.className = "flex items-center gap-2";
         
         const roomLabel = clone.querySelector('.room-label');
-        roomLabel.className = "px-2 py-0.5 rounded-md bg-gray-100 text-[9px] font-black text-gray-400 uppercase tracking-wider";
+        roomLabel.className = "px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide";
         roomLabel.textContent = "KAMAR";
         
         const roomValue = clone.querySelector('.santri-kamar');
-        roomValue.className = "text-sm font-medium text-gray-600";
+        roomValue.className = "text-[10px] font-medium text-slate-500 dark:text-slate-400";
         roomValue.textContent = santri.asrama || santri.kelas || "-";
-
+        
+        // EDIT NOTE BUTTON
+        const editBtn = clone.querySelector('.btn-edit-note');
+        editBtn.className = "w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all";
+        
         // ACTIVITY BUTTONS SECTION
         const btnCont = clone.querySelector('.activity-container');
-        btnCont.className = "grid grid-cols-5 gap-3 mt-4";
-        btnCont.innerHTML = ''; // Clear template buttons
+        btnCont.className = "flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1";
+        btnCont.innerHTML = ''; // Clear template
 
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
 
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
-            btnWrapper.className = "flex flex-col items-center gap-2 w-full";
+            btnWrapper.className = "flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group select-none";
 
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
@@ -1200,13 +1226,16 @@ window.renderAttendanceList = function() {
             const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
             const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
 
-            // Button Styling - Modern squircle dengan hover effect
-            let btnClass = `btn-status w-full aspect-square rounded-2xl flex items-center justify-center font-black text-2xl transition-all duration-300 cursor-pointer select-none ${uiBtn.class}`;
+            // COMPACT BUTTON - Fixed 11x11, focus ring
+            let btnClass = `btn-status w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[1.5px] font-black text-sm group-hover:shadow-md ${uiBtn.class}`;
             
             if (hasPermitConflict) {
-                btnClass += ' ring-4 ring-rose-300/50 animate-pulse';
+                // Ring untuk permit conflict
+                if(activePermit.type === 'Sakit') btnClass += ' ring-2 ring-amber-400 dark:ring-amber-600';
+                else if(activePermit.type === 'Izin') btnClass += ' ring-2 ring-blue-400 dark:ring-blue-600';
+                else if(activePermit.type === 'Pulang') btnClass += ' ring-2 ring-purple-400 dark:ring-purple-600';
             } else {
-                btnClass += ' active:scale-90 hover:-translate-y-0.5';
+                btnClass += ' ring-1 ring-transparent focus:ring-emerald-500/20';
             }
 
             btn.className = btnClass;
@@ -1222,8 +1251,8 @@ window.renderAttendanceList = function() {
                 window.toggleStatus(id, act.id, act.type);
             };
             
-            // Label - Clean typography
-            lbl.className = "lbl-status text-[11px] font-semibold text-gray-500 text-center truncate w-full";
+            // LABEL - Compact typography
+            lbl.className = "lbl-status text-[9px] font-bold text-slate-400 w-14 text-center truncate group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             lbl.textContent = act.label;
             
             btnCont.appendChild(bClone);
@@ -1234,24 +1263,22 @@ window.renderAttendanceList = function() {
         const noteInp = clone.querySelector('.input-note');
         
         if (noteInp && noteBox) {
+            noteBox.className = "note-section hidden mt-3 animate-fade-in border-t border-slate-100 dark:border-slate-700 pt-3";
             noteInp.value = sData.note || "";
-            noteInp.className = "input-note w-full text-sm font-medium p-4 rounded-2xl bg-gray-50/80 backdrop-blur-sm border-0 focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:bg-white placeholder-gray-400 text-gray-700 transition-all duration-300";
-            noteInp.placeholder = "Tambahkan catatan...";
+            noteInp.className = "input-note w-full text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 focus:border-emerald-500 dark:focus:border-emerald-400 outline-none transition-colors placeholder-slate-400 dark:placeholder-slate-500 text-slate-700 dark:text-slate-200";
+            noteInp.placeholder = "Catatan kejadian...";
             
             noteInp.onchange = (e) => {
                 sData.note = window.sanitizeHTML(e.target.value);
                 window.saveData();
             };
             
-            const editBtn = clone.querySelector('.btn-edit-note');
-            if(editBtn) {
-                editBtn.onclick = () => {
-                    noteBox.classList.toggle('hidden');
-                    if (!noteBox.classList.contains('hidden')) {
-                        noteInp.focus();
-                    }
-                };
-            }
+            editBtn.onclick = () => {
+                noteBox.classList.toggle('hidden');
+                if (!noteBox.classList.contains('hidden')) {
+                    noteInp.focus();
+                }
+            };
         }
 
         fragment.appendChild(clone);
@@ -1260,7 +1287,7 @@ window.renderAttendanceList = function() {
     container.appendChild(fragment);
     
     // ==========================================
-    // SUMMARY WIDGET - Modern Pills Design
+    // SUMMARY WIDGET - Clean badges
     // ==========================================
     const summaryWidget = document.getElementById('att-summary-widget');
     const summaryBadges = document.getElementById('att-summary-badges');
@@ -1274,26 +1301,32 @@ window.renderAttendanceList = function() {
             summaryBadges.innerHTML = '';
             summaryNames.innerHTML = '';
 
-            const makeBadge = (count, label, uiType) => {
-                const ui = STATUS_UI[uiType];
+            const makeBadge = (count, label, colorClass) => {
                 if(count > 0) {
                     const pill = document.createElement('div');
-                    pill.className = `px-4 py-2 rounded-full font-bold text-sm shadow-md transition-transform hover:scale-105 ${ui.badge}`;
+                    pill.className = `px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm border ${colorClass}`;
                     pill.textContent = `${count} ${label}`;
                     summaryBadges.appendChild(pill);
                 }
             };
 
-            makeBadge(summaryCount.Sakit, 'Sakit', 'Sakit');
-            makeBadge(summaryCount.Izin, 'Izin', 'Izin');
-            makeBadge(summaryCount.Pulang, 'Pulang', 'Pulang');
-            makeBadge(summaryCount.Alpa, 'Alpa', 'Alpa'); 
-            makeBadge(summaryCount.Telat, 'Telat', 'Telat');
+            makeBadge(summaryCount.Sakit, 'Sakit', 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700');
+            makeBadge(summaryCount.Izin, 'Izin', 'bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700');
+            makeBadge(summaryCount.Pulang, 'Pulang', 'bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700');
+            makeBadge(summaryCount.Alpa, 'Alpa', 'bg-red-50 text-red-500 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700');
+            makeBadge(summaryCount.Telat, 'Telat', 'bg-teal-100 text-teal-600 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-700');
 
             summaryList.forEach(item => {
-                const ui = STATUS_UI[item.status] || STATUS_UI['Tidak'];
+                let badgeClass = 'px-2 py-1 rounded-md text-[10px] font-bold inline-block m-0.5 border';
+                
+                if(item.status === 'Sakit') badgeClass += ' bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400';
+                else if(item.status === 'Izin') badgeClass += ' bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400';
+                else if(item.status === 'Pulang') badgeClass += ' bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400';
+                else if(item.status === 'Alpa') badgeClass += ' bg-red-50 text-red-500 border-red-200 dark:bg-red-900/30 dark:text-red-400';
+                else if(item.status === 'Telat') badgeClass += ' bg-teal-100 text-teal-600 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400';
+                
                 const badge = document.createElement('span');
-                badge.className = `px-3 py-1.5 rounded-xl text-xs font-semibold ${ui.badge} inline-block m-1 transition-all hover:scale-105`;
+                badge.className = badgeClass;
                 badge.textContent = window.sanitizeHTML(item.nama);
                 summaryNames.appendChild(badge);
             });
