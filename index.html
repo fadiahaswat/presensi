@@ -30,6 +30,35 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <style>
+        html {
+          transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        
+        /* Modal z-index base */
+        .modal {
+          z-index: 1000;
+        }
+        
+        /* Prevent body scroll when modal open */
+        body.modal-open {
+          overflow: hidden;
+        }
+        
+        /* Keyboard focus indicator */
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible {
+          outline: 2px solid #10b981;
+          outline-offset: 2px;
+        }
+        
+        /* Smooth transitions */
+        * {
+          transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+          transition-duration: 150ms;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        */
         /* --- Base & Reset --- */
         body { 
             -webkit-tap-highlight-color: transparent; 
@@ -1602,6 +1631,7 @@
     
 </body>
 </html>
+
 
 
 
