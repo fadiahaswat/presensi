@@ -4798,6 +4798,7 @@ window.renderSchoolStatsWidget = function() {
                 else if(st === 'Izin') color = 'text-blue-500';
                 else if(st === 'Alpa') color = 'text-red-500';
                 else if(st === 'Telat') color = 'text-teal-500';
+                else if(st === 'Pulang') color = 'text-purple-500'; // <-- TAMBAHKAN INI
 
                 // Tampilkan Telat juga kalau mau dipantau, atau exclude jika dihitung hadir
                 const item = document.createElement('div');
