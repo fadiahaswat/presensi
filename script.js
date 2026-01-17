@@ -2072,24 +2072,23 @@ window.switchTab = function(tabName) {
 window.updateReportTab = function() {
     const tbody = document.getElementById('daily-recap-tbody');
     const rangeLabel = document.getElementById('report-date-range');
-    
-    // 1. UPDATE HEADER TABEL (Menambahkan Kolom Sekolah)
     const thead = document.querySelector('#tab-report thead tr');
+    
     if (thead) {
         thead.innerHTML = `
-            <th class="p-3 font-bold w-8 text-center">No</th>
-            <th class="p-3 font-bold min-w-[120px]">Nama Santri</th>
-            <th class="p-3 font-bold text-center">Shalat</th>
-            <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400">Sekolah</th> <th class="p-3 font-bold text-center">KBM Asrama</th>
-            <th class="p-3 font-bold text-center">Sunnah</th>
-            <th class="p-3 font-bold text-center">Nilai</th>
+            <th class="p-3 font-bold w-8 text-center" scope="col">No</th>
+            <th class="p-3 font-bold min-w-[120px]" scope="col">Nama Santri</th>
+            <th class="p-3 font-bold text-center" scope="col">Shalat</th>
+            <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400" scope="col">Sekolah</th>
+            <th class="p-3 font-bold text-center" scope="col">KBM Asrama</th>
+            <th class="p-3 font-bold text-center" scope="col">Sunnah</th>
+            <th class="p-3 font-bold text-center" scope="col">Nilai</th>
         `;
     }
     
     if(!tbody) return;
     tbody.innerHTML = '';
     
-    // Update Label Tanggal
     const range = window.getReportDateRange(appState.reportMode);
     if(rangeLabel) rangeLabel.textContent = range.label;
 
@@ -2098,121 +2097,106 @@ window.updateReportTab = function() {
         return;
     }
 
-    // --- AGGREGATION LOGIC ---
-    const santriStats = {}; 
-
+    // OPTIMIZATION: Use Map for O(1) lookup
+    const santriStatsMap = new Map();
     FILTERED_SANTRI.forEach(s => {
-        santriStats[s.nis || s.id] = { 
+        santriStatsMap.set(s.nis || s.id, { 
             fardu: { h:0, total:0 }, 
-            school: { h:0, total:0 }, // Statistik Sekolah
+            school: { h:0, total:0 },
             kbm: { h:0, total:0 }, 
             sunnah: { y:0, total:0 },
             scoreTotal: 0,
             scoreMax: 0
-        };
+        });
     });
 
-    let curr = new Date(range.start);
-    const end = new Date(range.end);
-    let loopGuard = 0;
+    // OPTIMIZATION: Pre-calculate date range (avoid while loop)
+    const startTime = range.start.getTime();
+    const endTime = range.end.getTime();
+    const dayInMs = 24 * 60 * 60 * 1000;
+    const totalDays = Math.min(Math.ceil((endTime - startTime) / dayInMs) + 1, 370);
 
-    // Loop setiap hari dalam rentang
-    while(curr <= end && loopGuard < 370) {
-        const y = curr.getFullYear();
-        const m = String(curr.getMonth()+1).padStart(2,'0');
-        const d = String(curr.getDate()).padStart(2,'0');
-        const dateKey = `${y}-${m}-${d}`;
-        const dayNum = curr.getDay();
+    for(let i = 0; i < totalDays; i++) {
+        const currentDate = new Date(startTime + (i * dayInMs));
+        const dateKey = window.getLocalDateStr(currentDate);
+        const dayNum = currentDate.getDay();
+        const dayData = appState.attendanceData[dateKey];
 
-        const dayData = appState.attendanceData[dateKey]; // Ambil data hari itu
+        if (!dayData) continue;
 
-        if (dayData) {
-            Object.values(SLOT_WAKTU).forEach(slot => {
-                // Loop semua santri
-                FILTERED_SANTRI.forEach(s => {
-                    const id = String(s.nis || s.id);
-                    const sData = dayData[slot.id]?.[id];
-                    const stats = santriStats[id];
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            FILTERED_SANTRI.forEach(s => {
+                const id = String(s.nis || s.id);
+                const sData = dayData[slot.id]?.[id];
+                const stats = santriStatsMap.get(id);
+                
+                if(!sData || !stats) return;
 
-                    if(sData) {
-                        slot.activities.forEach(act => {
-                            if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
-                            
-                            const st = sData.status[act.id];
-                            let weight = 0;
-                            let point = 0;
+                slot.activities.forEach(act => {
+                    if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
+                    
+                    const st = sData.status[act.id];
+                    let weight = 0;
+                    let point = 0;
 
-                            // Tentukan Bobot
-                            if (act.category === 'school') weight = 4; // Bobot Sekolah Besar
-                            else if(act.category === 'fardu') weight = 3;
-                            else if(act.category === 'kbm') weight = 2;
-                            else weight = 1;
+                    if (act.category === 'school') weight = 4;
+                    else if(act.category === 'fardu') weight = 3;
+                    else if(act.category === 'kbm') weight = 2;
+                    else weight = 1;
 
-                            // Hitung Point
-                            if(st === 'Hadir' || st === 'Ya' || st === 'Telat') point = weight;
-                            else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; 
-                            else point = 0;
+                    if(st === 'Hadir' || st === 'Ya' || st === 'Telat') point = weight;
+                    else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; 
+                    else point = 0;
 
-                            // Akumulasi Score Global
-                            stats.scoreTotal += point;
-                            stats.scoreMax += weight;
+                    stats.scoreTotal += point;
+                    stats.scoreMax += weight;
 
-                            // Akumulasi Kategori
-                            if(act.category === 'fardu') {
-                                stats.fardu.total++;
-                                if(st === 'Hadir') stats.fardu.h++;
-                            } 
-                            else if (act.category === 'school') { // Kategori Sekolah
-                                stats.school.total++;
-                                if(st === 'Hadir' || st === 'Telat') stats.school.h++;
-                            }
-                            else if(act.category === 'kbm') {
-                                stats.kbm.total++;
-                                if(st === 'Hadir') stats.kbm.h++;
-                            } else {
-                                stats.sunnah.total++;
-                                if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
-                            }
-                        });
+                    if(act.category === 'fardu') {
+                        stats.fardu.total++;
+                        if(st === 'Hadir') stats.fardu.h++;
+                    } 
+                    else if (act.category === 'school') {
+                        stats.school.total++;
+                        if(st === 'Hadir' || st === 'Telat') stats.school.h++;
+                    }
+                    else if(act.category === 'kbm') {
+                        stats.kbm.total++;
+                        if(st === 'Hadir') stats.kbm.h++;
+                    } else {
+                        stats.sunnah.total++;
+                        if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
                     }
                 });
             });
-        }
-        curr.setDate(curr.getDate() + 1);
-        loopGuard++;
+        });
     }
 
-    // --- RENDER TABLE ---
+    // RENDER with DocumentFragment
     const fragment = document.createDocumentFragment();
-
-    // Helper visual bar kecil
     const makeBar = (pct, color) => `
         <div class="flex flex-col items-center">
             <span class="text-[10px] font-bold ${pct<60?'text-red-500':'text-slate-600'}">${pct}%</span>
             <div class="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full ${color}" style="width: ${pct}%"></div>
+                <div class="h-full ${color} transition-all duration-300" style="width: ${pct}%"></div>
             </div>
         </div>`;
 
     FILTERED_SANTRI.forEach((s, idx) => {
         const id = String(s.nis || s.id);
-        const stats = santriStats[id];
+        const stats = santriStatsMap.get(id);
+        if(!stats) return;
         
-        // Final Score Calculation
         const finalScore = stats.scoreMax === 0 ? 0 : Math.round((stats.scoreTotal / stats.scoreMax) * 100);
         
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-50 dark:border-slate-700/50";
 
-        // Logic Tampilan Kolom
         let shalatCol, schoolCol, kbmCol, sunnahCol;
 
         if (appState.reportMode === 'daily') {
-            // MODE HARIAN: Tampilkan Badge
             const dateKey = appState.date;
             const dayData = appState.attendanceData[dateKey] || {};
             
-            // 1. Badge Shalat (S, A, M, I)
             let badges = '';
             ['shubuh', 'ashar', 'maghrib', 'isya'].forEach(sid => {
                 const st = dayData[sid]?.[id]?.status?.shalat;
@@ -2224,12 +2208,11 @@ window.updateReportTab = function() {
                 else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';
                 else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
                 
-                let label = sid[0].toUpperCase(); 
-                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black">${label}</span>`;
+                const label = sid[0].toUpperCase();
+                badges += `<span class="w-5 h-5 flex items-center justify-center rounded ${color} text-[9px] font-black" aria-label="${sid}: ${st || 'Belum diisi'}">${label}</span>`;
             });
-            shalatCol = `<div class="flex justify-center gap-1">${badges}</div>`;
+            shalatCol = `<div class="flex justify-center gap-1" role="list">${badges}</div>`;
 
-            // 2. Badge Sekolah (Khusus)
             const stSchool = dayData['sekolah']?.[id]?.status?.kbm_sekolah;
             let schColor = 'bg-slate-100 text-slate-300';
             let schLabel = '-';
@@ -2240,26 +2223,23 @@ window.updateReportTab = function() {
             else if(stSchool === 'Izin') { schColor = 'bg-blue-100 text-blue-600'; schLabel = 'I'; }
             else if(stSchool === 'Alpa') { schColor = 'bg-red-100 text-red-600'; schLabel = 'A'; }
 
-            schoolCol = `<div class="flex justify-center"><span class="w-6 h-6 flex items-center justify-center rounded-lg ${schColor} text-[10px] font-black shadow-sm">${schLabel}</span></div>`;
+            schoolCol = `<div class="flex justify-center"><span class="w-6 h-6 flex items-center justify-center rounded-lg ${schColor} text-[10px] font-black shadow-sm" aria-label="Sekolah: ${stSchool || 'Belum diisi'}">${schLabel}</span></div>`;
 
-            // 3. KBM & Sunnah (Angka)
             kbmCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.kbm.h}</span>`;
             sunnahCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.sunnah.y}</span>`;
         } 
         else {
-            // MODE PERIODE: Tampilkan Persentase Bar
             const pctFardu = stats.fardu.total ? Math.round((stats.fardu.h / stats.fardu.total)*100) : 0;
             const pctSchool = stats.school.total ? Math.round((stats.school.h / stats.school.total)*100) : 0;
             const pctKbm = stats.kbm.total ? Math.round((stats.kbm.h / stats.kbm.total)*100) : 0;
             const pctSunnah = stats.sunnah.total ? Math.round((stats.sunnah.y / stats.sunnah.total)*100) : 0;
 
             shalatCol = makeBar(pctFardu, 'bg-emerald-500');
-            schoolCol = makeBar(pctSchool, 'bg-cyan-500'); // Bar Cyan untuk Sekolah
+            schoolCol = makeBar(pctSchool, 'bg-cyan-500');
             kbmCol = makeBar(pctKbm, 'bg-blue-500');
             sunnahCol = makeBar(pctSunnah, 'bg-amber-500');
         }
 
-        // Warna Score Akhir
         let scoreColor = 'text-red-500';
         if(finalScore >= 85) scoreColor = 'text-emerald-500';
         else if(finalScore >= 70) scoreColor = 'text-blue-500';
@@ -2268,11 +2248,12 @@ window.updateReportTab = function() {
         tr.innerHTML = `
             <td class="p-3 text-center text-slate-500 text-[10px] font-bold">${idx + 1}</td>
             <td class="p-3">
-                <div class="font-bold text-slate-700 dark:text-slate-200 text-xs">${s.nama}</div>
+                <div class="font-bold text-slate-700 dark:text-slate-200 text-xs">${window.sanitizeHTML(s.nama)}</div>
                 ${appState.reportMode !== 'daily' ? `<div class="text-[9px] text-slate-400 mt-0.5">Total Point: ${stats.scoreTotal}</div>` : ''}
             </td>
             <td class="p-3 text-center align-middle">${shalatCol}</td>
-            <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td> <td class="p-3 text-center align-middle">${kbmCol}</td>
+            <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td>
+            <td class="p-3 text-center align-middle">${kbmCol}</td>
             <td class="p-3 text-center align-middle">${sunnahCol}</td>
             <td class="p-3 text-center font-black ${scoreColor} text-sm">${finalScore}</td>
         `;
