@@ -1013,37 +1013,35 @@ window.closeAttendance = function() {
 
 window.renderAttendanceList = function() {
     const container = document.getElementById('attendance-list-container');
-    if (!container) return; // Safety check
+    if (!container) return;
+    
     container.innerHTML = '';
     
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const dateKey = appState.date;
     const currentDay = new Date(appState.date).getDay();
 
-    // Pastikan Data Ada
     if(!appState.attendanceData[dateKey]) appState.attendanceData[dateKey] = {};
     if(!appState.attendanceData[dateKey][slot.id]) appState.attendanceData[dateKey][slot.id] = {};
     
     const dbSlot = appState.attendanceData[dateKey][slot.id];
     let hasAutoChanges = false;
 
-    // Variabel Ringkasan Count
     let summaryCount = { Sakit: 0, Izin: 0, Pulang: 0, Alpa: 0, Telat: 0 };
-    let summaryList = []; 
+    let summaryList = [];
 
     const PREV_SLOT_MAP = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
 
-    // Filter List Santri
+    // FIX: Dynamic main activity ID
+    const mainActId = slot.activities[0]?.id || 'shalat';
+
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(appState.searchQuery.toLowerCase());
         if(appState.filterProblemOnly) {
-            const st = dbSlot[String(s.nis || s.id)]?.status?.shalat; 
-            // Cek juga status KBM Sekolah jika slot sekolah
-            const stSchool = dbSlot[String(s.nis || s.id)]?.status?.kbm_sekolah;
-            const finalSt = st || stSchool;
-            return matchName && ['Alpa','Sakit','Izin','Pulang','Telat'].includes(finalSt);
+            const st = dbSlot[String(s.nis || s.id)]?.status?.[mainActId];
+            return matchName && ['Alpa','Sakit','Izin','Pulang','Telat'].includes(st);
         }
         return matchName;
     });
@@ -1064,7 +1062,6 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // --- 1. INISIALISASI DATA ---
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
@@ -1072,7 +1069,6 @@ window.renderAttendanceList = function() {
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
-            // Auto-fill Sekolah jika Shubuh Sakit
             if (slot.id === 'sekolah') {
                 const shubuhData = appState.attendanceData[dateKey]?.['shubuh']?.[id];
                 if (shubuhData?.status?.shalat === 'Sakit') {
@@ -1080,17 +1076,14 @@ window.renderAttendanceList = function() {
                 }
             }
 
-            // Auto-fill dari sesi sebelumnya (Hanya Sakit/Izin/Pulang)
             if (prevSlotData && prevSlotData[id]) {
                 const prevSt = prevSlotData[id].status?.shalat;
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
-                    // Cari aktivitas utama di slot ini (misal: shalat atau kbm_sekolah)
                     const mainKey = slot.activities[0].id;
                     defStatus[mainKey] = prevSt;
                     
                     slot.activities.forEach(a => {
                         if (a.id === mainKey) return;
-                        // Sunnah tetap Tidak, Wajib ikut status
                         if (['fardu','kbm','school'].includes(a.category)) {
                             defStatus[a.id] = prevSt;
                         } else {
@@ -1099,6 +1092,7 @@ window.renderAttendanceList = function() {
                     });
                 }
             }
+            
             dbSlot[id] = { status: defStatus, note: '' };
 
             if (slot.id === 'sekolah' && appState.attendanceData[dateKey]?.['shubuh']?.[id]?.status?.shalat === 'Sakit') {
@@ -1107,8 +1101,6 @@ window.renderAttendanceList = function() {
         }
 
         const sData = dbSlot[id];
-        
-        // --- 2. CEK SURAT IZIN (PERMIT) ---
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
@@ -1139,29 +1131,20 @@ window.renderAttendanceList = function() {
             hasAutoChanges = true;
         }
 
-        // --- 3. UI RENDERING ---
-        // Ambil Status Utama untuk pewarnaan kartu
-        const mainActId = slot.activities[0].id; 
         const currentStatus = sData.status?.[mainActId] || 'Hadir';
         
-        // Hitung Ringkasan
         if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
             summaryCount[currentStatus] = (summaryCount[currentStatus] || 0) + 1;
             summaryList.push({ nama: santri.nama, status: currentStatus });
         }
 
         const clone = tplRow.content.cloneNode(true);
-        // Cari container kartu (fallback ke div pertama jika class tidak ada)
-        const cardContainer = clone.querySelector('.santri-row') || clone.querySelector('div'); 
+        const cardContainer = clone.querySelector('.santri-row') || clone.querySelector('div');
         
-        // Ambil Style dari Config
         const uiConfig = STATUS_UI[currentStatus] || STATUS_UI['Hadir'];
 
-        // Terapkan Style Kartu (Tanpa merusak layout flex/padding bawaan template)
-        // Kita hanya replace class warna background & border
         cardContainer.className = `santri-row relative overflow-hidden transition-all duration-300 shadow-sm p-5 rounded-3xl border flex flex-col gap-3 ${uiConfig.cardBg} border-slate-100 dark:border-slate-700`;
         
-        // Border tebal kiri jika ada Permit
         if (activePermit) {
             cardContainer.classList.add('border-l-[6px]');
             if(currentStatus === 'Sakit') cardContainer.classList.add('border-l-amber-500');
@@ -1169,18 +1152,17 @@ window.renderAttendanceList = function() {
             else if(currentStatus === 'Pulang') cardContainer.classList.add('border-l-purple-500');
         }
 
-        // Nama Santri
         const nameEl = clone.querySelector('.santri-name');
-        nameEl.textContent = santri.nama;
+        nameEl.textContent = window.sanitizeHTML(santri.nama);
         nameEl.className = `santri-name font-bold text-sm leading-tight line-clamp-1 ${uiConfig.text}`;
         
         clone.querySelector('.santri-kamar').textContent = santri.asrama || santri.kelas;
         
         const avatar = clone.querySelector('.santri-avatar');
         avatar.textContent = santri.nama.substring(0,2).toUpperCase();
+        avatar.setAttribute('aria-label', santri.nama);
         if(currentStatus !== 'Hadir') avatar.classList.add('opacity-60');
 
-        // Badge Status (Hanya jika bermasalah)
         if (['Sakit', 'Izin', 'Pulang', 'Alpa', 'Telat'].includes(currentStatus)) {
             const badge = document.createElement('span');
             let colorClass = 'bg-slate-100 text-slate-500';
@@ -1197,16 +1179,13 @@ window.renderAttendanceList = function() {
 
             badge.className = `ml-2 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 align-middle ${colorClass}`;
             badge.innerHTML = `${iconCode} ${currentStatus}`;
+            badge.setAttribute('aria-label', `Status: ${currentStatus}`);
             
-            // Append badge dengan aman
             if(nameEl.parentNode) {
-                // Buat wrapper flex kecil jika belum ada
-                // Tapi untuk amannya append ke nameEl saja karena dia block
                 nameEl.appendChild(badge);
             }
         }
 
-        // --- RENDER TOMBOL AKTIVITAS ---
         const btnCont = clone.querySelector('.activity-container');
         if (btnCont) {
             slot.activities.forEach(act => {
@@ -1230,15 +1209,27 @@ window.renderAttendanceList = function() {
 
                 btn.className = btnClass;
                 btn.textContent = uiBtn.label;
+                btn.setAttribute('aria-label', `${act.label}: ${curr}. Klik untuk ubah.`);
+                btn.setAttribute('role', 'button');
+                btn.setAttribute('tabindex', '0');
                 
-                // Event Click
-                btn.onclick = (e) => {
-                    e.stopPropagation(); // Mencegah klik tembus ke kartu
+                const handleToggle = (e) => {
+                    e.stopPropagation();
                     if (hasPermitConflict) {
                         if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
                         if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
                     }
                     window.toggleStatus(id, act.id, act.type);
+                };
+                
+                btn.onclick = handleToggle;
+                
+                // Keyboard accessibility
+                btn.onkeydown = (e) => {
+                    if(e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggle(e);
+                    }
                 };
                 
                 lbl.textContent = act.label;
@@ -1248,22 +1239,25 @@ window.renderAttendanceList = function() {
             });
         }
 
-        // Input Catatan
         const noteInp = clone.querySelector('.input-note');
         const noteBox = clone.querySelector('.note-section');
         
         if (noteInp && noteBox) {
             noteInp.value = sData.note || "";
-            // Style input mengikuti tema kartu
             noteInp.className = `input-note w-full text-xs p-2.5 rounded-xl border focus:ring-2 outline-none transition-all bg-white/50 dark:bg-black/20 focus:border-emerald-500 focus:ring-emerald-200 placeholder-slate-400 font-medium ${uiConfig.text}`;
+            noteInp.setAttribute('aria-label', 'Catatan santri');
             
             noteInp.onchange = (e) => {
-                sData.note = e.target.value;
+                sData.note = window.sanitizeHTML(e.target.value);
                 window.saveData();
             };
             
             const editBtn = clone.querySelector('.btn-edit-note');
-            if(editBtn) editBtn.onclick = () => noteBox.classList.toggle('hidden');
+            if(editBtn) {
+                editBtn.onclick = () => noteBox.classList.toggle('hidden');
+                editBtn.setAttribute('aria-label', 'Edit Catatan');
+                editBtn.setAttribute('aria-expanded', 'false');
+            }
         }
 
         fragment.appendChild(clone);
@@ -1271,7 +1265,7 @@ window.renderAttendanceList = function() {
 
     container.appendChild(fragment);
     
-    // --- UPDATE WIDGET SUMMARY (FLOATING) ---
+    // Summary Widget
     const summaryWidget = document.getElementById('att-summary-widget');
     const summaryBadges = document.getElementById('att-summary-badges');
     const summaryNames = document.getElementById('att-summary-names');
@@ -1303,7 +1297,7 @@ window.renderAttendanceList = function() {
 
                 const badge = document.createElement('span');
                 badge.className = `px-2 py-1 rounded-lg text-[10px] font-bold border ${color}`;
-                badge.textContent = `${item.nama}`;
+                badge.textContent = window.sanitizeHTML(item.nama);
                 summaryNames.appendChild(badge);
             });
         } else {
@@ -1312,7 +1306,7 @@ window.renderAttendanceList = function() {
     }
 
     if(hasAutoChanges) window.saveData(); 
-    if(window.lucide) window.lucide.createIcons();
+    window.refreshIcons();
 };
 
 window.toggleStatus = function(id, actId, type) {
