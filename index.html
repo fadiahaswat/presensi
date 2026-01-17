@@ -1576,53 +1576,35 @@
 </template>
 
     <template id="tpl-santri-row">
-    <div class="santri-card">
-        <div class="flex items-start gap-4 w-full">
-            <div class="s-avatar">AH</div>
-            
-            <div class="flex-1 min-w-0 pt-0.5">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <h4 class="s-name font-bold text-slate-800 text-[17px] leading-snug tracking-tight truncate">
-                        Nama Santri
-                    </h4>
-                    <div class="s-badge-area"></div>
+    <div class="santri-row">
+        <div class="header-section">
+            <div class="santri-avatar"></div>
+            <div class="info-column">
+                <div class="name-row">
+                    <h2 class="santri-name"></h2>
+                    <div class="status-badge-container"></div>
                 </div>
-                
-                <div class="flex items-center justify-between mt-1">
-                    <div class="flex items-center gap-2 text-slate-400">
-                        <span class="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded tracking-wider uppercase">KAMAR</span>
-                        <p class="s-kamar text-xs font-medium truncate max-w-[120px]">
-                            1 - Abu Bakar
-                        </p>
-                    </div>
-                    
-                    <button class="note-toggle p-2 -mr-2 -my-2 rounded-full text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-colors" title="Catatan">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                    </button>
+                <div class="room-row">
+                    <span class="room-label"></span>
+                    <p class="santri-kamar"></p>
                 </div>
             </div>
         </div>
         
-        <div class="activity-grid grid grid-cols-5 gap-3 items-start mt-2">
-            </div>
+        <div class="activity-container"></div>
 
-        <div class="note-section hidden mt-3">
-             <div class="relative">
-                <input type="text" placeholder="Tulis keterangan..." class="note-input w-full text-sm font-medium pl-4 pr-4 py-3 rounded-2xl bg-slate-50 border-0 text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-emerald-100 focus:bg-white transition-all">
-                <div class="absolute right-3 top-3 text-slate-300 pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                </div>
-             </div>
+        <div class="note-section hidden mt-5">
+            <input type="text" class="input-note">
         </div>
     </div>
 </template>
 
 <template id="tpl-activity-btn">
-    <div class="btn-root flex flex-col items-center w-full group/btn">
-        <div class="btn-text">
-            -
+    <div class="btn-wrapper">
+        <div class="w-full aspect-square">
+            <button class="btn-status"></button>
         </div>
-        <span class="btn-label">Label</span>
+        <span class="lbl-status"></span>
     </div>
 </template>
     
@@ -1645,6 +1627,7 @@
     
 </body>
 </html>
+
 
 
 
