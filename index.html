@@ -226,17 +226,66 @@
     <div id="toast-container" class="fixed top-safe-area right-4 z-[200] flex flex-col items-end pointer-events-none gap-2 pt-4"></div>
 
     <!-- Loading Screen -->
-    <div id="view-loading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-50 dark:bg-[#0f172a] transition-opacity duration-500">
-        <div class="relative w-20 h-20 mb-6">
-            <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
-            <div class="absolute inset-0 rounded-full border-4 border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-            <div class="absolute inset-0 flex items-center justify-center">
-                <i data-lucide="shield-check" class="w-8 h-8 text-emerald-500"></i>
+    <script src="https://unpkg.com/lucide@latest"></script>
+<style>
+    @keyframes blob {
+        0% { transform: translate(0px, 0px) scale(1); }
+        33% { transform: translate(30px, -50px) scale(1.1); }
+        66% { transform: translate(-20px, 20px) scale(0.9); }
+        100% { transform: translate(0px, 0px) scale(1); }
+    }
+    .animate-blob { animation: blob 7s infinite; }
+    .animation-delay-2000 { animation-delay: 2s; }
+    .animation-delay-4000 { animation-delay: 4s; }
+</style>
+
+<div id="view-loading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-50 dark:bg-[#0f172a] overflow-hidden transition-all duration-500">
+    
+    <div class="absolute top-0 -left-4 w-72 h-72 bg-emerald-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob dark:bg-emerald-900/30"></div>
+    <div class="absolute top-0 -right-4 w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000 dark:bg-teal-900/30"></div>
+    <div class="absolute -bottom-8 left-20 w-72 h-72 bg-cyan-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000 dark:bg-cyan-900/30"></div>
+
+    <div class="relative flex flex-col items-center z-10">
+        
+        <div class="relative w-24 h-24 mb-8">
+            <div class="absolute inset-0 rounded-full bg-emerald-500/20 blur-md animate-pulse"></div>
+            
+            <div class="absolute inset-0 rounded-full border-[3px] border-slate-200/50 dark:border-slate-700/50"></div>
+            <div class="absolute inset-0 rounded-full border-[3px] border-t-emerald-500 border-r-transparent border-b-emerald-500 border-l-transparent animate-spin duration-1000"></div>
+            <div class="absolute inset-1 rounded-full border-[2px] border-t-transparent border-r-teal-400 border-b-transparent border-l-teal-400 animate-spin duration-[2s] direction-reverse"></div>
+            
+            <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-[#0f172a] rounded-full m-3 shadow-sm z-10">
+                <i data-lucide="shield-check" class="w-8 h-8 text-emerald-500 animate-bounce duration-[3s]"></i>
             </div>
         </div>
-        <h2 class="text-2xl font-black tracking-tight text-slate-800 dark:text-white">Musyrif<span class="text-emerald-500">App</span></h2>
-        <p class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Memuat Data...</p>
+
+        <div class="text-center space-y-1">
+            <h2 class="text-3xl font-black tracking-tight text-slate-800 dark:text-white">
+                Musyrif<span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">App</span>
+            </h2>
+            
+            <div class="flex items-center justify-center gap-1">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Memuat Data</p>
+                <div class="flex space-x-1">
+                    <div class="w-1 h-1 bg-emerald-500 rounded-full animate-bounce delay-75"></div>
+                    <div class="w-1 h-1 bg-emerald-500 rounded-full animate-bounce delay-150"></div>
+                    <div class="w-1 h-1 bg-emerald-500 rounded-full animate-bounce delay-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 w-48 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 w-1/2 animate-[shimmer_1.5s_infinite] rounded-full relative overflow-hidden">
+                <div class="absolute inset-0 bg-white/30 skew-x-12 animate-[spin_2s_linear_infinite] translate-x-full"></div>
+            </div>
+        </div>
     </div>
+</div>
+
+<script>
+    lucide.createIcons();
+</script>
+
 
     <!-- Login View -->
     <section id="view-login" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 overflow-hidden">
