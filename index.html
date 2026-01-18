@@ -960,161 +960,160 @@
     </div>
 </div>
 
-            <div id="pembinaan-section" class="mt-8 space-y-4">
-    
-    <div class="flex items-center justify-between px-1">
-        <div class="flex items-center gap-3">
-            <div class="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-xl">
-                <i data-lucide="siren" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
-            </div>
-            <div>
-                <h3 class="text-lg font-black text-slate-800 dark:text-white leading-none">Zona Pembinaan</h3>
-                <p class="text-[10px] font-medium text-slate-400 mt-1">Pantau tingkat kedisiplinan santri</p>
-            </div>
-        </div>
-        <button class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:bg-slate-50 text-slate-500">
-            <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-        </button>
-    </div>
+            <div class="flex flex-col gap-6 mt-8">
 
-    <div class="grid grid-cols-3 gap-3">
-        <div class="relative group overflow-hidden bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/10 p-4 rounded-2xl border border-yellow-200/60 dark:border-yellow-700/30">
-            <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i data-lucide="alert-circle" class="w-12 h-12 text-yellow-600"></i>
-            </div>
-            <p class="text-[10px] font-bold text-yellow-700/70 dark:text-yellow-500 uppercase tracking-wider mb-1">Tahap 1</p>
-            <div class="flex items-baseline gap-1">
-                <span id="count-level-1" class="text-2xl font-black text-yellow-600 dark:text-yellow-400">0</span>
-                <span class="text-[10px] text-yellow-600/60">kasus</span>
-            </div>
-            <div class="mt-2 text-[9px] font-medium text-yellow-800/60 bg-yellow-100/50 dark:bg-yellow-900/40 px-2 py-1 rounded-md inline-block">
-                Musyrif
-            </div>
-        </div>
-
-        <div class="relative group overflow-hidden bg-gradient-to-br from-orange-50 to-rose-50 dark:from-orange-900/20 dark:to-rose-900/10 p-4 rounded-2xl border border-orange-200/60 dark:border-orange-700/30">
-            <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i data-lucide="triangle-alert" class="w-12 h-12 text-orange-600"></i>
-            </div>
-            <p class="text-[10px] font-bold text-orange-700/70 dark:text-orange-500 uppercase tracking-wider mb-1">Tahap 2</p>
-            <div class="flex items-baseline gap-1">
-                <span id="count-level-2" class="text-2xl font-black text-orange-600 dark:text-orange-400">0</span>
-                <span class="text-[10px] text-orange-600/60">kasus</span>
-            </div>
-            <div class="mt-2 text-[9px] font-medium text-orange-800/60 bg-orange-100/50 dark:bg-orange-900/40 px-2 py-1 rounded-md inline-block">
-                Pamong/Kis
-            </div>
-        </div>
-
-        <div class="relative group overflow-hidden bg-gradient-to-br from-red-50 to-rose-100 dark:from-red-900/20 dark:to-rose-900/10 p-4 rounded-2xl border border-red-200/60 dark:border-red-700/30">
-            <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <i data-lucide="shield-alert" class="w-12 h-12 text-red-600"></i>
-            </div>
-            <p class="text-[10px] font-bold text-red-700/70 dark:text-red-500 uppercase tracking-wider mb-1">Tahap 3</p>
-            <div class="flex items-baseline gap-1">
-                <span id="count-level-3" class="text-2xl font-black text-red-600 dark:text-red-400">0</span>
-                <span class="text-[10px] text-red-600/60">kasus</span>
-            </div>
-            <div class="mt-2 text-[9px] font-medium text-red-800/60 bg-red-100/50 dark:bg-red-900/40 px-2 py-1 rounded-md inline-block">
-                Direktur
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] dark:shadow-none border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800">
-            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                Daftar Pelanggaran Aktif
-            </h4>
-        </div>
+    <div id="pembinaan-section" class="bg-white dark:bg-slate-800 rounded-3xl p-5 md:p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700">
         
-        <div id="pembinaan-full-list" class="divide-y divide-slate-100 dark:divide-slate-700 max-h-[400px] overflow-y-auto bg-white dark:bg-slate-800 p-1">
-            <div class="p-8 text-center text-slate-400 text-xs italic">
-                Belum ada data pelanggaran
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-dashed border-slate-300 dark:border-slate-700">
-        <h5 class="text-[10px] font-bold text-slate-500 uppercase mb-3 text-center tracking-widest">Skala Tindakan Disiplin</h5>
-        
-        <div class="relative h-2 bg-slate-200 dark:bg-slate-700 rounded-full mb-6 mx-2">
-            <div class="absolute inset-y-0 left-0 w-1/4 bg-emerald-400 rounded-l-full"></div>
-            <div class="absolute inset-y-0 left-1/4 w-1/4 bg-yellow-400"></div>
-            <div class="absolute inset-y-0 left-2/4 w-1/4 bg-orange-400"></div>
-            <div class="absolute inset-y-0 left-3/4 w-1/4 bg-red-500 rounded-r-full"></div>
-            
-            <div class="absolute -top-1 left-[25%] w-0.5 h-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"></div>
-            <div class="absolute -top-1 left-[50%] w-0.5 h-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"></div>
-            <div class="absolute -top-1 left-[75%] w-0.5 h-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600"></div>
-        </div>
-
-        <div class="grid grid-cols-4 gap-1 text-center">
-            <div>
-                <div class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">Bimbingan</div>
-                <div class="text-[8px] text-slate-400">1-10 Alpa</div>
-            </div>
-            <div>
-                <div class="text-[9px] font-bold text-yellow-600 dark:text-yellow-400">SP 1</div>
-                <div class="text-[8px] text-slate-400">11-20 Alpa</div>
-            </div>
-            <div>
-                <div class="text-[9px] font-bold text-orange-600 dark:text-orange-400">SP 2</div>
-                <div class="text-[8px] text-slate-400">21-30 Alpa</div>
-            </div>
-            <div>
-                <div class="text-[9px] font-bold text-red-600 dark:text-red-400">SP 3/T</div>
-                <div class="text-[8px] text-slate-400">>31 Alpa</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="w-full h-px bg-slate-200 dark:bg-slate-700 my-8"></div>
-
-<div class="mt-4">
-    <div class="flex items-center justify-between mb-5 px-1">
-        <div class="flex items-center gap-3">
-            <div class="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
-                <i data-lucide="archive" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
-            </div>
-            <div>
-                <h3 class="text-lg font-black text-slate-800 dark:text-white leading-none">Arsip Data</h3>
-                <p class="text-[10px] font-medium text-slate-400 mt-1">Riwayat perizinan santri</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="flex flex-col gap-3 mb-4 bg-white dark:bg-slate-800 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
-        
-        <div class="relative w-full">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
-            </div>
-            <input type="text" id="hist-search" onkeyup="window.renderPermitHistory()" placeholder="Cari nama santri / kelas..." 
-                class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border-transparent focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none transition-all">
-        </div>
-
-        <div class="flex gap-2 overflow-x-auto pb-1 px-1 custom-scrollbar">
-             <div class="relative w-full">
-                <select id="hist-filter-cat" onchange="window.renderPermitHistory()" class="w-full appearance-none bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold py-2.5 pl-4 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
-                    <option value="all">📂 Tampilkan Semua</option>
-                    <option value="sakit">💊 Sakit</option>
-                    <option value="izin">📝 Izin Kegiatan</option>
-                    <option value="pulang">🏠 Pulang</option>
-                </select>
-                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-indigo-500">
-                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 bg-rose-50 dark:bg-rose-900/20 rounded-2xl">
+                    <i data-lucide="siren" class="w-5 h-5 text-rose-500"></i>
                 </div>
-             </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 dark:text-white leading-tight">Zona Pembinaan</h3>
+                    <p class="text-[11px] font-medium text-slate-400">Monitoring kedisiplinan santri</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-700/50 rounded-full border border-slate-100 dark:border-slate-600">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Live</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="relative overflow-hidden bg-yellow-50 dark:bg-yellow-900/10 rounded-2xl border border-yellow-100 dark:border-yellow-800/30 p-4 text-center group">
+                <div class="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-all">
+                    <i data-lucide="alert-circle" class="w-16 h-16 text-yellow-600"></i>
+                </div>
+                <div id="count-level-1" class="text-2xl font-black text-yellow-600 dark:text-yellow-400 mb-1">0</div>
+                <div class="text-[9px] font-bold text-yellow-700/60 dark:text-yellow-500 uppercase tracking-wide">Musyrif</div>
+            </div>
+
+            <div class="relative overflow-hidden bg-orange-50 dark:bg-orange-900/10 rounded-2xl border border-orange-100 dark:border-orange-800/30 p-4 text-center group">
+                <div class="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-all">
+                    <i data-lucide="triangle-alert" class="w-16 h-16 text-orange-600"></i>
+                </div>
+                <div id="count-level-2" class="text-2xl font-black text-orange-600 dark:text-orange-400 mb-1">0</div>
+                <div class="text-[9px] font-bold text-orange-700/60 dark:text-orange-500 uppercase tracking-wide">Pamong</div>
+            </div>
+
+            <div class="relative overflow-hidden bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100 dark:border-red-800/30 p-4 text-center group">
+                <div class="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-all">
+                    <i data-lucide="shield-alert" class="w-16 h-16 text-red-600"></i>
+                </div>
+                <div id="count-level-3" class="text-2xl font-black text-red-600 dark:text-red-400 mb-1">0</div>
+                <div class="text-[9px] font-bold text-red-700/60 dark:text-red-500 uppercase tracking-wide">Direktur</div>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden mb-6">
+            <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Feed Pelanggaran</h4>
+                <i data-lucide="list-filter" class="w-3 h-3 text-slate-400"></i>
+            </div>
+            <div id="pembinaan-full-list" class="max-h-[300px] overflow-y-auto p-1 divide-y divide-slate-100 dark:divide-slate-800">
+                <div class="py-8 text-center">
+                    <p class="text-xs text-slate-400 italic">Tidak ada data pelanggaran aktif</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-900/30 rounded-2xl p-4 border border-dashed border-slate-300 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-3">
+                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Parameter Tindakan</h5>
+            </div>
+            
+            <div class="relative h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-4 mx-1">
+                <div class="absolute inset-y-0 left-0 w-[25%] bg-emerald-400 rounded-l-full"></div>
+                <div class="absolute inset-y-0 left-[25%] w-[25%] bg-yellow-400"></div>
+                <div class="absolute inset-y-0 left-[50%] w-[25%] bg-orange-400"></div>
+                <div class="absolute inset-y-0 left-[75%] w-[25%] bg-rose-500 rounded-r-full"></div>
+                
+                <div class="absolute top-0 bottom-0 left-[25%] w-0.5 bg-white dark:bg-slate-800"></div>
+                <div class="absolute top-0 bottom-0 left-[50%] w-0.5 bg-white dark:bg-slate-800"></div>
+                <div class="absolute top-0 bottom-0 left-[75%] w-0.5 bg-white dark:bg-slate-800"></div>
+            </div>
+
+            <div class="flex justify-between text-center px-1">
+                <div class="w-1/4">
+                    <div class="text-[10px] font-black text-emerald-600 dark:text-emerald-400">Bimbingan</div>
+                    <div class="text-[8px] font-medium text-slate-400">1-10 Poin</div>
+                </div>
+                <div class="w-1/4">
+                    <div class="text-[10px] font-black text-yellow-600 dark:text-yellow-400">SP 1</div>
+                    <div class="text-[8px] font-medium text-slate-400">11-20 Poin</div>
+                </div>
+                <div class="w-1/4">
+                    <div class="text-[10px] font-black text-orange-600 dark:text-orange-400">SP 2</div>
+                    <div class="text-[8px] font-medium text-slate-400">21-30 Poin</div>
+                </div>
+                <div class="w-1/4">
+                    <div class="text-[10px] font-black text-rose-600 dark:text-rose-400">SP 3/T</div>
+                    <div class="text-[8px] font-medium text-slate-400">>31 Poin</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-1">
-        <div id="permit-history-list" class="space-y-2 max-h-[500px] overflow-y-auto p-2 custom-scrollbar">
+
+    <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 md:p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-100 dark:border-slate-700">
+        
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl">
+                    <i data-lucide="archive" class="w-5 h-5 text-indigo-500"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 dark:text-white leading-tight">Arsip Perizinan</h3>
+                    <p class="text-[11px] font-medium text-slate-400">Database riwayat keluar masuk</p>
+                </div>
             </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+            <div class="relative flex-grow group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                </div>
+                <input type="text" id="hist-search" onkeyup="window.renderPermitHistory()" placeholder="Cari santri..." 
+                    class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm font-medium transition-all outline-none">
+            </div>
+
+            <div class="relative min-w-[140px]">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="filter" class="w-3.5 h-3.5 text-indigo-500"></i>
+                </div>
+                <select id="hist-filter-cat" onchange="window.renderPermitHistory()" 
+                    class="w-full pl-9 pr-8 py-3 appearance-none rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                    <option value="all">Semua Data</option>
+                    <option value="sakit">Sakit</option>
+                    <option value="izin">Izin</option>
+                    <option value="pulang">Pulang</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-indigo-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative">
+            <div class="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-white dark:from-slate-800 to-transparent z-10 pointer-events-none"></div>
+            
+            <div id="permit-history-list" class="space-y-3 max-h-[400px] overflow-y-auto pt-2 pb-6 pr-1 custom-scrollbar">
+                <div class="flex flex-col items-center justify-center py-10 text-slate-400 opacity-50">
+                    <i data-lucide="folder-open" class="w-10 h-10 mb-2 stroke-1"></i>
+                    <p class="text-xs">Menunggu data dimuat...</p>
+                 </div>
+            </div>
+            
+            <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-slate-800 to-transparent z-10 pointer-events-none"></div>
+        </div>
+
     </div>
+
 </div>
 
 
