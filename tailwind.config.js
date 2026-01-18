@@ -5,6 +5,15 @@ module.exports = {
     "./script.js",
     "./*.js",
   ],
+  safelist: [
+    'ring-emerald-500', 
+    'ring-teal-400', 
+    'ring-blue-500',
+    'ring-amber-500', 
+    'ring-red-500', 
+    'ring-purple-500',
+    'ring-slate-400',
+  ],
   darkMode: 'class',
   theme: {
     extend: {
