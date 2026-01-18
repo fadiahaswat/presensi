@@ -267,42 +267,34 @@ const SLOT_WAKTU = {
 const STATUS_UI = {
     'Hadir': { 
         class: 'bg-emerald-500 text-white border-emerald-500',
-        ring: 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'H'
     },
     'Ya': { 
         class: 'bg-emerald-500 text-white border-emerald-500',
-        ring: 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'Y'
     },
     'Telat': { 
         class: 'bg-emerald-100 text-emerald-500 border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-500 dark:border-emerald-500',
-        ring: 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'T'
     },
     'Izin': { 
         class: 'bg-blue-100 text-blue-500 border-blue-500 dark:bg-blue-900/30 dark:text-blue-500 dark:border-blue-500',
-        ring: 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'I'
     },
     'Sakit': { 
         class: 'bg-amber-100 text-amber-500 border-amber-500 dark:bg-amber-900/30 dark:text-amber-500 dark:border-amber-500',
-        ring: 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'S'
     },
     'Alpa': { 
         class: 'bg-red-100 text-red-500 border-red-500 dark:bg-red-900/30 dark:text-red-500 dark:border-red-500',
-        ring: 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'A'
     },
     'Pulang': { 
         class: 'bg-purple-100 text-purple-500 border-purple-500 dark:bg-purple-900/30 dark:text-purple-500 dark:border-purple-500',
-        ring: 'ring-2 ring-purple-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: 'P'
     },
     'Tidak': { 
         class: 'bg-slate-100 text-slate-400 border-slate-400 dark:bg-slate-700 dark:text-slate-500 dark:border-slate-500',
-        ring: 'ring-2 ring-slate-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800',
         label: '-'
     }
 };
@@ -1222,30 +1214,46 @@ window.renderAttendanceList = function() {
 
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
-
+        
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
             btnWrapper.className = "flex flex-col items-center gap-1.5 cursor-pointer group select-none w-full";
-
+        
             const btn = bClone.querySelector('.btn-status');
             const lbl = bClone.querySelector('.lbl-status');
             
             const curr = sData.status?.[act.id] || 'Tidak';
             const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
             const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
-
-            // 56px BUTTON - Prominent rings per status color
-            let btnClass = `btn-status w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-90 border-[2.5px] font-black text-base ${uiBtn.class}`;
+        
+            // BASE CLASS (tanpa ring dinamis)
+            let btnClass = `btn-status w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-95 border-[2.5px] font-black text-base ${uiBtn.class}`;
             
-            // PROMINENT RING - Always show, color matches status
-            btnClass += ` ${uiBtn.ring}`;
+            // TAMBAHKAN RING SESUAI STATUS (Static classes)
+            let ringClass = '';
+            if(curr === 'Hadir' || curr === 'Ya') {
+                ringClass = 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else if(curr === 'Telat') {
+                ringClass = 'ring-2 ring-teal-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else if(curr === 'Sakit') {
+                ringClass = 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else if(curr === 'Izin') {
+                ringClass = 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else if(curr === 'Alpa') {
+                ringClass = 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else if(curr === 'Pulang') {
+                ringClass = 'ring-2 ring-purple-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else {
+                ringClass = 'ring-2 ring-slate-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            }
+        
+            btn.className = btnClass + ' ' + ringClass;
             
             // Extra ring for permit conflict
             if (hasPermitConflict) {
-                btnClass += ' ring-4 ring-offset-4';
+                btn.classList.add('ring-4', 'ring-offset-4');
             }
-
-            btn.className = btnClass;
+        
             btn.textContent = uiBtn.label;
             
             // Click Handler
