@@ -195,10 +195,21 @@ const SLOT_WAKTU = {
             { id: 'shalat', label: 'Shubuh', type: 'mandator', category: 'fardu' },
             { id: 'qabliyah', label: 'Qabliyah', type: 'sunnah', category: 'dependent' },
             { id: 'dzikir_pagi', label: 'Dzikir', type: 'sunnah', category: 'dependent' },
-            { id: 'tahfizh', label: 'Tahfizh', type: 'mandator', category: 'kbm' }, // KBM Asrama
+            
+            // PERBAIKAN 1: Tahfizh hanya muncul Senin (1) s/d Sabtu (6). Ahad (0) libur.
+            { 
+                id: 'tahfizh', 
+                label: 'Tahfizh', 
+                type: 'mandator', 
+                category: 'kbm', 
+                showOnDays: [1, 2, 3, 4, 5, 6] 
+            }, 
+            
             { id: 'tahajjud', label: 'Tahajjud', type: 'sunnah', category: 'sunnah' },
+            // Ahad pagi diganti Conversation (sudah benar sesuai kode awal)
             { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [0] }
     ]},
+    
     // --- SESI BARU: SEKOLAH ---
     sekolah: { 
         id: 'sekolah', label: 'Sekolah', subLabel: '06:00 - 15:00', theme: 'cyan', 
@@ -211,8 +222,14 @@ const SLOT_WAKTU = {
             iconBg: 'bg-cyan-100 text-cyan-600 dark:bg-cyan-800 dark:text-cyan-200'
         },
         activities: [
-            // Kategori khusus 'school' agar terpisah statistiknya
-            { id: 'kbm_sekolah', label: 'KBM Sekolah', type: 'mandator', category: 'school' } 
+            // PERBAIKAN 2: Sekolah hanya muncul Senin (1) s/d Sabtu (6). Ahad (0) libur.
+            { 
+                id: 'kbm_sekolah', 
+                label: 'KBM Sekolah', 
+                type: 'mandator', 
+                category: 'school',
+                showOnDays: [1, 2, 3, 4, 5, 6]
+            } 
     ]},
     ashar: { 
         id: 'ashar', label: 'Ashar', subLabel: '15:00 - 17:00', theme: 'orange', 
@@ -263,6 +280,7 @@ const SLOT_WAKTU = {
             { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', category: 'sunnah', showOnDays: [4] }
     ]}
 };
+
 
 const STATUS_UI = {
     'Hadir': { 
