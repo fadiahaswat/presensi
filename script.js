@@ -2895,6 +2895,7 @@ window.runAnalysis = function() {
     document.getElementById('analysis-date-range').textContent = range.label;
 
     let stats = {
+        school: { h:0, m:0, total:0 },
         fardu: { h:0, m:0, total:0 },
         kbm: { h:0, m:0, total:0 },
         sunnah: { y:0, t:0, total:0 }
@@ -2926,7 +2927,12 @@ window.runAnalysis = function() {
                         const st = sData.status[act.id];
                         if(!st) return;
 
-                        if(act.category === 'fardu') {
+                        if(act.category === 'school') {
+                            stats.school.total++;
+                            if(st === 'Hadir' || st === 'Telat') stats.school.h++;
+                            else stats.school.m++;
+                        }
+                        else if(act.category === 'fardu') {
                             stats.fardu.total++;
                             if(st === 'Hadir') stats.fardu.h++;
                             else stats.fardu.m++;
@@ -2955,10 +2961,12 @@ window.runAnalysis = function() {
         }
     }
 
+    window.renderBar('school', stats.school.h, stats.school.m);
     window.renderBar('fardu', stats.fardu.h, stats.fardu.m);
     window.renderBar('kbm', stats.kbm.h, stats.kbm.m);
     window.renderBar('sunnah', stats.sunnah.y, stats.sunnah.t);
 
+    const pctSchool = stats.school.total ? (stats.school.h / stats.school.total) * 100 : 0;
     const pctFardu = stats.fardu.total ? (stats.fardu.h / stats.fardu.total) * 100 : 0;
     const pctKbm = stats.kbm.total ? (stats.kbm.h / stats.kbm.total) * 100 : 0;
     const pctSunnah = stats.sunnah.total ? (stats.sunnah.y / stats.sunnah.total) * 100 : 0;
@@ -2966,9 +2974,10 @@ window.runAnalysis = function() {
     let totalScore = 0;
     let divider = 0;
     
-    if(stats.fardu.total) { totalScore += pctFardu * 0.5; divider += 0.5; }
-    if(stats.kbm.total) { totalScore += pctKbm * 0.3; divider += 0.3; }
-    if(stats.sunnah.total) { totalScore += pctSunnah * 0.2; divider += 0.2; }
+    if(stats.school.total) { totalScore += pctSchool * 0.35; divider += 0.35; }
+    if(stats.fardu.total) { totalScore += pctFardu * 0.30; divider += 0.30; }
+    if(stats.kbm.total) { totalScore += pctKbm * 0.20; divider += 0.20; }
+    if(stats.sunnah.total) { totalScore += pctSunnah * 0.15; divider += 0.15; }
 
     const finalScore = divider ? Math.round(totalScore / divider) : 0;
     
@@ -2980,6 +2989,7 @@ window.runAnalysis = function() {
     else if(finalScore >= 60) { elVerdict.textContent = "Maqbul (Cukup)"; elVerdict.className = "text-sm font-bold text-amber-500"; }
     else { elVerdict.textContent = "Naqis (Kurang)"; elVerdict.className = "text-sm font-bold text-red-500"; }
 
+    document.getElementById('anl-score-school').textContent = Math.round(pctSchool) + '%';
     document.getElementById('anl-score-fardu').textContent = Math.round(pctFardu) + '%';
     document.getElementById('anl-score-kbm').textContent = Math.round(pctKbm) + '%';
     document.getElementById('anl-score-sunnah').textContent = Math.round(pctSunnah) + '%';
@@ -3710,7 +3720,7 @@ window.quickOpen = function(slotId) {
     window.openAttendance();
     
     // 4. Beri feedback visual
-    const labels = { shubuh: 'Shubuh', ashar: 'Ashar', maghrib: 'Maghrib', isya: 'Isya' };
+    const labels = { shubuh: 'Shubuh', sekolah: 'Sekolah', ashar: 'Ashar', maghrib: 'Maghrib', isya: 'Isya' };
     window.showToast(`Membuka presensi ${labels[slotId]}`, 'info');
 };
 

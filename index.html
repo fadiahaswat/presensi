@@ -766,6 +766,27 @@
         </div>
 
         <div class="grid grid-cols-1 gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-cyan-100 dark:border-cyan-900/30">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 text-cyan-500"></i> Kehadiran Sekolah
+                    </h3>
+                    <span id="anl-score-school" class="text-sm font-black text-cyan-600">0%</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Hadir</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-school-h" class="h-full bg-cyan-500 w-0"></div></div>
+                        <span id="txt-school-h" class="w-6 text-right font-bold">0</span>
+                    </div>
+                    <div class="flex items-center text-xs gap-2">
+                        <span class="w-8">Masalah</span>
+                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div id="bar-school-m" class="h-full bg-red-500 w-0"></div></div>
+                        <span id="txt-school-m" class="w-6 text-right font-bold">0</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
