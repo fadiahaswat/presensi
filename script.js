@@ -256,6 +256,7 @@ const SLOT_WAKTU = {
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'dependent' },
             { id: 'dhuha', label: 'Dhuha', type: 'sunnah', category: 'sunnah' },
             { id: 'puasa', label: 'Puasa', type: 'sunnah', category: 'sunnah' },
+            { id: 'puasa_ramadhan', label: 'P.Rmdn', type: 'mandator', category: 'fardu' },
             { id: 'tahsin', label: 'Tahsin', type: 'mandator', category: 'kbm', showOnDays: [4, 5] },
             { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [3] },
             { id: 'vocabularies', label: 'Vocab', type: 'mandator', category: 'kbm', showOnDays: [1, 2] }
@@ -273,7 +274,8 @@ const SLOT_WAKTU = {
         activities: [
             { id: 'shalat', label: 'Isya', type: 'mandator', category: 'fardu' },
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'dependent' },
-            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', category: 'sunnah', showOnDays: [4] }
+            { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', category: 'sunnah', showOnDays: [4] },
+            { id: 'tarawih', label: 'Tarawih', type: 'sunnah', category: 'sunnah' }
     ]}
 };
 
@@ -1409,7 +1411,7 @@ window.toggleStatus = function(id, actId, type) {
 
     // JIKA YANG DIKLIK ADALAH 'FARDU' (SHALAT UTAMA)
     // Maka kegiatan lain harus menyesuaikan
-    if (clickedActConfig && clickedActConfig.category === 'fardu') {
+    if (clickedActConfig && clickedActConfig.category === 'fardu' && actId === 'shalat') {
         
         const isNonHadir = ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(next);
 
