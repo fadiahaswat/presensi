@@ -1877,10 +1877,6 @@ window.kirimLaporanWA = function() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
 };
 
-// Update parameter ke-3 (isPersistent) agar toast tidak hilang otomatis jika perlu
-const toastQueue = [];
-let isShowingToast = false;
-
 window.showToast = function(message, type = 'info', isPersistent = false) {
     if(!appState.settings.notifications && !isPersistent) return;
     
@@ -2354,26 +2350,6 @@ window.updateReportTab = function() {
     tbody.appendChild(fragment);
 };
 
-window.getSkeletonHTML = function(count) {
-    let html = '';
-    for(let i = 0; i < count; i++) {
-        html += `
-            <div class="glass-card p-4 rounded-2xl animate-pulse mb-2">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex items-center gap-3 flex-1">
-                        <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
-                            <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
-                        </div>
-                    </div>
-                    <div class="w-16 h-6 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
-                </div>
-            </div>`;
-    }
-    return html;
-};
-
 window.updateProfileStats = function() {
     if(!appState.selectedClass) return;
     
@@ -2561,7 +2537,6 @@ window.handleGantiPin = function() {
     }
 };
 
-window.exportToCSV = function() { alert("Gunakan tombol Export Excel di atas."); };
 window.printReport = function() { window.print(); };
 
 // ==========================================
@@ -2570,14 +2545,10 @@ window.printReport = function() { window.print(); };
 
 // --- FITUR PERIZINAN (UPDATED) ---
 
-// Variabel temp untuk filter
-let permitSantriList = [];
-
 // Variable state tambahan
 let currentPermitTab = 'sakit';
 
 // 1. Fungsi Buka Modal & Setup Tab
-// Update Open Modal untuk Reset State juga
 // Variable global untuk mode modal saat ini
 let currentModalMode = 'daily'; // 'daily' atau 'pulang'
 
@@ -3135,44 +3106,24 @@ window.setReportMode = function(mode) {
 // 2. Helper Range Tanggal (Update support Yearly)
 window.getReportDateRange = function(mode) {
     const today = new Date(appState.date);
-    let start = new Date(today);
-    let end = new Date(today);
-    let label = "";
-
-    if (mode === 'daily') {
-        label = window.formatDate(appState.date);
-    } 
-    else if (mode === 'weekly') {
-        const day = today.getDay(); 
-        const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
-        start.setDate(diff);
-        end.setDate(start.getDate() + 6);
-        label = `${start.getDate()}/${start.getMonth()+1} - ${end.getDate()}/${end.getMonth()+1}/${end.getFullYear()}`;
-    } 
-    else if (mode === 'monthly') {
-        start = new Date(today.getFullYear(), today.getMonth(), 1);
-        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    if (mode === 'yearly') {
+        return {
+            start: new Date(today.getFullYear(), 0, 1),
+            end: new Date(today.getFullYear(), 11, 31),
+            label: `Tahun ${today.getFullYear()}`
+        };
+    }
+    const range = window.getDateRange(mode);
+    // Override labels with shorter format for the report view
+    if (mode === 'monthly') {
         const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
-        label = `${months[today.getMonth()]} ${today.getFullYear()}`;
-    } 
-    else if (mode === 'semester') {
-        if(today.getMonth() < 6) {
-            start = new Date(today.getFullYear(), 0, 1);
-            end = new Date(today.getFullYear(), 5, 30);
-            label = `Sem. Ganjil ${today.getFullYear()}`;
-        } else {
-            start = new Date(today.getFullYear(), 6, 1);
-            end = new Date(today.getFullYear(), 11, 31);
-            label = `Sem. Genap ${today.getFullYear()}`;
-        }
+        range.label = `${months[today.getMonth()]} ${today.getFullYear()}`;
+    } else if (mode === 'semester') {
+        range.label = today.getMonth() < 6
+            ? `Sem. Ganjil ${today.getFullYear()}`
+            : `Sem. Genap ${today.getFullYear()}`;
     }
-    else if (mode === 'yearly') {
-        start = new Date(today.getFullYear(), 0, 1);
-        end = new Date(today.getFullYear(), 11, 31);
-        label = `Tahun ${today.getFullYear()}`;
-    }
-
-    return { start, end, label };
+    return range;
 };
 
 // --- FITUR GEOFENCING ---
@@ -3538,12 +3489,6 @@ window.setPermitTab = function(tab) {
     }
 };
 
-window.selectAllSantriPermit = function() {
-    const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]');
-    checkboxes.forEach(cb => cb.checked = true);
-    window.updatePermitCount();
-};
-
 // 3. Logic Simpan Data (Advanced)
 window.savePermitLogic = function() {
     const checkboxes = document.querySelectorAll('input[name="permit_santri_select"]:checked');
@@ -3730,9 +3675,8 @@ window.toggleSelectAllPermit = function() {
     window.updatePermitCount();
 };
 
-// Tambahkan fungsi ini di script.js Anda
 window.goToToday = function() {
-    handleDateChange(window.getLocalDateStr());
+    window.handleDateChange(window.getLocalDateStr());
 };
 
 // Tambahkan ini di script.js
@@ -4177,9 +4121,6 @@ window.jumpToDate = function(dateStr) {
         // Pindah ke tab Home dan scroll ke atas
         window.switchTab('home'); 
         window.scrollTo(0,0);
-        
-        // Opsional: Langsung buka slot pertama yg ada alpa?
-        // window.openAttendance(); 
         
         window.showToast(`Mode Edit: ${window.formatDate(dateStr)}`, 'info');
     }
@@ -4742,22 +4683,6 @@ window.savePermitEdit = function() {
     window.renderAttendanceList();
 };
 
-// Helper: Debounce Save (Mencegah simpan data berlebihan)
-window.debounceSave = function() {
-    if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-        window.saveData();
-    }, 500); // Tunggu 500ms setelah perubahan terakhir baru simpan
-};
-
-// Helper: Sanitize Input (Mencegah XSS)
-window.sanitizeInput = function(str) {
-    if (!str) return "";
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-};
-
 // --- FITUR PEMBINAAN (Baru) ---
 
 window.openPembinaanModal = function(data) {
@@ -4897,47 +4822,6 @@ window.openModal = function(modalId) {
     modal._escHandler = escHandler;
     modal.setAttribute('aria-modal', 'true'); // Accessibility
     modal.setAttribute('role', 'dialog'); // Accessibility
-};
-
-window.deepClone = function(obj) {
-    try {
-        return JSON.parse(JSON.stringify(obj));
-    } catch(e) {
-        console.error('Deep clone error:', e);
-        return obj;
-    }
-};
-
-// Debounce helper
-window.debounce = function(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-};
-
-// Throttle helper
-window.throttle = function(func, limit) {
-    let inThrottle;
-    return function() {
-        const args = arguments;
-        const context = this;
-        if (!inThrottle) {
-            func.apply(context, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
-};
-
-// Safe array access
-window.safeArrayAccess = function(arr, index, defaultValue = null) {
-    return arr && arr[index] !== undefined ? arr[index] : defaultValue;
 };
 
 // Start App
