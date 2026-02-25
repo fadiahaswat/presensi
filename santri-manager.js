@@ -4,8 +4,6 @@
 window.santriDB = {};
 
 window.SantriManager = {
-    getKey: (nis) => `santri_pref_${nis}`,
-    
     getPrefs: (nis) => {
         if (!nis) return { password: null, avatar: null, linkedEmail: null };
         const data = localStorage.getItem(`santri_pref_${nis}`);
