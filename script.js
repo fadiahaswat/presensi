@@ -925,6 +925,16 @@ window.updateProfileInfo = function() {
 
         if(elName) elName.textContent = musyrifName;
         if(elRoleTab) elRoleTab.textContent = `Musyrif ${className}`;
+
+        const elSidebarName = document.getElementById('sidebar-user-name');
+        const elSidebarClass = document.getElementById('sidebar-class-name');
+        const elSidebarAvatar = document.getElementById('sidebar-avatar');
+        if(elSidebarName) elSidebarName.textContent = musyrifName;
+        if(elSidebarClass) elSidebarClass.textContent = `Musyrif ${className}`;
+        if(elSidebarAvatar) {
+            const initials = musyrifName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+            elSidebarAvatar.textContent = initials;
+        }
     }
 };
 
