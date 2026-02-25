@@ -1,22 +1,20 @@
 // File: data-santri.js
 
-const API_SANTRI_URL = "https://script.google.com/macros/s/AKfycbw-URYAsLTWCdnGurQhM1ZXa9N8vm-GBlHwtetDlin73-Ma8G0aAbFoboGGUI8GgVDl/exec";
-
 window.santriData = []; // Variabel global penampung data santri
 
 async function loadSantriData() {
     const CACHE_KEY = 'cache_data_santri_full';
     const CACHE_TIME = 'time_data_santri';
-    const EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 Jam
+    const EXPIRY_MS = window.APP_CONSTANTS.santriCacheExpiryMs;
 
     try {
         console.log("📥 Mengambil data Santri...");
         const now = new Date().getTime();
         const cachedStr = localStorage.getItem(CACHE_KEY);
-        const cachedTime = localStorage.getItem(CACHE_TIME);
+        const cachedTime = Number(localStorage.getItem(CACHE_TIME) || 0);
 
         // 1. Gunakan Cache jika Valid
-        if (cachedStr && cachedTime && (now - cachedTime < EXPIRY_MS)) {
+        if (cachedStr && cachedTime > 0 && (now - cachedTime < EXPIRY_MS)) {
             console.log("✅ Data Santri dimuat dari cache (Cepat).");
             window.santriData = JSON.parse(cachedStr);
             return window.santriData;
@@ -24,7 +22,7 @@ async function loadSantriData() {
 
         // 2. Jika Cache Expired/Kosong, Download Baru
         console.log("🌐 Mengunduh data santri terbaru dari server...");
-        const response = await fetch(API_SANTRI_URL); // Default parameter doGet adalah santri
+        const response = await fetch(window.APP_CREDENTIALS.googleSheetUrl);
         
         if (!response.ok) throw new Error("Gagal koneksi server santri");
 

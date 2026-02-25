@@ -3,14 +3,10 @@
 // ==========================================
 // KONEKSI SUPABASE (GUDANG DATA)
 // ==========================================
-// 1. Ambil URL dari Tahap 3 (Project URL)
-const SUPABASE_URL = 'https://gtfqebengsazursaamzf.supabase.co'; 
-
-// 2. Ambil Key dari Tahap 3 (anon public)
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q';
-
-// 3. Nyalakan Mesin Supabase
-const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const dbClient = window.supabase.createClient(
+    window.APP_CREDENTIALS.supabaseUrl,
+    window.APP_CREDENTIALS.supabaseKey
+);
 
 console.log("Supabase Siap!");
 
@@ -30,12 +26,12 @@ window.addEventListener('beforeunload', () => {
 // ==========================================
 const APP_CONFIG = {
     storageKey: 'musyrif_app_v5_fix',
-    permitKey: 'musyrif_permits_db', // <-- TAMBAHAN BARU
+    permitKey: 'musyrif_permits_db',
     pinDefault: '1234',
     activityLogKey: 'musyrif_activity_log',
     settingsKey: 'musyrif_settings',
-    googleAuthKey: 'musyrif_google_session', // Key penyimpanan sesi
-    googleClientId: '694043281368-cqf9tji9rsv2k2gtfu7pbicdsc1gcvk7.apps.googleusercontent.com' // <-- PASTE CLIENT ID DARI TAHAP 1
+    googleAuthKey: 'musyrif_google_session',
+    googleClientId: window.APP_CREDENTIALS.googleClientId
 };
 
 // ==========================================
@@ -411,7 +407,7 @@ window.initApp = async function() {
         ]);
 
         const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Koneksi lambat (Timeout)")), 8000)
+            setTimeout(() => reject(new Error("Koneksi lambat (Timeout)")), window.APP_CONSTANTS.dataLoadTimeoutMs)
         );
 
         try {
@@ -496,7 +492,7 @@ window.populateClassDropdown = function() {
 window.handleLogin = function() {
     const kelas = document.getElementById('login-kelas').value;
     const pin = document.getElementById('login-pin').value;
-    const savedPin = localStorage.getItem('musyrif_pin') || APP_CONFIG.pinDefault;
+    const savedPin = localStorage.getItem(window.APP_CONSTANTS.pinKey) || APP_CONFIG.pinDefault;
 
     if(!kelas) return alert("Pilih kelas dulu!");
     if(pin !== savedPin) return alert("PIN Salah!");
@@ -890,11 +886,11 @@ window.renderSlotList = function() {
 
 window.updateProfileInfo = function() {
     const elHeaderName = document.getElementById('header-user-name');
-    const elHeaderRole = document.getElementById('header-user-role'); // UNIQUE ID
+    const elHeaderRole = document.getElementById('profile-role');
     const elHeaderAvatar = document.getElementById('header-avatar');
     
     const elName = document.getElementById('profile-name');
-    const elRoleTab = document.getElementById('profile-role-tab'); // UNIQUE ID
+    const elRoleTab = document.getElementById('profile-role-tab');
 
     if(appState.selectedClass && MASTER_KELAS[appState.selectedClass]) {
         const musyrifName = MASTER_KELAS[appState.selectedClass].musyrif;
@@ -1742,21 +1738,18 @@ window.generateRekapBulanan = function() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const fragment = document.createDocumentFragment();
 
     FILTERED_SANTRI.forEach(santri => {
         const id = String(santri.nis || santri.id);
         let h = 0, s = 0, i = 0, a = 0;
         
-        // Loop Days of Month (Max 31)
-        for(let day = 1; day <= 31; day++) {
-            // Optimasi: Buat string date manual daripada new Date() di loop
+        // Loop Days of Month (actual days)
+        for(let day = 1; day <= daysInMonth; day++) {
             const dayStr = String(day).padStart(2, '0');
             const monthStr = String(month + 1).padStart(2, '0');
             const dateKey = `${year}-${monthStr}-${dayStr}`;
-            
-            // Cek apakah tanggal valid (misal 31 Feb tidak ada)
-            // Tapi karena akses object undefined aman, kita skip validasi ketat demi performa
             
             const dayData = appState.attendanceData[dateKey];
             if(dayData) {
@@ -1777,7 +1770,7 @@ window.generateRekapBulanan = function() {
         div.className = 'glass-card p-4 rounded-2xl flex items-center justify-between mb-2';
         div.innerHTML = `
             <div class="flex-1">
-                <h4 class="font-bold text-slate-800 dark:text-white">${santri.nama}</h4>
+                <h4 class="font-bold text-slate-800 dark:text-white">${window.sanitizeHTML(santri.nama)}</h4>
                 <div class="flex gap-4 mt-2 text-xs font-bold">
                     <span class="text-emerald-600">H: ${h}</span>
                     <span class="text-amber-600">S: ${s}</span>
@@ -1811,8 +1804,8 @@ window.logActivity = function(action, detail) {
     };
     
     appState.activityLog.unshift(log);
-    if(appState.activityLog.length > 50) {
-        appState.activityLog = appState.activityLog.slice(0, 50);
+    if(appState.activityLog.length > window.APP_CONSTANTS.maxActivityLogEntries) {
+        appState.activityLog = appState.activityLog.slice(0, window.APP_CONSTANTS.maxActivityLogEntries);
     }
     
     localStorage.setItem(APP_CONFIG.activityLogKey, JSON.stringify(appState.activityLog));
@@ -1841,8 +1834,8 @@ window.viewActivityLog = function() {
                     <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${log.action}</h4>
-                    <p class="text-xs text-slate-500 truncate">${log.detail}</p>
+                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${window.sanitizeHTML(log.action)}</h4>
+                    <p class="text-xs text-slate-500 truncate">${window.sanitizeHTML(log.detail)}</p>
                     <p class="text-[10px] text-slate-400 mt-1">${time.toLocaleString('id-ID')}</p>
                 </div>
             `;
@@ -1948,7 +1941,7 @@ window.saveData = function() {
             const dataStr = JSON.stringify(appState.attendanceData);
             
             // Check localStorage quota (iOS Safari limit ~5MB)
-            if(dataStr.length > 4500000) { // 4.5MB limit
+            if(dataStr.length > window.APP_CONSTANTS.maxStorageBytes) {
                 console.warn('Data mendekati batas storage!');
                 window.showToast('Data hampir penuh. Pertimbangkan export.', 'warning');
             }
@@ -2429,7 +2422,7 @@ window.isSlotAccessible = function(slotId, dateStr) {
     const diffTime = Math.abs(new Date(todayStr) - new Date(dateStr));
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
-    if (diffDays > 3) return { locked: true, reason: 'limit' };
+    if (diffDays > window.APP_CONSTANTS.maxEditDaysBack) return { locked: true, reason: 'limit' };
 
     if (dateStr === todayStr) {
         const currentHour = new Date().getHours();
@@ -2563,7 +2556,7 @@ window.startClock = function() {
 window.handleGantiPin = function() {
     const p = prompt("PIN Baru:");
     if(p) {
-        localStorage.setItem('musyrif_pin', p);
+        localStorage.setItem(window.APP_CONSTANTS.pinKey, p);
         alert("PIN Tersimpan");
     }
 };
@@ -2644,7 +2637,7 @@ window.renderPermitChecklist = function(list) {
         div.className = 'flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500 transition-all group select-none';
         div.innerHTML = `
             <input type="checkbox" name="permit_santri_select" value="${id}" onchange="window.updatePermitCount()" class="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 rounded-md cursor-pointer accent-emerald-500">
-            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white">${s.nama}</span>
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate group-hover:text-slate-800 dark:group-hover:text-white">${window.sanitizeHTML(s.nama)}</span>
         `;
         container.appendChild(div);
     });
@@ -2697,15 +2690,6 @@ window.renderPermitList = function() {
     } else {
         activePermits = activePermits.filter(p => p.category === 'pulang');
     }
-    
-    // --- TAMBAHAN FILTER BERDASARKAN MODE ---
-    if (currentModalMode === 'daily') {
-        // Jika mode harian, tampilkan Sakit & Izin saja
-        activePermits = activePermits.filter(p => p.category === 'sakit' || p.category === 'izin');
-    } else {
-        // Jika mode perpulangan, tampilkan Pulang saja
-        activePermits = activePermits.filter(p => p.category === 'pulang');
-    }
 
     if(activePermits.length === 0) {
         container.innerHTML = '<div class="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-bold">Tidak ada yang izin/sakit</div>';
@@ -2747,11 +2731,11 @@ window.renderPermitList = function() {
         div.innerHTML = `
             <div>
                 <div class="flex items-center gap-2 mb-1">
-                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${badgeColor}">${p.category}</span>
-                    <span class="font-bold text-slate-800 dark:text-white text-xs">${santri.nama}</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${badgeColor}">${window.sanitizeHTML(p.category)}</span>
+                    <span class="font-bold text-slate-800 dark:text-white text-xs">${window.sanitizeHTML(santri.nama)}</span>
                 </div>
-                <p class="text-[10px] font-bold text-slate-500">${p.reason}</p>
-                <p class="text-[10px] text-slate-400 mt-0.5">${detailText}</p>
+                <p class="text-[10px] font-bold text-slate-500">${window.sanitizeHTML(p.reason)}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">${window.sanitizeHTML(detailText)}</p>
             </div>
             <div class="flex flex-col gap-1 items-end">
                 ${actionBtn}
@@ -3748,13 +3732,7 @@ window.toggleSelectAllPermit = function() {
 
 // Tambahkan fungsi ini di script.js Anda
 window.goToToday = function() {
-    const today = new Date();
-    // Format YYYY-MM-DD sesuai zona waktu lokal (PENTING untuk input date)
-    const offset = today.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(today.getTime() - offset).toISOString().split('T')[0];
-    
-    // Panggil fungsi handleDateChange yang sudah ada di kode Anda
-    handleDateChange(localISOTime);
+    handleDateChange(window.getLocalDateStr());
 };
 
 // Tambahkan ini di script.js
@@ -3840,7 +3818,7 @@ window.showStatDetails = function(statusType) {
                     ${s.nama.substring(0,2).toUpperCase()}
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${s.nama}</h4>
+                    <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${window.sanitizeHTML(s.nama)}</h4>
                     <p class="text-[10px] text-slate-500 truncate">${s.asrama || s.kelas}</p>
                 </div>
                 ${note !== '-' && note !== '' ? `
@@ -4485,24 +4463,27 @@ window.renderPermitHistory = function() {
     if (!container) return;
     container.innerHTML = '';
 
+    // --- Baca nilai search & filter dari HTML ---
+    const searchVal = (document.getElementById('hist-search')?.value || '').toLowerCase().trim();
+    const filterCat = document.getElementById('hist-filter-cat')?.value || 'all';
+
     let history = [...appState.permits].map(p => ({...p, source: 'permit'}));
     const classNisList = FILTERED_SANTRI.map(s => String(s.nis || s.id));
     
-    // Create Set for fast permit lookup
+    // Buat Set untuk pengecekan cepat apakah entri manual sudah ter-cover surat izin
     const permitLookup = new Set();
     appState.permits.forEach(p => {
         if(p.start_date && p.end_date) {
-            // Create keys for all dates in range
             const start = new Date(p.start_date);
             const end = new Date(p.end_date);
-            for(let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+            for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                 const key = `${p.nis}_${window.getLocalDateStr(d)}_${p.category}`;
                 permitLookup.add(key);
             }
         }
     });
     
-    // Scan manual entries
+    // Scan entri manual dari data presensi harian
     Object.keys(appState.attendanceData).forEach(date => {
         const daySlots = appState.attendanceData[date];
         
@@ -4513,11 +4494,8 @@ window.renderPermitHistory = function() {
                 if(st && ['Sakit','Izin','Pulang'].includes(st)) foundSt = st;
             });
 
-            // Check if NOT covered by permit
             const key = `${nis}_${date}_${foundSt?.toLowerCase()}`;
-            const coveredByPermit = permitLookup.has(key);
-
-            if (foundSt && !coveredByPermit) {
+            if (foundSt && !permitLookup.has(key)) {
                 history.push({
                     id: `manual_${date}_${nis}`,
                     nis: nis,
@@ -4533,111 +4511,139 @@ window.renderPermitHistory = function() {
         });
     });
 
+    // Urutkan terbaru dulu
     history.sort((a, b) => new Date(b.timestamp || b.start_date) - new Date(a.timestamp || a.start_date));
+
+    // Filter: hanya entri milik kelas ini
     history = history.filter(p => classNisList.includes(String(p.nis)));
 
+    // Filter: berdasarkan kategori dropdown
+    if (filterCat !== 'all') {
+        history = history.filter(p => p.category === filterCat);
+    }
+
+    // Filter: berdasarkan search nama santri
+    if (searchVal) {
+        history = history.filter(p => {
+            const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
+            return santri && santri.nama.toLowerCase().includes(searchVal);
+        });
+    }
+
     if (history.length === 0) {
-        container.innerHTML = `<div class="text-center py-12 border-2 border-dashed border-slate-100 rounded-2xl"><i data-lucide="folder-open" class="w-12 h-12 mx-auto mb-3 text-slate-300"></i><p class="text-xs font-bold text-slate-400">Belum ada riwayat perizinan</p></div>`;
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl">
+                <i data-lucide="folder-open" class="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600 stroke-1"></i>
+                <p class="text-xs font-bold text-slate-400 dark:text-slate-500">
+                    ${searchVal || filterCat !== 'all' ? 'Tidak ada hasil yang cocok' : 'Belum ada riwayat perizinan'}
+                </p>
+            </div>`;
         window.refreshIcons();
         return;
     }
+
+    const fragment = document.createDocumentFragment();
 
     history.forEach(p => {
         const santri = FILTERED_SANTRI.find(s => String(s.nis || s.id) === String(p.nis));
         if(!santri) return;
 
-        let colorTheme = 'bg-slate-100 text-slate-500';
-        let iconName = 'file-text';
-        let borderClass = 'border-slate-200';
+        // --- Tema warna per kategori ---
+        const catMap = {
+            sakit:  { icon: 'thermometer', iconBg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800', catLabel: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
+            izin:   { icon: 'calendar',    iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',   border: 'border-blue-200 dark:border-blue-800',   catLabel: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' },
+            pulang: { icon: 'bus',         iconBg: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-800', catLabel: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800' }
+        };
+        const theme = catMap[p.category] || { icon: 'file-text', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500', border: 'border-slate-200 dark:border-slate-700', catLabel: 'bg-slate-100 text-slate-500 border-slate-200' };
 
-        if (p.category === 'sakit') { 
-            colorTheme = 'bg-amber-100 text-amber-600'; 
-            borderClass = 'border-amber-200';
-            iconName = 'thermometer'; 
-        }
-        else if (p.category === 'izin') { 
-            colorTheme = 'bg-blue-100 text-blue-600'; 
-            borderClass = 'border-blue-200';
-            iconName = 'calendar'; 
-        }
-        else if (p.category === 'pulang') { 
-            colorTheme = 'bg-purple-100 text-purple-600'; 
-            borderClass = 'border-purple-200';
-            iconName = 'bus'; 
-        }
-
-        let badge = '';
-        
+        // --- Badge status ---
+        let statusBadge = '';
         if (p.source === 'manual') {
-            badge = `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase tracking-wider">MANUAL</span>`;
+            statusBadge = `<span class="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[9px] font-black border border-slate-200 dark:border-slate-600 uppercase tracking-wider">MANUAL</span>`;
         } else {
             let isActive = p.is_active;
-            const catSafe = (p.category || '').toLowerCase();
-            
-            if (catSafe === 'sakit' && p.end_date) isActive = false;
-            if ((catSafe === 'izin' || catSafe === 'pulang') && p.end_date && p.end_date < window.getLocalDateStr()) isActive = false;
+            const cat = (p.category || '').toLowerCase();
+            if (cat === 'sakit' && p.end_date) isActive = false;
+            if ((cat === 'izin' || cat === 'pulang') && p.end_date && p.end_date < window.getLocalDateStr()) isActive = false;
 
-            if (isActive) {
-                badge = `<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-200 uppercase tracking-wider shadow-sm">AKTIF</span>`;
-            } else {
-                badge = `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-black border border-slate-200 uppercase tracking-wider">SELESAI</span>`;
-            }
+            statusBadge = isActive
+                ? `<span class="shrink-0 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[9px] font-black border border-emerald-200 dark:border-emerald-700 uppercase tracking-wider">AKTIF</span>`
+                : `<span class="shrink-0 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[9px] font-black border border-slate-200 dark:border-slate-600 uppercase tracking-wider">SELESAI</span>`;
         }
 
+        // --- Tombol aksi (horizontal, di pojok kanan atas) ---
         let actionButtons = '';
         if (p.source === 'permit') {
             actionButtons = `
-                <div class="flex flex-col gap-2 ml-2 pl-2 border-l border-slate-100 dark:border-slate-700">
-                    <button onclick="window.openEditHistory('${p.id}')" class="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-100" title="Edit Data" aria-label="Edit izin ${window.sanitizeHTML(santri.nama)}">
-                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                <div class="flex gap-1.5 shrink-0 self-start">
+                    <button onclick="window.openEditHistory('${p.id}')"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 transition-colors"
+                        title="Edit" aria-label="Edit izin ${window.sanitizeHTML(santri.nama)}">
+                        <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button onclick="window.deleteHistoryPermit('${p.id}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-100" title="Hapus Permanen" aria-label="Hapus izin ${window.sanitizeHTML(santri.nama)}">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <button onclick="window.deleteHistoryPermit('${p.id}')"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-100 dark:border-red-800 transition-colors"
+                        title="Hapus" aria-label="Hapus izin ${window.sanitizeHTML(santri.nama)}">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                     </button>
-                </div>
-            `;
+                </div>`;
         } else {
             actionButtons = `
-                 <div class="flex flex-col gap-2 ml-2 pl-2 border-l border-slate-100 dark:border-slate-700 opacity-50">
-                    <button disabled class="p-2 rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed" aria-label="Manual entry tidak bisa diedit">
-                        <i data-lucide="lock" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            `;
+                <div class="shrink-0 self-start">
+                    <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-700/50 text-slate-300 dark:text-slate-600 border border-slate-100 dark:border-slate-700 cursor-not-allowed" title="Manual — tidak bisa diedit">
+                        <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                    </div>
+                </div>`;
         }
 
-        const dateDisplay = p.end_date && p.end_date !== p.start_date
+        // --- Tampilan rentang tanggal ---
+        const dateDisplay = (p.end_date && p.end_date !== p.start_date)
             ? `${window.formatDate(p.start_date)} — ${window.formatDate(p.end_date)}`
             : window.formatDate(p.start_date);
 
         const div = document.createElement('div');
-        div.className = `p-4 rounded-2xl bg-white dark:bg-slate-800 border ${borderClass} mb-3 shadow-sm hover:shadow-md transition-all relative group`;
-        
+        div.className = `rounded-2xl bg-white dark:bg-slate-800 border ${theme.border} shadow-sm hover:shadow-md transition-shadow`;
         div.innerHTML = `
-            <div class="flex justify-between items-stretch">
-                <div class="flex gap-3 flex-1">
-                    <div class="w-10 h-10 rounded-xl ${colorTheme} flex items-center justify-center border border-white/20 shadow-sm flex-shrink-0">
-                        <i data-lucide="${iconName}" class="w-5 h-5"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <h4 class="font-bold text-slate-800 dark:text-white text-sm truncate">${window.sanitizeHTML(santri.nama)}</h4>
-                            ${badge}
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-1 font-medium flex items-center gap-1">
-                            <i data-lucide="clock" class="w-3 h-3"></i> ${dateDisplay}
-                        </p>
-                        <p class="text-xs font-bold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg inline-block border border-slate-100 dark:border-slate-700 max-w-full truncate">
-                            "${window.sanitizeHTML(p.reason || '-')}"
-                        </p>
-                    </div>
+            <div class="p-3.5 flex items-start gap-3">
+
+                <!-- Ikon kategori -->
+                <div class="w-9 h-9 rounded-xl ${theme.iconBg} flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="${theme.icon}" class="w-4 h-4"></i>
                 </div>
-                ${actionButtons}
+
+                <!-- Konten utama -->
+                <div class="flex-1 min-w-0">
+
+                    <!-- Baris: nama + status badge + tombol aksi -->
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase border ${theme.catLabel}">${window.sanitizeHTML(p.category)}</span>
+                                ${statusBadge}
+                            </div>
+                            <p class="font-bold text-slate-800 dark:text-white text-sm mt-0.5 truncate">${window.sanitizeHTML(santri.nama)}</p>
+                        </div>
+                        ${actionButtons}
+                    </div>
+
+                    <!-- Tanggal -->
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1 font-medium">
+                        <i data-lucide="calendar-days" class="w-3 h-3 shrink-0"></i>
+                        <span class="truncate">${dateDisplay}</span>
+                    </p>
+
+                    <!-- Alasan -->
+                    <p class="text-[11px] text-slate-600 dark:text-slate-300 font-semibold mt-2 leading-relaxed line-clamp-2 bg-slate-50 dark:bg-slate-700/40 rounded-lg px-2.5 py-1.5 border border-slate-100 dark:border-slate-700">
+                        "${window.sanitizeHTML(p.reason || '-')}"
+                    </p>
+
+                </div>
             </div>
         `;
-        container.appendChild(div);
+        fragment.appendChild(div);
     });
-    
+
+    container.appendChild(fragment);
     window.refreshIcons();
 };
 
@@ -4861,7 +4867,7 @@ window.renderSchoolStatsWidget = function() {
                 // Tampilkan Telat juga kalau mau dipantau, atau exclude jika dihitung hadir
                 const item = document.createElement('div');
                 item.className = "flex justify-between items-center px-2 py-1 bg-slate-50 dark:bg-slate-800/50 rounded text-xs";
-                item.innerHTML = `<span class="font-bold text-slate-700 dark:text-slate-200">${s.nama}</span> <span class="font-black ${color} text-[10px] uppercase">${st}</span>`;
+                item.innerHTML = `<span class="font-bold text-slate-700 dark:text-slate-200">${window.sanitizeHTML(s.nama)}</span> <span class="font-black ${color} text-[10px] uppercase">${st}</span>`;
                 listContainer.appendChild(item);
             }
         });

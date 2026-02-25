@@ -1,8 +1,5 @@
 // File: data-kelas.js
 
-// URL API yang sama dengan data santri (menggunakan parameter type=kelas)
-const API_KELAS_URL = "https://script.google.com/macros/s/AKfycbw-URYAsLTWCdnGurQhM1ZXa9N8vm-GBlHwtetDlin73-Ma8G0aAbFoboGGUI8GgVDl/exec";
-
 window.classData = {}; // Variabel global penampung data kelas
 
 async function loadClassData() {
@@ -20,7 +17,7 @@ async function loadClassData() {
         }
 
         // Jika tidak ada cache, ambil langsung
-        const response = await fetch(`${API_KELAS_URL}?type=kelas`);
+        const response = await fetch(`${window.APP_CREDENTIALS.googleSheetUrl}?type=kelas`);
         if (!response.ok) throw new Error("Gagal koneksi server kelas");
         
         const rawData = await response.json();
@@ -32,7 +29,7 @@ async function loadClassData() {
                 window.classData[row.kelas] = {
                     wali: row.wali || "-",
                     musyrif: row.musyrif || "-",
-                    email: row.email || "" // <--- PENAMBAHAN PENTING DISINI
+                    email: row.email || ""
                 };
             }
         });
@@ -52,7 +49,7 @@ async function loadClassData() {
 // Fungsi update cache di background (tanpa loading screen)
 async function fetchClassBackground() {
     try {
-        const response = await fetch(`${API_KELAS_URL}?type=kelas`);
+        const response = await fetch(`${window.APP_CREDENTIALS.googleSheetUrl}?type=kelas`);
         const rawData = await response.json();
         const newData = {};
         rawData.forEach(row => {
@@ -60,7 +57,7 @@ async function fetchClassBackground() {
                 newData[row.kelas] = { 
                     wali: row.wali || "-", 
                     musyrif: row.musyrif || "-",
-                    email: row.email || "" // <--- JANGAN LUPA DISINI JUGA
+                    email: row.email || ""
                 };
             }
         });

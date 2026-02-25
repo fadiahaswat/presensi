@@ -3,13 +3,12 @@ const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
+  './config.js',
   './script.js',
   './santri-manager.js',
   './data-santri.js',
   './data-kelas.js',
   './manifest.json'
-  // KITA HAPUS LINK EKSTERNAL (Tailwind, Lucide, Supabase) DARI SINI
-  // Karena server mereka menolak di-cache oleh Service Worker secara langsung (CORS Error)
 ];
 
 // 1. Install Service Worker & Cache File
