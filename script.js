@@ -890,11 +890,11 @@ window.renderSlotList = function() {
 
 window.updateProfileInfo = function() {
     const elHeaderName = document.getElementById('header-user-name');
-    const elHeaderRole = document.getElementById('header-user-role'); // UNIQUE ID
+    const elHeaderRole = document.getElementById('profile-role');
     const elHeaderAvatar = document.getElementById('header-avatar');
     
     const elName = document.getElementById('profile-name');
-    const elRoleTab = document.getElementById('profile-role-tab'); // UNIQUE ID
+    const elRoleTab = document.getElementById('profile-role-tab');
 
     if(appState.selectedClass && MASTER_KELAS[appState.selectedClass]) {
         const musyrifName = MASTER_KELAS[appState.selectedClass].musyrif;
@@ -1742,21 +1742,18 @@ window.generateRekapBulanan = function() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const fragment = document.createDocumentFragment();
 
     FILTERED_SANTRI.forEach(santri => {
         const id = String(santri.nis || santri.id);
         let h = 0, s = 0, i = 0, a = 0;
         
-        // Loop Days of Month (Max 31)
-        for(let day = 1; day <= 31; day++) {
-            // Optimasi: Buat string date manual daripada new Date() di loop
+        // Loop Days of Month (actual days)
+        for(let day = 1; day <= daysInMonth; day++) {
             const dayStr = String(day).padStart(2, '0');
             const monthStr = String(month + 1).padStart(2, '0');
             const dateKey = `${year}-${monthStr}-${dayStr}`;
-            
-            // Cek apakah tanggal valid (misal 31 Feb tidak ada)
-            // Tapi karena akses object undefined aman, kita skip validasi ketat demi performa
             
             const dayData = appState.attendanceData[dateKey];
             if(dayData) {
@@ -1777,7 +1774,7 @@ window.generateRekapBulanan = function() {
         div.className = 'glass-card p-4 rounded-2xl flex items-center justify-between mb-2';
         div.innerHTML = `
             <div class="flex-1">
-                <h4 class="font-bold text-slate-800 dark:text-white">${santri.nama}</h4>
+                <h4 class="font-bold text-slate-800 dark:text-white">${window.sanitizeHTML(santri.nama)}</h4>
                 <div class="flex gap-4 mt-2 text-xs font-bold">
                     <span class="text-emerald-600">H: ${h}</span>
                     <span class="text-amber-600">S: ${s}</span>
@@ -1841,8 +1838,8 @@ window.viewActivityLog = function() {
                     <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${log.action}</h4>
-                    <p class="text-xs text-slate-500 truncate">${log.detail}</p>
+                    <h4 class="font-bold text-slate-800 dark:text-white text-sm">${window.sanitizeHTML(log.action)}</h4>
+                    <p class="text-xs text-slate-500 truncate">${window.sanitizeHTML(log.detail)}</p>
                     <p class="text-[10px] text-slate-400 mt-1">${time.toLocaleString('id-ID')}</p>
                 </div>
             `;
@@ -2695,15 +2692,6 @@ window.renderPermitList = function() {
     if (currentModalMode === 'daily') {
         activePermits = activePermits.filter(p => p.category === 'sakit' || p.category === 'izin');
     } else {
-        activePermits = activePermits.filter(p => p.category === 'pulang');
-    }
-    
-    // --- TAMBAHAN FILTER BERDASARKAN MODE ---
-    if (currentModalMode === 'daily') {
-        // Jika mode harian, tampilkan Sakit & Izin saja
-        activePermits = activePermits.filter(p => p.category === 'sakit' || p.category === 'izin');
-    } else {
-        // Jika mode perpulangan, tampilkan Pulang saja
         activePermits = activePermits.filter(p => p.category === 'pulang');
     }
 
@@ -3748,13 +3736,7 @@ window.toggleSelectAllPermit = function() {
 
 // Tambahkan fungsi ini di script.js Anda
 window.goToToday = function() {
-    const today = new Date();
-    // Format YYYY-MM-DD sesuai zona waktu lokal (PENTING untuk input date)
-    const offset = today.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(today.getTime() - offset).toISOString().split('T')[0];
-    
-    // Panggil fungsi handleDateChange yang sudah ada di kode Anda
-    handleDateChange(localISOTime);
+    handleDateChange(window.getLocalDateStr());
 };
 
 // Tambahkan ini di script.js
