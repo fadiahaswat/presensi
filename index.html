@@ -227,7 +227,7 @@
         .sidebar-nav-btn.active i { color: currentColor !important; transform: none !important; stroke-width: 2px; }
 
         @media (min-width: 1024px) {
-            body { display: block !important; overflow: hidden; }
+            body { display: block !important; overflow: hidden; height: 100vh; }
 
             #view-login,
             #view-main,
@@ -249,23 +249,33 @@
             #view-main { flex-direction: row !important; overflow: hidden !important; }
             #desktop-sidebar { display: flex !important; }
 
-            /* Tab content fills remaining width */
+            /* Tab content fills remaining width, no mobile-nav spacing */
             #view-main .tab-content:not(.hidden),
             #view-main #main-content:not(.hidden) {
                 flex: 1 !important;
                 min-width: 0 !important;
                 height: 100% !important;
                 overflow-y: auto !important;
-                padding-bottom: 1.5rem !important;
+                padding-bottom: 1.5rem !important; /* override pb-32/pb-40 */
             }
-            /* Remove mobile bottom-nav spacing from main-content */
-            #main-content { padding-bottom: 1.5rem !important; }
+
+            /* Reset mobile safe-area padding on desktop */
+            .pt-safe { padding-top: 1.5rem !important; }
+
+            /* Prevent tab overflow from causing double scrollbar */
             #tab-analysis, #tab-report, #tab-profile {
                 min-height: auto !important;
                 height: 100% !important;
             }
 
-            /* Hide mobile bottom nav */
+            /* Sidebar nav items wrapper — clean flex column */
+            #desktop-sidebar .sidebar-nav-list {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+
+            /* Hide mobile bottom nav on desktop */
             section#view-main > nav { display: none !important; }
 
             /* Restore fixed positioning for modals & overlays */
@@ -389,7 +399,7 @@
             </div>
 
             <!-- Nav items -->
-            <div class="flex-1 p-3 overflow-y-auto" style="display:flex;flex-direction:column;gap:0.25rem">
+            <div class="sidebar-nav-list flex-1 p-3 overflow-y-auto">
                 <button onclick="window.switchTab('home')" data-target="home" class="nav-btn active sidebar-nav-btn">
                     <i data-lucide="home" class="w-5 h-5 flex-shrink-0"></i>
                     <span>Dashboard</span>
