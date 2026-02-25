@@ -1098,17 +1098,11 @@
             </div>
         </div>
 
-        <div class="relative">
-            <div class="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-white dark:from-slate-800 to-transparent z-10 pointer-events-none"></div>
-            
-            <div id="permit-history-list" class="space-y-3 max-h-[400px] overflow-y-auto pt-2 pb-6 pr-1 custom-scrollbar">
-                <div class="flex flex-col items-center justify-center py-10 text-slate-400 opacity-50">
-                    <i data-lucide="folder-open" class="w-10 h-10 mb-2 stroke-1"></i>
-                    <p class="text-xs">Menunggu data dimuat...</p>
-                 </div>
+        <div id="permit-history-list" class="space-y-3 max-h-[420px] overflow-y-auto custom-scrollbar pr-0.5">
+            <div class="flex flex-col items-center justify-center py-10 text-slate-400 opacity-50">
+                <i data-lucide="folder-open" class="w-10 h-10 mb-2 stroke-1"></i>
+                <p class="text-xs">Menunggu data dimuat...</p>
             </div>
-            
-            <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-slate-800 to-transparent z-10 pointer-events-none"></div>
         </div>
 
     </div>
@@ -1721,6 +1715,7 @@
 </template>
     
     <!-- Scripts -->
+    <script src="config.js"></script>
     <script src="data-kelas.js"></script>
     <script src="data-santri.js"></script>
     <script src="santri-manager.js"></script>
