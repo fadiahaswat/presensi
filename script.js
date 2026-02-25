@@ -128,6 +128,18 @@ window.formatDate = function(dateStr) {
     return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
+// Cek apakah tanggal Masehi (YYYY-MM-DD) jatuh di bulan Ramadhan (Hijriyah ke-9)
+window.isRamadhan = function(dateStr) {
+    try {
+        const d = new Date(dateStr + 'T12:00:00');
+        // Gunakan Intl.DateTimeFormat untuk mendapatkan bulan Hijriyah
+        const hijriMonth = new Intl.DateTimeFormat('id-ID-u-ca-islamic', { month: 'numeric' }).format(d);
+        return Number(hijriMonth) === 9;
+    } catch(e) {
+        return false;
+    }
+};
+
 // Polyfill Canvas roundRect
 if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radii) {
@@ -256,7 +268,7 @@ const SLOT_WAKTU = {
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'dependent' },
             { id: 'dhuha', label: 'Dhuha', type: 'sunnah', category: 'sunnah' },
             { id: 'puasa', label: 'Puasa', type: 'sunnah', category: 'sunnah' },
-            { id: 'puasa_ramadhan', label: 'P.Rmdn', type: 'mandator', category: 'fardu' },
+            { id: 'puasa_ramadhan', label: 'P.Rmdn', type: 'mandator', category: 'fardu', onlyRamadhan: true },
             { id: 'tahsin', label: 'Tahsin', type: 'mandator', category: 'kbm', showOnDays: [4, 5] },
             { id: 'conversation', label: 'Conver', type: 'mandator', category: 'kbm', showOnDays: [3] },
             { id: 'vocabularies', label: 'Vocab', type: 'mandator', category: 'kbm', showOnDays: [1, 2] }
@@ -275,7 +287,7 @@ const SLOT_WAKTU = {
             { id: 'shalat', label: 'Isya', type: 'mandator', category: 'fardu' },
             { id: 'bakdiyah', label: 'Ba\'diyah', type: 'sunnah', category: 'dependent' },
             { id: 'alkahfi', label: 'Al-Kahfi', type: 'sunnah', category: 'sunnah', showOnDays: [4] },
-            { id: 'tarawih', label: 'Tarawih', type: 'sunnah', category: 'sunnah' }
+            { id: 'tarawih', label: 'Tarawih', type: 'sunnah', category: 'sunnah', onlyRamadhan: true }
     ]}
 };
 
@@ -1067,6 +1079,7 @@ window.renderAttendanceList = function() {
         if(!dbSlot[id]) {
             const defStatus = {};
             slot.activities.forEach(a => {
+                if (a.onlyRamadhan && !window.isRamadhan(dateKey)) return;
                 if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
@@ -1230,6 +1243,7 @@ window.renderAttendanceList = function() {
 
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
+            if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
         
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
@@ -1478,7 +1492,7 @@ window.generateBulkButtons = function() {
     container.innerHTML = '';
     
     // Cek ketersediaan kategori di slot ini
-    const acts = slot.activities.filter(a => !a.showOnDays || a.showOnDays.includes(currentDay));
+    const acts = slot.activities.filter(a => (!a.showOnDays || a.showOnDays.includes(currentDay)) && (!a.onlyRamadhan || window.isRamadhan(appState.date)));
     const hasFardu = acts.some(a => a.category === 'fardu');
     const hasKbm = acts.some(a => a.category === 'kbm');
     const sunnahActs = acts.filter(a => a.category === 'sunnah');
@@ -1559,6 +1573,7 @@ window.applyBulkAction = function(targetCategory, value, specificId = null) {
         
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
+            if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
 
             // LOGIKA 1: Fardu & Dependent (Ikut Shalat)
             if (targetCategory === 'fardu') {
@@ -2223,6 +2238,7 @@ window.updateReportTab = function() {
 
                 slot.activities.forEach(act => {
                     if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
+                    if(act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
                     
                     const st = sData.status[act.id];
                     let weight = 0;
@@ -2905,6 +2921,7 @@ window.runAnalysis = function() {
                 if(sData) {
                     slot.activities.forEach(act => {
                         if(act.showOnDays && !act.showOnDays.includes(dayNum)) return;
+                        if(act.onlyRamadhan && !window.isRamadhan(safeDateKey)) return;
 
                         const st = sData.status[act.id];
                         if(!st) return;
