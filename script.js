@@ -302,11 +302,11 @@ const STATUS_UI = {
         label: 'Y'
     },
     'Telat': { 
-        class: 'bg-emerald-100 text-emerald-500 border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-500 dark:border-emerald-500',
+        class: 'bg-yellow-100 text-yellow-600 border-yellow-500 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-500',
         label: 'T'
     },
     'Izin': { 
-        class: 'bg-blue-100 text-blue-500 border-blue-500 dark:bg-blue-900/30 dark:text-blue-500 dark:border-blue-500',
+        class: 'bg-yellow-50 text-yellow-700 border-yellow-400 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-600',
         label: 'I'
     },
     'Sakit': { 
@@ -320,6 +320,10 @@ const STATUS_UI = {
     'Pulang': { 
         class: 'bg-purple-100 text-purple-500 border-purple-500 dark:bg-purple-900/30 dark:text-purple-500 dark:border-purple-500',
         label: 'P'
+    },
+    'Tugas Madrasah': {
+        class: 'bg-cyan-100 text-cyan-600 border-cyan-500 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-500',
+        label: 'TL'
     },
     'Tidak': { 
         class: 'bg-slate-100 text-slate-400 border-slate-400 dark:bg-slate-700 dark:text-slate-500 dark:border-slate-500',
@@ -960,8 +964,8 @@ window.calculateSlotStats = function(slotId, customDate = null) {
         
         if (status) {
             stats.isFilled = true;
-            // Telat dihitung Hadir di statistik angka
-            if (status === 'Hadir' || status === 'Telat') stats.h++; 
+            // Telat dan Tugas Madrasah dihitung Hadir di statistik angka
+            if (status === 'Hadir' || status === 'Telat' || status === 'Tugas Madrasah') stats.h++; 
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin' || status === 'Pulang') stats.i++;
             else if (status === 'Alpa') stats.a++;
@@ -1274,11 +1278,13 @@ window.renderAttendanceList = function() {
             if(curr === 'Hadir' || curr === 'Ya') {
                 ringClass = 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
             } else if(curr === 'Telat') {
-                ringClass = 'ring-2 ring-teal-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+                ringClass = 'ring-2 ring-yellow-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
             } else if(curr === 'Sakit') {
                 ringClass = 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
             } else if(curr === 'Izin') {
-                ringClass = 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+                ringClass = 'ring-2 ring-yellow-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
+            } else if(curr === 'Tugas Madrasah') {
+                ringClass = 'ring-2 ring-cyan-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
             } else if(curr === 'Alpa') {
                 ringClass = 'ring-2 ring-red-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
             } else if(curr === 'Pulang') {
@@ -1366,19 +1372,21 @@ window.renderAttendanceList = function() {
             };
 
             makeBadge(summaryCount.Sakit, 'Sakit', 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700');
-            makeBadge(summaryCount.Izin, 'Izin', 'bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700');
+            makeBadge(summaryCount.Izin, 'Izin', 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700');
             makeBadge(summaryCount.Pulang, 'Pulang', 'bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700');
+            makeBadge(summaryCount['Tugas Madrasah'], 'Tugas Madrasah', 'bg-cyan-100 text-cyan-600 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-700');
             makeBadge(summaryCount.Alpa, 'Alpa', 'bg-red-50 text-red-500 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700');
-            makeBadge(summaryCount.Telat, 'Telat', 'bg-teal-100 text-teal-600 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-700');
+            makeBadge(summaryCount.Telat, 'Telat', 'bg-yellow-100 text-yellow-600 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700');
 
             summaryList.forEach(item => {
                 let badgeClass = 'px-2 py-1 rounded-md text-[10px] font-bold inline-block m-0.5 border';
                 
                 if(item.status === 'Sakit') badgeClass += ' bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400';
-                else if(item.status === 'Izin') badgeClass += ' bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400';
+                else if(item.status === 'Izin') badgeClass += ' bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400';
                 else if(item.status === 'Pulang') badgeClass += ' bg-purple-100 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400';
                 else if(item.status === 'Alpa') badgeClass += ' bg-red-50 text-red-500 border-red-200 dark:bg-red-900/30 dark:text-red-400';
-                else if(item.status === 'Telat') badgeClass += ' bg-teal-100 text-teal-600 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400';
+                else if(item.status === 'Telat') badgeClass += ' bg-yellow-100 text-yellow-600 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400';
+                else if(item.status === 'Tugas Madrasah') badgeClass += ' bg-cyan-100 text-cyan-600 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400';
                 
                 const badge = document.createElement('span');
                 badge.className = badgeClass;
@@ -1413,12 +1421,12 @@ window.toggleStatus = function(id, actId, type) {
 
     // 1. TENTUKAN STATUS BARU (LOGIKA SIKLUS)
     if(type === 'mandator') {
-        // SIKLUS UNIVERSAL (Sekolah & Shalat sama-sama bisa Telat)
-        // Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
+        // SIKLUS UNIVERSAL: Hadir -> Telat -> Sakit -> Izin -> Tugas Madrasah -> Alpa -> Hadir
         if(curr === 'Hadir') next = 'Telat';
-        else if(curr === 'Telat') next = 'Sakit'; // <-- Masbuk/Telat
+        else if(curr === 'Telat') next = 'Sakit';
         else if(curr === 'Sakit') next = 'Izin';
-        else if(curr === 'Izin') next = 'Alpa';
+        else if(curr === 'Izin') next = 'Tugas Madrasah';
+        else if(curr === 'Tugas Madrasah') next = 'Alpa';
         else next = 'Hadir';
     } else {
         // Siklus Sunnah: Ya -> Tidak -> Ya
@@ -1725,6 +1733,111 @@ window.exportToExcel = function() {
     window.logActivity('Export Data', `Mengexport data ke Excel`);
 };
 
+window.exportToPDF = function() {
+    if(!appState.selectedClass || FILTERED_SANTRI.length === 0) {
+        return window.showToast('Pilih kelas terlebih dahulu', 'warning');
+    }
+
+    const range = window.getReportDateRange(appState.reportMode);
+    const dateLabel = range.label;
+    const className = appState.selectedClass;
+
+    // Build HTML rows from current report table
+    const tbody = document.getElementById('daily-recap-tbody');
+    const tableRows = tbody ? tbody.innerHTML : '';
+
+    const statusLegend = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:10px;">
+            <span style="background:#d1fae5;color:#059669;padding:2px 8px;border-radius:4px;border:1px solid #6ee7b7;">H = Hadir</span>
+            <span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:4px;border:1px solid #fde047;">T = Telat</span>
+            <span style="background:#fef9c3;color:#b45309;padding:2px 8px;border-radius:4px;border:1px solid #fde047;">I = Izin</span>
+            <span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:4px;border:1px solid #fcd34d;">S = Sakit</span>
+            <span style="background:#cffafe;color:#0e7490;padding:2px 8px;border-radius:4px;border:1px solid #67e8f9;">TL = Tugas Madrasah</span>
+            <span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:4px;border:1px solid #fca5a5;">A = Alpa</span>
+            <span style="background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:4px;border:1px solid #c4b5fd;">P = Pulang</span>
+        </div>`;
+
+    const printContent = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Laporan Presensi ${className} - ${dateLabel}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; font-size: 11px; color: #1e293b; padding: 24px; }
+        h1 { font-size: 18px; font-weight: 900; margin-bottom: 2px; }
+        h2 { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 16px; }
+        .header { border-bottom: 2px solid #10b981; padding-bottom: 12px; margin-bottom: 16px; }
+        .meta { display: flex; gap: 24px; margin-bottom: 16px; font-size: 10px; color: #475569; }
+        .meta span { font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        thead tr { background: #f1f5f9; }
+        th { padding: 8px 10px; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:hover td { background: #f8fafc; }
+        .score-hi { color: #059669; font-weight: 900; }
+        .score-mid { color: #2563eb; font-weight: 900; }
+        .score-lo { color: #d97706; font-weight: 900; }
+        .score-fail { color: #dc2626; font-weight: 900; }
+        .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; }
+        .badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; font-size: 9px; font-weight: 900; }
+        .badge-h { background: #d1fae5; color: #059669; }
+        .badge-t { background: #fef9c3; color: #a16207; }
+        .badge-i { background: #fef9c3; color: #b45309; }
+        .badge-s { background: #fef3c7; color: #b45309; }
+        .badge-tl { background: #cffafe; color: #0e7490; }
+        .badge-a { background: #fee2e2; color: #dc2626; }
+        .badge-p { background: #ede9fe; color: #7c3aed; }
+        .badge-empty { background: #f1f5f9; color: #94a3b8; }
+        @media print { body { padding: 0; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Laporan Presensi Santri</h1>
+        <h2>${className} &mdash; ${dateLabel}</h2>
+    </div>
+    <div class="meta">
+        <div>Kelas: <span>${className}</span></div>
+        <div>Periode: <span>${dateLabel}</span></div>
+        <div>Dicetak: <span>${new Date().toLocaleString('id-ID')}</span></div>
+        <div>Total Santri: <span>${FILTERED_SANTRI.length}</span></div>
+    </div>
+    ${statusLegend}
+    <table>
+        <thead>
+            <tr>
+                <th style="width:28px">No</th>
+                <th>Nama Santri</th>
+                <th style="text-align:center">Shalat</th>
+                <th style="text-align:center">Sekolah</th>
+                <th style="text-align:center">KBM Asrama</th>
+                <th style="text-align:center">Sunnah</th>
+                <th style="text-align:center">Nilai</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${tableRows}
+        </tbody>
+    </table>
+    <div class="footer">
+        <span>Dicetak dari Sistem Presensi Santri</span>
+        <span>Musyrif: ${appState.selectedClass && MASTER_KELAS?.[appState.selectedClass]?.musyrif || '-'}</span>
+    </div>
+    <script>window.onload = function() { window.print(); }<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (win) {
+        win.document.write(printContent);
+        win.document.close();
+        window.logActivity('Export PDF', `Mencetak laporan ${className} periode ${dateLabel}`);
+    } else {
+        window.showToast('Popup diblokir browser. Izinkan popup untuk mencetak PDF.', 'warning');
+    }
+};
+
 window.viewRekapBulanan = function() {
     const modal = document.getElementById('modal-rekap');
     if(modal) {
@@ -1782,7 +1895,7 @@ window.generateRekapBulanan = function() {
             if(dayData) {
                 Object.values(SLOT_WAKTU).forEach(slot => {
                     const st = dayData[slot.id]?.[id]?.status?.shalat;
-                    if(st === 'Hadir') h++;
+                    if(st === 'Hadir' || st === 'Telat' || st === 'Tugas Madrasah') h++;
                     else if(st === 'Sakit') s++;
                     else if(st === 'Izin') i++;
                     else if(st === 'Alpa') a++;
@@ -1887,7 +2000,7 @@ window.kirimLaporanWA = function() {
     msg += `📝 Izin: ${stats.i}\n`;
     msg += `❌ Alpa: ${stats.a}\n\n`;
     
-    // List Detail Alpa/Izin/Sakit
+    // List Detail Alpa/Izin/Sakit (Tugas Madrasah dihitung Hadir, tidak perlu dilaporkan)
     const notPresent = [];
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
@@ -2318,8 +2431,10 @@ window.updateReportTab = function() {
                 let color = 'bg-slate-100 text-slate-300';
                 
                 if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
+                else if(st === 'Telat') color = 'bg-yellow-100 text-yellow-600';
                 else if(st === 'Sakit') color = 'bg-amber-100 text-amber-600';
-                else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';
+                else if(st === 'Izin') color = 'bg-yellow-100 text-yellow-700';
+                else if(st === 'Tugas Madrasah') color = 'bg-cyan-100 text-cyan-600';
                 else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';
                 else if(st === 'Alpa') color = 'bg-red-100 text-red-600';
                 
@@ -2333,9 +2448,10 @@ window.updateReportTab = function() {
             let schLabel = '-';
             
             if(stSchool === 'Hadir') { schColor = 'bg-cyan-100 text-cyan-600'; schLabel = 'H'; }
-            else if(stSchool === 'Telat') { schColor = 'bg-teal-100 text-teal-600'; schLabel = 'T'; }
+            else if(stSchool === 'Telat') { schColor = 'bg-yellow-100 text-yellow-600'; schLabel = 'T'; }
             else if(stSchool === 'Sakit') { schColor = 'bg-amber-100 text-amber-600'; schLabel = 'S'; }
-            else if(stSchool === 'Izin') { schColor = 'bg-blue-100 text-blue-600'; schLabel = 'I'; }
+            else if(stSchool === 'Izin') { schColor = 'bg-yellow-100 text-yellow-700'; schLabel = 'I'; }
+            else if(stSchool === 'Tugas Madrasah') { schColor = 'bg-cyan-100 text-cyan-600'; schLabel = 'TL'; }
             else if(stSchool === 'Alpa') { schColor = 'bg-red-100 text-red-600'; schLabel = 'A'; }
 
             schoolCol = `<div class="flex justify-center"><span class="w-6 h-6 flex items-center justify-center rounded-lg ${schColor} text-[10px] font-black shadow-sm" aria-label="Sekolah: ${stSchool || 'Belum diisi'}">${schLabel}</span></div>`;
@@ -3746,12 +3862,13 @@ window.showStatDetails = function(statusType) {
     // Warna Judul sesuai Tipe
     let colorClass = 'text-slate-800';
     if(statusType === 'Sakit') colorClass = 'text-amber-500';
-    else if(statusType === 'Izin') colorClass = 'text-blue-500';
+    else if(statusType === 'Izin') colorClass = 'text-yellow-600';
     else if(statusType === 'Alpa') colorClass = 'text-rose-500';
     else if(statusType === 'Hadir') colorClass = 'text-emerald-500';
-    // Tambahkan Handling Telat & Pulang (Jaga-jaga)
-    else if(statusType === 'Telat') colorClass = 'text-teal-500';
+    // Tambahkan Handling Telat & Pulang & Tugas Madrasah
+    else if(statusType === 'Telat') colorClass = 'text-yellow-500';
     else if(statusType === 'Pulang') colorClass = 'text-purple-500';
+    else if(statusType === 'Tugas Madrasah') colorClass = 'text-cyan-500';
     
     title.textContent = `Daftar ${statusType}`;
     title.className = `text-xl font-black ${colorClass}`;
@@ -3770,9 +3887,9 @@ window.showStatDetails = function(statusType) {
         const currentStatus = data?.status?.shalat;
         
         // Logic Matching
-        if(statusType === 'Hadir') return currentStatus === 'Hadir';
+        if(statusType === 'Hadir') return currentStatus === 'Hadir' || currentStatus === 'Tugas Madrasah';
         if(statusType === 'Sakit') return currentStatus === 'Sakit';
-        if(statusType === 'Izin') return currentStatus === 'Izin' || currentStatus === 'Pulang'; // Pulang masuk ke list Izin/Detail
+        if(statusType === 'Izin') return currentStatus === 'Izin' || currentStatus === 'Pulang';
         if(statusType === 'Alpa') return currentStatus === 'Alpa';
         
         return false;
