@@ -1018,12 +1018,15 @@
         </span>
     </div>
 
-    <div class="grid grid-cols-2 gap-2 mb-4">
+    <div class="grid grid-cols-3 gap-2 mb-4">
         <button onclick="window.kirimLaporanWA()" class="p-3 rounded-xl bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
             <i data-lucide="message-circle" class="w-4 h-4"></i> Lapor WA
         </button>
         <button onclick="window.exportToExcel()" class="p-3 rounded-xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
-            <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
+            <i data-lucide="download" class="w-4 h-4"></i> Excel
+        </button>
+        <button onclick="window.exportToPDF()" class="p-3 rounded-xl bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-500/20 active:scale-95 transition-all">
+            <i data-lucide="file-text" class="w-4 h-4"></i> PDF
         </button>
     </div>
 
