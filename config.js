@@ -5,10 +5,6 @@
 // KREDENSIAL & URL EKSTERNAL
 // ==========================================
 window.APP_CREDENTIALS = {
-    // Supabase (Cloud Database)
-    supabaseUrl: 'https://gtfqebengsazursaamzf.supabase.co',
-    supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0ZnFlYmVuZ3NhenVyc2FhbXpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxMjc1ODIsImV4cCI6MjA4MzcwMzU4Mn0.bkhDWAcBa04lyFk_P2bBjblAtkz2qj4aRkNkrhhJw_Q',
-
     // Google Apps Script (sumber data Santri & Kelas — URL yang sama)
     googleSheetUrl: 'https://script.google.com/macros/s/AKfycbw-URYAsLTWCdnGurQhM1ZXa9N8vm-GBlHwtetDlin73-Ma8G0aAbFoboGGUI8GgVDl/exec',
 
