@@ -114,7 +114,8 @@ window.formatDate = function(dateStr) {
     const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
     
-    const d = new Date(dateStr);
+    // Tambah T12:00:00 agar tidak terpengaruh UTC offset di zona WIB (+7)
+    const d = new Date(dateStr + 'T12:00:00');
     return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
@@ -338,9 +339,11 @@ window.countTotalAlpa = function(studentId) {
     // Loop semua tanggal yang ada di data
     Object.keys(appState.attendanceData).forEach(date => {
         const dayData = appState.attendanceData[date];
-        // Loop semua slot (shubuh, ashar, etc)
+        // Loop semua slot (shubuh, sekolah, ashar, dst)
         Object.values(SLOT_WAKTU).forEach(slot => {
-            const status = dayData[slot.id]?.[studentId]?.status?.shalat;
+            // Gunakan mainActId yang benar per slot (bukan hardcode 'shalat')
+            const mainActId = slot.activities.find(a => a.category === 'fardu' || a.category === 'school')?.id || slot.activities[0]?.id || 'shalat';
+            const status = dayData[slot.id]?.[String(studentId)]?.status?.[mainActId];
             if (status === 'Alpa') total++;
         });
     });
@@ -591,11 +594,6 @@ window.handleLogout = function() {
 
     localStorage.removeItem(APP_CONFIG.googleAuthKey);
     appState.selectedClass = null;
-    
-    document.getElementById('view-main').classList.add('hidden');
-    document.getElementById('view-login').classList.remove('hidden');
-    document.getElementById('login-pin').value = "";
-    document.getElementById('login-kelas').value = "";
     
     location.reload();
 };
@@ -927,8 +925,10 @@ window.calculateSlotStats = function(slotId, customDate = null) {
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        const firstActId = SLOT_WAKTU[slotId].activities[0].id;
-        const status = slotData[id]?.status?.[firstActId]; 
+        // Cari main activity secara eksplisit (fardu/school), fallback ke activities[0]
+        const mainAct = SLOT_WAKTU[slotId].activities.find(a => a.category === 'fardu' || a.category === 'school') || SLOT_WAKTU[slotId].activities[0];
+        const firstActId = mainAct.id;
+        const status = slotData[id]?.status?.[firstActId];
         
         if (status) {
             stats.isFilled = true;
@@ -1026,9 +1026,18 @@ window.renderAttendanceList = function() {
     let summaryCount = { Sakit: 0, Izin: 0, Pulang: 0, Alpa: 0, Telat: 0 };
     let summaryList = [];
 
-    const PREV_SLOT_MAP = { 'ashar': 'shubuh', 'maghrib': 'ashar', 'isya': 'maghrib' };
+    const PREV_SLOT_MAP = { 'sekolah': 'shubuh', 'ashar': 'sekolah', 'maghrib': 'ashar', 'isya': 'maghrib' };
     const prevSlotId = PREV_SLOT_MAP[slot.id];
     const prevSlotData = prevSlotId ? appState.attendanceData[dateKey][prevSlotId] : null;
+
+    // Helper: ambil status utama dari data slot santri (fardu/school/activities[0])
+    const getSlotMainStatus = (slotId, studentData) => {
+        if (!studentData) return null;
+        const slotCfg = SLOT_WAKTU[slotId];
+        if (!slotCfg) return null;
+        const mainAct = slotCfg.activities.find(a => a.category === 'fardu' || a.category === 'school') || slotCfg.activities[0];
+        return studentData.status?.[mainAct?.id];
+    };
 
     const mainActId = slot.activities[0]?.id || 'shalat';
 
@@ -1066,17 +1075,12 @@ window.renderAttendanceList = function() {
                 else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
             });
 
-            if (slot.id === 'sekolah') {
-                const shubuhData = appState.attendanceData[dateKey]?.['shubuh']?.[id];
-                if (shubuhData?.status?.shalat === 'Sakit') {
-                    defStatus['kbm_sekolah'] = 'Sakit';
-                }
-            }
-
+            let inheritedNote = '';
             if (prevSlotData && prevSlotData[id]) {
-                const prevSt = prevSlotData[id].status?.shalat;
+                // Baca status utama dari slot sebelumnya (benar untuk semua slot, termasuk sekolah)
+                const prevSt = getSlotMainStatus(prevSlotId, prevSlotData[id]);
                 if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
-                    const mainKey = slot.activities[0].id;
+                    const mainKey = slot.activities.find(a => a.category === 'fardu' || a.category === 'school')?.id || slot.activities[0].id;
                     defStatus[mainKey] = prevSt;
                     
                     slot.activities.forEach(a => {
@@ -1087,21 +1091,19 @@ window.renderAttendanceList = function() {
                             defStatus[a.id] = 'Tidak';
                         }
                     });
+
+                    inheritedNote = `[Auto] ${prevSt} sejak ${SLOT_WAKTU[prevSlotId]?.label || prevSlotId}`;
                 }
             }
             
-            dbSlot[id] = { status: defStatus, note: '' };
-
-            if (slot.id === 'sekolah' && appState.attendanceData[dateKey]?.['shubuh']?.[id]?.status?.shalat === 'Sakit') {
-                dbSlot[id].note = '[Auto] Sakit sejak Shubuh';
-            }
+            dbSlot[id] = { status: defStatus, note: inheritedNote };
         }
 
         const sData = dbSlot[id];
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
 
-        if (activePermit) {
+        if (activePermit && !sData.manualOverride) {
             slot.activities.forEach(act => {
                 let target = null;
                 if (['fardu','kbm','school'].includes(act.category)) target = activePermit.type;
@@ -1118,7 +1120,7 @@ window.renderAttendanceList = function() {
                 hasAutoChanges = true;
             }
         } 
-        else if (isAutoMarked) {
+        else if (isAutoMarked && !sData.manualOverride) {
             slot.activities.forEach(act => {
                 if (['fardu','kbm','school'].includes(act.category)) sData.status[act.id] = 'Hadir';
                 else if (act.category === 'dependent') sData.status[act.id] = 'Ya';
@@ -1273,6 +1275,8 @@ window.renderAttendanceList = function() {
                 e.stopPropagation();
                 if (hasPermitConflict) {
                     if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
+                    // Tandai override manual agar auto-permit tidak membalik status kembali
+                    sData.manualOverride = true;
                     if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
                 }
                 window.toggleStatus(id, act.id, act.type);
@@ -1566,6 +1570,10 @@ window.applyBulkAction = function(targetCategory, value, specificId = null) {
                     // Jika Shalat Hadir -> Dependent = Ya
                     // Jika Shalat Alpa/Sakit -> Dependent = Tidak
                     dbSlot[id].status[act.id] = (value === 'Hadir') ? 'Ya' : 'Tidak';
+                }
+                // KBM mengikuti status fardu (konsisten dengan toggleStatus individual)
+                else if (act.category === 'kbm') {
+                    dbSlot[id].status[act.id] = value;
                 }
             }
 
@@ -1964,17 +1972,22 @@ window.saveData = function() {
 window.updateQuickStats = function() {
     if(!appState.selectedClass) return;
     
-    // Gunakan slot yang sedang aktif di dashboard (misal: Shubuh)
-    // Jika ingin total harian, logika bisa disesuaikan.
-    // Di sini kita pakai "Current Slot Snapshot" agar akurat.
-    const slotId = appState.currentSlotId; 
-    const stats = window.calculateSlotStats(slotId);
+    // Agregat semua slot yang sudah diisi hari ini (sinkron dengan donut chart)
+    const total = { h:0, s:0, i:0, a:0 };
+    Object.values(SLOT_WAKTU).forEach(slot => {
+        const stats = window.calculateSlotStats(slot.id);
+        if (stats.isFilled) {
+            total.h += stats.h;
+            total.s += stats.s;
+            total.i += stats.i;
+            total.a += stats.a;
+        }
+    });
     
-    // Tampilkan Angka Asli (Bukan Rata-rata)
-    document.getElementById('stat-hadir').textContent = stats.h;
-    document.getElementById('stat-sakit').textContent = stats.s;
-    document.getElementById('stat-izin').textContent = stats.i;
-    document.getElementById('stat-alpa').textContent = stats.a;
+    document.getElementById('stat-hadir').textContent = total.h;
+    document.getElementById('stat-sakit').textContent = total.s;
+    document.getElementById('stat-izin').textContent = total.i;
+    document.getElementById('stat-alpa').textContent = total.a;
 };
 
 // Ganti fungsi window.drawDonutChart yang lama dengan ini:
@@ -2412,7 +2425,8 @@ window.determineCurrentSlot = function() {
     if (h >= 18) return 'maghrib';
     if (h >= 15) return 'ashar';
     if (h >= 6)  return 'sekolah'; // <-- JAM 06:00 - 15:00 = SEKOLAH
-    return 'shubuh';
+    if (h >= 4)  return 'shubuh';  // <-- JAM 04:00 - 06:00 = SHUBUH
+    return 'isya'; // JAM 00:00 - 04:00: menunggu shubuh, tampilkan isya sebelumnya
 };
 
 window.handleClearData = function() {
@@ -2646,10 +2660,11 @@ window.renderPermitList = function() {
         const isMyClass = classNisList.includes(p.nis);
         const isActive = p.is_active;
         
-        // Cek jika ini sakit yang sudah sembuh (punya end_date)
-        const isRecoveredSakit = (p.category === 'sakit' && p.end_date !== null);
+        // Sakit disembunyikan hanya jika tanggal sembuh sudah LEWAT hari ini
+        const todayStr = window.getLocalDateStr();
+        const isExpiredSakit = (p.category === 'sakit' && p.end_date !== null && p.end_date < todayStr);
         
-        return isMyClass && isActive && !isRecoveredSakit; 
+        return isMyClass && isActive && !isExpiredSakit; 
     });
 
     if (currentModalMode === 'daily') {
@@ -3478,8 +3493,8 @@ window.markAsRecovered = function(id) {
         
         permit.end_date = appState.date; 
         
-        // Logika Index Sesi
-        const slots = ['shubuh', 'ashar', 'maghrib', 'isya']; // Pastikan urutan ini sesuai dengan SESSION_ORDER
+        // Logika Index Sesi (sekolah disertakan agar sembuh saat jam sekolah tidak error)
+        const slots = ['shubuh', 'sekolah', 'ashar', 'maghrib', 'isya'];
         const currIdx = slots.indexOf(appState.currentSlotId);
 
         if (keepSick) {
@@ -3622,14 +3637,17 @@ window.showStatDetails = function(statusType) {
     const dateKey = appState.date;
     const slotId = appState.currentSlotId; // Data berdasarkan slot aktif dashboard
     const slotData = appState.attendanceData[dateKey]?.[slotId] || {};
+    // Gunakan main activity yang benar per slot (bukan selalu 'shalat')
+    const slotCfg = SLOT_WAKTU[slotId];
+    const mainActId = slotCfg?.activities?.find(a => a.category === 'fardu' || a.category === 'school')?.id || slotCfg?.activities?.[0]?.id || 'shalat';
     
     // Filter Santri
     const list = FILTERED_SANTRI.filter(s => {
         const id = String(s.nis || s.id);
         const data = slotData[id];
         
-        // Cek status Shalat (Utama)
-        const currentStatus = data?.status?.shalat;
+        // Cek status utama sesuai slot
+        const currentStatus = data?.status?.[mainActId];
         
         // Logic Matching
         if(statusType === 'Hadir') return currentStatus === 'Hadir';
@@ -3702,7 +3720,9 @@ window.renderDashboardPembinaan = function() {
             
             Object.values(SLOT_WAKTU).forEach(slot => {
                 const sData = dayData[slot.id]?.[id];
-                const st = sData?.status?.shalat;
+                // Gunakan mainActId yang benar per slot (bukan hardcode 'shalat')
+                const mainActId = slot.activities.find(a => a.category === 'fardu' || a.category === 'school')?.id || slot.activities[0]?.id || 'shalat';
+                const st = sData?.status?.[mainActId];
                 
                 // Syarat: Status ALPA (Tidak peduli sudah dibina atau belum)
                 if (st === 'Alpa') {
