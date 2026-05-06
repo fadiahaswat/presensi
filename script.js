@@ -1,15 +1,5 @@
 // File: script.js
 
-// ==========================================
-// KONEKSI SUPABASE (GUDANG DATA)
-// ==========================================
-const dbClient = window.supabase.createClient(
-    window.APP_CREDENTIALS.supabaseUrl,
-    window.APP_CREDENTIALS.supabaseKey
-);
-
-console.log("Supabase Siap!");
-
 let saveTimeout = null;
 let clockInterval = null;
 let lucideTimeout = null;
@@ -453,9 +443,6 @@ window.initApp = async function() {
                             window.updateDashboard(); 
                             window.updateProfileInfo();
                             
-                            // AWAIT SUPABASE SYNC
-                            await window.fetchAttendanceFromSupabase();
-                            
                             setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
                         }
                     } else {
@@ -580,27 +567,12 @@ window.handleGoogleCallback = function(response) {
             return sKelas === targetClass;
         }).sort((a,b) => a.nama.localeCompare(b.nama));
 
-        // --- TAMBAHAN: SIMPAN PROFIL KE SUPABASE ---
-        // Kita simpan data musyrif ke tabel 'musyrif_profiles'
-        dbClient.from('musyrif_profiles').upsert({
-            email: profile.email,
-            name: profile.name,
-            photo_url: profile.picture,
-            last_login: new Date().toISOString()
-        }, { onConflict: 'email' }).then(({ error }) => {
-            if(error) console.error("Gagal simpan profil:", error);
-            else console.log("Profil Musyrif tersimpan di Cloud");
-        });
-        // -------------------------------------------
-
         window.closeModal('modal-google-auth');
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-main').classList.remove('hidden');
         
         window.updateDashboard();
         window.updateProfileInfo();
-        // [BARU] Tarik data Supabase saat login sukses
-        window.fetchAttendanceFromSupabase();
         window.showToast("Login Berhasil!", "success");
 
     } catch (e) {
@@ -1653,7 +1625,6 @@ window.changeDateView = function(direction) {
     appState.date = nextDateStr;
     window.updateDateDisplay();
     window.updateDashboard();
-    window.fetchAttendanceFromSupabase();
     window.showToast(`📅 ${window.formatDate(appState.date)}`, 'info');
 };
 
@@ -1679,7 +1650,6 @@ window.handleDateChange = function(value) {
     appState.date = value;
     window.updateDateDisplay();
     window.updateDashboard();
-    window.fetchAttendanceFromSupabase();
     window.showToast('Tanggal berhasil diubah', 'success');
 };
 
@@ -1979,8 +1949,6 @@ window.saveData = function() {
                     setTimeout(() => indicator.innerHTML = '', 1000);
                 }
             }
-
-            window.syncToSupabase();
 
         } catch (e) {
             if(e.name === 'QuotaExceededError') {
@@ -3251,112 +3219,6 @@ window.verifyLocation = function() {
             }
         );
     });
-};
-
-// Fungsi Pengirim Paket ke Gudang (Supabase)
-window.syncToSupabase = async function() {
-    try {
-        const dateKey = appState.date;
-        const slotId = appState.currentSlotId;
-        const classId = appState.selectedClass;
-
-        if (!dateKey || !slotId || !classId) return;
-
-        const dayData = appState.attendanceData[dateKey]?.[slotId];
-        if (!dayData) return;
-
-        const musyrifEmail = appState.userProfile ? appState.userProfile.email : 'manual-pin';
-
-        const updates = [];
-        Object.keys(dayData).forEach(studentId => {
-            const studentData = dayData[studentId];
-            
-            updates.push({
-                date: dateKey,
-                class_name: classId,
-                slot: slotId,
-                student_id: studentId,
-                activity_data: studentData,
-                musyrif_email: musyrifEmail
-            });
-        });
-
-        if (updates.length === 0) return;
-
-        const { error } = await dbClient
-            .from('attendance')
-            .upsert(updates, { onConflict: 'date, class_name, slot, student_id' });
-
-        if (error) throw error;
-        
-        console.log("✅ Data tersimpan di Cloud (Supabase)");
-        
-    } catch (error) {
-        console.error("❌ Supabase Sync Error:", error);
-        
-        // Don't spam user with errors
-        if(error.message && !error.message.includes('fetch')) {
-            if(window.logActivity) {
-                window.logActivity('Sync Error', `Gagal cloud sync: ${error.message}`);
-            }
-        }
-    }
-};
-
-// --- FITUR SINKRONISASI (READ) ---
-window.fetchAttendanceFromSupabase = async function() {
-    const classId = appState.selectedClass;
-    const dateKey = appState.date;
-
-    if (!classId || !dateKey) return;
-
-    console.log("🔄 Syncing from Cloud...");
-
-    try {
-        const { data, error } = await dbClient
-            .from('attendance')
-            .select('*')
-            .eq('class_name', classId)
-            .eq('date', dateKey);
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            if (!appState.attendanceData[dateKey]) {
-                appState.attendanceData[dateKey] = {};
-            }
-
-            data.forEach(row => {
-                if (!appState.attendanceData[dateKey][row.slot]) {
-                    appState.attendanceData[dateKey][row.slot] = {};
-                }
-                
-                appState.attendanceData[dateKey][row.slot][row.student_id] = row.activity_data;
-            });
-
-            localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
-
-            // Refresh UI safely
-            if(typeof window.renderSlotList === 'function') window.renderSlotList();
-            if(typeof window.updateQuickStats === 'function') window.updateQuickStats();
-            if(typeof window.drawDonutChart === 'function') window.drawDonutChart();
-            if(typeof window.renderDashboardPembinaan === 'function') window.renderDashboardPembinaan();
-            
-            console.log(`✅ Loaded ${data.length} records from Cloud`);
-        } else {
-            console.log("☁️ No cloud data for this date");
-        }
-
-    } catch (err) {
-        console.error("❌ Fetch Supabase Error:", err);
-        
-        // Only show toast if not network error
-        if(err.message && !err.message.includes('fetch') && !err.message.includes('network')) {
-            if(window.logActivity) {
-                window.logActivity('Fetch Error', `Cloud fetch failed: ${err.message}`);
-            }
-        }
-    }
 };
 
 // ==========================================
