@@ -114,7 +114,7 @@ window.formatDate = function(dateStr) {
     const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
     
-    const d = new Date(dateStr);
+    const d = new Date(dateStr + 'T12:00:00');
     return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
@@ -1507,8 +1507,8 @@ window.generateBulkButtons = function() {
                 <button onclick="window.applyBulkAction('kbm', 'Hadir')" class="flex-1 py-3 rounded-xl bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
                     Hadir Semua
                 </button>
-                <button onclick="window.applyBulkAction('kbm', 'Alpa')" class="flex-1 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs border border-slate-200 active:scale-95 transition-all">
-                    Kosongkan
+                <button onclick="window.applyBulkAction('kbm', 'Alpa')" class="flex-1 py-3 rounded-xl bg-red-100 text-red-600 font-bold text-xs border border-red-200 active:scale-95 transition-all">
+                    Alpa Semua
                 </button>
             </div>
         </div>`;
@@ -1732,7 +1732,7 @@ window.generateRekapBulanan = function() {
         return;
     }
     
-    const now = new Date();
+    const now = new Date(appState.date + 'T12:00:00');
     const year = now.getFullYear();
     const month = now.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -1752,7 +1752,7 @@ window.generateRekapBulanan = function() {
             if(dayData) {
                 Object.values(SLOT_WAKTU).forEach(slot => {
                     const st = dayData[slot.id]?.[id]?.status?.shalat;
-                    if(st === 'Hadir') h++;
+                    if(st === 'Hadir' || st === 'Telat') h++;
                     else if(st === 'Sakit') s++;
                     else if(st === 'Izin') i++;
                     else if(st === 'Alpa') a++;
@@ -1862,7 +1862,7 @@ window.kirimLaporanWA = function() {
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
         const st = dbSlot?.[id]?.status?.shalat;
-        if(st === 'Alpa' || st === 'Sakit' || st === 'Izin') {
+        if(st === 'Alpa' || st === 'Sakit' || st === 'Izin' || st === 'Pulang') {
             notPresent.push(`- ${s.nama} (${st})`);
         }
     });
@@ -3327,10 +3327,10 @@ window.setPermitTab = function(tab) {
         if(el) el.value = '';
     });
 
-    // Reset Date ke Default Hari Ini (User Friendly)
-    const today = window.getLocalDateStr();
-    document.getElementById('permit-start-date').value = today;
-    document.getElementById('permit-end-date').value = today;
+    // Reset Date ke Default Tanggal Yang Sedang Dilihat (User Friendly)
+    const defaultDate = appState.date || window.getLocalDateStr();
+    document.getElementById('permit-start-date').value = defaultDate;
+    document.getElementById('permit-end-date').value = defaultDate;
     document.getElementById('permit-start-session').value = 'shubuh';
     
     // 2. UI Update (Sama seperti sebelumnya)
@@ -3478,21 +3478,19 @@ window.markAsRecovered = function(id) {
         
         permit.end_date = appState.date; 
         
-        // Logika Index Sesi
-        const slots = ['shubuh', 'ashar', 'maghrib', 'isya']; // Pastikan urutan ini sesuai dengan SESSION_ORDER
-        const currIdx = slots.indexOf(appState.currentSlotId);
+        // Logika Index Sesi — gunakan SESSION_KEYS agar 'sekolah' ikut tertangani
+        const SESSION_KEYS = ['kemarin', 'shubuh', 'sekolah', 'ashar', 'maghrib', 'isya'];
+        const currIdx = SESSION_KEYS.indexOf(appState.currentSlotId);
 
         if (keepSick) {
             // Pilihan OK (Default): Sembuh NANTI/SEKARANG.
-            // Sesi saat ini (Shubuh) masih dianggap Sakit.
-            // End Session = Sesi Saat Ini.
+            // Sesi saat ini masih dianggap Sakit.
             permit.end_session = appState.currentSlotId;
         } else {
             // Pilihan Cancel: Sembuh DARI TADI.
             // Sesi saat ini dianggap sudah sehat (Hadir).
             // End Session = Sesi Sebelumnya.
-            if (currIdx === 0) permit.end_session = 'kemarin'; 
-            else permit.end_session = slots[currIdx - 1];
+            permit.end_session = currIdx <= 0 ? 'kemarin' : SESSION_KEYS[currIdx - 1];
         }
 
         // Simpan
