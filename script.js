@@ -2,7 +2,6 @@
 
 let saveTimeout = null;
 let clockInterval = null;
-window.lucideTimeoutRef = window.lucideTimeoutRef || { current: null };
 let modalStack = [];
 
 window.addEventListener('beforeunload', () => {

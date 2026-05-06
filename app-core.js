@@ -1,5 +1,7 @@
 // File: app-core.js
 
+window.lucideTimeoutRef = { current: null };
+
 // ==========================================
 // CONFIG & CONSTANTS
 // ==========================================
