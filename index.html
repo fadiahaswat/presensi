@@ -345,6 +345,7 @@
                 </div>
                 <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Akses Musyrif</h1>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 font-medium">Silakan masuk untuk mengelola presensi.</p>
+                <p id="login-mode-badge" role="status" aria-live="polite" class="hidden mt-3 items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-wider">Testing Mode</p>
             </div>
 
             <div class="space-y-5 relative z-10">
@@ -363,8 +364,19 @@
                     <input type="tel" id="login-pin" placeholder="••••" maxlength="4" class="w-full py-4 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-center text-2xl text-slate-700 dark:text-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all tracking-[0.5em] placeholder:tracking-normal placeholder:text-sm">
                 </div>
 
+                <div id="testing-credentials" class="hidden space-y-3">
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Username Testing</label>
+                        <input type="text" id="login-username" placeholder="contoh: tester-musyrif" class="w-full py-3.5 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Password Testing</label>
+                        <input type="password" id="login-password" placeholder="Masukkan password testing" class="w-full py-3.5 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all">
+                    </div>
+                </div>
+
                 <button onclick="handleLogin()" class="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group mt-2">
-                    Masuk Dashboard 
+                    <span id="login-submit-text">Masuk Dashboard</span>
                     <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
                 </button>
             </div>
