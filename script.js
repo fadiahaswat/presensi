@@ -3396,6 +3396,9 @@ window.goToToday = function() {
 
 // Tambahkan ini di script.js
 window.quickOpen = function(slotId) {
+    if (window.isSlotHoliday(slotId, appState.date)) {
+        return window.showToast(`Kegiatan ${SLOT_WAKTU[slotId].label} libur pada hari ini.`, "info");
+    }
     // 1. Set slot yang dipilih ke state global
     appState.currentSlotId = slotId;
     
