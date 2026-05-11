@@ -140,7 +140,8 @@ window.populateClassDropdown = function() {
 
 window.getAuthMode = function() {
     const mode = String(window.APP_AUTH?.loginMode || 'production').toLowerCase();
-    return mode === 'testing' ? 'testing' : 'production';
+    const allowTestingMode = window.APP_AUTH?.allowTestingMode === true;
+    return (mode === 'testing' && allowTestingMode) ? 'testing' : 'production';
 };
 
 window.getTestingAccounts = function() {
