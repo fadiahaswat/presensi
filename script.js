@@ -71,7 +71,7 @@ window.initApp = async function() {
                 try {
                     const authData = JSON.parse(savedAuth);
                     if(authData?.profile?.authProvider === 'testing' && window.getAuthMode && window.getAuthMode() !== 'testing') {
-                        throw new Error("Sesi testing tidak valid di mode production");
+                        throw new Error("Sesi testing dinonaktifkan karena aplikasi berjalan di mode production.");
                     }
                     
                     if (authData.kelas && MASTER_KELAS[authData.kelas]) {
@@ -155,7 +155,10 @@ window.applyLoginModeUI = function() {
     const googleModal = document.getElementById('modal-google-auth');
 
     if(testingFields) testingFields.classList.toggle('hidden', !isTestingMode);
-    if(modeBadge) modeBadge.classList.toggle('hidden', !isTestingMode);
+    if(modeBadge) {
+        modeBadge.classList.toggle('hidden', !isTestingMode);
+        modeBadge.classList.toggle('inline-flex', isTestingMode);
+    }
     if(submitText) submitText.textContent = isTestingMode ? 'Masuk Dashboard (Testing)' : 'Masuk Dashboard';
     if(googleModal && isTestingMode) googleModal.classList.add('hidden');
 };
@@ -224,8 +227,8 @@ window.handleLogin = async function() {
             }
 
             const profile = {
-                name: MASTER_KELAS[kelas].musyrif || username,
-                given_name: (MASTER_KELAS[kelas].musyrif || username).split(' ')[0],
+                name: String(MASTER_KELAS[kelas].musyrif || username || 'Musyrif').trim(),
+                given_name: String(MASTER_KELAS[kelas].musyrif || username || 'Musyrif').trim().split(/\s+/)[0] || 'Musyrif',
                 email: account.email || `${username}@testing.local`,
                 authProvider: 'testing'
             };
