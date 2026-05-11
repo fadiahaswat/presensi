@@ -1853,6 +1853,7 @@ window.switchTab = function(tabName) {
         window.updateReportTab(); 
     }
     else if(tabName === 'profile') {
+        appState.timesheetViewDate = appState.date; // <--- TAMBAHKAN INI
         window.updateProfileStats();
         window.renderTimesheetCalendar(); 
         window.renderPembinaanManagement(); // Refresh list di profil
