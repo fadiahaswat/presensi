@@ -2857,19 +2857,28 @@ window.renderTimesheetCalendar = function() {
     for(let d=1; d<=totalDays; d++) {
         const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         
-        // Cek Status Pengisian Data
-        const dayData = appState.attendanceData[dateStr];
-        let status = 'empty'; // empty, partial, full
+        // PERBAIKAN: Hitung secara akurat berapa jumlah sesi WAJIB di hari tersebut
+        let requiredSlots = 0;
+        let filledSlots = 0;
         
-        if(dayData) {
-            const filledSlots = Object.keys(dayData).length;
-            const totalSlots = Object.keys(SLOT_WAKTU).length; // 4 slot
-            
-            if(filledSlots === 0) status = 'empty';
-            else if(filledSlots >= totalSlots) status = 'full';
-            else status = 'partial';
-        }
+        Object.values(SLOT_WAKTU).forEach(slot => {
+            // Cuma hitung slot yang TIDAK libur di tanggal ini
+            if (!window.isSlotHoliday(slot.id, dateStr)) {
+                requiredSlots++;
+                const sStats = window.calculateSlotStats(slot.id, dateStr);
+                if (sStats.isFilled) filledSlots++;
+            }
+        });
 
+        let status = 'empty'; 
+        if (requiredSlots === 0) {
+            status = 'empty'; // Hari kosong melompong (tidak ada jadwal sama sekali)
+        } else {
+            if(filledSlots === 0) status = 'empty';
+            else if(filledSlots >= requiredSlots) status = 'full'; // Sempurna hijau!
+            else status = 'partial'; // Baru isi sebagian
+        }
+        
         // Style
         let bgClass = 'bg-slate-100 text-slate-400 dark:bg-slate-700'; // Empty
         if(status === 'full') bgClass = 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30';
