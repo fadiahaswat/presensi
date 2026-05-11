@@ -28,8 +28,8 @@ const APP_CONFIG = {
 // KONFIGURASI LOKASI (GEOFENCING)
 // ==========================================
 const GEO_CONFIG = {
-    useGeofencing: false, // Set ke false jika ingin mematikan fitur ini sementara
-    maxRadiusMeters: 200, // Radius toleransi dalam meter (misal: 50 meter)
+    useGeofencing: true, // Set ke false jika ingin mematikan fitur ini sementara
+    maxRadiusMeters: 100, // Radius toleransi dalam meter (misal: 50 meter)
     locations: [
         { 
             name: "Masjid Jami' Mu'allimin", 
