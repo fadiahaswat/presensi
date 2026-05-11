@@ -197,7 +197,8 @@ const SLOT_WAKTU = {
         id: 'shubuh', label: 'Shubuh', subLabel: '04:00 - 06:00', theme: 'emerald', 
         startHour: 4, 
         style: {
-            icon: 'sunrise', 
+            icon: 'sunrise',
+            progressBg: 'bg-emerald-500', // <-- TAMBAHKAN INI
             gradient: 'from-emerald-50 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/20',
             border: 'hover:border-emerald-300 dark:hover:border-emerald-700',
             text: 'text-emerald-700 dark:text-emerald-300',
@@ -227,7 +228,8 @@ const SLOT_WAKTU = {
         id: 'sekolah', label: 'Sekolah', subLabel: '06:00 - 15:00', theme: 'cyan', 
         startHour: 6, 
         style: {
-            icon: 'graduation-cap', 
+            icon: 'graduation-cap',
+            progressBg: 'bg-cyan-500', // <-- TAMBAHKAN INI
             gradient: 'from-cyan-50 to-blue-100 dark:from-cyan-900/40 dark:to-blue-900/20',
             border: 'hover:border-cyan-300 dark:hover:border-cyan-700',
             text: 'text-cyan-700 dark:text-cyan-300',
@@ -248,6 +250,7 @@ const SLOT_WAKTU = {
         startHour: 15,
         style: {
             icon: 'sun',
+            progressBg: 'bg-orange-500', // <-- TAMBAHKAN INI
             gradient: 'from-orange-50 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/20',
             border: 'hover:border-orange-300 dark:hover:border-orange-700',
             text: 'text-orange-700 dark:text-orange-300',
@@ -262,6 +265,7 @@ const SLOT_WAKTU = {
         startHour: 18,
         style: {
             icon: 'sunset',
+            progressBg: 'bg-indigo-500', // <-- TAMBAHKAN INI
             gradient: 'from-indigo-50 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/20',
             border: 'hover:border-indigo-300 dark:hover:border-indigo-700',
             text: 'text-indigo-700 dark:text-indigo-300',
@@ -281,7 +285,8 @@ const SLOT_WAKTU = {
         id: 'isya', label: 'Isya', subLabel: '19:00 - 21:00', theme: 'slate', 
         startHour: 19,
         style: {
-            icon: 'moon', 
+            icon: 'moon',
+            progressBg: 'bg-slate-500', // <-- TAMBAHKAN INI
             gradient: 'from-slate-50 to-blue-100 dark:from-slate-800 dark:to-blue-900/40',
             border: 'hover:border-blue-300 dark:hover:border-blue-700',
             text: 'text-slate-700 dark:text-slate-300',
