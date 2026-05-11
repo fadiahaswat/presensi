@@ -258,7 +258,7 @@ window.handleLogin = async function() {
     document.getElementById('lbl-google-class').textContent = kelas;
     
     if(modal) {
-        modal.classList.remove('hidden');
+        window.openModal('modal-google-auth');
         
         // Render Tombol Google
         if(window.google) {
