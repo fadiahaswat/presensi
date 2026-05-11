@@ -4473,6 +4473,16 @@ window.savePembinaan = function() {
 };
 
 window.renderSchoolStatsWidget = function() {
+    const containerWidget = document.getElementById('school-stats-widget');
+    if(!containerWidget) return;
+    
+    // PERBAIKAN: Jika hari ini libur sekolah, sembunyikan kotak Kehadiran Sekolah
+    if (window.isSlotHoliday('sekolah', appState.date)) {
+        containerWidget.classList.add('hidden');
+        return;
+    } else {
+        containerWidget.classList.remove('hidden');
+    }
     const stats = window.calculateSlotStats('sekolah');
     
     document.getElementById('sch-stat-h').textContent = stats.h;
