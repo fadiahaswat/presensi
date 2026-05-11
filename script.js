@@ -1443,7 +1443,6 @@ window.exportToExcel = function() {
         return window.showToast('Tidak ada data untuk tanggal ini', 'warning');
     }
     
-    // CSV Logic with Quote Escaping for Names
     let csv = 'No,Nama,NIS,Kelas';
     Object.values(SLOT_WAKTU).forEach(slot => csv += `,${slot.label}`);
     csv += '\n';
@@ -1453,7 +1452,8 @@ window.exportToExcel = function() {
         csv += `${idx + 1},"${s.nama}",${s.nis || s.id},${s.kelas}`;
         
         Object.values(SLOT_WAKTU).forEach(slot => {
-            const status = data[slot.id]?.[id]?.status?.shalat || '-';
+            const mainActId = slot.activities[0]?.id || 'shalat'; // <-- PERBAIKAN DI SINI
+            const status = data[slot.id]?.[id]?.status?.[mainActId] || '-';
             csv += `,${status}`;
         });
         csv += '\n';
