@@ -1099,41 +1099,100 @@
             </div>
 
             <div class="mt-6">
-    <h3 class="font-black text-slate-800 dark:text-white text-lg mb-3 px-1">Timesheet Input</h3>
-    <div class="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-    <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-100 dark:border-slate-700 inline-flex w-fit shadow-sm">
-        <button onclick="window.changeTimesheetMonth(-1)" class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all">
-            <i data-lucide="chevron-left" class="w-4 h-4"></i>
-        </button>
+    <div class="flex items-center gap-2 mb-3 px-1">
+        <i data-lucide="calendar-days" class="w-5 h-5 text-indigo-500"></i>
+        <h3 class="font-black text-slate-800 dark:text-white text-lg">Timesheet Input</h3>
+    </div>
+    
+    <div class="bg-white dark:bg-slate-800 p-5 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-700">
         
-        <div class="relative group px-1">
-            <h4 id="timesheet-month-label" class="font-bold text-slate-700 dark:text-slate-200 text-xs text-center min-w-[100px] cursor-pointer group-hover:text-indigo-500 transition-colors">
-                Jan 2025
-            </h4>
-            <input type="month" id="timesheet-month-picker" onchange="window.setTimesheetMonth(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+            
+            <div class="flex items-center bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700 inline-flex w-fit shadow-sm">
+                <button onclick="window.changeTimesheetMonth(-1)" class="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all active:scale-95">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                
+                <div class="relative group px-3">
+                    <h4 id="timesheet-month-label" class="font-bold text-slate-700 dark:text-slate-200 text-sm text-center min-w-[100px] cursor-pointer group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        Jan 2025
+                    </h4>
+                    <input type="month" id="timesheet-month-picker" onchange="window.setTimesheetMonth(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                </div>
+
+                <button onclick="window.changeTimesheetMonth(1)" class="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all active:scale-95">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap gap-3 justify-center sm:justify-end items-center bg-slate-50 dark:bg-slate-800/50 py-2 px-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                    <span class="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">Lengkap</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]"></span>
+                    <span class="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">Sebagian</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-200 dark:bg-slate-600"></span>
+                    <span class="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">Kosong</span>
+                </div>
+            </div>
         </div>
 
-        <button onclick="window.changeTimesheetMonth(1)" class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-white dark:hover:bg-slate-800 transition-all">
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
-        </button>
-    </div>
-
-    <div class="flex gap-1 justify-end items-center">
-        <span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[9px] text-slate-400 mr-2">Lengkap</span>
-        <span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-[9px] text-slate-400 mr-2">Sebagian</span>
-        <span class="w-2 h-2 rounded-full bg-slate-200"></span><span class="text-[9px] text-slate-400">Kosong</span>
-    </div>
-</div>
-        <div id="timesheet-calendar" class="grid grid-cols-7 gap-1 text-center">
-            <div class="text-[9px] font-bold text-slate-400 py-1">Sen</div>
-            <div class="text-[9px] font-bold text-slate-400 py-1">Sel</div>
-            <div class="text-[9px] font-bold text-slate-400 py-1">Rab</div>
-            <div class="text-[9px] font-bold text-slate-400 py-1">Kam</div>
-            <div class="text-[9px] font-bold text-slate-400 py-1">Jum</div>
-            <div class="text-[9px] font-bold text-slate-400 py-1">Sab</div>
-            <div class="text-[9px] font-bold text-slate-400 py-1">Ahd</div>
+        <div id="timesheet-calendar" class="w-full">
+            <div class="grid grid-cols-7 gap-1 sm:gap-2 text-center mb-2">
+                <div class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 py-1 uppercase tracking-wider">Sen</div>
+                <div class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 py-1 uppercase tracking-wider">Sel</div>
+                <div class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 py-1 uppercase tracking-wider">Rab</div>
+                <div class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 py-1 uppercase tracking-wider">Kam</div>
+                <div class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 py-1 uppercase tracking-wider">Jum</div>
+                <div class="text-[10px] sm:text-xs font-bold text-indigo-400 dark:text-indigo-500 py-1 uppercase tracking-wider">Sab</div>
+                <div class="text-[10px] sm:text-xs font-bold text-rose-400 dark:text-rose-500 py-1 uppercase tracking-wider">Ahd</div>
             </div>
+
+            <div class="grid grid-cols-7 gap-1 sm:gap-2 text-center">
+                
+                <div class="p-0.5">
+                    <div class="w-full aspect-square flex items-center justify-center text-xs font-medium text-slate-300 dark:text-slate-600">30</div>
+                </div>
+                <div class="p-0.5">
+                    <div class="w-full aspect-square flex items-center justify-center text-xs font-medium text-slate-300 dark:text-slate-600">31</div>
+                </div>
+
+                <div class="p-0.5">
+                    <button class="w-full aspect-square rounded-xl sm:rounded-2xl flex items-center justify-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:text-indigo-600 transition-all active:scale-95">
+                        1
+                    </button>
+                </div>
+
+                <div class="p-0.5">
+                    <button class="w-full aspect-square rounded-xl sm:rounded-2xl flex items-center justify-center text-xs sm:text-sm font-bold text-white bg-emerald-500 shadow-[0_4px_10px_rgba(16,185,129,0.3)] hover:bg-emerald-600 transition-all active:scale-95">
+                        2
+                    </button>
+                </div>
+
+                <div class="p-0.5">
+                    <button class="w-full aspect-square rounded-xl sm:rounded-2xl flex items-center justify-center text-xs sm:text-sm font-bold text-white bg-amber-400 shadow-[0_4px_10px_rgba(251,191,36,0.3)] hover:bg-amber-500 transition-all active:scale-95">
+                        3
+                    </button>
+                </div>
+
+                <div class="p-0.5">
+                    <button class="w-full aspect-square rounded-xl sm:rounded-2xl flex items-center justify-center text-xs sm:text-sm font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-500/50 ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-800 transition-all active:scale-95">
+                        4
+                    </button>
+                </div>
+
+                <div class="p-0.5">
+                    <button class="w-full aspect-square rounded-xl sm:rounded-2xl flex items-center justify-center text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 hover:text-indigo-600 transition-all active:scale-95">
+                        5
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
