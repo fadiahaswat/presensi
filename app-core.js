@@ -175,6 +175,7 @@ let appState = {
     analysisSantriId: null,
     filterProblemOnly: false,
     date: window.getLocalDateStr(),
+    timesheetViewDate: window.getLocalDateStr(),
     activityLog: [],
     settings: {
         darkMode: false,
