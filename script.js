@@ -2216,6 +2216,9 @@ window.restoreData = function() {
     input.click();
 };
 
+// Tambahkan variabel ini di luar/di atas fungsi startClock untuk melacak hari secara real-time
+let lastRealDate = window.getLocalDateStr();
+
 window.startClock = function() {
     if(clockInterval) {
         clearInterval(clockInterval);
@@ -2231,13 +2234,19 @@ window.startClock = function() {
             if(secEl) secEl.textContent = String(now.getSeconds()).padStart(2, '0');
         }
         
-        // PERBAIKAN: Cek pergantian hari (Midnight Rollover)
+        // PERBAIKAN: Cek pergantian hari (Midnight Rollover) yang benar
         const currentRealDate = window.getLocalDateStr(now);
-        // Jika hari berganti dan user sedang melihat data 'hari ini', geser otomatis
-        if (appState.date < currentRealDate) {
-            appState.date = currentRealDate;
-            window.updateDateDisplay();
-            window.updateDashboard();
+        
+        // Hanya eksekusi JIKA tanggal di dunia nyata benar-benar sudah berganti
+        if (currentRealDate > lastRealDate) {
+            // Jika user kebetulan SEDANG berada di tanggal "hari ini" (yang lama), ikut geser ke hari baru
+            // Tapi jika user sengaja melihat data kemarin, biarkan saja tidak usah digeser
+            if (appState.date === lastRealDate) {
+                appState.date = currentRealDate;
+                window.updateDateDisplay();
+                window.updateDashboard();
+            }
+            lastRealDate = currentRealDate; // Update referensi tanggal nyata
         }
 
         try {
