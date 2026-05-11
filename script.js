@@ -1590,6 +1590,15 @@ window.showToast = function(message, type = 'info', isPersistent = false) {
     const container = document.getElementById('toast-container');
     if(!container) return;
     
+    // PERBAIKAN: Cegah Toast Dobel dengan mengecek pesan yang identik
+    const existingToasts = container.querySelectorAll('.toast-msg-text');
+    for (let i = 0; i < existingToasts.length; i++) {
+        if (existingToasts[i].textContent === message) {
+            // Batalkan pembuatan toast baru jika pesan yang sama persis masih ada di layar
+            return existingToasts[i].closest('.toast-element'); 
+        }
+    }
+    
     const toast = document.createElement('div');
     const icons = {
         success: 'check-circle',
@@ -1598,11 +1607,21 @@ window.showToast = function(message, type = 'info', isPersistent = false) {
         info: 'info'
     };
     
-    toast.className = `${UI_COLORS[type] || UI_COLORS.info} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-[slideUp_0.3s_ease-out] mb-3 z-[9999]`;
+    // Tambahkan class penanda 'toast-element' agar lebih mudah diidentifikasi
+    toast.className = `toast-element ${UI_COLORS[type] || UI_COLORS.info} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-[slideUp_0.3s_ease-out] mb-3 z-[9999] cursor-pointer pointer-events-auto`;
+    
+    // Tambahkan class penanda 'toast-msg-text' pada bagian teks
     toast.innerHTML = `
         <i data-lucide="${icons[type] || 'info'}" class="w-5 h-5" aria-hidden="true"></i>
-        <span class="font-bold text-xs" role="alert">${window.sanitizeHTML(message)}</span>
+        <span class="toast-msg-text font-bold text-xs" role="alert">${window.sanitizeHTML(message)}</span>
     `;
+    
+    // Fitur Tambahan: Toast sekarang bisa ditutup instan jika di-klik/disentuh (Anti-annoying)
+    toast.onclick = () => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+        setTimeout(() => toast.remove(), 300);
+    };
     
     container.appendChild(toast);
     window.refreshIcons();
