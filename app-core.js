@@ -52,7 +52,7 @@ const GEO_CONFIG = {
             lng: 110.26653812830205 // GANTI DENGAN KOORDINAT ASLI
         },
         { 
-            name: "Kantor Pimpinan Pusat Muhammadiyah Supeno", 
+            name: "Kantor Muhammadiyah Supeno", 
             lat: -7.8163746365704725, // GANTI DENGAN KOORDINAT ASLI
             lng: 110.37986454893164 // GANTI DENGAN KOORDINAT ASLI
         }
