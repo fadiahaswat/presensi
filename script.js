@@ -3478,7 +3478,7 @@ window.showStatDetails = function(statusType) {
         const data = slotData[id];
         
         // Cek status Shalat (Utama)
-        const currentStatus = data?.status?.shalat;
+        const currentStatus = data?.status?.[mainActId]; // <-- PERBAIKAN DI SINI
         
         // Logic Matching
         if(statusType === 'Hadir') return currentStatus === 'Hadir';
