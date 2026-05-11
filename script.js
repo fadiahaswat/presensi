@@ -679,11 +679,12 @@ window.isSlotHoliday = function(slotId, dateStr) {
 window.calculateSlotStats = function(slotId, customDate = null) {
     const stats = { h: 0, s: 0, i: 0, a: 0, total: 0, isFilled: false };
     
-    if (FILTERED_SANTRI.length === 0) return stats;
+    // Cegah error jika data santri belum siap
+    if (!FILTERED_SANTRI || FILTERED_SANTRI.length === 0) return stats;
     
     const dateKey = customDate || appState.date;
     
-    // PERBAIKAN: Jika slot ini libur, abaikan statistik
+    // JIKA LIBUR, otomatis kembalikan angka 0 (Progress Bar akan kosong/aman)
     if (window.isSlotHoliday(slotId, dateKey)) return stats;
 
     const slotData = appState.attendanceData[dateKey]?.[slotId];
@@ -692,7 +693,6 @@ window.calculateSlotStats = function(slotId, customDate = null) {
     const dayNum = new Date(dateKey).getDay();
     const slotConfig = SLOT_WAKTU[slotId];
     
-    // PERBAIKAN: Cari aktivitas utama secara dinamis yang tidak libur hari ini
     const mainAct = slotConfig.activities.find(act => {
         if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
         if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return false;
@@ -701,6 +701,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
 
     if (!mainAct) return stats;
 
+    // Hitung spesifik untuk santri yang sedang difilter saja (mencegah progress > 100%)
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
         const status = slotData[id]?.status?.[mainAct.id]; 
@@ -711,7 +712,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin' || status === 'Pulang') stats.i++;
             else if (status === 'Alpa') stats.a++;
-            stats.total++;
+            stats.total++; // Ini jumlah anak yang SUDAH diabsen
         }
     });
     
