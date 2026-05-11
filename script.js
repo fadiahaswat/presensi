@@ -90,7 +90,7 @@ window.initApp = async function() {
                             window.updateDashboard(); 
                             window.updateProfileInfo();
                             
-                            const greetName = authData.profile?.given_name || authData.profile?.name || 'Musyrif';
+                            const greetName = window.getProfileDisplayName(authData.profile);
                             setTimeout(() => window.showToast(`Ahlan, ${greetName}`, 'success'), 500);
                         }
                     } else {
@@ -145,6 +145,11 @@ window.getAuthMode = function() {
 
 window.getTestingAccounts = function() {
     return Array.isArray(window.APP_AUTH?.testingAccounts) ? window.APP_AUTH.testingAccounts : [];
+};
+
+window.getProfileDisplayName = function(profile) {
+    if(!profile) return 'Musyrif';
+    return profile.given_name || profile.name || 'Musyrif';
 };
 
 window.applyLoginModeUI = function() {
@@ -221,6 +226,7 @@ window.handleLogin = async function() {
                 return window.showToast("Akun testing tidak terdaftar untuk kelas ini.", "error");
             }
 
+            // Catatan: hash di sisi client ini hanya untuk mode testing lokal, bukan keamanan production.
             const inputHash = await window.sha256Hex(password);
             if(inputHash !== String(account.passwordHash).toLowerCase().trim()) {
                 return window.showToast("Password testing salah.", "error");
