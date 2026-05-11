@@ -552,16 +552,14 @@ window.renderSlotList = function() {
 
         // 4. Inisialisasi Elemen Progress & Badge
         const badge = clone.querySelector('.slot-status-badge');
-        
-        // Gunakan nama variabel unik untuk menghindari bentrok
         const barFill = clone.querySelector('.slot-progress-bar-fill') || clone.querySelector('.slot-progress-bar'); 
         const txtProgress = clone.querySelector('.slot-progress-text');
         
         if(barFill) {
-            // Warna progress bar mengikuti tema (emerald/orange/indigo/dll)
-            barFill.classList.add(`bg-${s.theme}-500`); 
+            // PERBAIKAN: Ambil class warna utuh dari konfigurasi style agar Tailwind mendeteksinya
+            barFill.className = `slot-progress-bar-fill h-full rounded-full transition-all duration-500 ${s.style.progressBg}`; 
         }
-
+        
         // 5. Logic Libur / Locked / Unlocked
         const isHoliday = window.isSlotHoliday(s.id, appState.date);
         
