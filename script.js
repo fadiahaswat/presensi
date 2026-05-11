@@ -1674,17 +1674,23 @@ window.saveData = function() {
 window.updateQuickStats = function() {
     if(!appState.selectedClass) return;
     
-    // Gunakan slot yang sedang aktif di dashboard (misal: Shubuh)
-    // Jika ingin total harian, logika bisa disesuaikan.
-    // Di sini kita pakai "Current Slot Snapshot" agar akurat.
-    const slotId = appState.currentSlotId; 
-    const stats = window.calculateSlotStats(slotId);
+    // PERBAIKAN: Hitung kumulatif seharian agar sama dengan chart
+    let totalStats = { h: 0, s: 0, i: 0, a: 0 };
     
-    // Tampilkan Angka Asli (Bukan Rata-rata)
-    document.getElementById('stat-hadir').textContent = stats.h;
-    document.getElementById('stat-sakit').textContent = stats.s;
-    document.getElementById('stat-izin').textContent = stats.i;
-    document.getElementById('stat-alpa').textContent = stats.a;
+    Object.values(SLOT_WAKTU).forEach(slot => {
+        const stats = window.calculateSlotStats(slot.id);
+        if(stats.isFilled) {
+            totalStats.h += stats.h;
+            totalStats.s += stats.s;
+            totalStats.i += stats.i;
+            totalStats.a += stats.a;
+        }
+    });
+    
+    document.getElementById('stat-hadir').textContent = totalStats.h;
+    document.getElementById('stat-sakit').textContent = totalStats.s;
+    document.getElementById('stat-izin').textContent = totalStats.i;
+    document.getElementById('stat-alpa').textContent = totalStats.a;
 };
 
 // Ganti fungsi window.drawDonutChart yang lama dengan ini:
