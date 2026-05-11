@@ -745,6 +745,9 @@ window.calculateGlobalStats = function() {
 // ==========================================
 
 window.openAttendance = async function() {
+    if (window.isSlotHoliday(appState.currentSlotId, appState.date)) {
+        return window.showToast(`Kegiatan ${SLOT_WAKTU[appState.currentSlotId].label} libur pada hari ini.`, "info");
+    }
     // 1. Cek Kunci Waktu (Logic Lama)
     const access = window.isSlotAccessible(appState.currentSlotId, appState.date);
     if (access.locked) {
