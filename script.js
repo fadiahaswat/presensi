@@ -2222,14 +2222,23 @@ window.startClock = function() {
     }
     
     const updateClock = () => {
+        const now = new Date();
         const el = document.getElementById('dash-clock');
         if(el) {
-            const now = new Date();
             el.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             const secEl = document.getElementById('dash-clock-sec');
             if(secEl) secEl.textContent = String(now.getSeconds()).padStart(2, '0');
         }
         
+        // PERBAIKAN: Cek pergantian hari (Midnight Rollover)
+        const currentRealDate = window.getLocalDateStr(now);
+        // Jika hari berganti dan user sedang melihat data 'hari ini', geser otomatis
+        if (appState.date < currentRealDate) {
+            appState.date = currentRealDate;
+            window.updateDateDisplay();
+            window.updateDashboard();
+        }
+
         try {
             window.checkScheduledNotifications();
         } catch(e) {
