@@ -767,6 +767,21 @@ window.renderAttendanceList = function() {
 
     const mainActId = slot.activities[0]?.id || 'shalat';
 
+    // PERBAIKAN: Inisialisasi struktur data kosong untuk SEMUA santri DULU sebelum di-filter
+    FILTERED_SANTRI.forEach(santri => {
+        const id = String(santri.nis || santri.id);
+        if(!dbSlot[id]) {
+            const defStatus = {};
+            slot.activities.forEach(a => {
+                if (a.onlyRamadhan && !window.isRamadhan(dateKey)) return;
+                if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
+                else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
+            });
+            dbSlot[id] = { status: defStatus, note: '' };
+        }
+    });
+
+    // BARU jalankan filter setelah semua punya status dasar
     const list = FILTERED_SANTRI.filter(s => {
         const matchName = s.nama.toLowerCase().includes(appState.searchQuery.toLowerCase());
         if(appState.filterProblemOnly) {
@@ -792,46 +807,6 @@ window.renderAttendanceList = function() {
     list.forEach(santri => {
         const id = String(santri.nis || santri.id);
         
-        // Logika Auto-Fill & Pewarisan Status
-        if(!dbSlot[id]) {
-            const defStatus = {};
-            slot.activities.forEach(a => {
-                if (a.onlyRamadhan && !window.isRamadhan(dateKey)) return;
-                if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
-                else defStatus[a.id] = a.type === 'mandator' ? 'Hadir' : 'Ya';
-            });
-
-            if (slot.id === 'sekolah') {
-                const shubuhData = appState.attendanceData[dateKey]?.['shubuh']?.[id];
-                if (shubuhData?.status?.shalat === 'Sakit') {
-                    defStatus['kbm_sekolah'] = 'Sakit';
-                }
-            }
-
-            if (prevSlotData && prevSlotData[id]) {
-                const prevSt = prevSlotData[id].status?.shalat;
-                if (['Sakit', 'Izin', 'Pulang'].includes(prevSt)) {
-                    const mainKey = slot.activities[0].id;
-                    defStatus[mainKey] = prevSt;
-                    
-                    slot.activities.forEach(a => {
-                        if (a.id === mainKey) return;
-                        if (['fardu','kbm','school'].includes(a.category)) {
-                            defStatus[a.id] = prevSt;
-                        } else {
-                            defStatus[a.id] = 'Tidak';
-                        }
-                    });
-                }
-            }
-            
-            dbSlot[id] = { status: defStatus, note: '' };
-
-            if (slot.id === 'sekolah' && appState.attendanceData[dateKey]?.['shubuh']?.[id]?.status?.shalat === 'Sakit') {
-                dbSlot[id].note = '[Auto] Sakit sejak Shubuh';
-            }
-        }
-
         const sData = dbSlot[id];
         const activePermit = window.checkActivePermit(id, dateKey, slot.id);
         const isAutoMarked = sData.note && sData.note.includes('[Auto]');
