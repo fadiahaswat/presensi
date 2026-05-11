@@ -649,6 +649,24 @@ window.updateProfileInfo = function() {
 // 4. LOGIC PERHITUNGAN (REFACTORED)
 // ==========================================
 
+// --- FUNGSI BARU: Deteksi apakah sebuah slot libur hari ini ---
+window.isSlotHoliday = function(slotId, dateStr) {
+    const dayNum = new Date(dateStr).getDay(); // 0 = Ahad
+    const slotConfig = SLOT_WAKTU[slotId];
+    
+    if (!slotConfig || !slotConfig.activities) return true;
+    
+    // Cek apakah ada aktivitas yang aktif pada hari tersebut
+    const activeActs = slotConfig.activities.filter(act => {
+        if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
+        if (act.onlyRamadhan && !window.isRamadhan(dateStr)) return false;
+        return true;
+    });
+    
+    // Jika tidak ada satupun aktivitas yang aktif = Libur
+    return activeActs.length === 0;
+};
+
 // Fungsi Terpusat untuk menghitung statistik per slot
 window.calculateSlotStats = function(slotId, customDate = null) {
     const stats = { h: 0, s: 0, i: 0, a: 0, total: 0, isFilled: false };
@@ -656,18 +674,31 @@ window.calculateSlotStats = function(slotId, customDate = null) {
     if (FILTERED_SANTRI.length === 0) return stats;
     
     const dateKey = customDate || appState.date;
-    const slotData = appState.attendanceData[dateKey]?.[slotId];
     
+    // PERBAIKAN: Jika slot ini libur, abaikan statistik
+    if (window.isSlotHoliday(slotId, dateKey)) return stats;
+
+    const slotData = appState.attendanceData[dateKey]?.[slotId];
     if (!slotData) return stats;
+
+    const dayNum = new Date(dateKey).getDay();
+    const slotConfig = SLOT_WAKTU[slotId];
+    
+    // PERBAIKAN: Cari aktivitas utama secara dinamis yang tidak libur hari ini
+    const mainAct = slotConfig.activities.find(act => {
+        if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
+        if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return false;
+        return true;
+    });
+
+    if (!mainAct) return stats;
 
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        const firstActId = SLOT_WAKTU[slotId].activities[0].id;
-        const status = slotData[id]?.status?.[firstActId]; 
+        const status = slotData[id]?.status?.[mainAct.id]; 
         
         if (status) {
             stats.isFilled = true;
-            // Telat dihitung Hadir di statistik angka
             if (status === 'Hadir' || status === 'Telat') stats.h++; 
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin' || status === 'Pulang') stats.i++;
