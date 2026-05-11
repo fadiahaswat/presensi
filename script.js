@@ -567,22 +567,27 @@ window.renderSlotList = function() {
 
         // 5. Logic Libur / Locked / Unlocked
         const badge = clone.querySelector('.slot-status-badge');
+        const progressBar = clone.querySelector('.slot-progress-bar-fill');
+        const progressText = clone.querySelector('.slot-progress-text');
+        
         const isHoliday = window.isSlotHoliday(s.id, appState.date);
         
         if (isHoliday) {
+            // SINKRONISASI: UI Libur
             item.classList.remove(...s.style.gradient.split(' ')); 
             item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-70');
             
             badge.textContent = "Libur";
-            badge.className = "slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-slate-200 text-slate-500 border border-slate-300 dark:bg-slate-700 dark:text-slate-400 border-slate-600 shadow-sm";
+            badge.className = "slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-slate-200 text-slate-500 border border-slate-300 dark:bg-slate-700 dark:text-slate-400 shadow-sm";
             
             if(iconEl) iconEl.setAttribute('data-lucide', 'calendar-x');
-            if(progressText) progressText.textContent = "-";
             if(progressBar) progressBar.style.width = "0%";
+            if(progressText) progressText.textContent = "-";
             
             item.onclick = () => window.showToast(`Kegiatan ${s.label} libur pada hari ini.`, "info");
         }
         else if (access.locked) {
+            // Logic Terkunci
             item.classList.remove(...s.style.gradient.split(' ')); 
             item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); 
             
@@ -593,12 +598,26 @@ window.renderSlotList = function() {
             if(iconEl) iconEl.setAttribute('data-lucide', 'lock'); 
             item.onclick = () => window.showToast(`🔒 Akses ${s.label} ${lockText}`, "error");
         } else {
+            // Hari Aktif & Terbuka
             if (stats.isFilled) {
                 badge.textContent = "Selesai";
                 badge.className += " text-emerald-700 bg-emerald-100/80 border-emerald-200";
             } else {
                 badge.textContent = "Belum Diisi";
             }
+
+            // PERBAIKAN PROGRESS BAR MINI
+            const totalSiswa = FILTERED_SANTRI ? FILTERED_SANTRI.length : 0;
+            let percent = 0;
+            
+            if (totalSiswa > 0) {
+                // Progress Bar berdasarkan BERAPA SISWA YANG SUDAH DIABSEN
+                percent = Math.round((stats.total / totalSiswa) * 100);
+                if (percent > 100) percent = 100; // Cegah bar meluber keluar kotak
+            }
+            
+            if(progressBar) progressBar.style.width = `${percent}%`;
+            if(progressText) progressText.textContent = `${stats.total}/${totalSiswa}`;
 
             item.onclick = () => {
                 appState.currentSlotId = s.id;
