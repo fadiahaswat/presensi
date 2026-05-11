@@ -665,17 +665,13 @@ window.updateProfileInfo = function() {
 window.isSlotHoliday = function(slotId, dateStr) {
     const dayNum = new Date(dateStr).getDay(); // 0 = Ahad
     const slotConfig = SLOT_WAKTU[slotId];
-    
     if (!slotConfig || !slotConfig.activities) return true;
     
-    // Cek apakah ada aktivitas yang aktif pada hari tersebut
     const activeActs = slotConfig.activities.filter(act => {
         if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
         if (act.onlyRamadhan && !window.isRamadhan(dateStr)) return false;
         return true;
     });
-    
-    // Jika tidak ada satupun aktivitas yang aktif = Libur
     return activeActs.length === 0;
 };
 
