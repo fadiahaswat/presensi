@@ -550,21 +550,24 @@ window.renderSlotList = function() {
         clone.querySelector('.slot-stat-i').textContent = stats.i;
         clone.querySelector('.slot-stat-a').textContent = stats.a;
 
-        // 4. Inisialisasi Elemen Progress & Badge
+        // 4. Inisialisasi Elemen & Warna Progress Bar
         const badge = clone.querySelector('.slot-status-badge');
-        const barFill = clone.querySelector('.slot-progress-bar-fill') || clone.querySelector('.slot-progress-bar'); 
-        const txtProgress = clone.querySelector('.slot-progress-text');
+        const progressBar = clone.querySelector('.slot-progress-bar'); // Kembali gunakan nama aslinya
+        const progressText = clone.querySelector('.slot-progress-text');
         
-        if(barFill) {
-            // PERBAIKAN: Ambil class warna utuh dari konfigurasi style agar Tailwind mendeteksinya
-            barFill.className = `slot-progress-bar-fill h-full rounded-full transition-all duration-500 ${s.style.progressBg}`; 
-        }
-        
+        // Peta warna Hex Tailwind (Mengatasi masalah class CSS yang tidak ter-compile)
+        const themeColors = {
+            emerald: '#10b981', // Shubuh
+            cyan: '#06b6d4',    // Sekolah
+            orange: '#f97316',  // Ashar
+            indigo: '#6366f1',  // Maghrib
+            slate: '#64748b'    // Isya
+        };
+
         // 5. Logic Libur / Locked / Unlocked
         const isHoliday = window.isSlotHoliday(s.id, appState.date);
         
         if (isHoliday) {
-            // SINKRONISASI: UI Libur
             item.classList.remove(...s.style.gradient.split(' ')); 
             item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-70');
             
@@ -572,13 +575,17 @@ window.renderSlotList = function() {
             badge.className = "slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-slate-200 text-slate-500 border border-slate-300 dark:bg-slate-700 dark:text-slate-400 shadow-sm";
             
             if(iconEl) iconEl.setAttribute('data-lucide', 'calendar-x');
-            if(barFill) barFill.style.width = "0%";
-            if(txtProgress) txtProgress.textContent = "-";
+            
+            // Set Progress Bar ke 0 dan warna abu-abu
+            if(progressBar) {
+                progressBar.style.width = "0%";
+                progressBar.style.backgroundColor = '#94a3b8'; 
+            }
+            if(progressText) progressText.textContent = "-";
             
             item.onclick = () => window.showToast(`Kegiatan ${s.label} libur pada hari ini.`, "info");
         }
         else if (access.locked) {
-            // Logic Terkunci
             item.classList.remove(...s.style.gradient.split(' ')); 
             item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); 
             
@@ -587,9 +594,11 @@ window.renderSlotList = function() {
             
             badge.textContent = lockText;
             if(iconEl) iconEl.setAttribute('data-lucide', 'lock'); 
+            
+            if(progressBar) progressBar.style.backgroundColor = '#94a3b8';
+
             item.onclick = () => window.showToast(`🔒 Akses ${s.label} ${lockText}`, "error");
         } else {
-            // Hari Aktif & Terbuka
             if (stats.isFilled) {
                 badge.textContent = "Selesai";
                 badge.className += " text-emerald-700 bg-emerald-100/80 border-emerald-200";
@@ -597,18 +606,20 @@ window.renderSlotList = function() {
                 badge.textContent = "Belum Diisi";
             }
 
-            // PERBAIKAN PROGRESS BAR MINI
             const totalSiswa = FILTERED_SANTRI ? FILTERED_SANTRI.length : 0;
             let percent = 0;
             
             if (totalSiswa > 0) {
-                // Progress Bar berdasarkan BERAPA SISWA YANG SUDAH DIABSEN
                 percent = Math.round((stats.total / totalSiswa) * 100);
-                if (percent > 100) percent = 100; // Cegah bar meluber keluar kotak
+                if (percent > 100) percent = 100; 
             }
             
-            if(barFill) barFill.style.width = `${percent}%`;
-            if(txtProgress) txtProgress.textContent = `${stats.total}/${totalSiswa}`;
+            // Terapkan persentase DAN paksa suntikkan warna Hex Code-nya
+            if(progressBar) {
+                progressBar.style.width = `${percent}%`;
+                progressBar.style.backgroundColor = themeColors[s.theme] || '#10b981';
+            }
+            if(progressText) progressText.textContent = `${stats.total}/${totalSiswa}`;
 
             item.onclick = () => {
                 appState.currentSlotId = s.id;
