@@ -226,15 +226,16 @@ window.handleLogin = async function() {
                 return window.showToast("Akun testing tidak terdaftar untuk kelas ini.", "error");
             }
 
-            // Catatan: hash di sisi client ini hanya untuk mode testing lokal, bukan keamanan production.
+            // Catatan: hash di sisi client ini hanya untuk mode testing lokal/non-produksi, bukan keamanan production.
             const inputHash = await window.sha256Hex(password);
             if(inputHash !== String(account.passwordHash).toLowerCase().trim()) {
                 return window.showToast("Password testing salah.", "error");
             }
 
+            const profileName = String(MASTER_KELAS[kelas].musyrif || username || 'Musyrif').trim();
             const profile = {
-                name: String(MASTER_KELAS[kelas].musyrif || username || 'Musyrif').trim(),
-                given_name: String(MASTER_KELAS[kelas].musyrif || username || 'Musyrif').trim().split(/\s+/)[0] || 'Musyrif',
+                name: profileName,
+                given_name: profileName.split(/\s+/)[0] || 'Musyrif',
                 email: account.email || `${username}@testing.local`,
                 authProvider: 'testing'
             };

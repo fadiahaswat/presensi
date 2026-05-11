@@ -20,7 +20,7 @@ window.APP_AUTH = {
     // 'testing' = PIN + username/password lokal (tanpa Google)
     loginMode: 'production',
 
-    // Akun khusus pengujian (password hash SHA-256 hex)
+    // Akun khusus pengujian (password hash SHA-256 hex) — hanya untuk non-produksi
     // Catatan: kelas harus sesuai kelas yang valid di data-kelas
     testingAccounts: [
         {
