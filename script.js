@@ -2815,6 +2815,23 @@ window.renderTimesheetCalendar = function() {
     }
 };
 
+window.changeTimesheetMonth = function(direction) {
+    // Ambil tanggal view saat ini, set ke tgl 1 agar tidak error saat melompati bulan (misal dari 31 Jan ke Feb)
+    const d = new Date(appState.timesheetViewDate || appState.date);
+    d.setDate(1); 
+    d.setMonth(d.getMonth() + direction);
+    
+    appState.timesheetViewDate = window.getLocalDateStr(d);
+    window.renderTimesheetCalendar();
+};
+
+window.setTimesheetMonth = function(val) {
+    if(!val) return;
+    // val dari input type="month" formatnya YYYY-MM
+    appState.timesheetViewDate = val + "-01";
+    window.renderTimesheetCalendar();
+};
+
 // --- LOGIKA LAPORAN REKAP ---
 
 // 1. Set Mode Laporan
