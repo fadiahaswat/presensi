@@ -10,6 +10,7 @@ window.initApp = async function() {
             window.startClock();
             window.updateDateDisplay();
             window.refreshIcons();
+            if(window.applyLoginModeUI) window.applyLoginModeUI();
         } catch (uiError) {
             console.error("UI Init Error:", uiError);
         }
@@ -69,6 +70,9 @@ window.initApp = async function() {
             if(savedAuth) {
                 try {
                     const authData = JSON.parse(savedAuth);
+                    if(authData?.profile?.authProvider === 'testing' && window.getAuthMode && window.getAuthMode() !== 'testing') {
+                        throw new Error("Sesi testing tidak valid di mode production");
+                    }
                     
                     if (authData.kelas && MASTER_KELAS[authData.kelas]) {
                         appState.selectedClass = authData.kelas;
@@ -86,7 +90,8 @@ window.initApp = async function() {
                             window.updateDashboard(); 
                             window.updateProfileInfo();
                             
-                            setTimeout(() => window.showToast(`Ahlan, ${authData.profile.given_name}`, 'success'), 500);
+                            const greetName = authData.profile?.given_name || authData.profile?.name || 'Musyrif';
+                            setTimeout(() => window.showToast(`Ahlan, ${greetName}`, 'success'), 500);
                         }
                     } else {
                         throw new Error("Data kelas tidak valid");
@@ -133,13 +138,106 @@ window.populateClassDropdown = function() {
 // 2. LOGIN LOGIC
 // ==========================================
 
-window.handleLogin = function() {
+window.getAuthMode = function() {
+    const mode = String(window.APP_AUTH?.loginMode || 'production').toLowerCase();
+    return mode === 'testing' ? 'testing' : 'production';
+};
+
+window.getTestingAccounts = function() {
+    return Array.isArray(window.APP_AUTH?.testingAccounts) ? window.APP_AUTH.testingAccounts : [];
+};
+
+window.applyLoginModeUI = function() {
+    const isTestingMode = window.getAuthMode() === 'testing';
+    const testingFields = document.getElementById('testing-credentials');
+    const modeBadge = document.getElementById('login-mode-badge');
+    const submitText = document.getElementById('login-submit-text');
+    const googleModal = document.getElementById('modal-google-auth');
+
+    if(testingFields) testingFields.classList.toggle('hidden', !isTestingMode);
+    if(modeBadge) modeBadge.classList.toggle('hidden', !isTestingMode);
+    if(submitText) submitText.textContent = isTestingMode ? 'Masuk Dashboard (Testing)' : 'Masuk Dashboard';
+    if(googleModal && isTestingMode) googleModal.classList.add('hidden');
+};
+
+window.sha256Hex = async function(input) {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+window.startAuthenticatedSession = function(targetClass, profile) {
+    const authData = {
+        kelas: targetClass,
+        profile: profile,
+        timestamp: new Date().toISOString()
+    };
+    localStorage.setItem(APP_CONFIG.googleAuthKey, JSON.stringify(authData));
+
+    appState.selectedClass = targetClass;
+    appState.userProfile = profile;
+
+    FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
+        const sKelas = String(s.kelas || s.rombel || "").trim();
+        return sKelas === targetClass;
+    }).sort((a,b) => a.nama.localeCompare(b.nama));
+
+    document.getElementById('view-login').classList.add('hidden');
+    document.getElementById('view-main').classList.remove('hidden');
+
+    window.updateDashboard();
+    window.updateProfileInfo();
+};
+
+window.handleLogin = async function() {
     const kelas = document.getElementById('login-kelas').value;
     const pin = document.getElementById('login-pin').value;
     const savedPin = localStorage.getItem(window.APP_CONSTANTS.pinKey) || APP_CONFIG.pinDefault;
+    const authMode = window.getAuthMode();
 
     if(!kelas) return alert("Pilih kelas dulu!");
     if(pin !== savedPin) return alert("PIN Salah!");
+
+    if(authMode === 'testing') {
+        try {
+            const username = String(document.getElementById('login-username')?.value || '').trim().toLowerCase();
+            const password = String(document.getElementById('login-password')?.value || '');
+            if(!username || !password) return alert("Isi username & password testing!");
+            if(!MASTER_KELAS[kelas]) return window.showToast("Kelas tidak valid.", "error");
+
+            const accounts = window.getTestingAccounts();
+            const account = accounts.find(acc => {
+                if(!acc) return false;
+                const accUser = String(acc.username || '').trim().toLowerCase();
+                const accKelas = String(acc.kelas || '').trim();
+                return accUser === username && accKelas === kelas;
+            });
+
+            if(!account || !account.passwordHash) {
+                return window.showToast("Akun testing tidak terdaftar untuk kelas ini.", "error");
+            }
+
+            const inputHash = await window.sha256Hex(password);
+            if(inputHash !== String(account.passwordHash).toLowerCase().trim()) {
+                return window.showToast("Password testing salah.", "error");
+            }
+
+            const profile = {
+                name: MASTER_KELAS[kelas].musyrif || username,
+                given_name: (MASTER_KELAS[kelas].musyrif || username).split(' ')[0],
+                email: account.email || `${username}@testing.local`,
+                authProvider: 'testing'
+            };
+
+            window.startAuthenticatedSession(kelas, profile);
+            window.showToast("Login Testing Berhasil!", "success");
+            return;
+        } catch (err) {
+            console.error("Testing login error:", err);
+            return window.showToast("Gagal memproses login testing.", "error");
+        }
+    }
 
     // Simpan kelas sementara
     appState.tempClass = kelas;
@@ -193,29 +291,8 @@ window.handleGoogleCallback = function(response) {
         }
 
         // 3. JIKA LOLOS -> SIMPAN SESI
-        const authData = {
-            kelas: targetClass,
-            profile: profile,
-            timestamp: new Date().toISOString()
-        };
-        localStorage.setItem(APP_CONFIG.googleAuthKey, JSON.stringify(authData));
-        
-        // 4. Masuk Dashboard
-        appState.selectedClass = targetClass;
-        appState.userProfile = profile;
-        
-        // Filter Santri Ulang (Sesuai kelas)
-        FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
-            const sKelas = String(s.kelas || s.rombel || "").trim();
-            return sKelas === targetClass;
-        }).sort((a,b) => a.nama.localeCompare(b.nama));
-
+        window.startAuthenticatedSession(targetClass, profile);
         window.closeModal('modal-google-auth');
-        document.getElementById('view-login').classList.add('hidden');
-        document.getElementById('view-main').classList.remove('hidden');
-        
-        window.updateDashboard();
-        window.updateProfileInfo();
         window.showToast("Login Berhasil!", "success");
 
     } catch (e) {
@@ -239,6 +316,10 @@ window.handleLogout = function() {
     document.getElementById('view-login').classList.remove('hidden');
     document.getElementById('login-pin').value = "";
     document.getElementById('login-kelas').value = "";
+    const userEl = document.getElementById('login-username');
+    const passEl = document.getElementById('login-password');
+    if(userEl) userEl.value = "";
+    if(passEl) passEl.value = "";
     
     location.reload();
 };

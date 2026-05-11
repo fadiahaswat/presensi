@@ -13,6 +13,25 @@ window.APP_CREDENTIALS = {
 };
 
 // ==========================================
+// MODE AUTENTIKASI
+// ==========================================
+window.APP_AUTH = {
+    // 'production' = PIN + Google OAuth
+    // 'testing' = PIN + username/password lokal (tanpa Google)
+    loginMode: 'production',
+
+    // Akun khusus pengujian (password hash SHA-256 hex)
+    // Catatan: kelas harus sesuai kelas yang valid di data-kelas
+    testingAccounts: [
+        {
+            username: 'tester-musyrif',
+            kelas: 'XI-A',
+            passwordHash: 'b822f1cd2dcfc685b47e83e3980289fd5d8e3ff3a82def24d7d1d68bb272eb32' // testing123
+        }
+    ]
+};
+
+// ==========================================
 // KONSTANTA APLIKASI (MAGIC NUMBERS)
 // ==========================================
 window.APP_CONSTANTS = {
