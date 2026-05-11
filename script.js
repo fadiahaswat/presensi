@@ -1623,6 +1623,9 @@ window.kirimLaporanWA = function() {
     const slot = SLOT_WAKTU[appState.currentSlotId];
     const stats = window.calculateSlotStats(slot.id);
     const dbSlot = appState.attendanceData[appState.date]?.[slot.id];
+    
+    // PERBAIKAN: Dinamis ambil ID aktivitas utama (shalat atau kbm_sekolah)
+    const mainActId = slot.activities[0]?.id || 'shalat';
 
     let msg = `*LAPORAN ${appState.selectedClass} - ${slot.label}*\n`;
     msg += `📅 ${window.formatDate(appState.date)}\n\n`;
@@ -1631,11 +1634,10 @@ window.kirimLaporanWA = function() {
     msg += `📝 Izin: ${stats.i}\n`;
     msg += `❌ Alpa: ${stats.a}\n\n`;
     
-    // List Detail Alpa/Izin/Sakit
     const notPresent = [];
     FILTERED_SANTRI.forEach(s => {
         const id = String(s.nis || s.id);
-        const st = dbSlot?.[id]?.status?.shalat;
+        const st = dbSlot?.[id]?.status?.[mainActId]; // <-- PERBAIKAN DI SINI
         if(st === 'Alpa' || st === 'Sakit' || st === 'Izin' || st === 'Pulang') {
             notPresent.push(`- ${s.nama} (${st})`);
         }
