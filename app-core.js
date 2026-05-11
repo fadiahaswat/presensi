@@ -7,7 +7,15 @@ let modalStack = [];
 
 window.addEventListener('beforeunload', () => {
     if(clockInterval) clearInterval(clockInterval);
-    if(saveTimeout) clearTimeout(saveTimeout);
+    
+    // PERBAIKAN: Paksa simpan data secara sinkron sebelum browser ditutup
+    if(saveTimeout) {
+        clearTimeout(saveTimeout);
+        if (typeof appState !== 'undefined' && appState.attendanceData) {
+            localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(appState.attendanceData));
+        }
+    }
+    
     if(lucideTimeout) clearTimeout(lucideTimeout);
 });
 
