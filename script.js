@@ -550,26 +550,19 @@ window.renderSlotList = function() {
         clone.querySelector('.slot-stat-i').textContent = stats.i;
         clone.querySelector('.slot-stat-a').textContent = stats.a;
 
-        // 4. Progress Bar Styling
-        const totalSantri = FILTERED_SANTRI.length || 1; 
-        const filledCount = stats.total;
-        const percentage = Math.round((filledCount / totalSantri) * 100);
-
-        const progressText = clone.querySelector('.slot-progress-text');
-        const progressBar = clone.querySelector('.slot-progress-bar');
+        // 4. Inisialisasi Elemen Progress & Badge
+        const badge = clone.querySelector('.slot-status-badge');
         
-        if(progressText) progressText.textContent = `${percentage}%`;
-        if(progressBar) {
-            progressBar.style.width = `${percentage}%`;
-            // Warna progress bar mengikuti tema
-            progressBar.classList.add(`bg-${s.theme}-500`); 
+        // Gunakan nama variabel unik untuk menghindari bentrok
+        const barFill = clone.querySelector('.slot-progress-bar-fill') || clone.querySelector('.slot-progress-bar'); 
+        const txtProgress = clone.querySelector('.slot-progress-text');
+        
+        if(barFill) {
+            // Warna progress bar mengikuti tema (emerald/orange/indigo/dll)
+            barFill.classList.add(`bg-${s.theme}-500`); 
         }
 
         // 5. Logic Libur / Locked / Unlocked
-        const badge = clone.querySelector('.slot-status-badge');
-        const progressBar = clone.querySelector('.slot-progress-bar-fill');
-        const progressText = clone.querySelector('.slot-progress-text');
-        
         const isHoliday = window.isSlotHoliday(s.id, appState.date);
         
         if (isHoliday) {
@@ -581,8 +574,8 @@ window.renderSlotList = function() {
             badge.className = "slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-slate-200 text-slate-500 border border-slate-300 dark:bg-slate-700 dark:text-slate-400 shadow-sm";
             
             if(iconEl) iconEl.setAttribute('data-lucide', 'calendar-x');
-            if(progressBar) progressBar.style.width = "0%";
-            if(progressText) progressText.textContent = "-";
+            if(barFill) barFill.style.width = "0%";
+            if(txtProgress) txtProgress.textContent = "-";
             
             item.onclick = () => window.showToast(`Kegiatan ${s.label} libur pada hari ini.`, "info");
         }
@@ -616,8 +609,8 @@ window.renderSlotList = function() {
                 if (percent > 100) percent = 100; // Cegah bar meluber keluar kotak
             }
             
-            if(progressBar) progressBar.style.width = `${percent}%`;
-            if(progressText) progressText.textContent = `${stats.total}/${totalSiswa}`;
+            if(barFill) barFill.style.width = `${percent}%`;
+            if(txtProgress) txtProgress.textContent = `${stats.total}/${totalSiswa}`;
 
             item.onclick = () => {
                 appState.currentSlotId = s.id;
