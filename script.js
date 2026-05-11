@@ -2749,16 +2749,18 @@ window.renderTimesheetCalendar = function() {
         container.appendChild(div);
     });
 
-    const now = new Date();
-    // Gunakan tanggal dari appState jika ingin melihat bulan yang dipilih di dashboard, 
-    // atau gunakan bulan sekarang (Realtime). Kita gunakan bulan dari appState.date agar sinkron.
-    const currentViewDate = new Date(appState.date);
+    // UBAH: Gunakan appState.timesheetViewDate
+    const currentViewDate = new Date(appState.timesheetViewDate || appState.date);
     const year = currentViewDate.getFullYear();
     const month = currentViewDate.getMonth();
 
     // Set Label
     const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     if(label) label.textContent = `${months[month]} ${year}`;
+
+    // Sync input picker 
+    const picker = document.getElementById('timesheet-month-picker');
+    if(picker) picker.value = `${year}-${String(month+1).padStart(2,'0')}`;
 
     // Logika Kalender
     const firstDay = new Date(year, month, 1);
