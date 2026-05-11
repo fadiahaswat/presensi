@@ -4005,12 +4005,15 @@ window.renderActivePermitsWidget = function() {
             if (processedNis.has(id)) return; 
 
             let foundStatus = null;
-            // Cek status dari Isya mundur ke Shubuh (prioritas status terakhir)
-            const slots = ['isya', 'maghrib', 'ashar', 'shubuh'];
-            for (const slot of slots) {
-                const st = dayData[slot]?.[id]?.status?.shalat;
+            // PERBAIKAN: Tambahkan 'sekolah' ke dalam daftar pemindaian widget izin manual
+            const slots = ['isya', 'maghrib', 'ashar', 'sekolah', 'shubuh']; 
+            for (const slotId of slots) {
+                const slotConfig = SLOT_WAKTU[slotId];
+                if (!slotConfig) continue;
+                const mainActId = slotConfig.activities[0]?.id || 'shalat'; // Dinamis!
                 
-                // [PERBAIKAN DISINI] Hapus 'Alpa' dari daftar pencarian
+                const st = dayData[slotId]?.[id]?.status?.[mainActId];
+                
                 if (st && ['Sakit', 'Izin', 'Pulang'].includes(st)) {
                     foundStatus = st;
                     break;
@@ -4106,31 +4109,30 @@ window.renderActivePermitsWidget = function() {
 window.resolveManualStatus = function(nis, statusType) {
     const dateKey = appState.date;
     const dayData = appState.attendanceData[dateKey];
-    
     if (!dayData) return;
 
     let changed = false;
 
-    // Cari di semua slot hari ini yang statusnya sesuai
     Object.keys(dayData).forEach(slotId => {
         const studentData = dayData[slotId][nis];
-        if (studentData && studentData.status && studentData.status.shalat === statusType) {
-            
-            // Ubah Status ke Hadir
-            studentData.status.shalat = 'Hadir';
+        const slotConfig = SLOT_WAKTU[slotId];
+        if(!slotConfig) return;
+        
+        // PERBAIKAN: Gunakan mainActId agar slot Sekolah juga bisa "Dihadirkan"
+        const mainActId = slotConfig.activities[0]?.id || 'shalat';
 
-            // Reset Kegiatan Lain
-            const slotConfig = SLOT_WAKTU[slotId];
-            if(slotConfig && slotConfig.activities) {
+        if (studentData && studentData.status && studentData.status[mainActId] === statusType) {
+            
+            studentData.status[mainActId] = 'Hadir';
+
+            if(slotConfig.activities) {
                 slotConfig.activities.forEach(act => {
                     if(act.category === 'dependent') studentData.status[act.id] = 'Ya';
                     else if(act.category === 'kbm' || act.category === 'fardu') studentData.status[act.id] = 'Hadir';
                 });
             }
             
-            // PENTING: Hapus Catatan [Auto] agar renderAttendanceList tidak meresetnya
             if (studentData.note) {
-                // Hapus string [Auto] ... sampai akhir baris, atau kosongkan note jika hanya berisi auto
                 studentData.note = studentData.note.replace(/\[Auto\].*$/g, '').trim();
             }
             changed = true;
