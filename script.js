@@ -3693,8 +3693,10 @@ window.deleteViolationRecord = function(studentId, dateKey) {
     // Loop semua slot di hari itu, jika Alpa ubah jadi Hadir
     Object.values(SLOT_WAKTU).forEach(slot => {
         const studentSlot = dayData[slot.id]?.[studentId];
-        if(studentSlot && studentSlot.status?.shalat === 'Alpa') {
-            studentSlot.status.shalat = 'Hadir'; // Ubah jadi Hadir
+        const mainActId = slot.activities[0]?.id || 'shalat'; // PERBAIKAN: Ambil ID dinamis
+
+        if(studentSlot && studentSlot.status?.[mainActId] === 'Alpa') {
+            studentSlot.status[mainActId] = 'Hadir'; // Ubah jadi Hadir
             
             // Reset juga status dependent jika ada
             slot.activities.forEach(act => {
