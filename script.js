@@ -4485,59 +4485,44 @@ window.savePembinaan = function() {
 };
 
 window.renderSchoolStatsWidget = function() {
-    const containerWidget = document.getElementById('school-stats-widget');
-    if(!containerWidget) return;
-    
-    // PERBAIKAN: Jika hari ini libur sekolah, sembunyikan kotak Kehadiran Sekolah
+    const widget = document.getElementById('school-stats-widget');
+    if(!widget) return;
+
+    // SINKRONISASI: Jika hari ini sekolah libur (Ahad), hilangkan sekalian widgetnya!
     if (window.isSlotHoliday('sekolah', appState.date)) {
-        containerWidget.classList.add('hidden');
+        widget.classList.add('hidden');
         return;
     } else {
-        containerWidget.classList.remove('hidden');
+        widget.classList.remove('hidden');
     }
-    const stats = window.calculateSlotStats('sekolah');
-    
-    document.getElementById('sch-stat-h').textContent = stats.h;
-    document.getElementById('sch-stat-s').textContent = stats.s;
-    document.getElementById('sch-stat-i').textContent = stats.i;
-    document.getElementById('sch-stat-a').textContent = stats.a;
 
-    const total = stats.total || 1;
-    const pct = Math.round((stats.h / total) * 100);
-    
-    document.getElementById('school-pct-badge').textContent = `${pct}%`;
-    document.getElementById('school-progress-bar').style.width = `${pct}%`;
+    const stats = window.calculateSlotStats('sekolah', appState.date);
+    const totalSiswa = FILTERED_SANTRI ? FILTERED_SANTRI.length : 0;
 
-    // Render List Tidak Hadir
-    const listContainer = document.getElementById('school-absent-list');
-    if(!listContainer) return;
-    listContainer.innerHTML = '';
-
-    const dateKey = appState.date;
-    const slotData = appState.attendanceData[dateKey]?.['sekolah'];
-
-    if(slotData) {
-        FILTERED_SANTRI.forEach(s => {
-            const id = String(s.nis || s.id);
-            const st = slotData[id]?.status?.kbm_sekolah;
-            if(st && st !== 'Hadir') { // Termasuk Sakit, Izin, Alpa
-                let color = 'text-slate-500';
-                if(st === 'Sakit') color = 'text-amber-500';
-                else if(st === 'Izin') color = 'text-blue-500';
-                else if(st === 'Alpa') color = 'text-red-500';
-                else if(st === 'Telat') color = 'text-teal-500';
-                else if(st === 'Pulang') color = 'text-purple-500'; // <-- TAMBAHKAN INI
-
-                // Tampilkan Telat juga kalau mau dipantau, atau exclude jika dihitung hadir
-                const item = document.createElement('div');
-                item.className = "flex justify-between items-center px-2 py-1 bg-slate-50 dark:bg-slate-800/50 rounded text-xs";
-                item.innerHTML = `<span class="font-bold text-slate-700 dark:text-slate-200">${window.sanitizeHTML(s.nama)}</span> <span class="font-black ${color} text-[10px] uppercase">${st}</span>`;
-                listContainer.appendChild(item);
-            }
-        });
-    } else {
-        listContainer.innerHTML = '<p class="text-center text-[10px] text-slate-400">Belum ada data sekolah</p>';
+    // Hitung Persentase Kehadiran = (Hadir / Total Siswa) * 100
+    // Mencegah pembagian dengan 0 yang menghasilkan NaN%
+    let presentPercent = 0;
+    if (totalSiswa > 0) {
+        presentPercent = Math.round((stats.h / totalSiswa) * 100);
+        if (presentPercent > 100) presentPercent = 100; // Proteksi maksimal 100%
     }
+
+    const fillEl = document.getElementById('school-progress-fill');
+    const textEl = document.getElementById('school-progress-text');
+    
+    if (fillEl) fillEl.style.width = `${presentPercent}%`;
+    if (textEl) textEl.textContent = `${presentPercent}%`;
+
+    // Update angka-angka rekap
+    const hEl = document.getElementById('school-stat-h');
+    const sEl = document.getElementById('school-stat-s');
+    const iEl = document.getElementById('school-stat-i');
+    const aEl = document.getElementById('school-stat-a');
+
+    if(hEl) hEl.textContent = stats.h;
+    if(sEl) sEl.textContent = stats.s;
+    if(iEl) iEl.textContent = stats.i;
+    if(aEl) aEl.textContent = stats.a;
 };
 
 window.openModal = function(modalId) {
