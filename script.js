@@ -565,20 +565,32 @@ window.renderSlotList = function() {
             progressBar.classList.add(`bg-${s.theme}-500`); 
         }
 
-        // 5. Logic Locked/Unlocked
+        // 5. Logic Libur / Locked / Unlocked
         const badge = clone.querySelector('.slot-status-badge');
+        const isHoliday = window.isSlotHoliday(s.id, appState.date);
         
-        if (access.locked) {
-            item.classList.remove(...s.style.gradient.split(' ')); // Hapus gradient cerah
-            item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); // Jadi abu-abu
+        if (isHoliday) {
+            item.classList.remove(...s.style.gradient.split(' ')); 
+            item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-70');
+            
+            badge.textContent = "Libur";
+            badge.className = "slot-status-badge text-[10px] font-bold px-2.5 py-0.5 rounded-lg inline-block bg-slate-200 text-slate-500 border border-slate-300 dark:bg-slate-700 dark:text-slate-400 border-slate-600 shadow-sm";
+            
+            if(iconEl) iconEl.setAttribute('data-lucide', 'calendar-x');
+            if(progressText) progressText.textContent = "-";
+            if(progressBar) progressBar.style.width = "0%";
+            
+            item.onclick = () => window.showToast(`Kegiatan ${s.label} libur pada hari ini.`, "info");
+        }
+        else if (access.locked) {
+            item.classList.remove(...s.style.gradient.split(' ')); 
+            item.classList.add('bg-slate-100', 'dark:bg-slate-800', 'grayscale', 'opacity-75'); 
             
             let lockText = access.reason === 'wait' ? 'Menunggu' : 'Terkunci';
             if(access.reason === 'limit') lockText = 'Expired';
             
             badge.textContent = lockText;
-            
-            if(iconEl) iconEl.setAttribute('data-lucide', 'lock'); // Ganti icon jadi gembok
-            
+            if(iconEl) iconEl.setAttribute('data-lucide', 'lock'); 
             item.onclick = () => window.showToast(`🔒 Akses ${s.label} ${lockText}`, "error");
         } else {
             if (stats.isFilled) {
