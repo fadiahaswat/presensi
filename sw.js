@@ -2,7 +2,7 @@ const CACHE_NAME = 'musyrif-app-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css',
+  './output.css', // PERBAIKAN: Ganti style.css menjadi output.css
   './config.js',
   './script.js',
   './santri-manager.js',
