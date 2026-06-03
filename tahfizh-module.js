@@ -111,35 +111,14 @@ async function loadTahfizhUI(container) {
 // Load Tahfizh App Logic
 async function loadTahfizhAppLogic() {
     try {
-        // Check if app.js is already loaded
-        if (window.Core) {
-            console.log('Tahfizh app logic already loaded');
-            return;
+        // Use tahfizh app adapter
+        if (window.initTahfizhAdapter) {
+            await window.initTahfizhAdapter();
+            return true;
+        } else {
+            console.warn('Tahfizh adapter not available');
+            initializeTahfizhAppFallback();
         }
-
-        // Dynamically load tahfizh app.js
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = '/tahfizh-integration.js';
-            script.onload = () => {
-                console.log('Tahfizh integration script loaded');
-                
-                // Call initialization
-                if (window.initTahfizhFromModule) {
-                    window.initTahfizhFromModule().then(resolve).catch(reject);
-                } else {
-                    resolve();
-                }
-            };
-            script.onerror = () => {
-                console.warn('Could not load tahfizh-integration.js, using fallback');
-                // Use fallback initialization
-                initializeTahfizhAppFallback();
-                resolve();
-            };
-            script.async = true;
-            document.head.appendChild(script);
-        });
         
     } catch (error) {
         console.error('Error loading Tahfizh app logic:', error);
@@ -168,35 +147,40 @@ window.tahfizhSetRole = async function(role) {
         document.getElementById('role-selection-modal').classList.add('hidden');
         document.getElementById('tahfizh-loading').classList.remove('hidden');
         
-        // Set role
-        localStorage.setItem('tahfizh_role', role);
-        window.TahfizhRole = role;
-        
-        // Simulate loading
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Hide loading dan tampilkan main layout
-        document.getElementById('tahfizh-loading').classList.add('hidden');
-        document.getElementById('main-layout').classList.remove('hidden');
-        
-        // Display role information
-        const nav = document.getElementById('tahfizh-nav');
-        if (nav) {
-            const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-            nav.innerHTML = `
-                <div class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-1">
-                    Mode: ${roleLabel}
-                </div>
-                <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                    📊 Dashboard
-                </button>
-                <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                    📝 Setor Hafalan
-                </button>
-                <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                    📈 Analisis
-                </button>
-            `;
+        // Initialize with role using adapter
+        if (window.initializeTahfizhWithRole) {
+            await window.initializeTahfizhWithRole(role);
+        } else {
+            // Fallback
+            localStorage.setItem('tahfizh_role', role);
+            window.TahfizhRole = role;
+            
+            // Simulate loading
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Hide loading dan tampilkan main layout
+            document.getElementById('tahfizh-loading').classList.add('hidden');
+            document.getElementById('main-layout').classList.remove('hidden');
+            
+            // Display role information
+            const nav = document.getElementById('tahfizh-nav');
+            if (nav) {
+                const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+                nav.innerHTML = `
+                    <div class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-1">
+                        Mode: ${roleLabel}
+                    </div>
+                    <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                        📊 Dashboard
+                    </button>
+                    <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                        📝 Setor Hafalan
+                    </button>
+                    <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                        📈 Analisis
+                    </button>
+                `;
+            }
         }
         
         // Show status message
