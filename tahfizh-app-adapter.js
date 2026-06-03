@@ -110,8 +110,22 @@ window.initializeTahfizhWithRole = async function(role) {
         const loading = document.getElementById('tahfizh-loading');
         if (loading) loading.classList.add('hidden');
         
+        // Create pages divs if they don't exist
+        const mainContent = document.getElementById('main-content');
+        if (mainContent && mainContent.children.length === 0) {
+            mainContent.innerHTML = `
+                <div id="page-beranda" class=""></div>
+                <div id="page-input" class="hidden"></div>
+                <div id="page-analisis" class="hidden"></div>
+                <div id="page-validasi" class="hidden"></div>
+            `;
+        }
+        
         // Render navigation based on role
         renderTahfizhNavigation(role);
+        
+        // Show first page
+        window.switchTahfizhPage('page-beranda');
         
         // Simulate data loading
         await simulateTahfizhDataLoading();
