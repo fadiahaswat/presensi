@@ -423,10 +423,6 @@
                     <i data-lucide="file-bar-chart" class="w-5 h-5 flex-shrink-0"></i>
                     <span>Rekap Presensi</span>
                 </button>
-                <button onclick="window.switchTab('tahfizh')" data-target="tahfizh" class="nav-btn sidebar-nav-btn">
-                    <i data-lucide="book-open" class="w-5 h-5 flex-shrink-0"></i>
-                    <span>Tahfizh</span>
-                </button>
                 <button onclick="window.switchTab('profile')" data-target="profile" class="nav-btn sidebar-nav-btn">
                     <i data-lucide="user" class="w-5 h-5 flex-shrink-0"></i>
                     <span>Profil & Pengaturan</span>
@@ -1074,16 +1070,6 @@
     }
 </style>
 
-        <!-- Tab: Tahfizh System -->
-        <div id="tab-tahfizh" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth pt-safe">
-            <iframe 
-                id="tahfizh-frame" 
-                style="width: 100%; height: 100%; border: none; display: none;" 
-                allow="geolocation; microphone; camera">
-            </iframe>
-            <div id="tahfizh-container" class="w-full h-full overflow-y-auto"></div>
-        </div>
-
         <!-- Tab: Profile / Settings -->
         <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-5 pt-safe">
             <div class="glass-card p-6 rounded-[2.5rem] text-center relative overflow-hidden border-t-4 border-t-emerald-500 shadow-xl">
@@ -1428,7 +1414,7 @@
         <!-- Bottom Navigation Bar -->
         <nav class="fixed bottom-6 left-4 right-4 z-50 max-w-md mx-auto animate-slide-up" style="animation-delay: 0.5s">
     <div class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-white/40 dark:border-slate-700/50 p-2">
-        <div class="grid grid-cols-5 items-center">
+        <div class="grid grid-cols-4 items-center">
             
             <button onclick="window.switchTab('home')" data-target="home" class="nav-btn active group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
                 <div class="absolute inset-0 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
@@ -1443,11 +1429,6 @@
             <button onclick="window.switchTab('report')" data-target="report" class="nav-btn group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
                 <div class="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
                 <i data-lucide="file-bar-chart" class="w-6 h-6 text-slate-400 group-[.active]:text-blue-500 transition-colors relative z-10"></i>
-            </button>
-
-            <button onclick="window.switchTab('tahfizh')" data-target="tahfizh" class="nav-btn group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
-                <div class="absolute inset-0 bg-teal-500/10 dark:bg-teal-500/20 rounded-2xl scale-0 group-[.active]:scale-100 transition-transform duration-300"></div>
-                <i data-lucide="book-open" class="w-6 h-6 text-slate-400 group-[.active]:text-teal-500 transition-colors relative z-10"></i>
             </button>
             
             <button onclick="window.switchTab('profile')" data-target="profile" class="nav-btn group relative flex flex-col items-center justify-center py-3 rounded-2xl transition-all duration-300">
@@ -1956,8 +1937,6 @@
     <script src="santri-manager.js"></script>
     <script src="app-core.js"></script>
     <script src="script.js"></script>
-    <script src="tahfizh-app-adapter.js"></script>
-    <script src="tahfizh-module.js"></script>
 
     <script>
         // Mendaftarkan Service Worker agar aplikasi bisa di-install & jalan offline

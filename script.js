@@ -1937,9 +1937,6 @@ window.switchTab = function(tabName) {
     else if(tabName === 'report') {
         window.updateReportTab(); 
     }
-    else if(tabName === 'tahfizh') {
-        window.initTahfizhModule();
-    }
     else if(tabName === 'profile') {
         appState.timesheetViewDate = appState.date; // <--- TAMBAHKAN INI
         window.updateProfileStats();
