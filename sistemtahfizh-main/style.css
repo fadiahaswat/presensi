@@ -1,0 +1,295 @@
+/* =========================================
+   1. VARIABLES & THEME CONFIGURATION
+   ========================================= */
+:root {
+    /* Colors */
+    --bg-color: #f8fafc;
+    --text-color: #1f2937;
+    --subtle-text: #4b5563;
+    
+    /* Brand Colors (Refactored from hardcoded values) */
+    --brand-primary: #d97706;
+    --brand-focus: #f59e0b;
+    --brand-focus-ring: rgba(245, 158, 11, 0.3);
+    --brand-bg-subtle: rgba(251, 191, 36, 0.1);
+
+    /* Glass / Card Components */
+    --card-bg: rgba(255, 255, 255, 0.7);
+    --card-border: rgba(229, 231, 235, 0.8);
+    
+    /* Navigation */
+    --nav-bg: rgba(255, 255, 255, 0.8);
+    --nav-border: rgba(229, 231, 235, 0.9);
+    --hover-bg: rgba(0, 0, 0, 0.04);
+
+    /* Inputs */
+    --input-bg: rgba(249, 250, 251, 0.8);
+    --input-border: rgba(209, 213, 219, 0.8);
+    --input-focus-bg: rgba(255, 255, 255, 1);
+
+    /* Skeleton Loading */
+    --skeleton-bg: #e5e7eb;
+    --skeleton-highlight: #f3f4f6;
+}
+
+/* =========================================
+   2. BASE STYLES
+   ========================================= */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* =========================================
+   3. GLASSMORPHISM COMPONENTS
+   ========================================= */
+.glass-card, 
+.glass-modal-content {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.08);
+}
+
+.glass-nav {
+    background: var(--nav-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-color: var(--nav-border) !important;
+}
+
+.glass-input {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--input-border) !important;
+    color: var(--text-color) !important;
+}
+
+.glass-input:focus {
+    background-color: var(--input-focus-bg) !important;
+    border-color: var(--brand-focus) !important;
+    box-shadow: 0 0 0 2px var(--brand-focus-ring);
+}
+
+/* =========================================
+   4. NAVIGATION
+   ========================================= */
+.nav-link {
+    transition: all 0.2s ease-in-out;
+    color: var(--subtle-text);
+}
+
+.nav-link:hover {
+    background-color: var(--hover-bg);
+    color: var(--brand-primary);
+}
+
+.nav-link.active {
+    background-color: var(--brand-bg-subtle);
+    color: var(--brand-primary);
+    font-weight: 600;
+}
+
+.nav-link.active svg {
+    color: var(--brand-primary);
+}
+
+/* =========================================
+   5. UI COMPONENTS
+   ========================================= */
+
+/* --- Toast Notification --- */
+#toast {
+    transition: transform 0.5s ease, opacity 0.5s ease;
+    opacity: 0;
+    transform: translate(-50%, 100px);
+}
+
+#toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+/* --- Modal --- */
+.modal {
+    transition: opacity 0.3s ease;
+}
+
+.modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.modal.hidden .modal-content {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+/* --- Accordion --- */
+.accordion-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    padding: 0;
+}
+
+/* --- Progress Circle --- */
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.8s ease-out;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+
+/* --- Sortable Tables --- */
+.sortable .sort-icon {
+    opacity: 0.5;
+    display: inline-block;
+    width: 1em;
+    text-align: center;
+    transition: opacity 0.2s;
+}
+
+.sortable:hover .sort-icon,
+.sortable[data-sort-dir] .sort-icon {
+    opacity: 1;
+}
+
+/* --- Tabs --- */
+.tab-peringkat.active {
+    background-color: #fff;
+    color: var(--brand-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.tab-content-peringkat {
+    display: none;
+}
+
+.tab-content-peringkat.active {
+    display: grid;
+}
+
+/* --- Stat Cards (Gradients) --- */
+.stat-card-blue { background-image: linear-gradient(to right, #3b82f6, #2563eb); }
+.stat-card-green { background-image: linear-gradient(to right, #22c55e, #16a34a); }
+.stat-card-red   { background-image: linear-gradient(to right, #ef4444, #dc2626); }
+
+/* --- Section Headers --- */
+.section-header {
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-header svg {
+    color: var(--subtle-text);
+}
+
+/* --- Forms --- */
+.form-error {
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: 4px;
+    display: none;
+}
+
+/* =========================================
+   6. ANIMATIONS & SKELETONS
+   ========================================= */
+
+/* Fade In */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Shimmer / Skeleton Loading */
+@keyframes shimmer {
+    0% { background-position: -468px 0; }
+    100% { background-position: 468px 0; }
+}
+
+.skeleton-container {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-color);
+    z-index: 20;
+    overflow: hidden;
+}
+
+.skeleton {
+    background-color: var(--skeleton-bg);
+    background-image: linear-gradient(
+        to right, 
+        var(--skeleton-bg) 0%, 
+        var(--skeleton-highlight) 20%, 
+        var(--skeleton-bg) 40%, 
+        var(--skeleton-bg) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 800px 100%;
+    animation: shimmer 1.2s linear infinite;
+}
+
+/* Layout Utility */
+#main-content {
+    position: relative;
+}
+
+/* ... kode style.css sebelumnya ... */
+
+/* =========================================
+   7. LOADER ANIMATIONS (FIXED)
+   ========================================= */
+
+/* Animasi Putar Lambat (Cincin Luar) */
+@keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Animasi Putar Balik Cepat (Cincin Dalam) */
+@keyframes spin-reverse {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+/* Animasi Denyut (Glow) */
+@keyframes pulse-glow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.95); }
+}
+
+/* Animasi Loading Bar (Gerak dari kiri ke kanan) */
+@keyframes shimmer-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+}
+
+/* Kelas Utilitas untuk Loader */
+.loader-spin-slow {
+    animation: spin-slow 3s linear infinite;
+}
+.loader-spin-reverse {
+    animation: spin-reverse 2s linear infinite;
+}
+.loader-pulse {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+.loader-bar-slide {
+    animation: shimmer-slide 1.5s infinite linear;
+}
