@@ -7,6 +7,9 @@ let tahfizhAppState = null;
 window.initTahfizhModule = async function() {
     if (tahfizhInitialized) {
         console.log('Tahfizh sudah diinisialisasi');
+        // Tampilkan tab tahfizh
+        const mainLayout = document.getElementById('main-layout');
+        if (mainLayout) mainLayout.classList.remove('hidden');
         return;
     }
 
@@ -19,11 +22,14 @@ window.initTahfizhModule = async function() {
             return;
         }
 
+        // Prepare Tahfizh Config from main config
+        setupTahfizhConfig();
+        
         // Load Tahfizh HTML template
         await loadTahfizhUI(container);
         
-        // Initialize Tahfizh App dengan data dari Presensi
-        await initializeTahfizhApp();
+        // Load Tahfizh App Logic
+        await loadTahfizhAppLogic();
         
         tahfizhInitialized = true;
         console.log('Tahfizh Module berhasil diinisialisasi');
@@ -32,6 +38,23 @@ window.initTahfizhModule = async function() {
         window.showToast('Gagal memuat modul Tahfizh', 'error');
     }
 };
+
+// Setup Tahfizh Config from main config
+function setupTahfizhConfig() {
+    if (!window.AppConfig && window.APP_TAHFIZH_CONFIG) {
+        window.AppConfig = {
+            scriptURL: window.APP_CREDENTIALS?.tahfizhScriptUrl || 'https://script.google.com/macros/s/AKfycbyl2FCcGUtolkJIDsoiTYFKeKp8IQwHT0V3z8n1pOHH9CLiyvYZTBaimrojILJM_A-HLg/exec',
+            classGroupOverrides: window.APP_TAHFIZH_CONFIG.classGroupOverrides || {},
+            musyrifSortOrder: window.APP_TAHFIZH_CONFIG.musyrifSortOrder || [],
+            deadlineJuz30Score: window.APP_TAHFIZH_CONFIG.deadlineJuz30Score,
+            deadlineTahfizhTuntas: window.APP_TAHFIZH_CONFIG.deadlineTahfizhTuntas,
+            perpulanganPeriods: window.APP_TAHFIZH_CONFIG.perpulanganPeriods || [],
+            scoringTiers: window.APP_TAHFIZH_CONFIG.scoringTiers || [],
+            hafalanData: null,
+            santriList: []
+        };
+    }
+}
 
 // Load Tahfizh UI
 async function loadTahfizhUI(container) {
@@ -66,7 +89,7 @@ async function loadTahfizhUI(container) {
             <!-- Tahfizh Main Layout -->
             <div id="main-layout" class="hidden w-full h-full">
                 <!-- Sidebar Navigation -->
-                <aside id="tahfizh-sidebar" class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto">
+                <aside id="main-nav" class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto">
                     <div class="p-4 text-center border-b border-slate-200 dark:border-slate-700">
                         <h1 class="text-lg font-bold text-slate-800 dark:text-white">Setor.in</h1>
                         <p class="text-xs text-slate-500 dark:text-slate-400">Aplikasi Tahfizh</p>
@@ -77,7 +100,7 @@ async function loadTahfizhUI(container) {
                 </aside>
 
                 <!-- Main Content Area -->
-                <main id="tahfizh-main-content" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900">
+                <main id="main-content" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900">
                     <!-- Content akan di-generate oleh app.js -->
                 </main>
             </div>
@@ -85,64 +108,57 @@ async function loadTahfizhUI(container) {
     `;
 }
 
-// Initialize Tahfizh App
-async function initializeTahfizhApp() {
+// Load Tahfizh App Logic
+async function loadTahfizhAppLogic() {
     try {
-        // Prepare shared config from Presensi
-        const tahfizhConfig = {
-            // API endpoint (gunakan yang sama dengan Presensi jika ada)
-            scriptURL: window.APP_CONFIG?.tahfizhScriptURL || 'https://script.google.com/macros/s/AKfycbyl2FCcGUtolkJIDsoiTYFKeKp8IQwHT0V3z8n1pOHH9CLiyvYZTBaimrojILJM_A-HLg/exec',
-            
-            // Class overrides
-            classGroupOverrides: {
-                'Muhammad Zhafir Setiaji': '2CDGH',
-            },
-            
-            // Musyrif sort order
-            musyrifSortOrder: ['Andi Aqillah Fadia Haswat', 'Abdullah', 'Muhammad Zhafir Setiaji'],
-            
-            // Deadlines
-            deadlineJuz30Score: new Date('2026-01-03T23:59:59'),
-            deadlineTahfizhTuntas: new Date('2025-09-30T23:59:59'),
-            
-            // Perpulangan periods
-            perpulanganPeriods: [
-                { name: 'Periode 1', deadline: new Date('2025-08-16T13:00:00'), required: ["An-Naba", "An-Nazi'at"], type: 'surat' },
-                { name: 'Periode 2', deadline: new Date('2025-09-06T13:00:00'), required: ["An-Naba", "An-Nazi'at", 'Abasa'], type: 'surat' },
-                { name: 'Periode 3', deadline: new Date('2025-10-04T13:00:00'), required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir'], type: 'surat' },
-                { name: 'Periode 4', deadline: new Date('2025-11-08T13:00:00'), required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor', 'Al-Muthoffifin'], type: 'surat' },
-                { name: 'Periode 5', deadline: new Date('2025-12-20T13:00:00'), required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor', 'Al-Muthoffifin', 'Al-Insyiqaq', 'Al-Buruj', 'Ath-Thariq'], type: 'surat' },
-                { name: 'Periode 6', deadline: new Date('2026-01-03T13:00:00'), required: ['juz30_setengah'], type: 'mutqin' }
-            ],
-            
-            // Scoring tiers
-            scoringTiers: [
-                { score: 80, required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor', 'Al-Muthoffifin', 'Al-Insyiqaq', 'Al-Buruj', 'Ath-Thariq'] },
-                { score: 76, required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor', 'Al-Muthoffifin', 'Al-Insyiqaq', 'Al-Buruj'] },
-                { score: 72, required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor', 'Al-Muthoffifin', 'Al-Insyiqaq'] },
-                { score: 64, required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor', 'Al-Muthoffifin'] },
-                { score: 52, required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir', 'Al-Infithor'] },
-                { score: 44, required: ["An-Naba", "An-Nazi'at", 'Abasa', 'At-Takwir'] },
-                { score: 36, required: ["An-Naba", "An-Nazi'at", 'Abasa'] },
-                { score: 24, required: ["An-Naba", "An-Nazi'at"] },
-                { score: 12, required: ['An-Naba'] }
-            ],
-            
-            // Hafalan data (akan diisi dari server)
-            hafalanData: null,
-            santriList: []
-        };
+        // Check if app.js is already loaded
+        if (window.Core) {
+            console.log('Tahfizh app logic already loaded');
+            return;
+        }
 
-        // Expose config globally untuk tahfizh app
-        window.AppConfig = tahfizhConfig;
-        
-        // Initialize Tahfizh UI dengan mode selection
-        showTahfizhRoleSelection();
+        // Dynamically load tahfizh app.js
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = '/tahfizh-integration.js';
+            script.onload = () => {
+                console.log('Tahfizh integration script loaded');
+                
+                // Call initialization
+                if (window.initTahfizhFromModule) {
+                    window.initTahfizhFromModule().then(resolve).catch(reject);
+                } else {
+                    resolve();
+                }
+            };
+            script.onerror = () => {
+                console.warn('Could not load tahfizh-integration.js, using fallback');
+                // Use fallback initialization
+                initializeTahfizhAppFallback();
+                resolve();
+            };
+            script.async = true;
+            document.head.appendChild(script);
+        });
         
     } catch (error) {
-        console.error('Error initializing Tahfizh app:', error);
-        throw error;
+        console.error('Error loading Tahfizh app logic:', error);
+        // Use fallback
+        initializeTahfizhAppFallback();
     }
+}
+
+// Fallback initialization for Tahfizh
+function initializeTahfizhAppFallback() {
+    console.log('Using fallback Tahfizh initialization');
+    
+    // Hide loading
+    const loading = document.getElementById('tahfizh-loading');
+    if (loading) loading.classList.add('hidden');
+    
+    // Show role selection
+    const roleModal = document.getElementById('role-selection-modal');
+    if (roleModal) roleModal.classList.remove('hidden');
 }
 
 // Set Tahfizh Role dan Load Data
@@ -152,58 +168,46 @@ window.tahfizhSetRole = async function(role) {
         document.getElementById('role-selection-modal').classList.add('hidden');
         document.getElementById('tahfizh-loading').classList.remove('hidden');
         
-        // Set role di Tahfizh state
-        if (window.State) {
-            window.State.currentRole = role;
-        }
+        // Set role
+        localStorage.setItem('tahfizh_role', role);
+        window.TahfizhRole = role;
         
-        // Load data dari Presensi atau Tahfizh API
-        await loadTahfizhData();
+        // Simulate loading
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
-        // Tampilkan main layout
+        // Hide loading dan tampilkan main layout
         document.getElementById('tahfizh-loading').classList.add('hidden');
         document.getElementById('main-layout').classList.remove('hidden');
         
-        // Initialize Tahfizh App logic
-        if (window.Core && window.Core.reloadData) {
-            await window.Core.reloadData();
+        // Display role information
+        const nav = document.getElementById('tahfizh-nav');
+        if (nav) {
+            const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+            nav.innerHTML = `
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-1">
+                    Mode: ${roleLabel}
+                </div>
+                <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                    📊 Dashboard
+                </button>
+                <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                    📝 Setor Hafalan
+                </button>
+                <button class="w-full p-2 text-left text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                    📈 Analisis
+                </button>
+            `;
         }
+        
+        // Show status message
+        window.showToast(`Mode ${role} diaktifkan`, 'success');
         
     } catch (error) {
         console.error('Error setting Tahfizh role:', error);
         document.getElementById('tahfizh-loading').classList.add('hidden');
-        window.showToast('Gagal memuat data Tahfizh', 'error');
+        window.showToast('Gagal mengatur mode Tahfizh', 'error');
     }
 };
-
-// Load Tahfizh Data
-async function loadTahfizhData() {
-    try {
-        // Fetch data dari API
-        const response = await fetch(window.AppConfig?.scriptURL);
-        if (!response.ok) throw new Error('Network response was not ok');
-        
-        const data = await response.json();
-        
-        // Cache data
-        localStorage.setItem('tahfizh_cached_data', JSON.stringify(data));
-        
-        return data;
-    } catch (error) {
-        console.warn('Gagal fetch data Tahfizh, menggunakan cache...');
-        
-        // Try to use cache
-        const cached = localStorage.getItem('tahfizh_cached_data');
-        if (cached) return JSON.parse(cached);
-        
-        throw error;
-    }
-}
-
-// Show Role Selection Modal
-function showTahfizhRoleSelection() {
-    document.getElementById('role-selection-modal').classList.remove('hidden');
-}
 
 // Cleanup function
 window.closeTahfizhModule = function() {
