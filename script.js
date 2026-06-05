@@ -322,7 +322,6 @@ window.handleLogout = function() {
     
     document.getElementById('view-main').classList.add('hidden');
     document.getElementById('view-login').classList.remove('hidden');
-    document.getElementById('login-pin').value = "";
     document.getElementById('login-kelas').value = "";
     const userEl = document.getElementById('login-username');
     const passEl = document.getElementById('login-password');
