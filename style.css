@@ -70,8 +70,12 @@ body { -webkit-tap-highlight-color: transparent; }
 .progress-bar { transition: width 0.5s ease-in-out; }
 
 #status-radial-menu{
+
+    position:fixed;
+
     width:160px;
     height:160px;
+
     pointer-events:none;
 }
 
