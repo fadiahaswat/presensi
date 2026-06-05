@@ -1096,10 +1096,7 @@
                 </div>
             </div>
 
-            <div class="mt-6">
-
-```
-<div class="flex items-center justify-between mb-3 px-1">
+            <div class="flex items-center justify-between mb-3 px-1">
     <h3 class="text-lg font-bold text-slate-800 dark:text-white">
         Timesheet Input
     </h3>
@@ -1111,10 +1108,8 @@
 
 <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
 
-    <!-- Header Controls -->
     <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-5">
 
-        <!-- Navigation -->
         <div class="flex items-center gap-3 flex-wrap">
 
             <button
@@ -1129,7 +1124,7 @@
 
                 <button
                     onclick="window.changeTimesheetMonth(-1)"
-                    class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                    class="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 transition-colors"
                     aria-label="Bulan Sebelumnya"
                 >
                     <i data-lucide="chevron-left" class="w-4 h-4"></i>
@@ -1138,7 +1133,7 @@
                 <div class="relative px-2">
                     <h4
                         id="timesheet-month-label"
-                        class="font-bold text-sm text-center min-w-[120px]"
+                        class="font-bold text-sm text-center text-slate-800 dark:text-slate-200 min-w-[120px]"
                     >
                         Januari 2026
                     </h4>
@@ -1147,13 +1142,13 @@
                         type="month"
                         id="timesheet-month-picker"
                         onchange="window.setTimesheetMonth(this.value)"
-                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        class="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
                     >
                 </div>
 
                 <button
                     onclick="window.changeTimesheetMonth(1)"
-                    class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                    class="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 transition-colors"
                     aria-label="Bulan Berikutnya"
                 >
                     <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -1163,112 +1158,91 @@
 
         </div>
 
-        <!-- Info -->
         <div class="text-xs text-slate-500 dark:text-slate-400">
             Klik tanggal untuk melihat detail progres
         </div>
 
     </div>
 
-    <!-- Legend -->
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 mb-5">
 
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-500/10">
-            <span class="w-3 h-3 rounded-full bg-red-500"></span>
-            <span class="text-xs font-medium">
+        <div class="flex items-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-transparent dark:border-red-500/20">
+            <span class="w-3 h-3 rounded-full bg-red-500 shrink-0"></span>
+            <span class="text-xs font-medium text-red-700 dark:text-red-400">
                 Terlambat
             </span>
         </div>
 
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10">
-            <span class="w-3 h-3 rounded-full bg-amber-400"></span>
-            <span class="text-xs font-medium">
+        <div class="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-transparent dark:border-amber-500/20">
+            <span class="w-3 h-3 rounded-full bg-amber-400 shrink-0"></span>
+            <span class="text-xs font-medium text-amber-700 dark:text-amber-400">
                 Belum Lengkap
             </span>
         </div>
 
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
-            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-            <span class="text-xs font-medium">
+        <div class="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-transparent dark:border-emerald-500/20">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 shrink-0"></span>
+            <span class="text-xs font-medium text-emerald-700 dark:text-emerald-400">
                 Lengkap
             </span>
         </div>
 
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-sky-50 dark:bg-sky-500/10">
-            <span class="w-3 h-3 rounded-full bg-sky-500"></span>
-            <span class="text-xs font-medium">
+        <div class="flex items-center gap-2 p-2 rounded-lg bg-sky-50 dark:bg-sky-500/10 border border-transparent dark:border-sky-500/20">
+            <span class="w-3 h-3 rounded-full bg-sky-500 shrink-0"></span>
+            <span class="text-xs font-medium text-sky-700 dark:text-sky-400">
                 Hari Ini
             </span>
         </div>
 
-        <div class="flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-700">
-            <span class="w-3 h-3 rounded-full bg-slate-400"></span>
-            <span class="text-xs font-medium">
+        <div class="flex items-center gap-2 p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-transparent dark:border-slate-700/50">
+            <span class="w-3 h-3 rounded-full bg-slate-400 shrink-0"></span>
+            <span class="text-xs font-medium text-slate-700 dark:text-slate-400">
                 Masa Depan
             </span>
         </div>
 
     </div>
 
-    <!-- Rules -->
-    <div class="mb-5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3">
+    <div class="mb-5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-4">
 
-        <div class="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+        <div class="text-xs text-slate-600 dark:text-slate-400 space-y-2">
 
-            <div>
-                🟨 Data belum lengkap namun masih dalam masa koreksi 3 hari terakhir.
+            <div class="flex items-start gap-2">
+                <span class="w-3 h-3 mt-0.5 rounded-full bg-amber-400 shrink-0"></span>
+                <span>Data belum lengkap namun masih dalam masa koreksi 3 hari terakhir.</span>
             </div>
 
-            <div>
-                🟥 Data belum lengkap dan sudah melewati batas koreksi.
+            <div class="flex items-start gap-2">
+                <span class="w-3 h-3 mt-0.5 rounded-full bg-red-500 shrink-0"></span>
+                <span>Data belum lengkap dan sudah melewati batas koreksi.</span>
             </div>
 
-            <div>
-                🟦 Hari ini selalu ditandai biru dan menampilkan progres berjalan.
+            <div class="flex items-start gap-2">
+                <span class="w-3 h-3 mt-0.5 rounded-full bg-sky-500 shrink-0"></span>
+                <span>Hari ini selalu ditandai biru dan menampilkan progres berjalan.</span>
             </div>
 
         </div>
 
     </div>
 
-    <!-- Calendar -->
-    <div
-        id="timesheet-calendar"
-        class="grid grid-cols-7 gap-2 text-center"
-    >
-
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Sen
+    <div>
+        <div class="grid grid-cols-7 gap-2 text-center border-b border-slate-100 dark:border-slate-700 mb-2 pb-2">
+            <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sen</div>
+            <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sel</div>
+            <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Rab</div>
+            <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Kam</div>
+            <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Jum</div>
+            <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sab</div>
+            <div class="text-xs font-semibold text-red-400 dark:text-red-500/70 uppercase tracking-wider">Ahd</div>
         </div>
 
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Sel
-        </div>
-
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Rab
-        </div>
-
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Kam
-        </div>
-
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Jum
-        </div>
-
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Sab
-        </div>
-
-        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-2">
-            Ahd
-        </div>
-
+        <div
+            id="timesheet-calendar"
+            class="grid grid-cols-7 gap-2 text-center min-h-[200px]"
+        >
+            </div>
     </div>
-
-</div>
-```
 
 </div>
 
