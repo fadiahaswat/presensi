@@ -277,6 +277,12 @@ window.handleGoogleCallback = function(response) {
     try {
         const profile = window.parseJwt(response.credential);
         const userEmail = profile.email;
+        if (!userEmail) {
+            return window.showToast(
+                "Google tidak mengirim alamat email.",
+                "error"
+            );
+        }
         const targetClass = appState.tempClass;
 
         // 1. AMBIL DATA KELAS DARI VARIABLE GLOBAL (yang diload data-kelas.js)
