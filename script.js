@@ -1226,6 +1226,87 @@ window.renderAttendanceList = function() {
             }
         
             btn.textContent = uiBtn.label;
+
+            let pressTimer;
+
+bClone.addEventListener(
+    'mousedown',
+    () => {
+
+        pressTimer =
+            setTimeout(() => {
+
+                window.showStatusPicker(
+                    id,
+                    act.id,
+                    act.type
+                );
+
+            }, 500);
+
+    }
+);
+
+bClone.addEventListener(
+    'mouseup',
+    () => {
+
+        clearTimeout(
+            pressTimer
+        );
+
+    }
+);
+
+bClone.addEventListener(
+    'mouseleave',
+    () => {
+
+        clearTimeout(
+            pressTimer
+        );
+
+    }
+);
+
+bClone.onclick = () => {
+
+    window.toggleStatus(
+        id,
+        act.id,
+        act.type
+    );
+
+};
+
+            bClone.addEventListener(
+    'touchstart',
+    () => {
+
+        pressTimer =
+            setTimeout(() => {
+
+                window.showStatusPicker(
+                    id,
+                    act.id,
+                    act.type
+                );
+
+            }, 600);
+
+    }
+);
+
+bClone.addEventListener(
+    'touchend',
+    () => {
+
+        clearTimeout(
+            pressTimer
+        );
+
+    }
+);
             
             // Click Handler
             btn.onclick = (e) => {
