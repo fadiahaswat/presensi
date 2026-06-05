@@ -379,6 +379,41 @@ window.getPembinaanStatus = function(alpaCount) {
     return PEMBINAAN_RULES.find(r => alpaCount >= r.min && alpaCount <= r.max) || PEMBINAAN_RULES[PEMBINAAN_RULES.length - 1];
 };
 
+window.getCachedLocation =
+function(){
+
+    try{
+
+        const cache =
+            JSON.parse(
+                localStorage.getItem(
+                    GPS_CACHE_KEY
+                )
+            );
+
+        if(!cache)
+            return null;
+
+        const age =
+            Date.now() -
+            cache.timestamp;
+
+        if(
+            age >
+            GPS_CACHE_DURATION
+        ){
+            return null;
+        }
+
+        return cache;
+
+    }catch{
+
+        return null;
+
+    }
+
+};
 // ==========================================
 // 1. INIT & STARTUP
 // ==========================================
