@@ -293,9 +293,20 @@ window.handleGoogleCallback = function(response) {
             return window.showToast("Admin belum mendaftarkan email untuk kelas ini.", "warning");
         }
 
-        // Bandingkan (kecilkan huruf biar aman)
-        if (classInfo.email.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
-            return window.showToast("AKSES DITOLAK! Email Anda tidak terdaftar untuk kelas ini.", "error");
+        const allowedEmails = String(classInfo.email || "")
+            .split(/[;,]/)
+            .map(e => e.trim().toLowerCase())
+            .filter(Boolean);
+        
+        const normalizedUserEmail = String(userEmail || "")
+            .trim()
+            .toLowerCase();
+        
+        if (!allowedEmails.includes(normalizedUserEmail)) {
+            return window.showToast(
+                "AKSES DITOLAK! Email Anda tidak terdaftar untuk kelas ini.",
+                "error"
+            );
         }
 
         // 3. JIKA LOLOS -> SIMPAN SESI
