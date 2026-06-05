@@ -25,7 +25,7 @@ window.addEventListener('beforeunload', () => {
 const APP_CONFIG = {
     storageKey: 'musyrif_app_v5_fix',
     permitKey: 'musyrif_permits_db',
-    pinDefault: null,
+    pinDefault: 1234,
     activityLogKey: 'musyrif_activity_log',
     settingsKey: 'musyrif_settings',
     googleAuthKey: 'musyrif_google_session',
