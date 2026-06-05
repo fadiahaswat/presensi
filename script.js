@@ -5025,5 +5025,44 @@ window.isDateAccessible = function(dateStr){
 
 };
 
+window.getDayCompletionStatus = function(dateStr){
+
+    let requiredSlots = 0;
+    let completedSlots = 0;
+
+    Object.values(SLOT_WAKTU).forEach(slot => {
+
+        if(
+            window.isSlotHoliday(
+                slot.id,
+                dateStr
+            )
+        ){
+            return;
+        }
+
+        requiredSlots++;
+
+        const completion =
+            window.getSlotCompletionStatus(
+                slot.id,
+                dateStr
+            );
+
+        if(completion.complete){
+            completedSlots++;
+        }
+
+    });
+
+    return {
+        requiredSlots,
+        completedSlots,
+        complete:
+            requiredSlots > 0 &&
+            completedSlots >= requiredSlots
+    };
+};
+
 // Start App
 window.onload = window.initApp;
