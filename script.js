@@ -717,6 +717,10 @@ window.updateProfileInfo = function() {
             }
         }
 
+        if(window.lucide){
+            lucide.createIcons();
+        }
+
         if(elName) elName.textContent = musyrifName;
         if(elRoleTab) elRoleTab.textContent = `Musyrif ${className}`;
 
