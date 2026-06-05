@@ -663,6 +663,8 @@ window.updateProfileInfo = function() {
     const elHeaderName = document.getElementById('header-user-name');
     const elHeaderRole = document.getElementById('profile-role');
     const elHeaderAvatar = document.getElementById('header-avatar');
+    const elProfileAvatar =
+    document.getElementById('profile-avatar');
     
     const elName = document.getElementById('profile-name');
     const elRoleTab = document.getElementById('profile-role-tab');
@@ -694,6 +696,24 @@ window.updateProfileInfo = function() {
                     .toUpperCase();
         
                 elHeaderAvatar.textContent = initials;
+            }
+        }
+
+        if(elProfileAvatar) {
+            const photoUrl = appState.userProfile?.picture;
+        
+            if(photoUrl) {
+                elProfileAvatar.innerHTML = `
+                    <img
+                        src="${photoUrl}"
+                        alt="Avatar"
+                        class="w-full h-full object-cover"
+                    >
+                `;
+            } else {
+                elProfileAvatar.innerHTML = `
+                    <i data-lucide="user" class="w-10 h-10"></i>
+                `;
             }
         }
 
