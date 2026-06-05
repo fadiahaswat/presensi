@@ -838,9 +838,16 @@ window.getSlotCompletionStatus = function(
 
         totalSantri++;
 
-        if(slotData[id]){
-            filledSantri++;
-        }
+        const status =
+    window.getAttendanceStatus(
+        id,
+        slotId,
+        dateStr
+    );
+
+if(status){
+    filledSantri++;
+}
 
     });
 
