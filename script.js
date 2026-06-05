@@ -3087,32 +3087,32 @@ window.renderTimesheetCalendar = function() {
 
     if(dateStr > today){
 
-        status = 'future';
+    status = 'future';
 
-    }
-    else if(dateStr === today){
+}
+else if(dateStr === today){
 
-        status = 'today';
+    status = 'today';
 
-    }
-    else if(
-        requiredSlots > 0 &&
-        completedSlots >= requiredSlots
-    ){
+}
+else if(
+    requiredSlots > 0 &&
+    completedSlots === requiredSlots
+){
 
-        status = 'completed';
+    status = 'completed';
 
-    }
-    else if(diffDays <= 3){
+}
+else if(progressSlots > 0){
 
-        status = 'partial';
+    status = 'partial';
 
-    }
-    else{
+}
+else{
 
-        status = 'locked';
+    status = 'locked';
 
-    }
+}
 
     if(status === 'completed')
     monthlyComplete++;
