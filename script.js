@@ -816,6 +816,46 @@ window.calculateSlotStats = function(slotId, customDate = null) {
     return stats;
 };
 
+window.getSlotCompletionStatus = function(
+    slotId,
+    dateStr
+){
+    const slotData =
+        appState.attendanceData?.[dateStr]?.[slotId];
+
+    if(!slotData){
+        return {
+            total: 0,
+            filled: 0,
+            complete: false
+        };
+    }
+
+    let totalSantri = 0;
+    let filledSantri = 0;
+
+    FILTERED_SANTRI.forEach(s => {
+
+        const id = String(
+            s.nis || s.id
+        );
+
+        totalSantri++;
+
+        if(slotData[id]){
+            filledSantri++;
+        }
+
+    });
+
+    return {
+        total: totalSantri,
+        filled: filledSantri,
+        complete:
+            filledSantri === totalSantri
+    };
+};
+
 window.getAttendanceStatus = function(
     santriId,
     slotId,
