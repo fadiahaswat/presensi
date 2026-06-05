@@ -1228,13 +1228,18 @@ window.renderAttendanceList = function() {
             btn.textContent = uiBtn.label;
 
             let pressTimer;
+let longPressed = false;
 
 bClone.addEventListener(
     'mousedown',
     () => {
 
+        longPressed = false;
+
         pressTimer =
             setTimeout(() => {
+
+                longPressed = true;
 
                 window.showStatusPicker(
                     id,
@@ -1251,9 +1256,7 @@ bClone.addEventListener(
     'mouseup',
     () => {
 
-        clearTimeout(
-            pressTimer
-        );
+        clearTimeout(pressTimer);
 
     }
 );
@@ -1262,21 +1265,70 @@ bClone.addEventListener(
     'mouseleave',
     () => {
 
-        clearTimeout(
-            pressTimer
-        );
+        clearTimeout(pressTimer);
 
     }
 );
 
-bClone.onclick = () => {
+bClone.addEventListener(
+    'touchstart',
+    () => {
+
+        longPressed = false;
+
+        pressTimer =
+            setTimeout(() => {
+
+                longPressed = true;
+
+                window.showStatusPicker(
+                    id,
+                    act.id,
+                    act.type
+                );
+
+            }, 600);
+
+    }
+);
+
+bClone.addEventListener(
+    'touchend',
+    () => {
+
+        clearTimeout(pressTimer);
+
+    }
+);
+
+btn.onclick = (e) => {
+
+    e.stopPropagation();
+
+    if(longPressed){
+        longPressed = false;
+        return;
+    }
+
+    if (hasPermitConflict) {
+
+        if(!confirm(
+            `Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`
+        )) return;
+
+        if(
+            sData.note &&
+            sData.note.includes('[Auto]')
+        ){
+            sData.note = '';
+        }
+    }
 
     window.toggleStatus(
         id,
         act.id,
         act.type
     );
-
 };
 
             bClone.addEventListener(
