@@ -961,7 +961,7 @@ window.openAttendance = async function() {
     // 2. CEK LOKASI (LOGIC BARU)
     if (GEO_CONFIG.useGeofencing) {
         try {
-            await window.verifyLocation();
+            await window.verifyLocationCached();
             window.showToast("Lokasi Terverifikasi ✅", "success");
         } catch (errorMsg) {
             window.showToast("🚫 Akses Ditolak: " + errorMsg, "error");
