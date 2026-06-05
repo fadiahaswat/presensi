@@ -4521,17 +4521,17 @@ window.renderSchoolStatsWidget = function() {
         if (presentPercent > 100) presentPercent = 100; // Proteksi maksimal 100%
     }
 
-    const fillEl = document.getElementById('school-progress-fill');
-    const textEl = document.getElementById('school-progress-text');
+    const fillEl = document.getElementById('school-progress-bar');
+    const textEl = document.getElementById('school-pct-badge');
     
     if (fillEl) fillEl.style.width = `${presentPercent}%`;
     if (textEl) textEl.textContent = `${presentPercent}%`;
 
     // Update angka-angka rekap
-    const hEl = document.getElementById('school-stat-h');
-    const sEl = document.getElementById('school-stat-s');
-    const iEl = document.getElementById('school-stat-i');
-    const aEl = document.getElementById('school-stat-a');
+    const hEl = document.getElementById('sch-stat-h');
+    const sEl = document.getElementById('sch-stat-s');
+    const iEl = document.getElementById('sch-stat-i');
+    const aEl = document.getElementById('sch-stat-a');
 
     if(hEl) hEl.textContent = stats.h;
     if(sEl) sEl.textContent = stats.s;
