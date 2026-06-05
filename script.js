@@ -5109,7 +5109,7 @@ window.verifyLocationCached = async function() {
         return true;
     }
 
-    await window.verifyLocation();
+    await window.verifyLocationCached();
 
     localStorage.setItem(
         GPS_CACHE_KEY,
