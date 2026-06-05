@@ -68,6 +68,26 @@ window.initApp = async function() {
             if(savedAuth) {
                 try {
                     const authData = JSON.parse(savedAuth);
+                    const LOGIN_MAX_AGE =
+    14 * 24 * 60 * 60 * 1000;
+
+const loginTime =
+    new Date(
+        authData.timestamp
+    ).getTime();
+
+if(
+    !loginTime ||
+    (
+        Date.now() -
+        loginTime
+    ) > LOGIN_MAX_AGE
+){
+    throw new Error(
+        'Sesi login kadaluarsa'
+    );
+}
+                    
                     if(authData?.profile?.authProvider === 'testing' && window.getAuthMode && window.getAuthMode() !== 'testing') {
                         throw new Error("Sesi testing dinonaktifkan karena aplikasi berjalan di mode production.");
                     }
