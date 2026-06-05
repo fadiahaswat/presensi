@@ -3113,6 +3113,15 @@ window.renderTimesheetCalendar = function() {
 
     }
 
+    if(status === 'completed')
+    monthlyComplete++;
+
+if(status === 'partial')
+    monthlyPartial++;
+
+if(status === 'locked')
+    monthlyLocked++;
+
     let bgColor = '';
     let textColor = '';
         
