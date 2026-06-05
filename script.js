@@ -1321,6 +1321,23 @@ window.renderAttendanceList = function() {
         }
     }
 
+    const initializedCount =
+    FILTERED_SANTRI.filter(s => {
+
+        const id =
+            String(s.nis || s.id);
+
+        return dbSlot[id];
+
+    }).length;
+
+if(
+    initializedCount ===
+    FILTERED_SANTRI.length
+){
+    window.saveData();
+}
+
     if(hasAutoChanges) window.saveData(); 
     if(window.refreshIcons) window.refreshIcons();
 };
