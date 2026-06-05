@@ -68,3 +68,73 @@ body { -webkit-tap-highlight-color: transparent; }
 
 /* Progress Bar Transition */
 .progress-bar { transition: width 0.5s ease-in-out; }
+
+#status-radial-menu{
+    width:160px;
+    height:160px;
+    pointer-events:none;
+}
+
+#status-radial-menu.active{
+    pointer-events:auto;
+}
+
+.radial-btn{
+
+    position:absolute;
+
+    width:46px;
+    height:46px;
+
+    border-radius:9999px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-weight:700;
+
+    color:#fff;
+
+    box-shadow:
+        0 8px 24px rgba(0,0,0,.18);
+
+    transition:.2s;
+}
+
+.radial-btn:hover{
+    transform:scale(1.1);
+}
+
+.radial-top{
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    background:#f59e0b;
+}
+
+.radial-left{
+    top:50%;
+    left:0;
+    transform:translateY(-50%);
+    background:#3b82f6;
+}
+
+.radial-right{
+    top:50%;
+    right:0;
+    transform:translateY(-50%);
+    background:#22c55e;
+}
+
+.radial-bottom-left{
+    bottom:0;
+    left:20%;
+    background:#64748b;
+}
+
+.radial-bottom-right{
+    bottom:0;
+    right:20%;
+    background:#ef4444;
+}
