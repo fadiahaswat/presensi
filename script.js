@@ -3806,6 +3806,14 @@ window.showStatDetails = function(statusType) {
     const list = FILTERED_SANTRI.filter(s => {
         const id = String(s.nis || s.id);
         const data = slotData[id];
+
+        if(
+            data &&
+            data.status &&
+            Object.keys(data.status).length > 0
+        ){
+            filledSantri++;
+        }
         
         // Cek status Shalat (Utama)
         const currentStatus = data?.status?.[mainActId]; // <-- PERBAIKAN DI SINI
