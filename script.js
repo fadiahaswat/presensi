@@ -812,7 +812,6 @@ window.calculateSlotStats = function(slotId, customDate = null) {
         const status = slotData[id]?.status?.[mainAct.id]; 
         
         if (status) {
-            stats.isFilled = true;
             if (status === 'Hadir' || status === 'Telat') stats.h++; 
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin' || status === 'Pulang') stats.i++;
@@ -820,7 +819,14 @@ window.calculateSlotStats = function(slotId, customDate = null) {
             stats.total++; // Ini jumlah anak yang SUDAH diabsen
         }
     });
-    
+    const completion =
+    window.getSlotCompletionStatus(
+        slotId,
+        dateKey
+    );
+
+stats.isFilled =
+    completion.complete;
     return stats;
 };
 
