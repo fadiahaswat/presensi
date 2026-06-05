@@ -3174,7 +3174,10 @@ window.renderTimesheetCalendar = function() {
         }
     `;
 
-    if(status !== 'future') {
+    if(
+    status !== 'future' &&
+    status !== 'locked'
+) {
 
         div.onclick = () => {
 
