@@ -1363,11 +1363,23 @@ window.toggleStatus = function(id, actId, type) {
     if(type === 'mandator') {
         // SIKLUS UNIVERSAL (Sekolah & Shalat sama-sama bisa Telat)
         // Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
-        if(curr === 'Hadir') next = 'Telat';
-        else if(curr === 'Telat') next = 'Sakit'; // <-- Masbuk/Telat
-        else if(curr === 'Sakit') next = 'Izin';
-        else if(curr === 'Izin') next = 'Alpa';
-        else next = 'Hadir';
+        if(curr === 'Hadir')
+    next = 'Alpa';
+
+else if(curr === 'Alpa')
+    next = 'Sakit';
+
+else if(curr === 'Sakit')
+    next = 'Izin';
+
+else if(curr === 'Izin')
+    next = 'Pulang';
+
+else if(curr === 'Pulang')
+    next = 'Telat';
+
+else
+    next = 'Hadir';
     } else {
         // Siklus Sunnah: Ya -> Tidak -> Ya
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
