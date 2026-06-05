@@ -1584,43 +1584,110 @@ return;
     
 };
 
-window.showStatusPicker =
+windowwindow.showStatusPicker =
 function(
     santriId,
     actId,
-    type
+    btn
 ){
 
-    const status =
-        prompt(
-            'Pilih:\nT = Telat\nS = Sakit\nI = Izin\nP = Pulang'
+    const menu =
+        document.getElementById(
+            'status-radial-menu'
         );
 
-    if(!status) return;
+    const rect =
+        btn.getBoundingClientRect();
 
-    const map = {
-        T:'Telat',
-        S:'Sakit',
-        I:'Izin',
-        P:'Pulang'
-    };
+    menu.style.left =
+        `${rect.left - 55}px`;
 
-    const selected =
-        map[
-            status
-            .trim()
-            .toUpperCase()
-        ];
+    menu.style.top =
+        `${rect.top - 55}px`;
 
-    if(!selected) return;
+    menu.dataset.santriId =
+        santriId;
 
-    window.setAttendanceStatus(
-        santriId,
-        actId,
-        selected
+    menu.dataset.actId =
+        actId;
+
+    menu.classList.remove(
+        'hidden'
     );
 
+    menu.classList.add(
+        'active'
+    );
 };
+
+document
+.querySelectorAll(
+    '#status-radial-menu button'
+)
+.forEach(btn => {
+
+    btn.addEventListener(
+        'click',
+        () => {
+
+            const menu =
+                document.getElementById(
+                    'status-radial-menu'
+                );
+
+            const santriId =
+                menu.dataset.santriId;
+
+            const actId =
+                menu.dataset.actId;
+
+            const status =
+                btn.dataset.status;
+
+            window.setAttendanceStatus(
+                santriId,
+                actId,
+                status
+            );
+
+            menu.classList.remove(
+                'active'
+            );
+
+            menu.classList.add(
+                'hidden'
+            );
+
+        }
+    );
+
+});
+
+document.addEventListener(
+    'click',
+    (e) => {
+
+        const menu =
+            document.getElementById(
+                'status-radial-menu'
+            );
+
+        if(
+            !menu.contains(e.target)
+        ){
+
+            menu.classList.remove(
+                'active'
+            );
+
+            menu.classList.add(
+                'hidden'
+            );
+
+        }
+
+    }
+);
 
 // Fungsi untuk membuka Modal Menu Bulk (Akan dipanggil dari HTML)
 window.openBulkMenu = function() {
