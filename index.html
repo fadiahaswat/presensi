@@ -1109,87 +1109,76 @@
 
 <div class="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 font-sans">
 
-    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+    <div class="flex items-center justify-between w-full mb-6 gap-3">
+    
+    <button
+        onclick="window.goToToday()"
+        class="flex items-center justify-center px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl transition-all shadow-sm dark:text-slate-200 dark:bg-slate-800 dark:border-slate-600 dark:hover:bg-slate-700 flex-shrink-0"
+        title="Kembali ke Hari Ini"
+    >
+        <i data-lucide="calendar-days" class="w-4 h-4 mr-2"></i>
+        Hari Ini
+    </button>
+
+    <div class="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm p-0.5">
         
-        <div class="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            
-            <button
-                onclick="window.goToToday()"
-                class="flex items-center justify-center px-3.5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-xl transition-all shadow-sm dark:text-slate-200 dark:bg-slate-800 dark:border-slate-600 dark:hover:bg-slate-700 flex-shrink-0"
-                title="Kembali ke Hari Ini"
+        <button
+            onclick="window.changeTimesheetMonth(-1)"
+            class="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        >
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+
+        <div class="relative px-2 sm:px-4 flex items-center justify-center min-w-[120px] sm:min-w-[140px]">
+            <h4
+                id="timesheet-month-label"
+                class="font-bold text-sm text-slate-800 dark:text-slate-200 text-center whitespace-nowrap"
             >
-                <i data-lucide="calendar-days" class="w-4 h-4 mr-2"></i>
-                Hari Ini
-            </button>
-
-            <div class="flex items-center flex-1 sm:flex-none justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm p-0.5">
-                <button
-                    onclick="window.changeTimesheetMonth(-1)"
-                    class="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                >
-                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                </button>
-
-                <div class="relative px-2 flex items-center justify-center w-full sm:w-[130px]">
-                    <h4
-                        id="timesheet-month-label"
-                        class="font-bold text-sm text-slate-800 dark:text-slate-200 text-center whitespace-nowrap"
-                    >
-                        Januari 2026
-                    </h4>
-                    <input
-                        type="month"
-                        id="timesheet-month-picker"
-                        onchange="window.setTimesheetMonth(this.value)"
-                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    >
-                </div>
-
-                <button
-                    onclick="window.changeTimesheetMonth(1)"
-                    class="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                >
-                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                </button>
-            </div>
+                Januari 2026
+            </h4>
+            <input
+                type="month"
+                id="timesheet-month-picker"
+                onchange="window.setTimesheetMonth(this.value)"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            >
         </div>
 
-        <div class="w-full sm:w-auto mt-1 sm:mt-0">
-            <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 rounded-full border border-indigo-100 dark:border-indigo-500/20">
-                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                Monitoring Bulan Ini
-            </span>
-        </div>
+        <button
+            onclick="window.changeTimesheetMonth(1)"
+            class="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        >
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
     </div>
+    
+</div>
 
     <div
-        id="timesheet-summary"
-        class="grid grid-cols-3 gap-2 sm:gap-4 mb-6"
-    >
-        <div class="flex flex-col items-center justify-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50">
-            <div class="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center mb-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-            </div>
-            <span class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Selesai</span>
-            <span id="ts-complete-count" class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white mt-0.5">0</span>
-        </div>
-
-        <div class="flex flex-col items-center justify-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50">
-            <div class="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center mb-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            </div>
-            <span class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Sebagian</span>
-            <span id="ts-partial-count" class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white mt-0.5">0</span>
-        </div>
-
-        <div class="flex flex-col items-center justify-center p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50">
-            <div class="w-6 h-6 rounded-full bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center mb-1.5">
-                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-            </div>
-            <span class="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Terkunci</span>
-            <span id="ts-locked-count" class="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white mt-0.5">0</span>
-        </div>
+    id="timesheet-summary"
+    class="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-6"
+>
+    <div class="flex items-center gap-2 px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-full border border-slate-200 dark:border-slate-700/60 shadow-sm transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"></span>
+        <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Selesai</span>
+        <div class="w-[1px] h-3 bg-slate-300 dark:bg-slate-600 mx-0.5"></div>
+        <span id="ts-complete-count" class="text-sm font-black text-slate-800 dark:text-white">0</span>
     </div>
+
+    <div class="flex items-center gap-2 px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-full border border-slate-200 dark:border-slate-700/60 shadow-sm transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]"></span>
+        <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Sebagian</span>
+        <div class="w-[1px] h-3 bg-slate-300 dark:bg-slate-600 mx-0.5"></div>
+        <span id="ts-partial-count" class="text-sm font-black text-slate-800 dark:text-white">0</span>
+    </div>
+
+    <div class="flex items-center gap-2 px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-full border border-slate-200 dark:border-slate-700/60 shadow-sm transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
+        <span class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]"></span>
+        <span class="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Terkunci</span>
+        <div class="w-[1px] h-3 bg-slate-300 dark:bg-slate-600 mx-0.5"></div>
+        <span id="ts-locked-count" class="text-sm font-black text-slate-800 dark:text-white">0</span>
+    </div>
+</div>
 
     <div class="bg-white dark:bg-slate-800 rounded-xl">
         
