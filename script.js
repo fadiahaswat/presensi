@@ -440,6 +440,54 @@ window.updateLocationStatus = function() {
     }
     
     if(card) card.classList.remove('hidden');
+
+    const cached =
+    window.getCachedLocation();
+
+if(cached){
+
+    const elLoading =
+        document.getElementById(
+            'loc-loading'
+        );
+
+    const elDetails =
+        document.getElementById(
+            'loc-details'
+        );
+
+    const elNearest =
+        document.getElementById(
+            'loc-nearest-name'
+        );
+
+    const elDistance =
+        document.getElementById(
+            'loc-distance'
+        );
+
+    if(elLoading)
+        elLoading.classList.add(
+            'hidden'
+        );
+
+    if(elDetails)
+        elDetails.classList.remove(
+            'hidden'
+        );
+
+    if(elNearest)
+        elNearest.textContent =
+            cached.locationName;
+
+    if(elDistance)
+        elDistance.textContent =
+            Math.round(
+                cached.distance
+            ) + 'm';
+
+    return;
+}
     
     // Ambil Elemen UI
     const elLoading = document.getElementById('loc-loading');
