@@ -3033,87 +3033,161 @@ window.renderTimesheetCalendar = function() {
     }
 
     // Date cells
-    for(let d=1; d<=totalDays; d++) {
-        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        
-        // PERBAIKAN: Hitung secara akurat berapa jumlah sesi WAJIB di hari tersebut
-        let requiredSlots = 0;
-        let filledSlots = 0;
-        
-        Object.values(SLOT_WAKTU).forEach(slot => {
-            // Cuma hitung slot yang TIDAK libur di tanggal ini
-            if (!window.isSlotHoliday(slot.id, dateStr)) {
-                requiredSlots++;
-                const sStats = window.calculateSlotStats(slot.id, dateStr);
-                if (sStats.isFilled) filledSlots++;
+    for(let d = 1; d <= totalDays; d++) {
+
+    const dateStr =
+        `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+    const today =
+        window.getLocalDateStr();
+
+    const diffDays =
+        Math.floor(
+            (
+                new Date(today) -
+                new Date(dateStr)
+            ) / 86400000
+        );
+
+    let requiredSlots = 0;
+    let completedSlots = 0;
+
+    Object.values(SLOT_WAKTU).forEach(slot => {
+
+        if(window.isSlotHoliday(slot.id, dateStr))
+            return;
+
+        requiredSlots++;
+
+        const slotData =
+            appState.attendanceData?.[dateStr]?.[slot.id];
+
+        let totalSantri = 0;
+        let processedSantri = 0;
+
+        FILTERED_SANTRI.forEach(s => {
+
+            const santriId =
+                String(s.nis || s.id);
+
+            totalSantri++;
+
+            if(slotData?.[santriId]) {
+                processedSantri++;
             }
+
         });
 
-        const today =
-            window.getLocalDateStr();
-        
-        let status = '';
-        if(dateStr > today){
-            status = 'future';
+        if(
+            totalSantri > 0 &&
+            processedSantri === totalSantri
+        ){
+            completedSlots++;
         }
-        else if(dateStr === today){
-            status = 'today';
-        }
-        else{
-            if(requiredSlots === 0){
-                status = 'completed';
-            }
-            else if(filledSlots === 0){
-                status = 'missed';
-            }
-            else if(filledSlots < requiredSlots){
-                status = 'partial';
-            }
-            else{
-                status = 'completed';
-            }
-        }
-        
-        // Style
-        let bgClass = '';
-        switch(status){
-            case 'missed':
-                bgClass =
+
+    });
+
+    let status = '';
+
+    if(dateStr > today){
+
+        status = 'future';
+
+    }
+    else if(dateStr === today){
+
+        status = 'today';
+
+    }
+    else if(
+        requiredSlots > 0 &&
+        completedSlots >= requiredSlots
+    ){
+
+        status = 'completed';
+
+    }
+    else if(diffDays <= 3){
+
+        status = 'partial';
+
+    }
+    else{
+
+        status = 'locked';
+
+    }
+
+    let bgClass = '';
+
+    switch(status){
+
+        case 'locked':
+            bgClass =
                 'bg-red-500 text-white';
-                break;
-            case 'partial':
-                bgClass =
+            break;
+
+        case 'partial':
+            bgClass =
                 'bg-amber-400 text-white';
-                break;
-            case 'completed':
-                bgClass =
+            break;
+
+        case 'completed':
+            bgClass =
                 'bg-emerald-500 text-white';
-                break;
-            case 'today':
-                bgClass =
+            break;
+
+        case 'today':
+            bgClass =
                 'bg-sky-500 text-white';
-                break;
-            case 'future':
-                bgClass =
+            break;
+
+        case 'future':
+            bgClass =
                 'bg-slate-200 text-slate-500';
-                break;
+            break;
+
+    }
+
+    const isToday =
+        dateStr === today;
+
+    const borderClass =
+        isToday
+        ? 'ring-2 ring-indigo-500 ring-offset-2'
+        : '';
+
+    const div =
+        document.createElement('div');
+
+    div.className =
+        `aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all hover:scale-110 cursor-pointer ${bgClass} ${borderClass}`;
+
+    div.innerHTML = `
+        <span>${d}</span>
+        ${
+            status === 'today'
+            ? `<span class="text-[9px] opacity-90">
+                    ${completedSlots}/${requiredSlots}
+               </span>`
+            : ''
         }
+    `;
 
-        // Highlight Hari Ini
-        const isToday = (dateStr === window.getLocalDateStr());
-        const borderClass = isToday ? 'ring-2 ring-indigo-500 ring-offset-2' : '';
+    if(status !== 'future') {
 
-        const div = document.createElement('div');
-        div.className = `aspect-square flex items-center justify-center rounded-xl text-xs font-bold transition-all hover:scale-110 cursor-pointer ${bgClass} ${borderClass}`;
-        div.textContent = d;
         div.onclick = () => {
-            // Klik tanggal di kalender -> Pindah tanggal dashboard
+
             window.handleDateChange(dateStr);
             window.switchTab('home');
+
         };
 
-        container.appendChild(div);
     }
+
+    container.appendChild(div);
+
+}
 };
 
 window.changeTimesheetMonth = function(direction) {
