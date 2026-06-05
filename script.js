@@ -2342,14 +2342,6 @@ window.startClock = function() {
     clockInterval = setInterval(updateClock, 1000);
 };
 
-window.handleGantiPin = function() {
-    const p = prompt("PIN Baru:");
-    if(p) {
-        localStorage.setItem(window.APP_CONSTANTS.pinKey, p);
-        alert("PIN Tersimpan");
-    }
-};
-
 window.printReport = function() { window.print(); };
 
 // ==========================================
