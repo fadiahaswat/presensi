@@ -762,6 +762,57 @@ window.calculateSlotStats = function(slotId, customDate = null) {
     return stats;
 };
 
+window.getAttendanceStatus = function(
+    santriId,
+    slotId,
+    customDate = null
+) {
+    try {
+        const dateKey = customDate || appState.date;
+
+        const slotData =
+            appState.attendanceData?.[dateKey]?.[slotId];
+
+        if (!slotData) return null;
+
+        const dayNum = new Date(dateKey).getDay();
+
+        const slotConfig = SLOT_WAKTU[slotId];
+
+        if (!slotConfig) return null;
+
+        const mainAct = slotConfig.activities.find(act => {
+            if (
+                act.showOnDays &&
+                !act.showOnDays.includes(dayNum)
+            ) return false;
+
+            if (
+                act.onlyRamadhan &&
+                !window.isRamadhan(dateKey)
+            ) return false;
+
+            return true;
+        });
+
+        if (!mainAct) return null;
+
+        const id = String(santriId);
+
+        return (
+            slotData[id]?.status?.[mainAct.id] ||
+            null
+        );
+
+    } catch (err) {
+        console.error(
+            "getAttendanceStatus error:",
+            err
+        );
+        return null;
+    }
+};
+
 // Global Percentage (Untuk Chart)
 window.calculateGlobalStats = function() {
     if(!appState.selectedClass) return 0;
