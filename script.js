@@ -201,8 +201,6 @@ window.startAuthenticatedSession = function(targetClass, profile) {
 
 window.handleLogin = async function() {
     const kelas = document.getElementById('login-kelas').value;
-    const pin = document.getElementById('login-pin').value;
-    const savedPin = localStorage.getItem(window.APP_CONSTANTS.pinKey) || APP_CONFIG.pinDefault;
     const authMode = window.getAuthMode();
 
     if(!kelas) return alert("Pilih kelas dulu!");
