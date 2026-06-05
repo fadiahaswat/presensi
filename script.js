@@ -3161,8 +3161,20 @@ window.renderTimesheetCalendar = function() {
         document.createElement('div');
 
     div.className =
-        `aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all hover:scale-110 cursor-pointer ${bgClass} ${borderClass}`;
-
+`
+aspect-square
+flex
+flex-col
+items-center
+justify-center
+rounded-xl
+text-xs
+font-bold
+transition-all
+hover:scale-110
+cursor-pointer
+${borderClass}
+`;
     div.style.backgroundColor = bgColor;
     div.style.color = textColor;
 
