@@ -627,7 +627,19 @@ window.renderSlotList = function() {
             let percent = 0;
             
             if (totalSiswa > 0) {
-                percent = Math.round((stats.total / totalSiswa) * 100);
+                const completion =
+    window.getSlotCompletionStatus(
+        s.id,
+        appState.date
+    );
+
+percent =
+Math.round(
+    (
+        completion.filled /
+        totalSiswa
+    ) * 100
+);
                 if (percent > 100) percent = 100; 
             }
             
