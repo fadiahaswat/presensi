@@ -3118,36 +3118,36 @@ window.renderTimesheetCalendar = function() {
 
     }
 
-    let bgClass = '';
-
+    let bgColor = '';
+    let textColor = '';
+        
     switch(status){
 
-        case 'locked':
-            bgClass =
-                'bg-red-500 text-white';
-            break;
+    case 'locked':
+        bgColor = '#ef4444';
+        textColor = '#fff';
+        break;
 
-        case 'partial':
-            bgClass =
-                'bg-amber-400 text-white';
-            break;
+    case 'partial':
+        bgColor = '#fbbf24';
+        textColor = '#fff';
+        break;
 
-        case 'completed':
-            bgClass =
-                'bg-emerald-500 text-white';
-            break;
+    case 'completed':
+        bgColor = '#10b981';
+        textColor = '#fff';
+        break;
 
-        case 'today':
-            bgClass =
-                'bg-sky-500 text-white';
-            break;
+    case 'today':
+        bgColor = '#0ea5e9';
+        textColor = '#fff';
+        break;
 
-        case 'future':
-            bgClass =
-                'bg-slate-200 text-slate-500';
-            break;
-
-    }
+    case 'future':
+        bgColor = '#e2e8f0';
+        textColor = '#64748b';
+        break;
+}
 
     const isToday =
         dateStr === today;
@@ -3162,6 +3162,9 @@ window.renderTimesheetCalendar = function() {
 
     div.className =
         `aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-bold transition-all hover:scale-110 cursor-pointer ${bgClass} ${borderClass}`;
+
+    div.style.backgroundColor = bgColor;
+    div.style.color = textColor;
 
     div.innerHTML = `
         <span>${d}</span>
