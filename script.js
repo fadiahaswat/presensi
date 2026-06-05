@@ -601,7 +601,7 @@ if(cached){
                 elError.innerHTML = `<p class="text-[10px] font-bold text-red-500 leading-tight">${msg}</p>`;
             }
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: GPS_CACHE_DURATION }
     );
 };
 
