@@ -812,6 +812,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
         const status = slotData[id]?.status?.[mainAct.id]; 
         
         if (status) {
+            stats.isFilled = true;
             if (status === 'Hadir' || status === 'Telat') stats.h++; 
             else if (status === 'Sakit') stats.s++;
             else if (status === 'Izin' || status === 'Pulang') stats.i++;
@@ -819,14 +820,7 @@ window.calculateSlotStats = function(slotId, customDate = null) {
             stats.total++; // Ini jumlah anak yang SUDAH diabsen
         }
     });
-    const completion =
-    window.getSlotCompletionStatus(
-        slotId,
-        dateKey
-    );
-
-stats.isFilled =
-    completion.complete;
+    
     return stats;
 };
 
@@ -1232,111 +1226,17 @@ window.renderAttendanceList = function() {
             }
         
             btn.textContent = uiBtn.label;
-
-            let pressTimer;
-let longPressed = false;
-
-btn.addEventListener(
-    'mousedown',
-    () => {
-
-        longPressed = false;
-
-        pressTimer =
-            setTimeout(() => {
-
-                longPressed = true;
-
-                window.showStatusPicker(
-    id,
-    act.id,
-    btn
-);
-
-            }, 500);
-
-    }
-);
-
-btn.addEventListener(
-    'mouseup',
-    () => {
-
-        clearTimeout(pressTimer);
-
-    }
-);
-
-btn.addEventListener(
-    'mouseleave',
-    () => {
-
-        clearTimeout(pressTimer);
-
-    }
-);
-
-btn.addEventListener(
-    'touchstart',
-    () => {
-
-        longPressed = false;
-
-        pressTimer =
-            setTimeout(() => {
-
-                longPressed = true;
-
-                window.showStatusPicker(
-    id,
-    act.id,
-    btn
-);
-
-            }, 600);
-
-    }
-);
-
-btn.addEventListener(
-    'touchend',
-    () => {
-
-        clearTimeout(pressTimer);
-
-    }
-);
-
-btn.onclick = (e) => {
-
-    e.stopPropagation();
-
-    if(longPressed){
-        longPressed = false;
-        return;
-    }
-
-    if (hasPermitConflict) {
-
-        if(!confirm(
-            `Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`
-        )) return;
-
-        if(
-            sData.note &&
-            sData.note.includes('[Auto]')
-        ){
-            sData.note = '';
-        }
-    }
-
-    window.toggleStatus(
-        id,
-        act.id,
-        act.type
-    );
-};
-                                  
+            
+            // Click Handler
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if (hasPermitConflict) {
+                    if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
+                    if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
+                }
+                window.toggleStatus(id, act.id, act.type);
+            };
+            
             // LABEL - Compact typography
             lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             lbl.textContent = act.label;
@@ -1446,107 +1346,6 @@ if(
 // PERBAIKAN FUNGSI TOGGLE STATUS
 // ==========================================
 
-window.setAttendanceStatus = function(
-    santriId,
-    actId,
-    newStatus
-){
-
-    const slotId =
-        appState.currentSlotId;
-
-    const dateKey =
-        appState.date;
-
-    if(!appState.attendanceData[dateKey])
-        appState.attendanceData[dateKey] = {};
-
-    if(!appState.attendanceData[dateKey][slotId])
-        appState.attendanceData[dateKey][slotId] = {};
-
-    if(!appState.attendanceData[dateKey][slotId][santriId])
-        appState.attendanceData[dateKey][slotId][santriId] = {
-            status:{},
-            note:''
-        };
-
-    const sData =
-        appState.attendanceData
-        [dateKey]
-        [slotId]
-        [santriId];
-
-    sData.status[actId] = newStatus;
-
-    const slotConfig =
-        SLOT_WAKTU[slotId];
-
-    const clickedAct =
-        slotConfig.activities.find(
-            a => a.id === actId
-        );
-
-    if(
-        clickedAct &&
-        clickedAct.category === 'fardu' &&
-        actId === 'shalat'
-    ){
-
-        const isNonHadir =
-            [
-                'Sakit',
-                'Izin',
-                'Pulang',
-                'Alpa'
-            ].includes(newStatus);
-
-        slotConfig.activities.forEach(act => {
-
-            if(act.id === actId)
-                return;
-
-            if(isNonHadir){
-
-                if(act.category === 'dependent'){
-                    sData.status[act.id] = 'Tidak';
-                }
-
-                else if(act.category === 'kbm'){
-                    sData.status[act.id] = newStatus;
-                }
-
-                else if(act.category === 'sunnah'){
-                    sData.status[act.id] = 'Tidak';
-                }
-
-            } else {
-
-                if(act.category === 'dependent'){
-                    sData.status[act.id] = 'Ya';
-                }
-
-                else if(act.category === 'kbm'){
-                    sData.status[act.id] = 'Hadir';
-                }
-
-            }
-
-        });
-
-    }
-
-    window.saveData();
-    window.renderAttendanceList();
-
-    if(
-        appState.date ===
-        window.getLocalDateStr()
-    ){
-        window.updateDashboard();
-    }
-
-};
-
 window.toggleStatus = function(id, actId, type) {
     const slotId = appState.currentSlotId;
     const dateKey = appState.date;
@@ -1562,138 +1361,76 @@ window.toggleStatus = function(id, actId, type) {
 
     // 1. TENTUKAN STATUS BARU (LOGIKA SIKLUS)
     if(type === 'mandator') {
-
-    next =
-        (curr === 'Alpa')
-        ? 'Hadir'
-        : 'Alpa';
-
-} else {
+        // SIKLUS UNIVERSAL (Sekolah & Shalat sama-sama bisa Telat)
+        // Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
+        if(curr === 'Hadir') next = 'Telat';
+        else if(curr === 'Telat') next = 'Sakit'; // <-- Masbuk/Telat
+        else if(curr === 'Sakit') next = 'Izin';
+        else if(curr === 'Izin') next = 'Alpa';
+        else next = 'Hadir';
+    } else {
         // Siklus Sunnah: Ya -> Tidak -> Ya
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
     }
 
-    window.setAttendanceStatus(
-    id,
-    actId,
-    next
-);
+    // Terapkan status baru ke tombol yang diklik
+    sData.status[actId] = next;
 
-return;
+    // 2. LOGIKA OTOMATIS (CASCADING)
+    // Cek konfigurasi kegiatan yang sedang diklik
+    const currentSlotConfig = SLOT_WAKTU[slotId];
+    const clickedActConfig = currentSlotConfig.activities.find(a => a.id === actId);
 
-    
-};
+    // JIKA YANG DIKLIK ADALAH 'FARDU' (SHALAT UTAMA)
+    // Maka kegiatan lain harus menyesuaikan
+    if (clickedActConfig && clickedActConfig.category === 'fardu' && actId === 'shalat') {
+        
+        const isNonHadir = ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(next);
 
-window.showStatusPicker =
-function(
-    santriId,
-    actId,
-    btn
-){
+        currentSlotConfig.activities.forEach(otherAct => {
+            if (otherAct.id === actId) return; // Jangan ubah diri sendiri
 
-    const menu =
-        document.getElementById(
-            'status-radial-menu'
-        );
+            if (isNonHadir) {
+                // KASUS: SHALAT TIDAK HADIR (S/I/A)
+                
+                if (otherAct.category === 'dependent') {
+                    // Dzikir/Rawatib -> Otomatis TIDAK
+                    sData.status[otherAct.id] = 'Tidak';
+                } 
+                else if (otherAct.category === 'kbm') {
+                    // Tahfizh/Conver -> Mengikuti status shalat (misal: Sakit)
+                    sData.status[otherAct.id] = next;
+                }
+                else if (otherAct.category === 'sunnah') {
+                    // Tahajjud/Dhuha -> Otomatis TIDAK
+                    sData.status[otherAct.id] = 'Tidak';
+                }
 
-    const rect =
-        btn.getBoundingClientRect();
-
-    menu.style.left =
-        `${rect.left - 55}px`;
-
-    menu.style.top =
-        `${rect.top - 55}px`;
-
-    menu.dataset.santriId =
-        santriId;
-
-    menu.dataset.actId =
-        actId;
-
-    menu.classList.remove(
-        'hidden'
-    );
-
-    menu.style.display = 'block';
-
-    menu.classList.add(
-        'active'
-    );
-};
-
-document
-.querySelectorAll(
-    '#status-radial-menu button'
-)
-.forEach(btn => {
-
-    btn.addEventListener(
-        'click',
-        () => {
-
-            const menu =
-                document.getElementById(
-                    'status-radial-menu'
-                );
-
-            const santriId =
-                menu.dataset.santriId;
-
-            const actId =
-                menu.dataset.actId;
-
-            const status =
-                btn.dataset.status;
-
-            window.setAttendanceStatus(
-                santriId,
-                actId,
-                status
-            );
-
-            menu.classList.remove(
-                'active'
-            );
-
-            menu.classList.add(
-                'hidden'
-            );
-
-            menu.style.display = 'none';
-
-        }
-    );
-
-});
-
-document.addEventListener(
-    'click',
-    (e) => {
-
-        const menu =
-            document.getElementById(
-                'status-radial-menu'
-            );
-
-        if(
-            !menu.contains(e.target)
-        ){
-
-            menu.classList.remove(
-                'active'
-            );
-
-            menu.classList.add(
-                'hidden'
-            );
-
-            menu.style.display = 'none';
-
-        }
-
+            } else {
+                // KASUS: SHALAT KEMBALI HADIR
+                
+                if (otherAct.category === 'dependent') {
+                    // Dzikir/Rawatib -> Reset ke YA
+                    sData.status[otherAct.id] = 'Ya';
+                } 
+                else if (otherAct.category === 'kbm') {
+                    // Tahfizh/Conver -> Reset ke HADIR
+                    sData.status[otherAct.id] = 'Hadir';
+                }
+                // Untuk kategori 'sunnah' biasa (Tahajjud), biarkan apa adanya 
+                // agar tidak mereset inputan manual musyrif.
+            }
+        });
     }
-);
+
+    // Simpan & Refresh UI
+    window.saveData();
+    window.renderAttendanceList(); // Render ulang agar perubahan otomatis terlihat
+    
+    if (appState.date === window.getLocalDateStr()) {
+        window.updateDashboard();
+    }
+};
 
 // Fungsi untuk membuka Modal Menu Bulk (Akan dipanggil dari HTML)
 window.openBulkMenu = function() {
