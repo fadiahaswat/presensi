@@ -204,7 +204,6 @@ window.handleLogin = async function() {
     const authMode = window.getAuthMode();
 
     if(!kelas) return alert("Pilih kelas dulu!");
-    if(pin !== savedPin) return alert("PIN Salah!");
 
     if(authMode === 'testing') {
         try {
