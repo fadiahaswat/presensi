@@ -3009,19 +3009,55 @@ window.renderTimesheetCalendar = function() {
             }
         });
 
-        let status = 'empty'; 
-        if (requiredSlots === 0) {
-            status = 'empty'; // Hari kosong melompong (tidak ada jadwal sama sekali)
-        } else {
-            if(filledSlots === 0) status = 'empty';
-            else if(filledSlots >= requiredSlots) status = 'full'; // Sempurna hijau!
-            else status = 'partial'; // Baru isi sebagian
+        const today =
+            window.getLocalDateStr();
+        
+        let status = '';
+        if(dateStr > today){
+            status = 'future';
+        }
+        else if(dateStr === today){
+            status = 'today';
+        }
+        else{
+            if(requiredSlots === 0){
+                status = 'completed';
+            }
+            else if(filledSlots === 0){
+                status = 'missed';
+            }
+            else if(filledSlots < requiredSlots){
+                status = 'partial';
+            }
+            else{
+                status = 'completed';
+            }
         }
         
         // Style
-        let bgClass = 'bg-slate-100 text-slate-400 dark:bg-slate-700'; // Empty
-        if(status === 'full') bgClass = 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30';
-        else if(status === 'partial') bgClass = 'bg-amber-400 text-white shadow-lg shadow-amber-500/30';
+        let bgClass = '';
+        switch(status){
+            case 'missed':
+                bgClass =
+                'bg-red-500 text-white';
+                break;
+            case 'partial':
+                bgClass =
+                'bg-amber-400 text-white';
+                break;
+            case 'completed':
+                bgClass =
+                'bg-emerald-500 text-white';
+                break;
+            case 'today':
+                bgClass =
+                'bg-sky-500 text-white';
+                break;
+            case 'future':
+                bgClass =
+                'bg-slate-200 text-slate-500';
+                break;
+        }
 
         // Highlight Hari Ini
         const isToday = (dateStr === window.getLocalDateStr());
