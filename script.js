@@ -1660,6 +1660,8 @@ document
                 'hidden'
             );
 
+            menu.style.display = 'none';
+
         }
     );
 
@@ -1685,6 +1687,8 @@ document.addEventListener(
             menu.classList.add(
                 'hidden'
             );
+
+            menu.style.display = 'none';
 
         }
 
