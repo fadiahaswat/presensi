@@ -287,7 +287,16 @@ window.handleGoogleCallback = function(response) {
 
         // 1. AMBIL DATA KELAS DARI VARIABLE GLOBAL (yang diload data-kelas.js)
         // Pastikan variabelnya window.classData (sesuai data-kelas.js Anda)
-        const classInfo = window.classData[targetClass];
+        const classInfo =
+            window.classData?.[targetClass] ||
+            MASTER_KELAS?.[targetClass];
+        
+        if (!classInfo) {
+            return window.showToast(
+                "Data kelas belum siap. Silakan coba lagi.",
+                "warning"
+            );
+        }
 
         if (!classInfo) {
             return window.showToast("Data kelas tidak ditemukan.", "error");
