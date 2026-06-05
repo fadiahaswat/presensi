@@ -674,13 +674,26 @@ window.updateProfileInfo = function() {
         if(elHeaderRole) elHeaderRole.textContent = className;
         
         if(elHeaderAvatar) {
-            const initials = musyrifName
-                .split(' ')
-                .map(n => n[0])
-                .slice(0, 2)
-                .join('')
-                .toUpperCase();
-            elHeaderAvatar.textContent = initials;
+            const photoUrl = appState.userProfile?.picture;
+        
+            if(photoUrl) {
+                elHeaderAvatar.innerHTML = `
+                    <img
+                        src="${photoUrl}"
+                        alt="Avatar"
+                        class="w-full h-full rounded-full object-cover"
+                    >
+                `;
+            } else {
+                const initials = musyrifName
+                    .split(' ')
+                    .map(n => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+        
+                elHeaderAvatar.textContent = initials;
+            }
         }
 
         if(elName) elName.textContent = musyrifName;
