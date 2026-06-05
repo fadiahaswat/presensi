@@ -1,5 +1,3 @@
-// File: script.js
-
 window.initApp = async function() {
     // [PERBAIKAN] Definisikan loadingEl di sini agar dikenali di block finally
     const loadingEl = document.getElementById('view-loading');
