@@ -4627,6 +4627,7 @@ window.renderSchoolStatsWidget = function() {
                     return [
                     'Sakit',
                     'Izin',
+                    'Pulang',
                     'Alpa'
                 ].includes(status);
     
