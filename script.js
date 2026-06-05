@@ -1364,18 +1364,7 @@ bClone.addEventListener(
         );
 
     }
-);
-            
-            // Click Handler
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                if (hasPermitConflict) {
-                    if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
-                    if(sData.note && sData.note.includes('[Auto]')) sData.note = '';
-                }
-                window.toggleStatus(id, act.id, act.type);
-            };
-            
+);                                  
             // LABEL - Compact typography
             lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             lbl.textContent = act.label;
