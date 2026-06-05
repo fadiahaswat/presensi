@@ -4617,5 +4617,31 @@ window.openModal = function(modalId) {
     modal.setAttribute('role', 'dialog'); // Accessibility
 };
 
+window.toggleSchoolAbsentList = function() {
+
+    const list =
+        document.getElementById(
+            'school-absent-list'
+        );
+
+    const icon =
+        document.getElementById(
+            'school-absent-icon'
+        );
+
+    const hidden =
+        list.classList.toggle(
+            'hidden'
+        );
+
+    if(icon){
+        icon.style.transform =
+            hidden
+            ? 'rotate(0deg)'
+            : 'rotate(180deg)';
+    }
+
+}
+
 // Start App
 window.onload = window.initApp;
