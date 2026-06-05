@@ -1479,6 +1479,107 @@ if(
 // PERBAIKAN FUNGSI TOGGLE STATUS
 // ==========================================
 
+window.setAttendanceStatus = function(
+    santriId,
+    actId,
+    newStatus
+){
+
+    const slotId =
+        appState.currentSlotId;
+
+    const dateKey =
+        appState.date;
+
+    if(!appState.attendanceData[dateKey])
+        appState.attendanceData[dateKey] = {};
+
+    if(!appState.attendanceData[dateKey][slotId])
+        appState.attendanceData[dateKey][slotId] = {};
+
+    if(!appState.attendanceData[dateKey][slotId][santriId])
+        appState.attendanceData[dateKey][slotId][santriId] = {
+            status:{},
+            note:''
+        };
+
+    const sData =
+        appState.attendanceData
+        [dateKey]
+        [slotId]
+        [santriId];
+
+    sData.status[actId] = newStatus;
+
+    const slotConfig =
+        SLOT_WAKTU[slotId];
+
+    const clickedAct =
+        slotConfig.activities.find(
+            a => a.id === actId
+        );
+
+    if(
+        clickedAct &&
+        clickedAct.category === 'fardu' &&
+        actId === 'shalat'
+    ){
+
+        const isNonHadir =
+            [
+                'Sakit',
+                'Izin',
+                'Pulang',
+                'Alpa'
+            ].includes(newStatus);
+
+        slotConfig.activities.forEach(act => {
+
+            if(act.id === actId)
+                return;
+
+            if(isNonHadir){
+
+                if(act.category === 'dependent'){
+                    sData.status[act.id] = 'Tidak';
+                }
+
+                else if(act.category === 'kbm'){
+                    sData.status[act.id] = newStatus;
+                }
+
+                else if(act.category === 'sunnah'){
+                    sData.status[act.id] = 'Tidak';
+                }
+
+            } else {
+
+                if(act.category === 'dependent'){
+                    sData.status[act.id] = 'Ya';
+                }
+
+                else if(act.category === 'kbm'){
+                    sData.status[act.id] = 'Hadir';
+                }
+
+            }
+
+        });
+
+    }
+
+    window.saveData();
+    window.renderAttendanceList();
+
+    if(
+        appState.date ===
+        window.getLocalDateStr()
+    ){
+        window.updateDashboard();
+    }
+
+};
+
 window.toggleStatus = function(id, actId, type) {
     const slotId = appState.currentSlotId;
     const dateKey = appState.date;
