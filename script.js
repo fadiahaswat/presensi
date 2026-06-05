@@ -4536,6 +4536,62 @@ window.renderSchoolStatsWidget = function() {
     if(sEl) sEl.textContent = stats.s;
     if(iEl) iEl.textContent = stats.i;
     if(aEl) aEl.textContent = stats.a;
+    const absentListEl =
+    document.getElementById(
+        'school-absent-list'
+    );
+    if (absentListEl) {
+            const absentStudents =
+            FILTERED_SANTRI.filter(s => {
+                    const status =
+                    window.getAttendanceStatus(
+                        s.id,
+                        'sekolah',
+                        appState.date
+                    );
+                    return [
+                    'Sakit',
+                    'Izin',
+                    'Alpa'
+                ].includes(status);
+    
+            });
+    
+        if (absentStudents.length === 0) {
+    
+            absentListEl.innerHTML = `
+                <div class="text-center text-xs text-slate-400 py-2">
+                    Semua santri hadir
+                </div>
+            `;
+    
+        } else {
+    
+            absentListEl.innerHTML =
+                absentStudents.map(s => {
+    
+                    const status =
+                        window.getAttendanceStatus(
+                            s.id,
+                            'sekolah',
+                            appState.date
+                        );
+    
+                    return `
+                        <div class="flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-700">
+                            <span class="text-xs font-medium">
+                                ${s.nama}
+                            </span>
+                            <span class="text-xs font-bold text-red-500">
+                                ${status}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+    
+        }
+    
+    }
 };
 
 window.openModal = function(modalId) {
