@@ -1017,7 +1017,10 @@ window.renderAttendanceList = function() {
     FILTERED_SANTRI.forEach(santri => {
         const id = String(santri.nis || santri.id);
         if(!dbSlot[id]) {
-            const defStatus = {};
+
+    hasAutoChanges = true;
+
+    const defStatus = {};
             slot.activities.forEach(a => {
                 if (a.onlyRamadhan && !window.isRamadhan(dateKey)) return;
                 if(a.category === 'sunnah') defStatus[a.id] = 'Tidak'; 
