@@ -5092,5 +5092,34 @@ window.getDayCompletionStatus = function(dateStr){
     };
 };
 
+window.verifyLocationCached = async function() {
+
+    const cache =
+        JSON.parse(
+            localStorage.getItem(
+                GPS_CACHE_KEY
+            ) || "null"
+        );
+
+    if (
+        cache &&
+        (Date.now() - cache.timestamp)
+            < GPS_CACHE_DURATION
+    ) {
+        return true;
+    }
+
+    await window.verifyLocation();
+
+    localStorage.setItem(
+        GPS_CACHE_KEY,
+        JSON.stringify({
+            timestamp: Date.now()
+        })
+    );
+
+    return true;
+};
+
 // Start App
 window.onload = window.initApp;
