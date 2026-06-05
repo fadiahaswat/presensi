@@ -1584,7 +1584,7 @@ return;
     
 };
 
-windowwindow.showStatusPicker =
+window.showStatusPicker =
 function(
     santriId,
     actId,
