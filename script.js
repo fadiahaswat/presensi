@@ -1615,6 +1615,8 @@ function(
         'hidden'
     );
 
+    menu.style.display = 'block';
+
     menu.classList.add(
         'active'
     );
