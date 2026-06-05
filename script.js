@@ -1336,35 +1336,7 @@ btn.onclick = (e) => {
         act.type
     );
 };
-
-            btn.addEventListener(
-    'touchstart',
-    () => {
-
-        pressTimer =
-            setTimeout(() => {
-
-                window.showStatusPicker(
-                    id,
-                    act.id,
-                    act.type
-                );
-
-            }, 600);
-
-    }
-);
-
-btn.addEventListener(
-    'touchend',
-    () => {
-
-        clearTimeout(
-            pressTimer
-        );
-
-    }
-);                                  
+                                  
             // LABEL - Compact typography
             lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             lbl.textContent = act.label;
