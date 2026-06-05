@@ -4620,7 +4620,7 @@ window.renderSchoolStatsWidget = function() {
             FILTERED_SANTRI.filter(s => {
                     const status =
                     window.getAttendanceStatus(
-                        s.id,
+                        s.nis || s.id,
                         'sekolah',
                         appState.date
                     );
@@ -4647,10 +4647,10 @@ window.renderSchoolStatsWidget = function() {
     
                     const status =
                         window.getAttendanceStatus(
-                            s.id,
-                            'sekolah',
-                            appState.date
-                        );
+                        s.nis || s.id,
+                        'sekolah',
+                        appState.date
+                    );
     
                     return `
                         <div class="flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-700">
