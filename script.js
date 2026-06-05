@@ -1512,6 +1512,53 @@ window.toggleStatus = function(id, actId, type) {
     }
 };
 
+window.showStatusPicker =
+function(
+    santriId,
+    actId,
+    type
+){
+
+    const status =
+        prompt(
+            'Pilih:\nT = Telat\nS = Sakit\nI = Izin\nP = Pulang'
+        );
+
+    if(!status) return;
+
+    const map = {
+        T : 'Telat',
+        S : 'Sakit',
+        I : 'Izin',
+        P : 'Pulang'
+    };
+
+    const selected =
+        map[
+            status.toUpperCase()
+        ];
+
+    if(!selected) return;
+
+    const slotId =
+        appState.currentSlotId;
+
+    const dateKey =
+        appState.date;
+
+    appState.attendanceData
+        [dateKey]
+        [slotId]
+        [santriId]
+        .status[actId]
+        = selected;
+
+    window.saveData();
+
+    window.renderAttendanceList();
+
+};
+
 // Fungsi untuk membuka Modal Menu Bulk (Akan dipanggil dari HTML)
 window.openBulkMenu = function() {
     const modal = document.getElementById('modal-bulk-actions');
