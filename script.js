@@ -705,8 +705,26 @@ window.updateProfileInfo = function() {
         if(elSidebarName) elSidebarName.textContent = musyrifName;
         if(elSidebarClass) elSidebarClass.textContent = `Musyrif ${className}`;
         if(elSidebarAvatar) {
-            const initials = musyrifName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-            elSidebarAvatar.textContent = initials;
+            const photoUrl = appState.userProfile?.picture;
+        
+            if(photoUrl) {
+                elSidebarAvatar.innerHTML = `
+                    <img
+                        src="${photoUrl}"
+                        alt="Avatar"
+                        class="w-full h-full rounded-full object-cover"
+                    >
+                `;
+            } else {
+                const initials = musyrifName
+                    .split(' ')
+                    .map(n => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+        
+                elSidebarAvatar.textContent = initials;
+            }
         }
     }
 };
