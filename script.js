@@ -1353,12 +1353,11 @@ window.renderAttendanceList = function() {
 
 if(
     initializedCount ===
-    FILTERED_SANTRI.length
+    FILTERED_SANTRI.length ||
+    hasAutoChanges
 ){
     window.saveData();
 }
-
-    if(hasAutoChanges) window.saveData(); 
     if(window.refreshIcons) window.refreshIcons();
 };
 
