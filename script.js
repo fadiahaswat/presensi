@@ -3210,6 +3210,32 @@ ${borderClass}
     container.appendChild(div);
 
 }
+const completeEl =
+    document.getElementById(
+        'ts-complete-count'
+    );
+
+const partialEl =
+    document.getElementById(
+        'ts-partial-count'
+    );
+
+const lockedEl =
+    document.getElementById(
+        'ts-locked-count'
+    );
+
+if(completeEl)
+    completeEl.textContent =
+        monthlyComplete;
+
+if(partialEl)
+    partialEl.textContent =
+        monthlyPartial;
+
+if(lockedEl)
+    lockedEl.textContent =
+        monthlyLocked;
 };
 
 window.changeTimesheetMonth = function(direction) {
