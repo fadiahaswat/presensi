@@ -3692,7 +3692,23 @@ window.toggleSelectAllPermit = function() {
 };
 
 window.goToToday = function() {
-    window.handleDateChange(window.getLocalDateStr());
+
+    const today =
+        window.getLocalDateStr();
+
+    appState.date = today;
+
+    appState.timesheetViewDate =
+        today;
+
+    window.updateDateDisplay();
+    window.updateDashboard();
+    window.renderTimesheetCalendar();
+
+    window.showToast(
+        'Kembali ke hari ini',
+        'success'
+    );
 };
 
 // Tambahkan ini di script.js
