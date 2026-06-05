@@ -1288,10 +1288,10 @@ btn.addEventListener(
                 longPressed = true;
 
                 window.showStatusPicker(
-                    id,
-                    act.id,
-                    act.type
-                );
+    id,
+    act.id,
+    btn
+);
 
             }, 600);
 
