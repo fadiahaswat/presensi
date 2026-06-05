@@ -3098,9 +3098,12 @@ window.renderTimesheetCalendar = function() {
 
     });
 
-    let status = '';
+    const dayInfo =
+    window.getDayCompletionStatus(
+        dateStr
+    );
 
-    if(dateStr > today){
+if(dateStr > today){
 
     status = 'future';
 
@@ -3110,23 +3113,28 @@ else if(dateStr === today){
     status = 'today';
 
 }
-else if(
-    requiredSlots > 0 &&
-    completedSlots === requiredSlots
-){
+else if(dayInfo.complete){
 
     status = 'completed';
 
 }
-else if(progressSlots > 0){
-
-    status = 'partial';
-
-}
 else{
 
-    status = 'locked';
+    const access =
+        window.isSlotAccessible(
+            Object.keys(SLOT_WAKTU)[0],
+            dateStr
+        );
 
+    if(access.locked){
+
+        status = 'locked';
+
+    }else{
+
+        status = 'partial';
+
+    }
 }
 
     if(status === 'completed')
