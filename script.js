@@ -1680,35 +1680,26 @@ function(
     if(!status) return;
 
     const map = {
-        T : 'Telat',
-        S : 'Sakit',
-        I : 'Izin',
-        P : 'Pulang'
+        T:'Telat',
+        S:'Sakit',
+        I:'Izin',
+        P:'Pulang'
     };
 
     const selected =
         map[
-            status.toUpperCase()
+            status
+            .trim()
+            .toUpperCase()
         ];
 
     if(!selected) return;
 
-    const slotId =
-        appState.currentSlotId;
-
-    const dateKey =
-        appState.date;
-
-    appState.attendanceData
-        [dateKey]
-        [slotId]
-        [santriId]
-        .status[actId]
-        = selected;
-
-    window.saveData();
-
-    window.renderAttendanceList();
+    window.setAttendanceStatus(
+        santriId,
+        actId,
+        selected
+    );
 
 };
 
