@@ -2993,15 +2993,6 @@ window.renderTimesheetCalendar = function() {
     if(!container) return;
 
     container.innerHTML = '';
-    
-    // Header Hari (Sen-Min)
-    const daysHeader = ['Sen','Sel','Rab','Kam','Jum','Sab','Ahd'];
-    daysHeader.forEach(d => {
-        const div = document.createElement('div');
-        div.className = 'text-[9px] font-bold text-slate-400 py-2';
-        div.textContent = d;
-        container.appendChild(div);
-    });
 
     // UBAH: Gunakan appState.timesheetViewDate
     const currentViewDate = new Date(appState.timesheetViewDate || appState.date);
