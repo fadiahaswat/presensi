@@ -3551,7 +3551,7 @@ window.verifyLocation = function() {
             { 
                 enableHighAccuracy: true, 
                 timeout: 9000, 
-                maximumAge: 0 
+                maximumAge: GPS_CACHE_DURATION 
             }
         );
     });
