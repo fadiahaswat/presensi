@@ -36,8 +36,11 @@ const APP_CONFIG = {
 // KONFIGURASI LOKASI (GEOFENCING)
 // ==========================================
 
-const GPS_CACHE_KEY = "gps_cache";
-const GPS_CACHE_DURATION = 15 * 60 * 1000;
+const GPS_CACHE_KEY =
+    'presensi_gps_cache';
+
+const GPS_CACHE_DURATION =
+    15 * 60 * 1000; // 15 menit
 
 const GEO_CONFIG = {
     useGeofencing: true, // Set ke false jika ingin mematikan fitur ini sementara
