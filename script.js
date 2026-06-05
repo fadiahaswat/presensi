@@ -297,10 +297,6 @@ window.handleGoogleCallback = function(response) {
             );
         }
 
-        if (!classInfo) {
-            return window.showToast("Data kelas tidak ditemukan.", "error");
-        }
-
         // 2. VALIDASI EMAIL (KEAMANAN UTAMA)
         // Jika di sheet kolom email kosong, kita tolak demi keamanan
         if (!classInfo.email) {
