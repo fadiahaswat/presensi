@@ -1609,63 +1609,7 @@ window.toggleStatus = function(id, actId, type) {
 
 return;
 
-    // Terapkan status baru ke tombol yang diklik
-    sData.status[actId] = next;
-
-    // 2. LOGIKA OTOMATIS (CASCADING)
-    // Cek konfigurasi kegiatan yang sedang diklik
-    const currentSlotConfig = SLOT_WAKTU[slotId];
-    const clickedActConfig = currentSlotConfig.activities.find(a => a.id === actId);
-
-    // JIKA YANG DIKLIK ADALAH 'FARDU' (SHALAT UTAMA)
-    // Maka kegiatan lain harus menyesuaikan
-    if (clickedActConfig && clickedActConfig.category === 'fardu' && actId === 'shalat') {
-        
-        const isNonHadir = ['Sakit', 'Izin', 'Pulang', 'Alpa'].includes(next);
-
-        currentSlotConfig.activities.forEach(otherAct => {
-            if (otherAct.id === actId) return; // Jangan ubah diri sendiri
-
-            if (isNonHadir) {
-                // KASUS: SHALAT TIDAK HADIR (S/I/A)
-                
-                if (otherAct.category === 'dependent') {
-                    // Dzikir/Rawatib -> Otomatis TIDAK
-                    sData.status[otherAct.id] = 'Tidak';
-                } 
-                else if (otherAct.category === 'kbm') {
-                    // Tahfizh/Conver -> Mengikuti status shalat (misal: Sakit)
-                    sData.status[otherAct.id] = next;
-                }
-                else if (otherAct.category === 'sunnah') {
-                    // Tahajjud/Dhuha -> Otomatis TIDAK
-                    sData.status[otherAct.id] = 'Tidak';
-                }
-
-            } else {
-                // KASUS: SHALAT KEMBALI HADIR
-                
-                if (otherAct.category === 'dependent') {
-                    // Dzikir/Rawatib -> Reset ke YA
-                    sData.status[otherAct.id] = 'Ya';
-                } 
-                else if (otherAct.category === 'kbm') {
-                    // Tahfizh/Conver -> Reset ke HADIR
-                    sData.status[otherAct.id] = 'Hadir';
-                }
-                // Untuk kategori 'sunnah' biasa (Tahajjud), biarkan apa adanya 
-                // agar tidak mereset inputan manual musyrif.
-            }
-        });
-    }
-
-    // Simpan & Refresh UI
-    window.saveData();
-    window.renderAttendanceList(); // Render ulang agar perubahan otomatis terlihat
     
-    if (appState.date === window.getLocalDateStr()) {
-        window.updateDashboard();
-    }
 };
 
 window.showStatusPicker =
