@@ -3046,6 +3046,7 @@ window.renderTimesheetCalendar = function() {
 
     let requiredSlots = 0;
     let completedSlots = 0;
+    let progressSlots = 0;
 
     Object.values(SLOT_WAKTU).forEach(slot => {
 
