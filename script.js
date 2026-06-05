@@ -541,16 +541,14 @@ if(cached){
                         }
             
                         localStorage.setItem(
-                GPS_CACHE_KEY,
-                JSON.stringify({
-                    timestamp:
-                        Date.now(),
-                    distance:
-                        nearestDist,
-                    locationName:
-                        nearestName
-                })
-            );
+                            GPS_CACHE_KEY,
+                            JSON.stringify({
+                                timestamp: Date.now(),
+                                distance: nearestDist,
+                                locationName: nearestName,
+                                isInside: isInside
+                            })
+                        );
 
             // 3. Update Tampilan
             if(elLoading) elLoading.classList.add('hidden');
