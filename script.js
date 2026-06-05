@@ -1236,7 +1236,7 @@ window.renderAttendanceList = function() {
             let pressTimer;
 let longPressed = false;
 
-bClone.addEventListener(
+btn.addEventListener(
     'mousedown',
     () => {
 
@@ -1258,7 +1258,7 @@ bClone.addEventListener(
     }
 );
 
-bClone.addEventListener(
+btn.addEventListener(
     'mouseup',
     () => {
 
@@ -1267,7 +1267,7 @@ bClone.addEventListener(
     }
 );
 
-bClone.addEventListener(
+btn.addEventListener(
     'mouseleave',
     () => {
 
@@ -1276,7 +1276,7 @@ bClone.addEventListener(
     }
 );
 
-bClone.addEventListener(
+btn.addEventListener(
     'touchstart',
     () => {
 
@@ -1298,7 +1298,7 @@ bClone.addEventListener(
     }
 );
 
-bClone.addEventListener(
+btn.addEventListener(
     'touchend',
     () => {
 
@@ -1337,7 +1337,7 @@ btn.onclick = (e) => {
     );
 };
 
-            bClone.addEventListener(
+            btn.addEventListener(
     'touchstart',
     () => {
 
@@ -1355,7 +1355,7 @@ btn.onclick = (e) => {
     }
 );
 
-bClone.addEventListener(
+btn.addEventListener(
     'touchend',
     () => {
 
