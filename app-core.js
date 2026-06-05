@@ -35,6 +35,10 @@ const APP_CONFIG = {
 // ==========================================
 // KONFIGURASI LOKASI (GEOFENCING)
 // ==========================================
+
+const GPS_CACHE_KEY = "gps_cache";
+const GPS_CACHE_DURATION = 15 * 60 * 1000;
+
 const GEO_CONFIG = {
     useGeofencing: true, // Set ke false jika ingin mematikan fitur ini sementara
     maxRadiusMeters: 100, // Radius toleransi dalam meter (misal: 50 meter)
