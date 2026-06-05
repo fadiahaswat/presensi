@@ -3017,6 +3017,10 @@ window.renderTimesheetCalendar = function() {
 
     const totalDays = lastDay.getDate();
 
+    let monthlyComplete = 0;
+    let monthlyPartial = 0;
+    let monthlyLocked = 0;
+
     // Empty cells before start
     for(let i=0; i<startDayIndex; i++) {
         const div = document.createElement('div');
