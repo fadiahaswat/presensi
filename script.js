@@ -1601,6 +1601,14 @@ window.toggleStatus = function(id, actId, type) {
         next = (curr === 'Ya') ? 'Tidak' : 'Ya';
     }
 
+    window.setAttendanceStatus(
+    id,
+    actId,
+    next
+);
+
+return;
+
     // Terapkan status baru ke tombol yang diklik
     sData.status[actId] = next;
 
