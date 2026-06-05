@@ -274,6 +274,7 @@ window.handleLogin = async function() {
 window.handleGoogleCallback = function(response) {
     try {
         const profile = window.parseJwt(response.credential);
+        console.log(profile);
         const userEmail = profile.email;
         if (!userEmail) {
             return window.showToast(
