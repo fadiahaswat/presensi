@@ -537,8 +537,20 @@ if(cached){
             
             // 2. Cek apakah masuk radius
             if (nearestDist <= GEO_CONFIG.maxRadiusMeters) {
-                isInside = true;
-            }
+                            isInside = true;
+                        }
+            
+                        localStorage.setItem(
+                GPS_CACHE_KEY,
+                JSON.stringify({
+                    timestamp:
+                        Date.now(),
+                    distance:
+                        nearestDist,
+                    locationName:
+                        nearestName
+                })
+            );
 
             // 3. Update Tampilan
             if(elLoading) elLoading.classList.add('hidden');
