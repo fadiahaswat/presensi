@@ -3369,6 +3369,42 @@ window.getDistanceFromLatLonInMeters = function(lat1, lon1, lat2, lon2) {
     return d;
 };
 
+window.getCachedLocation =
+function(){
+
+    try{
+
+        const cache =
+            JSON.parse(
+                localStorage.getItem(
+                    GPS_CACHE_KEY
+                )
+            );
+
+        if(!cache)
+            return null;
+
+        const age =
+            Date.now() -
+            cache.timestamp;
+
+        if(
+            age >
+            GPS_CACHE_DURATION
+        ){
+            return null;
+        }
+
+        return cache;
+
+    }catch{
+
+        return null;
+
+    }
+
+};
+
 window.deg2rad = function(deg) {
     return deg * (Math.PI/180);
 };
