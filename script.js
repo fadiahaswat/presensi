@@ -4990,5 +4990,17 @@ window.toggleSchoolAbsentList = function() {
 
 }
 
+window.isDateAccessible = function(dateStr){
+
+    return Object.values(SLOT_WAKTU)
+        .some(slot =>
+            window.isSlotAccessible(
+                slot.id,
+                dateStr
+            )
+        );
+
+};
+
 // Start App
 window.onload = window.initApp;
