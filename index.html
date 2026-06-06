@@ -928,47 +928,74 @@
     <div id="analysis-section" class="hidden animate-fade-in"> 
         <div class="space-y-6">
             
-            <div class="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
-                <div class="relative group bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                    </div>
-                    <select id="analysis-santri" onchange="window.runAnalysis()" class="w-full pl-11 pr-10 py-3.5 bg-transparent font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer">
-                        <option value="">Cari dan Pilih Santri...</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-                    </div>
-                </div>
+            <div class="space-y-6">
+    <div class="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+        
+        <div class="relative group bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+            </div>
+            <select id="analysis-santri" onchange="window.runAnalysis()" class="w-full pl-11 pr-10 py-3.5 bg-transparent font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer">
+                <option value="">Cari dan Pilih Santri...</option>
+            </select>
+            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </div>
+        </div>
 
-                <div class="flex p-1.5 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto hide-scrollbar">
-                    <button onclick="window.setAnalysisMode('daily')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode transition-all" data-mode="daily">Harian</button>
-                    <button onclick="window.setAnalysisMode('weekly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="weekly">Pekan</button>
-                    <button onclick="window.setAnalysisMode('monthly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="monthly">Bulan</button>
-                    <button onclick="window.setAnalysisMode('semester')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="semester">Semester</button>
-                </div>
-            </div>
-            
-            <div class="flex items-center justify-center">
-                <span id="analysis-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-                    -
-                </span>
-            </div>
+        <div class="flex p-1.5 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto hide-scrollbar">
+            <button onclick="window.setAnalysisMode('daily')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode transition-all" data-mode="daily">Harian</button>
+            <button onclick="window.setAnalysisMode('weekly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="weekly">Pekan</button>
+            <button onclick="window.setAnalysisMode('monthly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="monthly">Bulan</button>
+            <button onclick="window.setAnalysisMode('semester')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="semester">Semester</button>
+        </div>
+    </div>
+    
+    <div class="flex items-center justify-center">
+        <span id="analysis-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+            -
+        </span>
+    </div>
+</div>
 
             <div id="analysis-result" class="space-y-4 hidden animate-slide-up">
                 
-                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-[2rem] text-center relative overflow-hidden shadow-lg">
-                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
-                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-black/20 rounded-full blur-2xl"></div>
-                    
-                    <div class="relative z-10">
-                        <p class="text-[11px] font-bold text-indigo-100 uppercase tracking-widest mb-1">Total Kehadiran</p>
-                        <h2 id="anl-total-score" class="text-6xl font-black text-white mb-3 tracking-tight drop-shadow-sm">0%</h2>
-                        <div class="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-white/20 border border-white/30 backdrop-blur-sm">
-                            <span id="anl-verdict" class="text-xs font-bold text-white uppercase tracking-wider">Sangat Baik</span>
-                        </div>
-                    </div>
-                </div>
+                <div class="relative p-8 rounded-[2.5rem] overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl shadow-indigo-500/10">
+    <!-- Decorative Background Layers -->
+    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 opacity-10"></div>
+    <div class="absolute -top-16 -right-16 w-48 h-48 bg-indigo-400 rounded-full blur-[64px] opacity-40"></div>
+    <div class="absolute -bottom-16 -left-16 w-48 h-48 bg-emerald-400 rounded-full blur-[64px] opacity-30"></div>
+
+    <div class="relative z-10 flex flex-col items-center">
+        <!-- Label dengan aksen -->
+        <div class="flex items-center gap-2 mb-3">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <p class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">Total Kehadiran</p>
+        </div>
+        
+        <!-- Score Utama -->
+        <h2 id="anl-total-score" class="text-7xl font-[800] text-slate-900 dark:text-white tracking-tighter mb-4 tabular-nums">
+            0<span class="text-4xl text-slate-400 dark:text-slate-500">%</span>
+        </h2>
+        
+        <!-- Verdict Pill -->
+        <div class="px-6 py-2 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
+            <span id="anl-verdict">Sangat Baik</span>
+        </div>
+
+        <!-- Tambahan: Mini stats untuk kesan data driven -->
+        <div class="flex gap-6 mt-8 pt-6 border-t border-slate-200 dark:border-slate-700/50 w-full justify-center">
+            <div class="text-center">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Hadir</p>
+                <p id="stat-hadir-mini" class="text-sm font-black text-emerald-500">0</p>
+            </div>
+            <div class="text-center">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Masalah</p>
+                <p id="stat-masalah-mini" class="text-sm font-black text-red-500">0</p>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <div class="grid grid-cols-1 gap-4">
                     
