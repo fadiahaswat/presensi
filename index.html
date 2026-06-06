@@ -886,24 +886,21 @@
             <button onclick="window.setReportMode('yearly')" class="rpt-btn flex-1 py-2.5 px-4 text-[11px] font-bold rounded-xl text-slate-500 whitespace-nowrap transition-all" data-mode="yearly">Tahun</button>
         </div>
 
-        <div class="flex items-center justify-center mb-6">
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800">
-                <i data-lucide="calendar" class="w-4 h-4 text-indigo-500"></i>
-                <span id="report-date-range" class="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    -
-                </span>
-            </div>
-        </div>
+        <div class="flex items-center gap-3 mb-6">
+    <div class="flex-none px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 flex items-center gap-2">
+        <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-500"></i>
+        <span id="report-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">-</span>
+    </div>
 
-        <div class="grid grid-cols-2 gap-3 mb-6">
-            <button onclick="window.kirimLaporanWA()" class="p-3.5 rounded-2xl bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-95 transition-all">
-                <i data-lucide="message-circle" class="w-4 h-4"></i> Lapor WA
-            </button>
-            <button onclick="window.exportToExcel()" class="p-3.5 rounded-2xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
-                <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
-            </button>
-        </div>
-
+    <div class="flex flex-1 gap-2">
+        <button onclick="window.kirimLaporanWA()" class="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/30 active:scale-95 transition-all">
+            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WA
+        </button>
+        <button onclick="window.exportToExcel()" class="flex-1 py-2 rounded-xl bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Excel
+        </button>
+    </div>
+</div>
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse min-w-[600px]">
