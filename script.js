@@ -5246,5 +5246,76 @@ window.verifyLocationCached = async function() {
     return true;
 };
 
+window.switchReportView =
+function(view){
+
+    const report =
+        document.getElementById(
+            'report-section'
+        );
+
+    const analysis =
+        document.getElementById(
+            'analysis-section'
+        );
+
+    const btnReport =
+        document.getElementById(
+            'report-view-btn'
+        );
+
+    const btnAnalysis =
+        document.getElementById(
+            'analysis-view-btn'
+        );
+
+    if(view === 'report'){
+
+        report.classList.remove(
+            'hidden'
+        );
+
+        analysis.classList.add(
+            'hidden'
+        );
+
+        btnReport.classList.add(
+            'bg-white',
+            'dark:bg-slate-700'
+        );
+
+        btnAnalysis.classList.remove(
+            'bg-white',
+            'dark:bg-slate-700'
+        );
+
+    }else{
+
+        report.classList.add(
+            'hidden'
+        );
+
+        analysis.classList.remove(
+            'hidden'
+        );
+
+        btnAnalysis.classList.add(
+            'bg-white',
+            'dark:bg-slate-700'
+        );
+
+        btnReport.classList.remove(
+            'bg-white',
+            'dark:bg-slate-700'
+        );
+
+        window.populateAnalysisDropdown();
+
+        window.runAnalysis();
+
+    }
+
+};
+
 // Start App
 window.onload = window.initApp;
