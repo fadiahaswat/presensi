@@ -2234,12 +2234,7 @@ window.switchTab = function(tabName) {
         window.renderTimesheetCalendar(); 
         window.renderPembinaanManagement(); // Refresh list di profil
         window.renderPermitHistory();
-    }
-    else if(tabName === 'analysis') {
-        window.populateAnalysisDropdown();
-        window.runAnalysis();
-    }
-    
+    } 
     // 6. Refresh Icon Lucide
     if(window.lucide) window.lucide.createIcons();
 };
