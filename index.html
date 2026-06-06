@@ -855,6 +855,91 @@
             </div>          
         </div>
 
+        
+        <!-- Tab: Report -->
+        <div id="tab-report" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
+    <div class="mb-4">
+        <h1 class="text-2xl font-black text-slate-800 dark:text-white">Rekap Presensi</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Data kehadiran santri</p>
+    </div>
+
+            <div class="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 mb-4">
+
+    <button
+        id="report-view-btn"
+        onclick="window.switchReportView('report')"
+        class="flex-1 py-2 rounded-lg bg-white dark:bg-slate-700 text-sm font-bold">
+
+        Rekap Kelas
+
+    </button>
+
+    <button
+        id="analysis-view-btn"
+        onclick="window.switchReportView('analysis')"
+        class="flex-1 py-2 rounded-lg text-sm font-bold">
+
+        Analisis Santri
+
+    </button>
+
+</div>
+
+    <div class="bg-white dark:bg-slate-800 p-1.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-4 flex overflow-x-auto">
+        <button onclick="window.setReportMode('daily')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode" data-mode="daily">Hari Ini</button>
+        <button onclick="window.setReportMode('weekly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="weekly">Pekan</button>
+        <button onclick="window.setReportMode('monthly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="monthly">Bulan</button>
+        <button onclick="window.setReportMode('semester')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="semester">Semester</button>
+        <button onclick="window.setReportMode('yearly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="yearly">Tahun</button>
+    </div>
+
+    <div class="text-center mb-4">
+        <span id="report-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800">
+            -
+        </span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 mb-4">
+        <button onclick="window.kirimLaporanWA()" class="p-3 rounded-xl bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+            <i data-lucide="message-circle" class="w-4 h-4"></i> Lapor WA
+        </button>
+        <button onclick="window.exportToExcel()" class="p-3 rounded-xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+            <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
+        </button>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-700/50 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                        <th class="p-3 font-bold w-8 text-center" scope="col">No</th>
+                        <th class="p-3 font-bold min-w-[120px]" scope="col">Nama Santri</th>
+                        <th class="p-3 font-bold text-center" scope="col">Shalat</th>
+                        <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400" scope="col">Sekolah</th>
+                        <th class="p-3 font-bold text-center" scope="col">KBM Asrama</th>
+                        <th class="p-3 font-bold text-center" scope="col">Sunnah</th>
+                        <th class="p-3 font-bold text-center" scope="col">Nilai</th>
+                    </tr>
+                </thead>
+                <tbody id="daily-recap-tbody" class="text-xs divide-y divide-slate-100 dark:divide-slate-700">
+                    </tbody>
+            </table>
+        </div>
+        <div class="p-3 bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-400 text-center border-t border-slate-100 dark:border-slate-700">
+            *Nilai dihitung dari bobot kehadiran
+        </div>
+    </div>
+</div>
+
+<style>
+    .rpt-btn.active-mode {
+        background-color: #3b82f6; /* Blue 500 */
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+</style>
+
         <div id="tab-analysis" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -996,68 +1081,6 @@
         background-color: #6366f1; /* Indigo 500 */
         color: white;
         box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-</style>
-
-        <!-- Tab: Report -->
-        <div id="tab-report" class="tab-content hidden min-h-screen pb-40 pt-6 px-4 animate-fade-in overflow-y-auto">
-    <div class="mb-4">
-        <h1 class="text-2xl font-black text-slate-800 dark:text-white">Rekap Presensi</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Data kehadiran santri</p>
-    </div>
-
-    <div class="bg-white dark:bg-slate-800 p-1.5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-4 flex overflow-x-auto">
-        <button onclick="window.setReportMode('daily')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode" data-mode="daily">Hari Ini</button>
-        <button onclick="window.setReportMode('weekly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="weekly">Pekan</button>
-        <button onclick="window.setReportMode('monthly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="monthly">Bulan</button>
-        <button onclick="window.setReportMode('semester')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="semester">Semester</button>
-        <button onclick="window.setReportMode('yearly')" class="rpt-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap" data-mode="yearly">Tahun</button>
-    </div>
-
-    <div class="text-center mb-4">
-        <span id="report-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800">
-            -
-        </span>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2 mb-4">
-        <button onclick="window.kirimLaporanWA()" class="p-3 rounded-xl bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
-            <i data-lucide="message-circle" class="w-4 h-4"></i> Lapor WA
-        </button>
-        <button onclick="window.exportToExcel()" class="p-3 rounded-xl bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
-            <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
-        </button>
-    </div>
-
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-slate-50 dark:bg-slate-700/50 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
-                        <th class="p-3 font-bold w-8 text-center" scope="col">No</th>
-                        <th class="p-3 font-bold min-w-[120px]" scope="col">Nama Santri</th>
-                        <th class="p-3 font-bold text-center" scope="col">Shalat</th>
-                        <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400" scope="col">Sekolah</th>
-                        <th class="p-3 font-bold text-center" scope="col">KBM Asrama</th>
-                        <th class="p-3 font-bold text-center" scope="col">Sunnah</th>
-                        <th class="p-3 font-bold text-center" scope="col">Nilai</th>
-                    </tr>
-                </thead>
-                <tbody id="daily-recap-tbody" class="text-xs divide-y divide-slate-100 dark:divide-slate-700">
-                    </tbody>
-            </table>
-        </div>
-        <div class="p-3 bg-slate-50 dark:bg-slate-800/80 text-[10px] text-slate-400 text-center border-t border-slate-100 dark:border-slate-700">
-            *Nilai dihitung dari bobot kehadiran
-        </div>
-    </div>
-</div>
-
-<style>
-    .rpt-btn.active-mode {
-        background-color: #3b82f6; /* Blue 500 */
-        color: white;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
 </style>
 
