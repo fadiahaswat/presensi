@@ -932,25 +932,31 @@
         <div class="space-y-6">
             
             <div class="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
-                <div class="relative group bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                    </div>
-                    <select id="analysis-santri" onchange="window.runAnalysis()" class="w-full pl-11 pr-10 py-3.5 bg-transparent font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer">
-                        <option value="">Cari dan Pilih Santri...</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-                    </div>
-                </div>
+    
+    <!-- Peningkatan UI Dropdown: Background solid dipindah langsung ke tag select -->
+    <div class="relative group">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+        </div>
+        
+        <select id="analysis-santri" onchange="window.runAnalysis()" class="w-full pl-11 pr-10 py-3.5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all shadow-sm truncate">
+            <option value="">-- Pilih Santri --</option>
+            <!-- Data Santri akan dimuat otomatis oleh JavaScript -->
+        </select>
+        
+        <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none z-10 bg-gradient-to-l from-slate-50 dark:from-slate-900/80 pl-2 rounded-r-xl">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+        </div>
+    </div>
 
-                <div class="flex p-1.5 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto hide-scrollbar">
-                    <button onclick="window.setAnalysisMode('daily')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg whitespace-nowrap active-mode transition-all" data-mode="daily">Harian</button>
-                    <button onclick="window.setAnalysisMode('weekly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="weekly">Pekan</button>
-                    <button onclick="window.setAnalysisMode('monthly')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="monthly">Bulan</button>
-                    <button onclick="window.setAnalysisMode('semester')" class="anl-btn flex-1 py-2 px-3 text-[10px] font-bold rounded-lg text-slate-500 whitespace-nowrap transition-all" data-mode="semester">Semester</button>
-                </div>
-            </div>
+    <!-- Peningkatan UI Tab Switcher: Text dibesarkan ke text-xs dan border diperhalus -->
+    <div class="flex p-1.5 bg-slate-100 dark:bg-slate-900/80 rounded-xl overflow-x-auto hide-scrollbar border border-slate-200 dark:border-slate-700/50 shadow-inner">
+        <button onclick="window.setAnalysisMode('daily')" class="anl-btn flex-1 py-2.5 px-3 text-xs font-bold rounded-lg whitespace-nowrap active-mode transition-all" data-mode="daily">Harian</button>
+        <button onclick="window.setAnalysisMode('weekly')" class="anl-btn flex-1 py-2.5 px-3 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 whitespace-nowrap transition-all" data-mode="weekly">Pekan</button>
+        <button onclick="window.setAnalysisMode('monthly')" class="anl-btn flex-1 py-2.5 px-3 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 whitespace-nowrap transition-all" data-mode="monthly">Bulan</button>
+        <button onclick="window.setAnalysisMode('semester')" class="anl-btn flex-1 py-2.5 px-3 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 whitespace-nowrap transition-all" data-mode="semester">Semester</button>
+    </div>
+</div>
             
             <div class="flex items-center justify-center">
                 <span id="analysis-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800">
