@@ -877,7 +877,6 @@
     </div>
 
     <div id="report-section" class="animate-fade-in">
-        
         <div class="bg-white dark:bg-slate-800 p-1.5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-5 flex overflow-x-auto hide-scrollbar">
             <button onclick="window.setReportMode('daily')" class="rpt-btn flex-1 py-2.5 px-4 text-[11px] font-bold rounded-xl whitespace-nowrap active-mode transition-all" data-mode="daily">Hari Ini</button>
             <button onclick="window.setReportMode('weekly')" class="rpt-btn flex-1 py-2.5 px-4 text-[11px] font-bold rounded-xl text-slate-500 whitespace-nowrap transition-all" data-mode="weekly">Pekan</button>
@@ -887,20 +886,21 @@
         </div>
 
         <div class="flex items-center gap-3 mb-6">
-    <div class="flex-none px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 flex items-center gap-2">
-        <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-500"></i>
-        <span id="report-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">-</span>
-    </div>
+            <div class="flex-none px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 flex items-center gap-2">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-500"></i>
+                <span id="report-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">-</span>
+            </div>
 
-    <div class="flex flex-1 gap-2">
-        <button onclick="window.kirimLaporanWA()" class="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/30 active:scale-95 transition-all">
-            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WA
-        </button>
-        <button onclick="window.exportToExcel()" class="flex-1 py-2 rounded-xl bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i> Excel
-        </button>
-    </div>
-</div>
+            <div class="flex flex-1 gap-2">
+                <button onclick="window.kirimLaporanWA()" class="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/30 active:scale-95 transition-all">
+                    <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> WA
+                </button>
+                <button onclick="window.exportToExcel()" class="flex-1 py-2 rounded-xl bg-blue-500 text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/30 active:scale-95 transition-all">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Excel
+                </button>
+            </div>
+        </div>
+
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div class="overflow-x-auto hide-scrollbar">
                 <table class="w-full text-left border-collapse min-w-[600px]">
@@ -925,236 +925,215 @@
         </div>
     </div>
 
-    <div id="analysis-section" class="hidden animate-fade-in space-y-6">
-    
-    <!-- Section Title -->
-    <div class="flex items-center justify-between px-1">
-        <div>
-            <h2 class="text-xl font-black text-slate-800 dark:text-white">Analisis Personal</h2>
-            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Evaluasi Per Santri</p>
-        </div>
-        <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 border border-indigo-100 dark:border-indigo-800">
-            <i data-lucide="pie-chart" class="w-5 h-5"></i>
-        </div>
-    </div>
-
-    <!-- Filter Control Card -->
-    <div class="bg-white dark:bg-slate-800 p-5 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
+    <div id="analysis-section" class="hidden animate-fade-in flex-col gap-6">
         
-        <!-- Select Santri -->
-        <div class="relative group">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+        <div class="flex items-center justify-between px-1">
+            <div>
+                <h2 class="text-xl font-black text-slate-800 dark:text-white">Analisis Personal</h2>
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Evaluasi Per Santri</p>
             </div>
-            <select id="analysis-santri" onchange="window.runAnalysis()" 
-                class="w-full pl-11 pr-10 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all">
-                <option value="">Cari dan Pilih Santri...</option>
-            </select>
-            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            <div class="w-10 h-10 shrink-0 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-500 border border-indigo-100 dark:border-indigo-800">
+                <i data-lucide="pie-chart" class="w-5 h-5"></i>
             </div>
         </div>
 
-        <!-- Mode Selector -->
-        <div class="grid grid-cols-4 gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-            <button onclick="window.setAnalysisMode('daily')" class="anl-btn py-2.5 text-[10px] font-black rounded-lg active-mode transition-all" data-mode="daily">Harian</button>
-            <button onclick="window.setAnalysisMode('weekly')" class="anl-btn py-2.5 text-[10px] font-black rounded-lg text-slate-500 transition-all" data-mode="weekly">Pekan</button>
-            <button onclick="window.setAnalysisMode('monthly')" class="anl-btn py-2.5 text-[10px] font-black rounded-lg text-slate-500 transition-all" data-mode="monthly">Bulan</button>
-            <button onclick="window.setAnalysisMode('semester')" class="anl-btn py-2.5 text-[10px] font-black rounded-lg text-slate-500 transition-all" data-mode="semester">Sem</button>
-        </div>
-    </div>
-    
-    <!-- Date Badge -->
-    <div class="flex items-center justify-center">
-        <span id="analysis-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-5 py-2 rounded-full border border-indigo-100 dark:border-indigo-800 shadow-sm">
-            -
-        </span>
-    </div>
-
-    <!-- Style Override untuk tombol aktif -->
-    <style>
-        .anl-btn.active-mode {
-            background-color: #6366f1 !important;
-            color: white !important;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
-        }
-    </style>
-</div>
-
-            <div id="analysis-result" class="space-y-4 hidden animate-slide-up">
-                
-                <div class="relative p-8 rounded-[2.5rem] overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl shadow-indigo-500/10">
-    <!-- Decorative Background Layers -->
-    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 opacity-10"></div>
-    <div class="absolute -top-16 -right-16 w-48 h-48 bg-indigo-400 rounded-full blur-[64px] opacity-40"></div>
-    <div class="absolute -bottom-16 -left-16 w-48 h-48 bg-emerald-400 rounded-full blur-[64px] opacity-30"></div>
-
-    <div class="relative z-10 flex flex-col items-center">
-        <!-- Label dengan aksen -->
-        <div class="flex items-center gap-2 mb-3">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <p class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">Total Kehadiran</p>
-        </div>
-        
-        <!-- Score Utama -->
-        <h2 id="anl-total-score" class="text-7xl font-[800] text-slate-900 dark:text-white tracking-tighter mb-4 tabular-nums">
-            0<span class="text-4xl text-slate-400 dark:text-slate-500">%</span>
-        </h2>
-        
-        <!-- Verdict Pill -->
-        <div class="px-6 py-2 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20">
-            <span id="anl-verdict">Sangat Baik</span>
-        </div>
-
-        <!-- Tambahan: Mini stats untuk kesan data driven -->
-        <div class="flex gap-6 mt-8 pt-6 border-t border-slate-200 dark:border-slate-700/50 w-full justify-center">
-            <div class="text-center">
-                <p class="text-[9px] font-bold text-slate-400 uppercase">Hadir</p>
-                <p id="stat-hadir-mini" class="text-sm font-black text-emerald-500">0</p>
-            </div>
-            <div class="text-center">
-                <p class="text-[9px] font-bold text-slate-400 uppercase">Masalah</p>
-                <p id="stat-masalah-mini" class="text-sm font-black text-red-500">0</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-                <div class="grid grid-cols-1 gap-4">
-                    
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-cyan-400 transition-colors group">
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <i data-lucide="graduation-cap" class="w-5 h-5 text-cyan-500"></i>
-                                </div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200">KBM Sekolah</h3>
-                            </div>
-                            <span id="anl-score-school" class="text-xl font-black text-cyan-600 dark:text-cyan-400">0%</span>
-                        </div>
-                        <div class="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl">
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Hadir</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-school-h" class="h-full bg-cyan-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-school-h" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Tdk Hadir</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-school-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-school-m" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-emerald-400 transition-colors group">
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <i data-lucide="moon" class="w-5 h-5 text-emerald-500"></i>
-                                </div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200">Shalat Fardhu</h3>
-                            </div>
-                            <span id="anl-score-fardu" class="text-xl font-black text-emerald-600 dark:text-emerald-400">0%</span>
-                        </div>
-                        <div class="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl">
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Hadir</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-fardu-h" class="h-full bg-emerald-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-fardu-h" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Tdk Hadir</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-fardu-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-fardu-m" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors group">
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <i data-lucide="book-open" class="w-5 h-5 text-blue-500"></i>
-                                </div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200">KBM Asrama</h3>
-                            </div>
-                            <span id="anl-score-kbm" class="text-xl font-black text-blue-600 dark:text-blue-400">0%</span>
-                        </div>
-                        <div class="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl">
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Hadir</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-kbm-h" class="h-full bg-blue-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-kbm-h" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Tdk Hadir</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-kbm-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-kbm-m" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-amber-400 transition-colors group">
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <i data-lucide="sun" class="w-5 h-5 text-amber-500"></i>
-                                </div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200">Ibadah Sunnah</h3>
-                            </div>
-                            <span id="anl-score-sunnah" class="text-xl font-black text-amber-600 dark:text-amber-400">0%</span>
-                        </div>
-                        <div class="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl">
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Ya</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-sunnah-y" class="h-full bg-amber-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-sunnah-y" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                            <div class="flex items-center text-xs gap-3">
-                                <span class="w-14 font-bold text-slate-500 text-right shrink-0">Tidak</span>
-                                <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
-                                    <div id="bar-sunnah-t" class="h-full bg-slate-400 dark:bg-slate-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                                </div>
-                                <span id="txt-sunnah-t" class="w-8 font-black text-slate-700 dark:text-white">0</span>
-                            </div>
-                        </div>
-                    </div>
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                </div>
+                <select id="analysis-santri" onchange="window.runAnalysis()" 
+                    class="w-full pl-11 pr-10 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all">
+                    <option value="">Cari dan Pilih Santri...</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
                 </div>
             </div>
+
+            <div class="grid grid-cols-4 gap-2 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-xl">
+                <button onclick="window.setAnalysisMode('daily')" class="anl-btn py-2 text-[10px] font-black rounded-lg active-mode transition-all" data-mode="daily">Harian</button>
+                <button onclick="window.setAnalysisMode('weekly')" class="anl-btn py-2 text-[10px] font-black rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all" data-mode="weekly">Pekan</button>
+                <button onclick="window.setAnalysisMode('monthly')" class="anl-btn py-2 text-[10px] font-black rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all" data-mode="monthly">Bulan</button>
+                <button onclick="window.setAnalysisMode('semester')" class="anl-btn py-2 text-[10px] font-black rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all" data-mode="semester">Sem</button>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-center">
+            <span id="analysis-date-range" class="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-5 py-2 rounded-full border border-indigo-100 dark:border-indigo-800 shadow-sm">
+                -
+            </span>
+        </div>
+
+        <div id="analysis-result" class="hidden animate-slide-up flex-col gap-5">
             
-            <div id="analysis-empty" class="text-center py-24 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/20">
-                <div class="w-20 h-20 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-5 shadow-sm border border-slate-100 dark:border-slate-700">
-                    <i data-lucide="user-search" class="w-8 h-8 text-indigo-400 opacity-80"></i>
+            <div class="relative p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl shadow-indigo-500/5 isolate overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 opacity-5 -z-10"></div>
+                <div class="absolute -top-16 -right-16 w-48 h-48 bg-indigo-400 rounded-full blur-[60px] opacity-30 -z-10"></div>
+                <div class="absolute -bottom-16 -left-16 w-48 h-48 bg-emerald-400 rounded-full blur-[60px] opacity-20 -z-10"></div>
+
+                <div class="relative flex flex-col items-center">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <p class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">Total Kehadiran</p>
+                    </div>
+                    
+                    <h2 id="anl-total-score" class="text-7xl font-extrabold text-slate-900 dark:text-white tracking-tighter mb-4 tabular-nums">
+                        0<span class="text-4xl text-slate-400 dark:text-slate-500">%</span>
+                    </h2>
+                    
+                    <div class="px-6 py-2 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-md">
+                        <span id="anl-verdict">Sangat Baik</span>
+                    </div>
+
+                    <div class="flex gap-8 mt-8 pt-6 border-t border-slate-200 dark:border-slate-700/50 w-full justify-center">
+                        <div class="text-center">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Hadir</p>
+                            <p id="stat-hadir-mini" class="text-lg font-black text-emerald-500 leading-none">0</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Masalah</p>
+                            <p id="stat-masalah-mini" class="text-lg font-black text-red-500 leading-none">0</p>
+                        </div>
+                    </div>
                 </div>
-                <h3 class="text-base font-black text-slate-700 dark:text-slate-300 mb-1">Pilih Santri</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400 px-8">Silakan pilih santri dari menu di atas untuk melihat analitik personal.</p>
             </div>
 
-            <style>
-                .rpt-btn.active-mode, .anl-btn.active-mode {
-                    background-color: #6366f1 !important; /* Indigo 500 */
-                    color: white !important;
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
-                    border: none;
-                }
-            </style>
+            <div class="grid grid-cols-1 gap-4">
+                
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-cyan-400 transition-colors group flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-cyan-50 dark:bg-cyan-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <i data-lucide="graduation-cap" class="w-5 h-5 text-cyan-500"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">KBM Sekolah</h3>
+                        </div>
+                        <span id="anl-score-school" class="text-xl font-black text-cyan-600 dark:text-cyan-400">0%</span>
+                    </div>
+                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Hadir</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-school-h" class="h-full bg-cyan-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-school-h" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Tdk Hadir</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-school-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-school-m" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-emerald-400 transition-colors group flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <i data-lucide="moon" class="w-5 h-5 text-emerald-500"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Shalat Fardhu</h3>
+                        </div>
+                        <span id="anl-score-fardu" class="text-xl font-black text-emerald-600 dark:text-emerald-400">0%</span>
+                    </div>
+                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Hadir</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-fardu-h" class="h-full bg-emerald-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-fardu-h" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Tdk Hadir</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-fardu-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-fardu-m" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors group flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <i data-lucide="book-open" class="w-5 h-5 text-blue-500"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">KBM Asrama</h3>
+                        </div>
+                        <span id="anl-score-kbm" class="text-xl font-black text-blue-600 dark:text-blue-400">0%</span>
+                    </div>
+                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Hadir</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-kbm-h" class="h-full bg-blue-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-kbm-h" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Tdk Hadir</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-kbm-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-kbm-m" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-amber-400 transition-colors group flex flex-col gap-4">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <i data-lucide="sun" class="w-5 h-5 text-amber-500"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Ibadah Sunnah</h3>
+                        </div>
+                        <span id="anl-score-sunnah" class="text-xl font-black text-amber-600 dark:text-amber-400">0%</span>
+                    </div>
+                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Ya</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-sunnah-y" class="h-full bg-amber-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-sunnah-y" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                        <div class="flex items-center text-xs gap-3">
+                            <span class="w-14 font-bold text-slate-500 shrink-0">Tidak</span>
+                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div id="bar-sunnah-t" class="h-full bg-slate-400 dark:bg-slate-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
+                            </div>
+                            <span id="txt-sunnah-t" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <div id="analysis-empty" class="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/20">
+            <div class="w-16 h-16 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                <i data-lucide="user-search" class="w-7 h-7 text-indigo-400 opacity-80"></i>
+            </div>
+            <h3 class="text-base font-black text-slate-700 dark:text-slate-300 mb-1">Pilih Santri</h3>
+            <p class="text-xs text-center text-slate-500 dark:text-slate-400 px-8 max-w-xs">Silakan pilih santri dari menu di atas untuk melihat analitik personal.</p>
         </div>
     </div> 
 </div>
+
+<style>
+    .rpt-btn.active-mode, .anl-btn.active-mode {
+        background-color: #6366f1 !important; /* Indigo 500 */
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
+        border: none;
+    }
+</style>
         
         <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto pb-32 hide-scrollbar scroll-smooth p-6 space-y-5 pt-safe">
             <div class="glass-card p-6 rounded-[2.5rem] text-center relative overflow-hidden border-t-4 border-t-emerald-500 shadow-xl">
