@@ -925,480 +925,269 @@
         </div>
     </div>
 
-    <div id="analysis-section" class="hidden animate-fade-in flex-col gap-6">
+    <div id="analysis-section" class="hidden animate-fade-in flex-col gap-8">
+    
+    <div class="space-y-6">
         
-        <!-- ========================================= -->
-
-<!-- ANALISIS PERSONAL v2 -->
-
-<!-- ========================================= -->
-
-<div class="space-y-5">
-
-<!-- Header -->
-
-<div class="flex items-center justify-between">
-
-    <div>
-
-        <div class="inline-flex items-center gap-2 mb-2">
-
-            <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
-
-            <span class="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-500">
-                Analisis Personal
-            </span>
-
+        <div class="flex items-center justify-between">
+            <div class="flex flex-col gap-1">
+                <div class="inline-flex items-center gap-2 mb-1">
+                    <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                    <span class="text-[11px] font-black uppercase tracking-[0.25em] text-indigo-500">
+                        Analisis Personal
+                    </span>
+                </div>
+                <h2 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-tight">
+                    Evaluasi Santri
+                </h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    Pantau performa dan kehadiran santri secara berkala.
+                </p>
+            </div>
+            
+            <div class="hidden sm:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white items-center justify-center shadow-lg shadow-indigo-500/30 transition-transform hover:scale-105">
+                <i data-lucide="chart-pie" class="w-7 h-7"></i>
+            </div>
         </div>
 
-        <h2 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-none">
-            Evaluasi Santri
-        </h2>
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            
+            <div class="p-5 sm:p-6 pb-5">
+                <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">
+                    Pilih Santri
+                </label>
+                <div class="relative group">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                    
+                    <select id="analysis-santri" onchange="window.runAnalysis()" class="w-full pl-12 pr-12 h-14 rounded-2xl border-2 border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-sm font-semibold text-slate-700 dark:text-slate-200 appearance-none outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 hover:border-slate-200 dark:hover:border-slate-700 transition-all cursor-pointer">
+                        <option value="">Pilih Santri...</option>
+                        </select>
+                    
+                    <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                </div>
+            </div>
 
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            Pantau performa dan kehadiran santri berdasarkan periode tertentu
+            <div class="border-t border-slate-100 dark:border-slate-800"></div>
+
+            <div class="p-5 sm:p-6">
+                <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">
+                    Periode Analisis
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <button onclick="window.setAnalysisMode('daily')" class="anl-btn active-mode h-12 rounded-xl text-[12px] font-black tracking-wide" data-mode="daily">
+                        Harian
+                    </button>
+                    <button onclick="window.setAnalysisMode('weekly')" class="anl-btn bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 h-12 rounded-xl text-[12px] font-black text-slate-600 dark:text-slate-400" data-mode="weekly">
+                        Pekan
+                    </button>
+                    <button onclick="window.setAnalysisMode('monthly')" class="anl-btn bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 h-12 rounded-xl text-[12px] font-black text-slate-600 dark:text-slate-400" data-mode="monthly">
+                        Bulan
+                    </button>
+                    <button onclick="window.setAnalysisMode('semester')" class="anl-btn bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 h-12 rounded-xl text-[12px] font-black text-slate-600 dark:text-slate-400" data-mode="semester">
+                        Semester
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 dark:bg-indigo-500/5 border-t border-slate-100 dark:border-slate-800 px-5 py-4">
+                <div class="flex items-center justify-center gap-3">
+                    <i data-lucide="calendar-range" class="w-4 h-4 text-indigo-500"></i>
+                    <span id="analysis-date-range" class="text-[11px] sm:text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+                        -
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="analysis-result" class="hidden animate-slide-up flex-col gap-6">
+        
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+            <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                <div class="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/25">
+                    <i data-lucide="user-round-check" class="w-7 h-7"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">
+                        Analisis Kehadiran
+                    </p>
+                    <h3 id="analysis-student-name" class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white truncate">
+                        Pilih Santri
+                    </h3>
+                </div>
+            </div>
+
+            <div class="p-8 text-center flex flex-col items-center justify-center relative">
+                <div class="relative flex items-center justify-center w-40 h-40 rounded-full border-[10px] border-indigo-50 dark:border-slate-800 mb-6 shadow-inner">
+                    <div class="absolute inset-0 rounded-full border-[10px] border-indigo-500 opacity-20"></div>
+                    <div class="flex flex-col items-center justify-center">
+                        <div id="anl-total-score" class="text-5xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">
+                            0%
+                        </div>
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-2">
+                            Total Skor
+                        </div>
+                    </div>
+                </div>
+                
+                <span id="anl-verdict" class="inline-flex items-center px-5 py-2.5 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold text-xs sm:text-sm tracking-wide shadow-sm">
+                    Sangat Baik
+                </span>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                <div class="p-5 text-center transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-500/5">
+                    <div id="stat-hadir-mini" class="text-3xl font-black text-emerald-500 mb-1">0</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hadir</div>
+                </div>
+                <div class="p-5 text-center transition-colors hover:bg-amber-50 dark:hover:bg-amber-500/5">
+                    <div id="stat-sakit-mini" class="text-3xl font-black text-amber-500 mb-1">0</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sakit</div>
+                </div>
+                <div class="p-5 text-center transition-colors hover:bg-blue-50 dark:hover:bg-blue-500/5">
+                    <div id="stat-izin-mini" class="text-3xl font-black text-blue-500 mb-1">0</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Izin</div>
+                </div>
+                <div class="p-5 text-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/5">
+                    <div id="stat-masalah-mini" class="text-3xl font-black text-red-500 mb-1">0</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Masalah</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-5 hover:border-cyan-200 dark:hover:border-cyan-900/50 transition-colors">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 shrink-0 rounded-2xl bg-cyan-50 dark:bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base leading-tight">KBM Sekolah</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Kehadiran Kelas</p>
+                        </div>
+                    </div>
+                    <div id="anl-score-school" class="text-2xl font-black text-cyan-600 dark:text-cyan-400">0%</div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex w-full h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 gap-1">
+                        <div id="bar-school-h" class="h-full bg-cyan-500 dark:bg-cyan-400 transition-all duration-1000 ease-out w-0 rounded-l-full"></div>
+                        <div id="bar-school-m" class="h-full bg-red-400 dark:bg-red-500 transition-all duration-1000 ease-out w-0 rounded-r-full"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-bold px-1">
+                        <span class="text-cyan-700 dark:text-cyan-400">Hadir: <span id="txt-school-h">0</span></span>
+                        <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-school-m">0</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-5 hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-colors">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 shrink-0 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <i data-lucide="moon" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base leading-tight">Shalat Fardhu</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Berjamaah</p>
+                        </div>
+                    </div>
+                    <div id="anl-score-fardu" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">0%</div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex w-full h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 gap-1">
+                        <div id="bar-fardu-h" class="h-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-1000 ease-out w-0 rounded-l-full"></div>
+                        <div id="bar-fardu-m" class="h-full bg-red-400 dark:bg-red-500 transition-all duration-1000 ease-out w-0 rounded-r-full"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-bold px-1">
+                        <span class="text-emerald-700 dark:text-emerald-400">Hadir: <span id="txt-fardu-h">0</span></span>
+                        <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-fardu-m">0</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-5 hover:border-blue-200 dark:hover:border-blue-900/50 transition-colors">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 shrink-0 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i data-lucide="book-open" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base leading-tight">KBM Asrama</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Kegiatan Diniyah</p>
+                        </div>
+                    </div>
+                    <div id="anl-score-kbm" class="text-2xl font-black text-blue-600 dark:text-blue-400">0%</div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex w-full h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 gap-1">
+                        <div id="bar-kbm-h" class="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-1000 ease-out w-0 rounded-l-full"></div>
+                        <div id="bar-kbm-m" class="h-full bg-red-400 dark:bg-red-500 transition-all duration-1000 ease-out w-0 rounded-r-full"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-bold px-1">
+                        <span class="text-blue-700 dark:text-blue-400">Hadir: <span id="txt-kbm-h">0</span></span>
+                        <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-kbm-m">0</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-5 hover:border-amber-200 dark:hover:border-amber-900/50 transition-colors">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 shrink-0 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                            <i data-lucide="sun" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base leading-tight">Ibadah Sunnah</h3>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Hafalan & Amalan</p>
+                        </div>
+                    </div>
+                    <div id="anl-score-sunnah" class="text-2xl font-black text-amber-600 dark:text-amber-400">0%</div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex w-full h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 gap-1">
+                        <div id="bar-sunnah-y" class="h-full bg-amber-400 dark:bg-amber-500 transition-all duration-1000 ease-out w-0 rounded-l-full"></div>
+                        <div id="bar-sunnah-t" class="h-full bg-slate-400 dark:bg-slate-600 transition-all duration-1000 ease-out w-0 rounded-r-full"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-bold px-1">
+                        <span class="text-amber-700 dark:text-amber-400">Ya: <span id="txt-sunnah-y">0</span></span>
+                        <span class="text-slate-500 dark:text-slate-400">Tidak: <span id="txt-sunnah-t">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="analysis-empty" class="flex flex-col items-center justify-center py-24 px-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 transition-all">
+        <div class="relative w-20 h-20 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-5 shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="absolute inset-0 bg-indigo-500/10 rounded-full animate-ping opacity-20"></div>
+            <i data-lucide="user-search" class="w-8 h-8 text-indigo-400"></i>
+        </div>
+        <h3 class="text-lg font-black text-slate-700 dark:text-slate-200 mb-2">Pilih Data Santri</h3>
+        <p class="text-sm text-center text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
+            Silakan pilih nama santri dari menu pencarian di atas untuk melihat analitik personal dan rekapan kehadiran secara lengkap.
         </p>
-
     </div>
-
-    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25">
-
-        <i data-lucide="chart-pie" class="w-7 h-7"></i>
-
-    </div>
-
-</div>
-
-<!-- Control Card -->
-
-<div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-
-    <!-- Search -->
-
-    <div class="p-5 pb-4">
-
-        <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
-
-            Pilih Santri
-
-        </label>
-
-        <div class="relative">
-
-            <i
-                data-lucide="search"
-                class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400">
-            </i>
-
-            <select
-                id="analysis-santri"
-                onchange="window.runAnalysis()"
-                class="w-full pl-11 pr-12 h-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 appearance-none outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all">
-
-                <option value="">
-                    Pilih Santri...
-                </option>
-
-            </select>
-
-            <i
-                data-lucide="chevron-down"
-                class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none">
-            </i>
-
-        </div>
-
-    </div>
-
-    <!-- Divider -->
-
-    <div class="border-t border-slate-100 dark:border-slate-700"></div>
-
-    <!-- Period Filter -->
-
-    <div class="p-4">
-
-        <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
-
-            Periode Analisis
-
-        </label>
-
-        <div class="grid grid-cols-4 gap-2">
-
-            <button
-                onclick="window.setAnalysisMode('daily')"
-                class="anl-btn active-mode h-11 rounded-xl text-[11px] font-black"
-                data-mode="daily">
-
-                Harian
-
-            </button>
-
-            <button
-                onclick="window.setAnalysisMode('weekly')"
-                class="anl-btn h-11 rounded-xl text-[11px] font-black text-slate-500"
-                data-mode="weekly">
-
-                Pekan
-
-            </button>
-
-            <button
-                onclick="window.setAnalysisMode('monthly')"
-                class="anl-btn h-11 rounded-xl text-[11px] font-black text-slate-500"
-                data-mode="monthly">
-
-                Bulan
-
-            </button>
-
-            <button
-                onclick="window.setAnalysisMode('semester')"
-                class="anl-btn h-11 rounded-xl text-[11px] font-black text-slate-500"
-                data-mode="semester">
-
-                Semester
-
-            </button>
-
-        </div>
-
-    </div>
-
-    <!-- Date Range -->
-
-    <div class="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 px-5 py-4">
-
-        <div class="flex items-center justify-center gap-2">
-
-            <i
-                data-lucide="calendar-range"
-                class="w-4 h-4 text-indigo-500">
-            </i>
-
-            <span
-                id="analysis-date-range"
-                class="text-[11px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
-
-                -
-
-            </span>
-
-        </div>
-
-    </div>
-
-</div>
-
 </div>
 
 <style>
-.anl-btn{
-    transition:all .25s ease;
+/* Scoped Styles for UI Enhancements */
+.anl-btn {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-.anl-btn:hover{
-    transform:translateY(-1px);
+.anl-btn:hover:not(.active-mode) {
+    transform: translateY(-2px);
 }
-
-.anl-btn.active-mode{
-    background:#6366f1 !important;
-    color:white !important;
-    box-shadow:
-        0 8px 20px rgba(99,102,241,.25);
+.anl-btn.active-mode {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    color: white !important;
+    box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.4);
+    border: none;
 }
 </style>
-
-
-        <div id="analysis-result" class="hidden animate-slide-up flex-col gap-6">
-            
-            <!-- ===================================== -->
-
-<!-- ANALYSIS HERO v3 -->
-
-<!-- ===================================== -->
-
-<div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-
-<!-- Header -->
-
-<div class="p-5 border-b border-slate-100 dark:border-slate-700">
-
-    <div class="flex items-center gap-4">
-
-        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25">
-
-            <i data-lucide="user-round-check" class="w-7 h-7"></i>
-
-        </div>
-
-        <div class="flex-1 min-w-0">
-
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">
-                Analisis Kehadiran
-            </p>
-
-            <h3
-                id="analysis-student-name"
-                class="text-xl font-black text-slate-800 dark:text-white truncate">
-
-                Pilih Santri
-
-            </h3>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- Score -->
-
-<div class="p-6 text-center">
-
-    <div class="inline-flex items-center justify-center w-36 h-36 rounded-full border-8 border-indigo-100 dark:border-indigo-900/40 mb-4">
-
-        <div>
-
-            <div
-                id="anl-total-score"
-                class="text-5xl font-black text-slate-900 dark:text-white leading-none">
-
-                0%
-
-            </div>
-
-            <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-2">
-
-                Kehadiran
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <div>
-
-        <span
-            id="anl-verdict"
-            class="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 font-bold text-xs">
-
-            Sangat Baik
-
-        </span>
-
-    </div>
-
-</div>
-
-<!-- Stats -->
-
-<div class="grid grid-cols-4 border-t border-slate-100 dark:border-slate-700">
-
-    <div class="p-4 text-center">
-
-        <div
-            id="stat-hadir-mini"
-            class="text-2xl font-black text-emerald-500">
-
-            0
-
-        </div>
-
-        <div class="text-[10px] font-bold uppercase text-slate-400 mt-1">
-
-            Hadir
-
-        </div>
-
-    </div>
-
-    <div class="p-4 text-center border-l border-slate-100 dark:border-slate-700">
-
-        <div
-            id="stat-sakit-mini"
-            class="text-2xl font-black text-amber-500">
-
-            0
-
-        </div>
-
-        <div class="text-[10px] font-bold uppercase text-slate-400 mt-1">
-
-            Sakit
-
-        </div>
-
-    </div>
-
-    <div class="p-4 text-center border-l border-slate-100 dark:border-slate-700">
-
-        <div
-            id="stat-izin-mini"
-            class="text-2xl font-black text-blue-500">
-
-            0
-
-        </div>
-
-        <div class="text-[10px] font-bold uppercase text-slate-400 mt-1">
-
-            Izin
-
-        </div>
-
-    </div>
-
-    <div class="p-4 text-center border-l border-slate-100 dark:border-slate-700">
-
-        <div
-            id="stat-masalah-mini"
-            class="text-2xl font-black text-red-500">
-
-            0
-
-        </div>
-
-        <div class="text-[10px] font-bold uppercase text-slate-400 mt-1">
-
-            Masalah
-
-        </div>
-
-    </div>
-
-</div>
-
-
-</div>
-
-        
-            <!-- 2. METRIC CARDS GRID -->
-            <div class="grid grid-cols-1 gap-4">
-                
-                <!-- Metric: KBM Sekolah -->
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
-                                <i data-lucide="graduation-cap" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">KBM Sekolah</h3>
-                                <p class="text-[10px] text-slate-500 font-medium">Kehadiran Kelas</p>
-                            </div>
-                        </div>
-                        <div id="anl-score-school" class="text-xl font-black text-cyan-600 dark:text-cyan-400">0%</div>
-                    </div>
-                    
-                    <div class="flex flex-col gap-1.5">
-                        <!-- Stacked Progress Bar -->
-                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
-                            <div id="bar-school-h" class="h-full bg-cyan-500 transition-all duration-1000 ease-out w-0"></div>
-                            <div id="bar-school-m" class="h-full bg-red-400 transition-all duration-1000 ease-out w-0"></div>
-                        </div>
-                        <!-- Labels -->
-                        <div class="flex justify-between text-[10px] font-bold px-1">
-                            <span class="text-cyan-700 dark:text-cyan-400">Hadir: <span id="txt-school-h">0</span></span>
-                            <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-school-m">0</span></span>
-                        </div>
-                    </div>
-                </div>
-        
-                <!-- Metric: Shalat Fardhu -->
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                <i data-lucide="moon" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">Shalat Fardhu</h3>
-                                <p class="text-[10px] text-slate-500 font-medium">Berjamaah</p>
-                            </div>
-                        </div>
-                        <div id="anl-score-fardu" class="text-xl font-black text-emerald-600 dark:text-emerald-400">0%</div>
-                    </div>
-                    
-                    <div class="flex flex-col gap-1.5">
-                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
-                            <div id="bar-fardu-h" class="h-full bg-emerald-500 transition-all duration-1000 ease-out w-0"></div>
-                            <div id="bar-fardu-m" class="h-full bg-red-400 transition-all duration-1000 ease-out w-0"></div>
-                        </div>
-                        <div class="flex justify-between text-[10px] font-bold px-1">
-                            <span class="text-emerald-700 dark:text-emerald-400">Hadir: <span id="txt-fardu-h">0</span></span>
-                            <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-fardu-m">0</span></span>
-                        </div>
-                    </div>
-                </div>
-        
-                <!-- Metric: KBM Asrama -->
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                <i data-lucide="book-open" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">KBM Asrama</h3>
-                                <p class="text-[10px] text-slate-500 font-medium">Kegiatan Diniyah</p>
-                            </div>
-                        </div>
-                        <div id="anl-score-kbm" class="text-xl font-black text-blue-600 dark:text-blue-400">0%</div>
-                    </div>
-                    
-                    <div class="flex flex-col gap-1.5">
-                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
-                            <div id="bar-kbm-h" class="h-full bg-blue-500 transition-all duration-1000 ease-out w-0"></div>
-                            <div id="bar-kbm-m" class="h-full bg-red-400 transition-all duration-1000 ease-out w-0"></div>
-                        </div>
-                        <div class="flex justify-between text-[10px] font-bold px-1">
-                            <span class="text-blue-700 dark:text-blue-400">Hadir: <span id="txt-kbm-h">0</span></span>
-                            <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-kbm-m">0</span></span>
-                        </div>
-                    </div>
-                </div>
-        
-                <!-- Metric: Ibadah Sunnah -->
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                                <i data-lucide="sun" class="w-5 h-5"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">Ibadah Sunnah</h3>
-                                <p class="text-[10px] text-slate-500 font-medium">Hafalan & Amalan</p>
-                            </div>
-                        </div>
-                        <div id="anl-score-sunnah" class="text-xl font-black text-amber-600 dark:text-amber-400">0%</div>
-                    </div>
-                    
-                    <div class="flex flex-col gap-1.5">
-                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
-                            <div id="bar-sunnah-y" class="h-full bg-amber-400 transition-all duration-1000 ease-out w-0"></div>
-                            <div id="bar-sunnah-t" class="h-full bg-slate-400 dark:bg-slate-500 transition-all duration-1000 ease-out w-0"></div>
-                        </div>
-                        <div class="flex justify-between text-[10px] font-bold px-1">
-                            <span class="text-amber-700 dark:text-amber-400">Ya: <span id="txt-sunnah-y">0</span></span>
-                            <span class="text-slate-500 dark:text-slate-400">Tidak: <span id="txt-sunnah-t">0</span></span>
-                        </div>
-                    </div>
-                </div>
-        
-            </div>
-        </div>
-        
-        <div id="analysis-empty" class="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/20">
-            <div class="w-16 h-16 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100 dark:border-slate-700">
-                <i data-lucide="user-search" class="w-7 h-7 text-indigo-400 opacity-80"></i>
-            </div>
-            <h3 class="text-base font-black text-slate-700 dark:text-slate-300 mb-1">Pilih Santri</h3>
-            <p class="text-xs text-center text-slate-500 dark:text-slate-400 px-8 max-w-xs">Silakan pilih santri dari menu di atas untuk melihat analitik personal.</p>
-        </div>
-    </div> 
 </div>
 
 <style>
