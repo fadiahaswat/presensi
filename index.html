@@ -965,154 +965,160 @@
             </span>
         </div>
 
-        <div id="analysis-result" class="hidden animate-slide-up flex-col gap-5">
+        <div id="analysis-result" class="hidden animate-slide-up flex-col gap-6">
             
-            <div class="relative p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl shadow-indigo-500/5 isolate overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 opacity-5 -z-10"></div>
-                <div class="absolute -top-16 -right-16 w-48 h-48 bg-indigo-400 rounded-full blur-[60px] opacity-30 -z-10"></div>
-                <div class="absolute -bottom-16 -left-16 w-48 h-48 bg-emerald-400 rounded-full blur-[60px] opacity-20 -z-10"></div>
-
-                <div class="relative flex flex-col items-center">
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <p class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">Total Kehadiran</p>
+            <!-- 1. HERO CARD: Total Kehadiran -->
+            <!-- Didesain ulang dengan gradient solid agar tidak berat dirender dan lebih rapi -->
+            <div class="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[2rem] p-6 shadow-xl border border-indigo-500/20 overflow-hidden">
+                
+                <!-- Ornamen Dekoratif Halus -->
+                <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                    <i data-lucide="award" class="w-32 h-32 text-indigo-400 transform rotate-12 translate-x-8 -translate-y-8"></i>
+                </div>
+        
+                <div class="relative z-10 flex flex-col items-center text-center">
+                    <div class="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/5 mb-4 backdrop-blur-sm">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-[10px] font-bold text-indigo-100 uppercase tracking-widest">Skor Kehadiran</span>
                     </div>
                     
-                    <h2 id="anl-total-score" class="text-7xl font-extrabold text-slate-900 dark:text-white tracking-tighter mb-4 tabular-nums">
-                        0<span class="text-4xl text-slate-400 dark:text-slate-500">%</span>
+                    <h2 id="anl-total-score" class="text-6xl font-black text-white tracking-tighter mb-3 tabular-nums drop-shadow-md">
+                        0<span class="text-3xl text-indigo-300/70">%</span>
                     </h2>
                     
-                    <div class="px-6 py-2 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-md">
-                        <span id="anl-verdict">Sangat Baik</span>
+                    <div class="mb-8">
+                        <span id="anl-verdict" class="px-5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs uppercase tracking-wider">
+                            Sangat Baik
+                        </span>
                     </div>
-
-                    <div class="flex gap-8 mt-8 pt-6 border-t border-slate-200 dark:border-slate-700/50 w-full justify-center">
-                        <div class="text-center">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Hadir</p>
-                            <p id="stat-hadir-mini" class="text-lg font-black text-emerald-500 leading-none">0</p>
+        
+                    <!-- Mini Stats: Hadir & Masalah (Kaca/Glassmorphism) -->
+                    <div class="grid grid-cols-2 gap-px bg-white/10 rounded-2xl overflow-hidden w-full max-w-xs mx-auto border border-white/10 backdrop-blur-md">
+                        <div class="bg-slate-900/40 p-3 flex flex-col items-center">
+                            <span class="text-[9px] font-bold text-indigo-200 uppercase mb-0.5">Total Hadir</span>
+                            <span id="stat-hadir-mini" class="text-xl font-black text-emerald-400">0</span>
                         </div>
-                        <div class="text-center">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Masalah</p>
-                            <p id="stat-masalah-mini" class="text-lg font-black text-red-500 leading-none">0</p>
+                        <div class="bg-slate-900/40 p-3 flex flex-col items-center">
+                            <span class="text-[9px] font-bold text-indigo-200 uppercase mb-0.5">Masalah</span>
+                            <span id="stat-masalah-mini" class="text-xl font-black text-red-400">0</span>
                         </div>
                     </div>
                 </div>
             </div>
-
+        
+            <!-- 2. METRIC CARDS GRID -->
             <div class="grid grid-cols-1 gap-4">
                 
-                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-cyan-400 transition-colors group flex flex-col gap-4">
+                <!-- Metric: KBM Sekolah -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-cyan-50 dark:bg-cyan-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <i data-lucide="graduation-cap" class="w-5 h-5 text-cyan-500"></i>
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                                <i data-lucide="graduation-cap" class="w-5 h-5"></i>
                             </div>
-                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">KBM Sekolah</h3>
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">KBM Sekolah</h3>
+                                <p class="text-[10px] text-slate-500 font-medium">Kehadiran Kelas</p>
+                            </div>
                         </div>
-                        <span id="anl-score-school" class="text-xl font-black text-cyan-600 dark:text-cyan-400">0%</span>
+                        <div id="anl-score-school" class="text-xl font-black text-cyan-600 dark:text-cyan-400">0%</div>
                     </div>
-                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Hadir</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-school-h" class="h-full bg-cyan-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-school-h" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                    
+                    <div class="flex flex-col gap-1.5">
+                        <!-- Stacked Progress Bar -->
+                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
+                            <div id="bar-school-h" class="h-full bg-cyan-500 transition-all duration-1000 ease-out w-0"></div>
+                            <div id="bar-school-m" class="h-full bg-red-400 transition-all duration-1000 ease-out w-0"></div>
                         </div>
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Tdk Hadir</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-school-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-school-m" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        <!-- Labels -->
+                        <div class="flex justify-between text-[10px] font-bold px-1">
+                            <span class="text-cyan-700 dark:text-cyan-400">Hadir: <span id="txt-school-h">0</span></span>
+                            <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-school-m">0</span></span>
                         </div>
                     </div>
                 </div>
-
-                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-emerald-400 transition-colors group flex flex-col gap-4">
+        
+                <!-- Metric: Shalat Fardhu -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <i data-lucide="moon" class="w-5 h-5 text-emerald-500"></i>
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <i data-lucide="moon" class="w-5 h-5"></i>
                             </div>
-                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Shalat Fardhu</h3>
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">Shalat Fardhu</h3>
+                                <p class="text-[10px] text-slate-500 font-medium">Berjamaah</p>
+                            </div>
                         </div>
-                        <span id="anl-score-fardu" class="text-xl font-black text-emerald-600 dark:text-emerald-400">0%</span>
+                        <div id="anl-score-fardu" class="text-xl font-black text-emerald-600 dark:text-emerald-400">0%</div>
                     </div>
-                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Hadir</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-fardu-h" class="h-full bg-emerald-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-fardu-h" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                    
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
+                            <div id="bar-fardu-h" class="h-full bg-emerald-500 transition-all duration-1000 ease-out w-0"></div>
+                            <div id="bar-fardu-m" class="h-full bg-red-400 transition-all duration-1000 ease-out w-0"></div>
                         </div>
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Tdk Hadir</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-fardu-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-fardu-m" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        <div class="flex justify-between text-[10px] font-bold px-1">
+                            <span class="text-emerald-700 dark:text-emerald-400">Hadir: <span id="txt-fardu-h">0</span></span>
+                            <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-fardu-m">0</span></span>
                         </div>
                     </div>
                 </div>
-
-                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors group flex flex-col gap-4">
+        
+                <!-- Metric: KBM Asrama -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <i data-lucide="book-open" class="w-5 h-5 text-blue-500"></i>
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                <i data-lucide="book-open" class="w-5 h-5"></i>
                             </div>
-                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">KBM Asrama</h3>
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">KBM Asrama</h3>
+                                <p class="text-[10px] text-slate-500 font-medium">Kegiatan Diniyah</p>
+                            </div>
                         </div>
-                        <span id="anl-score-kbm" class="text-xl font-black text-blue-600 dark:text-blue-400">0%</span>
+                        <div id="anl-score-kbm" class="text-xl font-black text-blue-600 dark:text-blue-400">0%</div>
                     </div>
-                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Hadir</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-kbm-h" class="h-full bg-blue-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-kbm-h" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                    
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
+                            <div id="bar-kbm-h" class="h-full bg-blue-500 transition-all duration-1000 ease-out w-0"></div>
+                            <div id="bar-kbm-m" class="h-full bg-red-400 transition-all duration-1000 ease-out w-0"></div>
                         </div>
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Tdk Hadir</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-kbm-m" class="h-full bg-red-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-kbm-m" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        <div class="flex justify-between text-[10px] font-bold px-1">
+                            <span class="text-blue-700 dark:text-blue-400">Hadir: <span id="txt-kbm-h">0</span></span>
+                            <span class="text-red-500 dark:text-red-400">Absen: <span id="txt-kbm-m">0</span></span>
                         </div>
                     </div>
                 </div>
-
-                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-amber-400 transition-colors group flex flex-col gap-4">
+        
+                <!-- Metric: Ibadah Sunnah -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <i data-lucide="sun" class="w-5 h-5 text-amber-500"></i>
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                                <i data-lucide="sun" class="w-5 h-5"></i>
                             </div>
-                            <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Ibadah Sunnah</h3>
+                            <div>
+                                <h3 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">Ibadah Sunnah</h3>
+                                <p class="text-[10px] text-slate-500 font-medium">Hafalan & Amalan</p>
+                            </div>
                         </div>
-                        <span id="anl-score-sunnah" class="text-xl font-black text-amber-600 dark:text-amber-400">0%</span>
+                        <div id="anl-score-sunnah" class="text-xl font-black text-amber-600 dark:text-amber-400">0%</div>
                     </div>
-                    <div class="flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl">
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Ya</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-sunnah-y" class="h-full bg-amber-400 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-sunnah-y" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                    
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex w-full h-2.5 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 gap-0.5">
+                            <div id="bar-sunnah-y" class="h-full bg-amber-400 transition-all duration-1000 ease-out w-0"></div>
+                            <div id="bar-sunnah-t" class="h-full bg-slate-400 dark:bg-slate-500 transition-all duration-1000 ease-out w-0"></div>
                         </div>
-                        <div class="flex items-center text-xs gap-3">
-                            <span class="w-14 font-bold text-slate-500 shrink-0">Tidak</span>
-                            <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div id="bar-sunnah-t" class="h-full bg-slate-400 dark:bg-slate-500 w-0 rounded-full transition-all duration-1000 ease-out"></div>
-                            </div>
-                            <span id="txt-sunnah-t" class="w-8 font-black text-slate-700 dark:text-white text-right shrink-0">0</span>
+                        <div class="flex justify-between text-[10px] font-bold px-1">
+                            <span class="text-amber-700 dark:text-amber-400">Ya: <span id="txt-sunnah-y">0</span></span>
+                            <span class="text-slate-500 dark:text-slate-400">Tidak: <span id="txt-sunnah-t">0</span></span>
                         </div>
                     </div>
                 </div>
-
+        
             </div>
         </div>
         
