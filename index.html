@@ -967,63 +967,40 @@
 
         <div id="analysis-result" class="hidden animate-slide-up flex-col gap-6">
     
-        <div class="relative bg-slate-900 rounded-[2rem] p-7 shadow-2xl border border-slate-800 overflow-hidden isolate">
+        <!-- 1. HERO CARD: Total Kehadiran (Simple, Clean, & Consistent) -->
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-5 text-center relative overflow-hidden">
             
-            <!-- Efek Bias Cahaya (Glow Orbs) yang lebih ringan dari blur besar -->
-            <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/30 rounded-full mix-blend-screen filter blur-[64px] -z-10 pointer-events-none"></div>
-            <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/20 rounded-full mix-blend-screen filter blur-[64px] -z-10 pointer-events-none"></div>
-            
-            <!-- Ornamen Pattern Halus (Opsional, memberi tekstur) -->
-            <div class="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] -z-10"></div>
+            <!-- Garis Aksen Tipis di Atas Card (Opsional, pemanis yang selaras dengan tema) -->
+            <div class="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500"></div>
         
-            <div class="relative z-10 flex flex-col items-center text-center">
+            <!-- Label Atas -->
+            <div class="flex items-center justify-center gap-2 mt-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Total Kehadiran</p>
+            </div>
+        
+            <!-- Main Score & Verdict -->
+            <div class="flex flex-col items-center justify-center gap-3">
+                <h2 id="anl-total-score" class="text-6xl font-black text-slate-800 dark:text-white tracking-tighter tabular-nums leading-none">
+                    0<span class="text-3xl text-slate-400 dark:text-slate-500 font-bold">%</span>
+                </h2>
                 
-                <!-- Label Atas -->
-                <div class="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 mb-6 backdrop-blur-md shadow-sm">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-                    <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Skor Kehadiran</span>
-                </div>
-                
-                <!-- Main Score -->
-                <div class="flex items-start justify-center gap-1 mb-5">
-                    <h2 id="anl-total-score" class="text-7xl font-black text-white tracking-tighter tabular-nums leading-none drop-shadow-lg">
-                        0
-                    </h2>
-                    <span class="text-3xl font-bold text-indigo-400 mt-1">%</span>
-                </div>
-                
-                <!-- Verdict Badge -->
-                <div class="mb-10">
-                    <span id="anl-verdict" class="px-5 py-2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[11px] uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                <div class="px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800">
+                    <span id="anl-verdict" class="text-indigo-600 dark:text-indigo-400 font-black text-[10px] uppercase tracking-widest">
                         Sangat Baik
                     </span>
                 </div>
+            </div>
         
-                <!-- Mini Stats: Hadir & Masalah -->
-                <div class="grid grid-cols-2 gap-3 w-full max-w-sm mx-auto">
-                    
-                    <!-- Card Hadir -->
-                    <div class="bg-white/5 border border-white/5 rounded-2xl p-3.5 flex items-center justify-between backdrop-blur-sm transition-all hover:bg-white/10">
-                        <div class="flex flex-col text-left">
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total Hadir</span>
-                            <span id="stat-hadir-mini" class="text-xl font-black text-emerald-400 leading-none">0</span>
-                        </div>
-                        <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
-                        </div>
-                    </div>
-        
-                    <!-- Card Masalah -->
-                    <div class="bg-white/5 border border-white/5 rounded-2xl p-3.5 flex items-center justify-between backdrop-blur-sm transition-all hover:bg-white/10">
-                        <div class="flex flex-col text-left">
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Masalah</span>
-                            <span id="stat-masalah-mini" class="text-xl font-black text-red-400 leading-none">0</span>
-                        </div>
-                        <div class="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
-                        </div>
-                    </div>
-                    
+            <!-- Mini Stats: Integrasi dengan gaya "bg-slate-50" dari card lain -->
+            <div class="grid grid-cols-2 gap-3 mt-1">
+                <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-700/50">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Hadir</span>
+                    <span id="stat-hadir-mini" class="text-xl font-black text-emerald-500 leading-none">0</span>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-2xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-700/50">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Masalah</span>
+                    <span id="stat-masalah-mini" class="text-xl font-black text-red-500 leading-none">0</span>
                 </div>
             </div>
         </div>
