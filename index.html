@@ -927,55 +927,191 @@
 
     <div id="analysis-section" class="hidden animate-fade-in flex-col gap-6">
         
-        <!-- Bagian Header Judul -->
-        <div class="flex items-center justify-between mb-1">
-            <div class="flex flex-col">
-                <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Analisis Personal</h2>
-                <p class="text-[11px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-0.5">Evaluasi Per Santri</p>
-            </div>
-            <div class="w-12 h-12 shrink-0 rounded-[1.25rem] bg-gradient-to-br from-indigo-50 dark:from-indigo-900/30 to-purple-50 dark:to-purple-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-500 shadow-sm">
-                <i data-lucide="pie-chart" class="w-6 h-6"></i>
-            </div>
+        <!-- ========================================= -->
+
+<!-- ANALISIS PERSONAL v2 -->
+
+<!-- ========================================= -->
+
+<div class="space-y-5">
+
+```
+<!-- Header -->
+
+<div class="flex items-center justify-between">
+
+    <div>
+
+        <div class="inline-flex items-center gap-2 mb-2">
+
+            <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+
+            <span class="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-500">
+                Analisis Personal
+            </span>
+
         </div>
-        
-        <!-- Card Kontrol (Pencarian & Filter Periode) -->
-        <div class="bg-white dark:bg-slate-800 p-4 rounded-[2rem] shadow-lg shadow-slate-200/40 dark:shadow-none border border-slate-200/80 dark:border-slate-700 flex flex-col gap-4 relative z-20">
-            
-            <!-- Input Select Santri (Ditingkatkan visualnya) -->
-            <div class="relative group">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors duration-300"></i>
-                </div>
-                <select id="analysis-santri" onchange="window.runAnalysis()" 
-                    class="w-full pl-11 pr-12 py-3.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl font-bold text-slate-700 dark:text-slate-200 outline-none text-sm appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-inner">
-                    <option value="">Cari dan Pilih Santri...</option>
-                </select>
-                <!-- Custom Arrow Dropdown -->
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <div class="w-7 h-7 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center">
-                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
-                    </div>
-                </div>
-            </div>
-        
-            <!-- Mode Selector (Gaya iOS Segmented Control) -->
-            <div class="grid grid-cols-4 p-1.5 bg-slate-100/80 dark:bg-slate-900 rounded-[1.25rem] border border-slate-200/50 dark:border-slate-800">
-                <button onclick="window.setAnalysisMode('daily')" class="anl-btn py-2 text-[10px] font-black rounded-xl active-mode transition-all duration-300" data-mode="daily">Harian</button>
-                <button onclick="window.setAnalysisMode('weekly')" class="anl-btn py-2 text-[10px] font-black rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-300" data-mode="weekly">Pekan</button>
-                <button onclick="window.setAnalysisMode('monthly')" class="anl-btn py-2 text-[10px] font-black rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-300" data-mode="monthly">Bulan</button>
-                <button onclick="window.setAnalysisMode('semester')" class="anl-btn py-2 text-[10px] font-black rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-300" data-mode="semester">Sem</button>
-            </div>
+
+        <h2 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight leading-none">
+            Evaluasi Santri
+        </h2>
+
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+            Pantau performa dan kehadiran santri berdasarkan periode tertentu
+        </p>
+
+    </div>
+
+    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25">
+
+        <i data-lucide="chart-pie" class="w-7 h-7"></i>
+
+    </div>
+
+</div>
+
+<!-- Control Card -->
+
+<div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+
+    <!-- Search -->
+
+    <div class="p-5 pb-4">
+
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+
+            Pilih Santri
+
+        </label>
+
+        <div class="relative">
+
+            <i
+                data-lucide="search"
+                class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400">
+            </i>
+
+            <select
+                id="analysis-santri"
+                onchange="window.runAnalysis()"
+                class="w-full pl-11 pr-12 h-12 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 appearance-none outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all">
+
+                <option value="">
+                    Pilih Santri...
+                </option>
+
+            </select>
+
+            <i
+                data-lucide="chevron-down"
+                class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none">
+            </i>
+
         </div>
-        
-        <!-- Badge Tanggal (Dimasukkan sediki ke bawah card agar terkesan menyambung) -->
-        <div class="flex items-center justify-center -mt-3 relative z-10">
-            <div class="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/60 border-x border-b border-indigo-100 dark:border-indigo-800 px-6 py-2.5 rounded-b-2xl shadow-sm pt-4">
-                <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-indigo-500"></i>
-                <span id="analysis-date-range" class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
-                    -
-                </span>
-            </div>
+
+    </div>
+
+    <!-- Divider -->
+
+    <div class="border-t border-slate-100 dark:border-slate-700"></div>
+
+    <!-- Period Filter -->
+
+    <div class="p-4">
+
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+
+            Periode Analisis
+
+        </label>
+
+        <div class="grid grid-cols-4 gap-2">
+
+            <button
+                onclick="window.setAnalysisMode('daily')"
+                class="anl-btn active-mode h-11 rounded-xl text-[11px] font-black"
+                data-mode="daily">
+
+                Harian
+
+            </button>
+
+            <button
+                onclick="window.setAnalysisMode('weekly')"
+                class="anl-btn h-11 rounded-xl text-[11px] font-black text-slate-500"
+                data-mode="weekly">
+
+                Pekan
+
+            </button>
+
+            <button
+                onclick="window.setAnalysisMode('monthly')"
+                class="anl-btn h-11 rounded-xl text-[11px] font-black text-slate-500"
+                data-mode="monthly">
+
+                Bulan
+
+            </button>
+
+            <button
+                onclick="window.setAnalysisMode('semester')"
+                class="anl-btn h-11 rounded-xl text-[11px] font-black text-slate-500"
+                data-mode="semester">
+
+                Semester
+
+            </button>
+
         </div>
+
+    </div>
+
+    <!-- Date Range -->
+
+    <div class="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 px-5 py-4">
+
+        <div class="flex items-center justify-center gap-2">
+
+            <i
+                data-lucide="calendar-range"
+                class="w-4 h-4 text-indigo-500">
+            </i>
+
+            <span
+                id="analysis-date-range"
+                class="text-[11px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+
+                -
+
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+```
+
+</div>
+
+<style>
+.anl-btn{
+    transition:all .25s ease;
+}
+
+.anl-btn:hover{
+    transform:translateY(-1px);
+}
+
+.anl-btn.active-mode{
+    background:#6366f1 !important;
+    color:white !important;
+    box-shadow:
+        0 8px 20px rgba(99,102,241,.25);
+}
+</style>
+
 
         <div id="analysis-result" class="hidden animate-slide-up flex-col gap-6">
             
