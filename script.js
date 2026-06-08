@@ -1469,8 +1469,6 @@ window.toggleStatus = function(id, actId, type) {
 
     // 1. TENTUKAN STATUS BARU (LOGIKA SIKLUS)
     if(type === 'mandator') {
-        // SIKLUS UNIVERSAL (Sekolah & Shalat sama-sama bisa Telat)
-        // Hadir -> Telat -> Sakit -> Izin -> Alpa -> Hadir
         if(curr === 'Hadir')
     next = 'Alpa';
 
