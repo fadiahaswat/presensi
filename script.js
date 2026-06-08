@@ -709,24 +709,25 @@ window.renderSlotList = function() {
                 badge.textContent = "Belum Diisi";
             }
 
-            const totalSiswa = FILTERED_SANTRI ? FILTERED_SANTRI.length : 0;
             let percent = 0;
             
-            if (totalSiswa > 0) {
-                const completion =
-    window.getSlotCompletionStatus(
-        s.id,
-        appState.date
-    );
-
-percent =
-Math.round(
-    (
-        completion.filled /
-        totalSiswa
-    ) * 100
-);
-                if (percent > 100) percent = 100; 
+            const totalStatus =
+                stats.h +
+                stats.t +
+                stats.i +
+                stats.s +
+                stats.p +
+                stats.a;
+            
+            if (totalStatus > 0) {
+            
+                percent = Math.round(
+                    (
+                        (stats.h + stats.t)
+                        / totalStatus
+                    ) * 100
+                );
+            
             }
             
             // Terapkan persentase DAN paksa suntikkan warna Hex Code-nya
