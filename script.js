@@ -641,8 +641,16 @@ window.renderSlotList = function() {
         if(timeEl) timeEl.textContent = s.subLabel;
 
         clone.querySelector('.slot-stat-h').textContent = stats.h;
+
+        const telatEl = clone.querySelector('.slot-stat-t');
+        if (telatEl) telatEl.textContent = stats.t;
+        
         clone.querySelector('.slot-stat-s').textContent = stats.s;
         clone.querySelector('.slot-stat-i').textContent = stats.i;
+        
+        const pulangEl = clone.querySelector('.slot-stat-p');
+        if (pulangEl) pulangEl.textContent = stats.p;
+        
         clone.querySelector('.slot-stat-a').textContent = stats.a;
 
         // 4. Inisialisasi Elemen & Warna Progress Bar
