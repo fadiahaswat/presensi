@@ -176,6 +176,7 @@ let appState = {
     selectedClass: null,
     currentSlotId: 'shubuh',
     attendanceData: {},
+    holidays: [],
     searchQuery: '',
     analysisMode: 'daily', // daily, weekly, monthly, semester
     reportMode: 'daily', // daily, weekly, monthly, semester, yearly <-- BARU
