@@ -860,7 +860,16 @@ window.isSlotHoliday = function(slotId, dateStr) {
 
 // Fungsi Terpusat untuk menghitung statistik per slot
 window.calculateSlotStats = function(slotId, customDate = null) {
-    const stats = { h: 0, s: 0, i: 0, a: 0, total: 0, isFilled: false };
+    const stats = {
+        h: 0,
+        t: 0,
+        i: 0,
+        s: 0,
+        p: 0,
+        a: 0,
+        total: 0,
+        isFilled: false
+    };
     
     // Cegah error jika data santri belum siap
     if (!FILTERED_SANTRI || FILTERED_SANTRI.length === 0) return stats;
@@ -891,10 +900,18 @@ window.calculateSlotStats = function(slotId, customDate = null) {
         
         if (status) {
             stats.isFilled = true;
-            if (status === 'Hadir' || status === 'Telat') stats.h++; 
-            else if (status === 'Sakit') stats.s++;
-            else if (status === 'Izin' || status === 'Pulang') stats.i++;
-            else if (status === 'Alpa') stats.a++;
+            if (status === 'Hadir')
+                stats.h++;
+            else if (status === 'Telat')
+                stats.t++;
+            else if (status === 'Izin')
+                stats.i++;
+            else if (status === 'Sakit')
+                stats.s++;
+            else if (status === 'Pulang')
+                stats.p++;
+            else if (status === 'Alpa')
+                stats.a++;
             stats.total++; // Ini jumlah anak yang SUDAH diabsen
         }
     });
