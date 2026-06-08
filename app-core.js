@@ -374,6 +374,55 @@ window.countTotalAlpa = function(studentId) {
     return total;
 };
 
+window.isHoliday = function(
+    date,
+    slotId = null,
+    activityId = null
+){
+    if(
+        !appState.holidays ||
+        !appState.holidays.length
+    ){
+        return false;
+    }
+    const currentDate =
+        new Date(date);
+    return appState.holidays.some(rule => {
+        const startDate =
+            new Date(rule.startDate);
+        const endDate =
+            new Date(rule.endDate);
+        if(
+            currentDate < startDate ||
+            currentDate > endDate
+        ){
+            return false;
+        }
+        if(
+            rule.scope === 'all'
+        ){
+            return true;
+        }
+        if(
+            rule.scope === 'slot' &&
+            slotId
+        ){
+            return (
+                rule.target === slotId
+            );
+        }
+        if(
+            rule.scope === 'activity' &&
+            activityId
+        ){
+            return (
+                rule.target === activityId
+            );
+        }
+        return false;
+    });
+};
+
 // Helper: Tentukan Status Pembinaan
 window.getPembinaanStatus = function(alpaCount) {
     if (alpaCount === 0) return null;
