@@ -4019,7 +4019,8 @@ window.showStatDetails = function(statusType) {
         // Logic Matching
         if(statusType === 'Hadir') return currentStatus === 'Hadir';
         if(statusType === 'Sakit') return currentStatus === 'Sakit';
-        if(statusType === 'Izin') return currentStatus === 'Izin' || currentStatus === 'Pulang'; // Pulang masuk ke list Izin/Detail
+        if(statusType === 'Izin') return currentStatus === 'Izin';
+        if(statusType === 'Pulang') return currentStatus === 'Pulang';
         if(statusType === 'Alpa') return currentStatus === 'Alpa';
         
         return false;
