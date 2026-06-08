@@ -735,7 +735,9 @@ window.renderSlotList = function() {
                 progressBar.style.width = `${percent}%`;
                 progressBar.style.backgroundColor = themeColors[s.theme] || '#10b981';
             }
-            if(progressText) progressText.textContent = `${stats.total}/${totalSiswa}`;
+            if(progressText)
+                progressText.textContent =
+                    `${percent}%`;
 
             item.onclick = () => {
                 appState.currentSlotId = s.id;
