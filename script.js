@@ -1038,7 +1038,10 @@ window.calculateGlobalStats = function() {
         // Cek apakah slot ini sudah ada datanya
         const stats = window.calculateSlotStats(slot.id);
         if(stats.isFilled) {
-             checks += stats.h;
+             checks += (
+                stats.h +
+                stats.t
+            );
              totalExpected += stats.total;
         }
     });
