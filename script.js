@@ -3361,10 +3361,37 @@ window.runAnalysis = function() {
     window.renderBar('kbm', stats.kbm.h, stats.kbm.m);
     window.renderBar('sunnah', stats.sunnah.y, stats.sunnah.t);
 
-    const pctSchool = stats.school.total ? (stats.school.h / stats.school.total) * 100 : 0;
-    const pctFardu = stats.fardu.total ? (stats.fardu.h / stats.fardu.total) * 100 : 0;
-    const pctKbm = stats.kbm.total ? (stats.kbm.h / stats.kbm.total) * 100 : 0;
-    const pctSunnah = stats.sunnah.total ? (stats.sunnah.y / stats.sunnah.total) * 100 : 0;
+    const pctShalat =
+        stats.shalat.total
+            ? Math.round(
+                (stats.shalat.h /
+                 stats.shalat.total) * 100
+              )
+            : 0;
+    
+    const pctSekolah =
+        stats.sekolah.total
+            ? Math.round(
+                (stats.sekolah.h /
+                 stats.sekolah.total) * 100
+              )
+            : 0;
+    
+    const pctMahad =
+        stats.mahad.total
+            ? Math.round(
+                (stats.mahad.h /
+                 stats.mahad.total) * 100
+              )
+            : 0;
+    
+    const pctSunnah =
+        stats.sunnah.total
+            ? Math.round(
+                (stats.sunnah.y /
+                 stats.sunnah.total) * 100
+              )
+            : 0;
 
     let totalScore = 0;
     let divider = 0;
