@@ -2598,15 +2598,29 @@ window.updateReportTab = function() {
                   stats.mahad.total
                 : 0;
         
+        const scoreList = [];
+
+        if(stats.shalat.total > 0)
+            scoreList.push(shalatPct);
+        
+        if(stats.sekolah.total > 0)
+            scoreList.push(sekolahPct);
+        
+        if(stats.mahad.total > 0)
+            scoreList.push(mahadPct);
+        
+        if(stats.sunnah.total > 0)
+            scoreList.push(sunnahPct);
+        
         const finalScore =
-            Math.round(
-                (
-                    shalatPct +
-                    sunnahPct +
-                    sekolahPct +
-                    mahadPct
-                ) / 4
-            );
+            scoreList.length
+                ? Math.round(
+                    scoreList.reduce(
+                        (a,b) => a + b,
+                        0
+                    ) / scoreList.length
+                  )
+                : 0;
 
         const shalatGrade =
             window.getGrade(
