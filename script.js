@@ -2362,7 +2362,8 @@ window.updateReportTab = function() {
                 },
                 kbm: {
                     score: 0,
-                    total: 0
+                    total: 0,
+                    h: 0,
                 },
                 fardu: {
                     h: 0,
