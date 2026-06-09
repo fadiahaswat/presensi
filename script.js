@@ -2357,7 +2357,8 @@ window.updateReportTab = function() {
                 },
                 school: {
                     score: 0,
-                    total: 0
+                    total: 0,
+                    h: 0
                 },
                 kbm: {
                     score: 0,
