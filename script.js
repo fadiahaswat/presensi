@@ -884,7 +884,18 @@ window.isCategoryHoliday = function(
     );
 };
 
-// Fungsi Terpusat untuk menghitung statistik per slot
+window.isSlotHoliday = function(
+    slotId,
+    dateStr
+){
+    const rule =
+        window.isHoliday(
+            dateStr,
+            slotId
+        );
+    return !!rule;
+};
+
 window.calculateSlotStats = function(slotId, customDate = null) {
     const stats = {
         h: 0,
