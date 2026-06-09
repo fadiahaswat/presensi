@@ -1366,6 +1366,11 @@ window.renderAttendanceList = function() {
             btn.textContent = uiBtn.label;
             
             btn.onclick = (e) => {
+                
+                if(isLibur){
+                    return;
+                }
+                
                 e.stopPropagation();
                 if (hasPermitConflict) {
                     if(!confirm(`Santri tercatat ${activePermit.type}. Ubah manual jadi HADIR?`)) return;
