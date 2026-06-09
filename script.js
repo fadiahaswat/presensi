@@ -2350,19 +2350,51 @@ window.updateReportTab = function() {
     const rangeLabel = document.getElementById('report-date-range');
     const thead = document.querySelector('#tab-report thead tr');
     
-    if (thead) {
-        thead.innerHTML = `
-            <th class="p-3 font-bold w-8 text-center" scope="col">No</th>
-            <th class="p-3 font-bold min-w-[120px]" scope="col">Nama Santri</th>
-            <th class="p-3 font-bold text-center" scope="col">Shalat</th>
-            <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400" scope="col">Sekolah</th>
-            <th class="p-3 font-bold text-center" scope="col">KBM Asrama</th>
-            <th class="p-3 font-bold text-center" scope="col">Sunnah</th>
-            <th class="p-3 font-bold text-center" scope="col">Spiritual</th>
-            <th class="p-3 font-bold text-center" scope="col">Sekolah</th>
-            <th class="p-3 font-bold text-center" scope="col">KBM Asrm</th>
-            <th class="p-3 font-bold text-center" scope="col">Grade</th>
+    if(thead){
+    
+        let headerHTML = `
+            <th class="p-3 font-bold w-8 text-center">No</th>
+            <th class="p-3 font-bold min-w-[140px]">Nama Santri</th>
         `;
+    
+        if(appState.reportMode === 'daily'){
+    
+            headerHTML += `
+                <th class="p-3 text-center">Shalat</th>
+                <th class="p-3 text-center">Sekolah</th>
+                <th class="p-3 text-center">Ma'had</th>
+                <th class="p-3 text-center">Sunnah</th>
+            `;
+    
+        }
+    
+        else if(
+            appState.reportMode === 'weekly' ||
+            appState.reportMode === 'monthly'
+        ){
+    
+            headerHTML += `
+                <th class="p-3 text-center">Shalat %</th>
+                <th class="p-3 text-center">Sekolah %</th>
+                <th class="p-3 text-center">Ma'had %</th>
+                <th class="p-3 text-center">Sunnah %</th>
+            `;
+    
+        }
+    
+        else if(appState.reportMode === 'semester'){
+    
+            headerHTML += `
+                <th class="p-3 text-center">Shalat</th>
+                <th class="p-3 text-center">Sekolah</th>
+                <th class="p-3 text-center">Ma'had</th>
+                <th class="p-3 text-center">Sunnah</th>
+                <th class="p-3 text-center">Grade</th>
+            `;
+    
+        }
+    
+        thead.innerHTML = headerHTML;
     }
     
     if(!tbody) return;
