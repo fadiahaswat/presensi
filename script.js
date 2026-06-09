@@ -2505,7 +2505,10 @@ window.updateReportTab = function() {
                         stats.mahad.score += point;
                     }
 
-                    if(act.category === 'fardu') {                  
+                    if(act.category === 'fardu') {
+                        
+                        stats.shalat.total++;
+                        
                         if(
                             st === 'Hadir' ||
                             st === 'Telat'
@@ -2514,7 +2517,10 @@ window.updateReportTab = function() {
                         }
                     
                     }
-                    else if(act.category === 'school') {                    
+                    else if(act.category === 'school') {
+                        
+                        stats.sekolah.total++;
+                        
                         if(
                             st === 'Hadir' ||
                             st === 'Telat'
@@ -2523,7 +2529,10 @@ window.updateReportTab = function() {
                         }
                     
                     }
-                    else if(act.category === 'kbm') {                   
+                    else if(act.category === 'kbm') {
+                        
+                        stats.mahad.total++;
+                        
                         if(
                             st === 'Hadir' ||
                             st === 'Telat'
@@ -2532,7 +2541,10 @@ window.updateReportTab = function() {
                         }
                     
                     }
-                    else if(act.category === 'sunnah') {                    
+                    else if(act.category === 'sunnah') {
+                        
+                        stats.sunnah.total++;
+                        
                         if(
                             st === 'Ya' ||
                             st === 'Hadir'
