@@ -2481,11 +2481,23 @@ window.updateReportTab = function() {
 
                     if(act.category === 'fardu') {
                         stats.fardu.total++;
-                        if(st === 'Hadir') stats.fardu.h++;
-                    } 
-                    else if (act.category === 'school') {
+                    
+                        if(
+                            st === 'Hadir' ||
+                            st === 'Telat'
+                        ){
+                            stats.fardu.h++;
+                        }
+                    }
+                    else if(act.category === 'school') {
                         stats.school.total++;
-                        if(st === 'Hadir' || st === 'Telat') stats.school.h++;
+                    
+                        if(
+                            st === 'Hadir' ||
+                            st === 'Telat'
+                        ){
+                            stats.school.h++;
+                        }
                     }
                     else if(act.category === 'kbm') {
                         stats.kbm.total++;
@@ -2498,7 +2510,8 @@ window.updateReportTab = function() {
                         }
                     }
                     else if(
-                        act.category === 'sunnah'
+                        act.category === 'sunnah' ||
+                        act.category === 'dependent'
                     ){
                         stats.sunnah.total++;
                     
