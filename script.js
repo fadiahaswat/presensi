@@ -2659,7 +2659,7 @@ window.updateReportTab = function() {
 
             schoolCol = `<div class="flex justify-center"><span class="w-6 h-6 flex items-center justify-center rounded-lg ${schColor} text-[10px] font-black shadow-sm" aria-label="Sekolah: ${stSchool || 'Belum diisi'}">${schLabel}</span></div>`;
 
-            kbmCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.kbm.h}</span>`;
+            kbmCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.mahad.h}</span>`;
             sunnahCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.sunnah.y}</span>`;
         } 
         else {
