@@ -1625,6 +1625,36 @@ window.generateBulkButtons = function() {
         </div>`;
     }
 
+    if(hasSchool) {
+        html += `
+        <div class="mb-4">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Berangkat Sekolah
+            </p>
+    
+            <div class="flex gap-2">
+    
+                <button
+                    onclick="window.applyBulkAction('school','Hadir')"
+                    class="flex-1 py-3 rounded-xl bg-cyan-500 text-white font-bold text-xs">
+    
+                    Hadir Semua
+    
+                </button>
+    
+                <button
+                    onclick="window.applyBulkAction('school','Alpa')"
+                    class="flex-1 py-3 rounded-xl bg-red-100 text-red-600 font-bold text-xs">
+    
+                    Alpa Semua
+    
+                </button>
+    
+            </div>
+        </div>
+        `;
+    }
+
     // 2. Bagian KBM Asrama
     if(hasKbm) {
         html += `
@@ -1699,6 +1729,13 @@ window.applyBulkAction = function(targetCategory, value, specificId = null) {
             // LOGIKA 2: KBM Asrama
             else if (targetCategory === 'kbm' && act.category === 'kbm') {
                 dbSlot[id].status[act.id] = value; // Hadir / Alpa
+            }
+
+            else if(
+                targetCategory === 'school' &&
+                act.category === 'school'
+            ){
+                dbSlot[id].status[act.id] = value;
             }
 
             // LOGIKA 3: Specific Sunnah (Dhuha, Tahajjud, dll)
