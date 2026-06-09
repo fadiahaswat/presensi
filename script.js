@@ -1375,7 +1375,7 @@ window.renderAttendanceList = function() {
             };
             
             lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
-            lbl.textContent = act.label;
+            lbl.textContent = act.label + " (Libur)";
             
             btnCont.appendChild(bClone);
         });
