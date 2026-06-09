@@ -2655,14 +2655,14 @@ window.updateReportTab = function() {
             scoreList.push(sunnahPct);
         
         const finalScore =
-            scoreList.length
-                ? Math.round(
-                    scoreList.reduce(
-                        (a,b) => a + b,
-                        0
-                    ) / scoreList.length
-                  )
-                : 0;
+        scoreList.length
+        ? Math.round(
+            scoreList.reduce(
+                (a,b)=>a+b,
+                0
+            ) / scoreList.length
+        )
+        : 0;
 
         const shalatGrade =
             window.getGrade(
