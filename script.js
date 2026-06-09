@@ -3220,8 +3220,15 @@ window.runAnalysis = function() {
                         }
                         else if(act.category === 'kbm') {
                             stats.kbm.total++;
-                            if(st === 'Hadir') stats.kbm.h++;
-                            else stats.kbm.m++;
+                            if(
+                                st === 'Hadir' ||
+                                st === 'Telat'
+                            ){
+                                stats.kbm.h++;
+                            }
+                            else{
+                                stats.kbm.m++;
+                            }
                         }
                         else if(act.category === 'sunnah' || act.category === 'dependent') {
                             stats.sunnah.total++;
