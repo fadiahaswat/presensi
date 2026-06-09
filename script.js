@@ -2426,7 +2426,6 @@ window.updateReportTab = function() {
                         act.category === 'school'
                     ){
                         stats.school.score += point;
-                        stats.school.total++;
                     }
                     
                     else if(
