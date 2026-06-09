@@ -2604,12 +2604,12 @@ window.updateReportTab = function() {
         
         const schoolPredikat =
             window.getPredikat(
-                schoolGrade
+                sekolahGrade
             );
         
         const kbmPredikat =
             window.getPredikat(
-                kbmGrade
+                mahadGrade
             );
 
         const grade =
@@ -2703,7 +2703,7 @@ window.updateReportTab = function() {
             <td class="p-3 text-center">
 
                 <div class="font-black text-lg">
-                    ${schoolGrade}
+                    ${sekolahGrade}
                 </div>
             
                 <div class="text-[9px] text-slate-500">
@@ -2715,7 +2715,7 @@ window.updateReportTab = function() {
             <td class="p-3 text-center">
 
                 <div class="font-black text-lg">
-                    ${kbmGrade}
+                    ${mahadGrade}
                 </div>
             
                 <div class="text-[9px] text-slate-500">
