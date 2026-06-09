@@ -2729,7 +2729,7 @@ window.updateReportTab = function() {
                 let color = 'bg-slate-100 text-slate-300';
                 
                 if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
-                else if(st === 'Telat') color = 'bg-teal-100 text-teal-600';
+                else if(st === 'Telat') color = 'bg-orange-100 text-orange-600';
                 else if(st === 'Sakit') color = 'bg-amber-100 text-amber-600';
                 else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';
                 else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';
@@ -2745,9 +2745,10 @@ window.updateReportTab = function() {
             let schLabel = '-';
             
             if(stSchool === 'Hadir') { schColor = 'bg-cyan-100 text-cyan-600'; schLabel = 'H'; }
-            else if(stSchool === 'Telat') { schColor = 'bg-teal-100 text-teal-600'; schLabel = 'T'; }
+            else if(stSchool === 'Telat') { schColor = 'bg-orange-100 text-orange-600'; schLabel = 'T'; }
             else if(stSchool === 'Sakit') { schColor = 'bg-amber-100 text-amber-600'; schLabel = 'S'; }
             else if(stSchool === 'Izin') { schColor = 'bg-blue-100 text-blue-600'; schLabel = 'I'; }
+            else if(stSchool === 'Pulang') { schColor = 'bg-purple-100 text-purple-600'; schLabel = 'P'; }
             else if(stSchool === 'Alpa') { schColor = 'bg-red-100 text-red-600'; schLabel = 'A'; }
 
             schoolCol = `<div class="flex justify-center"><span class="w-6 h-6 flex items-center justify-center rounded-lg ${schColor} text-[10px] font-black shadow-sm" aria-label="Sekolah: ${stSchool || 'Belum diisi'}">${schLabel}</span></div>`;
