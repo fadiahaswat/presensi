@@ -2358,7 +2358,7 @@ window.updateReportTab = function() {
             <th class="p-3 font-bold text-center bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400" scope="col">Sekolah</th>
             <th class="p-3 font-bold text-center" scope="col">KBM Asrama</th>
             <th class="p-3 font-bold text-center" scope="col">Sunnah</th>
-            <th class="p-3 font-bold text-center" scope="col">Nilai</th>
+            <th class="p-3 font-bold text-center" scope="col">Grade</th>
         `;
     }
     
