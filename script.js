@@ -1727,6 +1727,23 @@ window.applyBulkAction = function(targetCategory, value, specificId = null) {
         if(!dbSlot[id]) dbSlot[id] = { status: {}, note: '' };
         
         slot.activities.forEach(act => {
+            if(
+                window.isActivityHoliday(
+                    dateKey,
+                    slot.id,
+                    act.id
+                )
+            ){
+                return;
+            }
+            if(
+                window.isCategoryHoliday(
+                    dateKey,
+                    act.category
+                )
+            ){
+                return;
+            }
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
             if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
 
