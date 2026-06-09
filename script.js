@@ -2785,6 +2785,18 @@ window.updateReportTab = function() {
                     </div>
         
                 </td>
+
+                <td class="p-3 text-center">
+
+                    <div class="font-black text-lg">
+                        ${sunnahGrade}
+                    </div>
+                
+                    <div class="text-[9px] text-slate-500">
+                        ${sunnahPredikat}
+                    </div>
+                
+                </td>
         
                 <td class="p-3 text-center">
         
