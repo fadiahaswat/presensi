@@ -2538,31 +2538,38 @@ window.updateReportTab = function() {
         const stats = santriStatsMap.get(id);
         if(!stats) return;
         
-        const spiritualPct =
-            stats.spiritual.total
-                ? stats.spiritual.score /
-                  stats.spiritual.total
+        const shalatPct =
+            stats.shalat.total
+                ? stats.shalat.score /
+                  stats.shalat.total
                 : 0;
         
-        const schoolPct =
-            stats.school.total
-                ? stats.school.score /
-                  stats.school.total
+        const sunnahPct =
+            stats.sunnah.total
+                ? stats.sunnah.score /
+                  stats.sunnah.total
                 : 0;
         
-        const kbmPct =
-            stats.kbm.total
-                ? stats.kbm.score /
-                  stats.kbm.total
+        const sekolahPct =
+            stats.sekolah.total
+                ? stats.sekolah.score /
+                  stats.sekolah.total
+                : 0;
+        
+        const mahadPct =
+            stats.mahad.total
+                ? stats.mahad.score /
+                  stats.mahad.total
                 : 0;
         
         const finalScore =
             Math.round(
                 (
-                    spiritualPct +
-                    schoolPct +
-                    kbmPct
-                ) / 3
+                    shalatPct +
+                    sunnahPct +
+                    sekolahPct +
+                    mahadPct
+                ) / 4
             );
 
         const spiritualGrade =
