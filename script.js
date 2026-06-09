@@ -1326,6 +1326,15 @@ window.renderAttendanceList = function() {
         slot.activities.forEach(act => {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
             if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
+
+            if(
+                window.isHoliday(
+                    dateKey,
+                    slot.id,
+                    act.id,
+                    act.category
+                )
+            ) return;
         
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
