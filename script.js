@@ -2404,8 +2404,13 @@ window.updateReportTab = function() {
     const range = window.getReportDateRange(appState.reportMode);
     if(rangeLabel) rangeLabel.textContent = range.label;
 
+    const colspan =
+    appState.reportMode === 'semester'
+        ? 7
+        : 6;
+
     if (!appState.selectedClass || FILTERED_SANTRI.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-xs text-slate-400">Pilih kelas terlebih dahulu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="${colspan}" class="p-4 text-center text-xs text-slate-400">Pilih kelas terlebih dahulu</td></tr>';
         return;
     }
 
