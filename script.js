@@ -2540,6 +2540,16 @@ window.updateReportTab = function() {
                     kbmPct
                 ) / 3
             );
+
+        const grade =
+            window.getGrade(
+                finalScore
+            );
+        
+        const predikat =
+            window.getPredikat(
+                grade
+            );
         
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-50 dark:border-slate-700/50";
