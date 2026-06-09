@@ -2402,14 +2402,7 @@ window.updateReportTab = function() {
                     if(act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
                     
                     const st = sData.status[act.id];
-                    let weight = 0;
-                    let point = 0;
-
-                    if (act.category === 'school') weight = 4;
-                    else if(act.category === 'fardu') weight = 3;
-                    else if(act.category === 'kbm') weight = 2;
-                    else weight = 1;
-
+                    
                     if(st === 'Hadir' || st === 'Ya' || st === 'Telat') point = weight;
                     else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; 
                     else point = 0;
