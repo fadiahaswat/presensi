@@ -1370,6 +1370,11 @@ window.renderAttendanceList = function() {
             }
         
             btn.className = btnClass + ' ' + ringClass;
+
+            if(isLibur){
+                btn.className =
+                    "btn-status w-14 h-14 rounded-2xl flex items-center justify-center border-2 border-slate-300 bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 grayscale opacity-70";
+            }
             
             if (hasPermitConflict) {
                 btn.classList.add('ring-4', 'ring-offset-4');
