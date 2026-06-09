@@ -2348,14 +2348,31 @@ window.updateReportTab = function() {
     // OPTIMIZATION: Use Map for O(1) lookup
     const santriStatsMap = new Map();
     FILTERED_SANTRI.forEach(s => {
-        santriStatsMap.set(s.nis || s.id, { 
-            fardu: { h:0, total:0 }, 
-            school: { h:0, total:0 },
-            kbm: { h:0, total:0 }, 
-            sunnah: { y:0, total:0 },
-            scoreTotal: 0,
-            scoreMax: 0
-        });
+        santriStatsMap.set(
+            s.nis || s.id,
+            {
+                spiritual: {
+                    score: 0,
+                    total: 0
+                },
+                school: {
+                    score: 0,
+                    total: 0
+                },
+                kbm: {
+                    score: 0,
+                    total: 0
+                },
+                fardu: {
+                    h: 0,
+                    total: 0
+                },
+                sunnah: {
+                    y: 0,
+                    total: 0
+                }
+            }
+        );
     });
 
     // OPTIMIZATION: Pre-calculate date range (avoid while loop)
