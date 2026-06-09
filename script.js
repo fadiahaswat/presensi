@@ -2736,11 +2736,11 @@ window.updateReportTab = function() {
             <td class="p-3 text-center">
 
                 <div class="font-black text-lg">
-                    ${spiritualGrade}
+                    ${shalatGrade}
                 </div>
             
                 <div class="text-[9px] text-slate-500">
-                    ${spiritualPredikat}
+                    ${shalatPredikat}
                 </div>
             
             </td>
