@@ -3449,10 +3449,25 @@ window.runAnalysis = function() {
     document.getElementById('analysis-date-range').textContent = range.label;
 
     let stats = {
-        school: { h:0, m:0, total:0 },
-        fardu: { h:0, m:0, total:0 },
-        kbm: { h:0, m:0, total:0 },
-        sunnah: { y:0, t:0, total:0 }
+        shalat: {
+            hadir:0,
+            total:0
+        },
+    
+        sekolah: {
+            hadir:0,
+            total:0
+        },
+    
+        mahad: {
+            hadir:0,
+            total:0
+        },
+    
+        sunnah: {
+            ya:0,
+            total:0
+        }
     };
 
     let curr = new Date(range.start);
