@@ -2577,19 +2577,24 @@ window.updateReportTab = function() {
                 ) / 4
             );
 
-        const spiritualGrade =
+        const shalatGrade =
             window.getGrade(
-                Math.round(spiritualPct)
+                Math.round(shalatPct)
             );
         
-        const schoolGrade =
+        const sunnahGrade =
             window.getGrade(
-                Math.round(schoolPct)
+                Math.round(sunnahPct)
             );
         
-        const kbmGrade =
+        const sekolahGrade =
             window.getGrade(
-                Math.round(kbmPct)
+                Math.round(sekolahPct)
+            );
+        
+        const mahadGrade =
+            window.getGrade(
+                Math.round(mahadPct)
             );
 
         const spiritualPredikat =
