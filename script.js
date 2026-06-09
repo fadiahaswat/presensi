@@ -1429,7 +1429,7 @@ window.renderAttendanceList = function() {
             lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             if(isLibur){
                 lbl.textContent =
-                    act.label + "(Libur)";
+                    act.label + " (Libur)";
             }else{
                 lbl.textContent =
                     act.label;
