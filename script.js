@@ -2432,7 +2432,6 @@ window.updateReportTab = function() {
                         act.category === 'kbm'
                     ){
                         stats.kbm.score += point;
-                        stats.kbm.total++;
                     }
 
                     if(act.category === 'fardu') {
