@@ -3246,7 +3246,6 @@ window.runAnalysis = function() {
                             }
                         }
                         else if(act.category === 'sunnah' || act.category === 'dependent') {
-                            stats.sunnah.total++;
                             if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
                             else stats.sunnah.t++;
                         }
