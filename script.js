@@ -2328,6 +2328,23 @@ window.updateReportTab = function() {
         return;
     }
 
+    const STATUS_WEIGHT = {
+    
+        Hadir : 100,
+        Telat : 90,
+    
+        Izin  : 75,
+        Sakit : 75,
+    
+        Pulang: 0,
+    
+        Alpa  : -50,
+    
+        Ya    : 100,
+        Tidak : 0
+    
+    };
+
     // OPTIMIZATION: Use Map for O(1) lookup
     const santriStatsMap = new Map();
     FILTERED_SANTRI.forEach(s => {
