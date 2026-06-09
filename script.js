@@ -2615,17 +2615,22 @@ window.updateReportTab = function() {
                 Math.round(mahadPct)
             );
 
-        const spiritualPredikat =
+        const shalatPredikat =
             window.getPredikat(
-                spiritualGrade
+                shalatGrade
             );
         
-        const schoolPredikat =
+        const sunnahPredikat =
+            window.getPredikat(
+                sunnahGrade
+            );
+        
+        const sekolahPredikat =
             window.getPredikat(
                 sekolahGrade
             );
         
-        const kbmPredikat =
+        const mahadPredikat =
             window.getPredikat(
                 mahadGrade
             );
