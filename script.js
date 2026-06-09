@@ -1339,13 +1339,20 @@ window.renderAttendanceList = function() {
             if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
 
             if(
-                window.isHoliday(
+                window.isActivityHoliday(
                     dateKey,
                     slot.id,
-                    act.id,
+                    act.id
+                )
+            )
+                return;
+            if(
+                window.isCategoryHoliday(
+                    dateKey,
                     act.category
                 )
-            ) return;
+            )
+                return;
         
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
