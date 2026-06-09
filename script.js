@@ -2469,7 +2469,32 @@ window.updateReportTab = function() {
         const stats = santriStatsMap.get(id);
         if(!stats) return;
         
-        const finalScore = stats.scoreMax === 0 ? 0 : Math.round((stats.scoreTotal / stats.scoreMax) * 100);
+        const spiritualPct =
+            stats.spiritual.total
+                ? stats.spiritual.score /
+                  stats.spiritual.total
+                : 0;
+        
+        const schoolPct =
+            stats.school.total
+                ? stats.school.score /
+                  stats.school.total
+                : 0;
+        
+        const kbmPct =
+            stats.kbm.total
+                ? stats.kbm.score /
+                  stats.kbm.total
+                : 0;
+        
+        const finalScore =
+            Math.round(
+                (
+                    spiritualPct +
+                    schoolPct +
+                    kbmPct
+                ) / 3
+            );
         
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b border-slate-50 dark:border-slate-700/50";
