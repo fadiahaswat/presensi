@@ -2729,6 +2729,7 @@ window.updateReportTab = function() {
                 let color = 'bg-slate-100 text-slate-300';
                 
                 if(st === 'Hadir') color = 'bg-emerald-100 text-emerald-600';
+                else if(st === 'Telat') color = 'bg-amber-50 text-amber-600';
                 else if(st === 'Sakit') color = 'bg-amber-100 text-amber-600';
                 else if(st === 'Izin') color = 'bg-blue-100 text-blue-600';
                 else if(st === 'Pulang') color = 'bg-purple-100 text-purple-600';
