@@ -884,16 +884,40 @@ window.isCategoryHoliday = function(
     );
 };
 
-window.isSlotHoliday = function(slotId, dateStr) {
-    const dayNum = new Date(dateStr).getDay(); // 0 = Ahad
-    const slotConfig = SLOT_WAKTU[slotId];
-    if (!slotConfig || !slotConfig.activities) return true;
-    
-    const activeActs = slotConfig.activities.filter(act => {
-        if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
-        if (act.onlyRamadhan && !window.isRamadhan(dateStr)) return false;
+window.isSlotHoliday = function(
+    slotId,
+    dateStr
+){
+    const slotHoliday =
+        window.isHoliday(
+            dateStr,
+            slotId
+        );
+    if(slotHoliday){
         return true;
-    });
+    }
+    const dayNum =
+        new Date(dateStr).getDay();
+    const slotConfig =
+        SLOT_WAKTU[slotId];
+    if(
+        !slotConfig ||
+        !slotConfig.activities
+    ){
+        return true;
+    }
+    const activeActs =
+        slotConfig.activities.filter(act => {
+            if(
+                act.showOnDays &&
+                !act.showOnDays.includes(dayNum)
+            ) return false;
+            if(
+                act.onlyRamadhan &&
+                !window.isRamadhan(dateStr)
+            ) return false;
+            return true;
+        });
     return activeActs.length === 0;
 };
 
