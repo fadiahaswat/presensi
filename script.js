@@ -2399,27 +2399,28 @@ window.updateReportTab = function() {
         santriStatsMap.set(
             s.nis || s.id,
             {
-                spiritual: {
-                    score: 0,
-                    total: 0
-                },
-                school: {
+                shalat: {
                     score: 0,
                     total: 0,
                     h: 0
                 },
-                kbm: {
+            
+                sunnah: {
                     score: 0,
                     total: 0,
-                    h: 0,
+                    y: 0
                 },
-                fardu: {
-                    h: 0,
-                    total: 0
+            
+                sekolah: {
+                    score: 0,
+                    total: 0,
+                    h: 0
                 },
-                sunnah: {
-                    y: 0,
-                    total: 0
+            
+                mahad: {
+                    score: 0,
+                    total: 0,
+                    h: 0
                 }
             }
         );
