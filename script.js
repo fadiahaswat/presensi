@@ -3420,11 +3420,11 @@ window.getDateRange = function(mode) {
         if(today.getMonth() < 6) {
             start = new Date(today.getFullYear(), 0, 1);
             end = new Date(today.getFullYear(), 5, 30);
-            label = `Semester Ganjil (Jan-Jun ${today.getFullYear()})`;
+            label = `Semester Genap (Jan-Jun ${today.getFullYear()})`;
         } else {
             start = new Date(today.getFullYear(), 6, 1);
             end = new Date(today.getFullYear(), 11, 31);
-            label = `Semester Genap (Jul-Des ${today.getFullYear()})`;
+            label = `Semester Ganjil (Jul-Des ${today.getFullYear()})`;
         }
     }
 
