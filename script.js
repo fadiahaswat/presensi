@@ -856,6 +856,44 @@ window.updateProfileInfo = function() {
 // ==========================================
 
 // --- FUNGSI BARU: Deteksi apakah sebuah slot libur hari ini ---
+
+window.isHoliday = function(dateStr, slotId = null, activityId = null, category = null){
+
+    const holidays =
+        appState.holidays || [];
+
+    return holidays.some(h => {
+
+        if(h.date !== dateStr)
+            return false;
+
+        if(
+            h.type === 'activity' &&
+            activityId
+        ){
+            return h.activityId === activityId;
+        }
+
+        if(
+            h.type === 'slot' &&
+            slotId
+        ){
+            return h.slotId === slotId;
+        }
+
+        if(
+            h.type === 'category' &&
+            category
+        ){
+            return h.category === category;
+        }
+
+        return false;
+
+    });
+
+};
+
 window.isSlotHoliday = function(
     slotId,
     dateStr
