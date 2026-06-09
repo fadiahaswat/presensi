@@ -2730,9 +2730,9 @@ window.updateReportTab = function() {
                     )
                     : 0;
 
-            shalatCol = makeBar(pctFardu, 'bg-emerald-500');
-            schoolCol = makeBar(pctSchool, 'bg-cyan-500');
-            kbmCol = makeBar(pctKbm, 'bg-blue-500');
+            shalatCol = makeBar(pctShalat, 'bg-emerald-500');
+            schoolCol = makeBar(pctSekolah, 'bg-cyan-500');
+            kbmCol = makeBar(pctMahad, 'bg-blue-500');
             sunnahCol = makeBar(pctSunnah, 'bg-amber-500');
         }
 
