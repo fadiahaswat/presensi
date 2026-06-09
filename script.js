@@ -855,88 +855,37 @@ window.updateProfileInfo = function() {
 // 4. LOGIC PERHITUNGAN (REFACTORED)
 // ==========================================
 
-// --- FUNGSI BARU: Deteksi apakah sebuah slot libur hari ini ---
-
-window.isHoliday = function(dateStr, slotId = null, activityId = null, category = null){
-
+window.isHoliday = function(
+    dateStr,
+    slotId = null,
+    activityId = null,
+    category = null
+){
     const holidays =
         appState.holidays || [];
-
-    return holidays.some(h => {
-
+    return holidays.find(h => {
         if(h.date !== dateStr)
             return false;
-
         if(
             h.type === 'activity' &&
             activityId
         ){
             return h.activityId === activityId;
         }
-
         if(
             h.type === 'slot' &&
             slotId
         ){
             return h.slotId === slotId;
         }
-
         if(
             h.type === 'category' &&
             category
         ){
             return h.category === category;
         }
-
         return false;
-
-    });
-
-};
-
-window.isSlotHoliday = function(
-    slotId,
-    dateStr
-){
-    const dayNum =
-        new Date(dateStr).getDay();
-    const slotConfig =
-        SLOT_WAKTU[slotId];
-    if(
-        !slotConfig ||
-        !slotConfig.activities
-    ){
-        return true;
-    }
-    const holidayRule =
-        window.isHoliday(
-            dateStr,
-            slotId
-        );
-    if(holidayRule){
-        return true;
-    }
-    const activeActs =
-        slotConfig.activities.filter(act => {
-            if(
-                act.showOnDays &&
-                !act.showOnDays.includes(
-                    dayNum
-                )
-            ){
-                return false;
-            }
-            if(
-                act.onlyRamadhan &&
-                !window.isRamadhan(
-                    dateStr
-                )
-            ){
-                return false;
-            }
-            return true;
-        });
-    return activeActs.length === 0;
+    }) || null;
 };
 
 // Fungsi Terpusat untuk menghitung statistik per slot
