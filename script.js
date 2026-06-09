@@ -1310,21 +1310,22 @@ window.renderAttendanceList = function() {
             if (act.showOnDays && !act.showOnDays.includes(currentDay)) return;
             if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return;
 
-            if(
+            const isActivityLibur =
                 window.isActivityHoliday(
                     dateKey,
                     slot.id,
                     act.id
-                )
-            )
-                return;
-            if(
+                );
+            
+            const isCategoryLibur =
                 window.isCategoryHoliday(
                     dateKey,
                     act.category
-                )
-            )
-                return;
+                );
+            
+            const isLibur =
+                isActivityLibur ||
+                isCategoryLibur;
         
             const bClone = tplBtn.content.cloneNode(true);
             const btnWrapper = bClone.querySelector('.btn-wrapper');
@@ -1337,10 +1338,8 @@ window.renderAttendanceList = function() {
             const uiBtn = STATUS_UI[curr] || STATUS_UI['Tidak'];
             const hasPermitConflict = activePermit && ['fardu','kbm','school'].includes(act.category);
         
-            // BASE CLASS (tanpa ring dinamis)
             let btnClass = `btn-status w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all active:scale-95 border-[2.5px] font-black text-base ${uiBtn.class}`;
             
-            // TAMBAHKAN RING SESUAI STATUS (Static classes)
             let ringClass = '';
             if(curr === 'Hadir' || curr === 'Ya') {
                 ringClass = 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800';
@@ -1360,14 +1359,12 @@ window.renderAttendanceList = function() {
         
             btn.className = btnClass + ' ' + ringClass;
             
-            // Extra ring for permit conflict
             if (hasPermitConflict) {
                 btn.classList.add('ring-4', 'ring-offset-4');
             }
         
             btn.textContent = uiBtn.label;
             
-            // Click Handler
             btn.onclick = (e) => {
                 e.stopPropagation();
                 if (hasPermitConflict) {
@@ -1377,14 +1374,12 @@ window.renderAttendanceList = function() {
                 window.toggleStatus(id, act.id, act.type);
             };
             
-            // LABEL - Compact typography
             lbl.className = "lbl-status text-[9px] font-bold text-slate-400 text-center truncate w-full group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors leading-tight";
             lbl.textContent = act.label;
             
             btnCont.appendChild(bClone);
         });
 
-        // NOTE SECTION
         const noteBox = clone.querySelector('.note-section');
         const noteInp = clone.querySelector('.input-note');
         
