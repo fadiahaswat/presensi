@@ -1904,7 +1904,11 @@ window.generateRekapBulanan = function() {
 
     FILTERED_SANTRI.forEach(santri => {
         const id = String(santri.nis || santri.id);
-        let h = 0, s = 0, i = 0, a = 0;
+        let h = 0,
+            s = 0,
+            i = 0,
+            p = 0,
+            a = 0;
         
         // Loop Days of Month (actual days)
         for(let day = 1; day <= daysInMonth; day++) {
