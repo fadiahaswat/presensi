@@ -2557,7 +2557,6 @@ window.updateReportTab = function() {
             <td class="p-3 text-center text-slate-500 text-[10px] font-bold">${idx + 1}</td>
             <td class="p-3">
                 <div class="font-bold text-slate-700 dark:text-slate-200 text-xs">${window.sanitizeHTML(s.nama)}</div>
-                ${appState.reportMode !== 'daily' ? `<div class="text-[9px] text-slate-400 mt-0.5">Total Point: ${stats.scoreTotal}</div>` : ''}
             </td>
             <td class="p-3 text-center align-middle">${shalatCol}</td>
             <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td>
