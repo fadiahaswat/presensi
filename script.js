@@ -1602,6 +1602,7 @@ window.generateBulkButtons = function() {
     // Cek ketersediaan kategori di slot ini
     const acts = slot.activities.filter(a => (!a.showOnDays || a.showOnDays.includes(currentDay)) && (!a.onlyRamadhan || window.isRamadhan(appState.date)));
     const hasFardu = acts.some(a => a.category === 'fardu');
+    const hasSchool = acts.some(a => a.category === 'school');
     const hasKbm = acts.some(a => a.category === 'kbm');
     const sunnahActs = acts.filter(a => a.category === 'sunnah');
 
