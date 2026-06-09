@@ -2403,9 +2403,8 @@ window.updateReportTab = function() {
                     
                     const st = sData.status[act.id];
                     
-                    if(st === 'Hadir' || st === 'Ya' || st === 'Telat') point = weight;
-                    else if(st === 'Sakit' || st === 'Izin' || st === 'Pulang') point = weight * 0.5; 
-                    else point = 0;
+                    const point =
+                        STATUS_WEIGHT[st] ?? 0;
 
                     stats.scoreTotal += point;
                     stats.scoreMax += weight;
