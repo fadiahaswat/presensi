@@ -909,6 +909,23 @@ window.isSlotHoliday = function(
     const activeActs =
         slotConfig.activities.filter(act => {
             if(
+                window.isActivityHoliday(
+                    dateStr,
+                    slotId,
+                    act.id
+                )
+            ){
+                return false;
+            }
+            if(
+                window.isCategoryHoliday(
+                    dateStr,
+                    act.category
+                )
+            ){
+                return false;
+            }
+            if(
                 act.showOnDays &&
                 !act.showOnDays.includes(dayNum)
             ) return false;
