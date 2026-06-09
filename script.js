@@ -884,16 +884,17 @@ window.isCategoryHoliday = function(
     );
 };
 
-window.isSlotHoliday = function(
-    slotId,
-    dateStr
-){
-    const rule =
-        window.isHoliday(
-            dateStr,
-            slotId
-        );
-    return !!rule;
+window.isSlotHoliday = function(slotId, dateStr) {
+    const dayNum = new Date(dateStr).getDay(); // 0 = Ahad
+    const slotConfig = SLOT_WAKTU[slotId];
+    if (!slotConfig || !slotConfig.activities) return true;
+    
+    const activeActs = slotConfig.activities.filter(act => {
+        if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
+        if (act.onlyRamadhan && !window.isRamadhan(dateStr)) return false;
+        return true;
+    });
+    return activeActs.length === 0;
 };
 
 window.calculateSlotStats = function(slotId, customDate = null) {
