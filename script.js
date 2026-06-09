@@ -950,6 +950,24 @@ window.calculateSlotStats = function(slotId, customDate = null) {
     const mainAct = slotConfig.activities.find(act => {
         if (act.showOnDays && !act.showOnDays.includes(dayNum)) return false;
         if (act.onlyRamadhan && !window.isRamadhan(dateKey)) return false;
+        if(
+            window.isActivityHoliday(
+                dateKey,
+                slotId,
+                act.id
+            )
+        ){
+            return false;
+        }
+        
+        if(
+            window.isCategoryHoliday(
+                dateKey,
+                act.category
+            )
+        ){
+            return false;
+        }
         return true;
     });
 
