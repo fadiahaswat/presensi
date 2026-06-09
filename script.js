@@ -2489,7 +2489,7 @@ window.updateReportTab = function() {
                     }
                     else if(act.category === 'kbm') {
                         stats.kbm.total++;
-                        if(st === 'Hadir') stats.kbm.h++;
+                        if(st === 'Hadir' || st === 'Telat')
                     } else {
                         stats.sunnah.total++;
                         if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
