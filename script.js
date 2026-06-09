@@ -2300,6 +2300,27 @@ window.switchTab = function(tabName) {
     if(window.lucide) window.lucide.createIcons();
 };
 
+window.getGrade = function(
+    score
+){
+    if(score >= 97)
+        return 'A';
+    if(score >= 93)
+        return 'A-';
+    if(score >= 89)
+        return 'B+';
+    if(score >= 85)
+        return 'B';
+    if(score >= 80)
+        return 'B-';
+    if(score >= 75)
+        return 'C+';
+    if(score >= 70)
+        return 'C';
+    return 'D';
+
+};
+
 window.updateReportTab = function() {
     const tbody = document.getElementById('daily-recap-tbody');
     const rangeLabel = document.getElementById('report-date-range');
