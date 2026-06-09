@@ -2489,10 +2489,25 @@ window.updateReportTab = function() {
                     }
                     else if(act.category === 'kbm') {
                         stats.kbm.total++;
-                        if(st === 'Hadir' || st === 'Telat')
-                    } else {
+                    
+                        if(
+                            st === 'Hadir' ||
+                            st === 'Telat'
+                        ){
+                            stats.kbm.h++;
+                        }
+                    }
+                    else if(
+                        act.category === 'sunnah'
+                    ){
                         stats.sunnah.total++;
-                        if(st === 'Ya' || st === 'Hadir') stats.sunnah.y++;
+                    
+                        if(
+                            st === 'Ya' ||
+                            st === 'Hadir'
+                        ){
+                            stats.sunnah.y++;
+                        }
                     }
                 });
             });
