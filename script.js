@@ -2617,7 +2617,14 @@ window.updateReportTab = function() {
             <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td>
             <td class="p-3 text-center align-middle">${kbmCol}</td>
             <td class="p-3 text-center align-middle">${sunnahCol}</td>
-            <td class="p-3 text-center font-black ${scoreColor} text-sm">${finalScore}</td>
+            <td class="p-3 text-center">
+                <div class="font-black ${scoreColor} text-lg">
+                    ${grade}
+                </div>
+                <div class="text-[9px] text-slate-500">
+                    ${predikat}
+                </div>
+            </td>
         `;
         fragment.appendChild(tr);
     });
