@@ -1,9 +1,6 @@
 window.initApp = async function() {
-    // [PERBAIKAN] Definisikan loadingEl di sini agar dikenali di block finally
     const loadingEl = document.getElementById('view-loading');
-
     try {
-        // 1. UI RENDERING (Synchronous)
         try {
             window.startClock();
             window.updateDateDisplay();
@@ -12,21 +9,16 @@ window.initApp = async function() {
         } catch (uiError) {
             console.error("UI Init Error:", uiError);
         }
-        
-        // 2. Local Storage (Synchronous)
         try {
             const savedSettings = localStorage.getItem(APP_CONFIG.settingsKey);
             if(savedSettings) {
                 appState.settings = { ...appState.settings, ...JSON.parse(savedSettings) };
                 if(appState.settings.darkMode) document.documentElement.classList.add('dark');
             }
-
             const savedData = localStorage.getItem(APP_CONFIG.storageKey);
             if(savedData) appState.attendanceData = JSON.parse(savedData);
-
             const savedLog = localStorage.getItem(APP_CONFIG.activityLogKey);
             if(savedLog) appState.activityLog = JSON.parse(savedLog);
-            
             appState.permits = [];
             const savedPermits = localStorage.getItem(APP_CONFIG.permitKey);
             if(savedPermits) {
@@ -42,72 +34,55 @@ window.initApp = async function() {
             console.error("Storage Error:", storageError);
             if(!appState.permits) appState.permits = [];
         }
-
-        // 3. Determine Slot
         appState.currentSlotId = window.determineCurrentSlot();
-
-        // 4. FETCH DATA (Async with timeout)
         const dataLoadingPromise = Promise.all([
             window.loadClassData ? window.loadClassData() : Promise.resolve({}),
             window.loadSantriData ? window.loadSantriData() : Promise.resolve([])
         ]);
-
         const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error("Koneksi lambat (Timeout)")), window.APP_CONSTANTS.dataLoadTimeoutMs)
         );
-
         try {
             const [kelasData, santriData] = await Promise.race([dataLoadingPromise, timeoutPromise]);
-
             MASTER_KELAS = kelasData || {};
             MASTER_SANTRI = santriData || [];
             window.populateClassDropdown();
-
-            // 5. AUTO LOGIN CHECK (AFTER DATA LOADED)
             const savedAuth = localStorage.getItem(APP_CONFIG.googleAuthKey);
             if(savedAuth) {
                 try {
                     const authData = JSON.parse(savedAuth);
                     const LOGIN_MAX_AGE =
-    14 * 24 * 60 * 60 * 1000;
-
-const loginTime =
-    new Date(
-        authData.timestamp
-    ).getTime();
-
-if(
-    !loginTime ||
-    (
-        Date.now() -
-        loginTime
-    ) > LOGIN_MAX_AGE
-){
-    throw new Error(
-        'Sesi login kadaluarsa'
-    );
-}
-                    
+                        14 * 24 * 60 * 60 * 1000;
+                    const loginTime =
+                        new Date(
+                            authData.timestamp
+                        ).getTime();
+                    if(
+                        !loginTime ||
+                        (
+                            Date.now() -
+                            loginTime
+                        ) > LOGIN_MAX_AGE
+                    ){
+                        throw new Error(
+                            'Sesi login kadaluarsa'
+                        );
+                    }     
                     if(authData?.profile?.authProvider === 'testing' && window.getAuthMode && window.getAuthMode() !== 'testing') {
                         throw new Error("Sesi testing dinonaktifkan karena aplikasi berjalan di mode production.");
                     }
-                    
                     if (authData.kelas && MASTER_KELAS[authData.kelas]) {
                         appState.selectedClass = authData.kelas;
                         appState.userProfile = authData.profile;
-                        
                         FILTERED_SANTRI = MASTER_SANTRI.filter(s => {
                             const sKelas = String(s.kelas || s.rombel || "").trim();
                             return sKelas === appState.selectedClass;
                         }).sort((a,b) => a.nama.localeCompare(b.nama));
-
                         if(FILTERED_SANTRI.length > 0) {
                             document.getElementById('view-login').classList.add('hidden');
                             document.getElementById('view-main').classList.remove('hidden');
-                            
                             window.updateDashboard(); 
                             window.updateProfileInfo();
-                            
                             const greetName = window.getProfileDisplayName(authData.profile);
                             setTimeout(() => window.showToast(`Ahlan, ${greetName}`, 'success'), 500);
                         }
@@ -119,17 +94,14 @@ if(
                     localStorage.removeItem(APP_CONFIG.googleAuthKey);
                 }
             }
-
         } catch (fetchError) {
             console.error("Data Fetch Error:", fetchError);
             window.showToast("Gagal memuat data santri (Offline/Lambat)", 'warning');
         }
-
     } catch (criticalError) {
         console.error("Critical Init Error:", criticalError);
         alert("Terjadi kesalahan sistem: " + criticalError.message);
     } finally {
-        // [FIX] loadingEl sekarang sudah terdefinisi
         if(loadingEl) {
             loadingEl.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => {
