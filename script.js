@@ -2569,6 +2569,21 @@ window.updateReportTab = function() {
                 ) / 3
             );
 
+        const spiritualGrade =
+            window.getGrade(
+                Math.round(spiritualPct)
+            );
+        
+        const schoolGrade =
+            window.getGrade(
+                Math.round(schoolPct)
+            );
+        
+        const kbmGrade =
+            window.getGrade(
+                Math.round(kbmPct)
+            );
+
         const grade =
             window.getGrade(
                 finalScore
