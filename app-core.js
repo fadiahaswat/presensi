@@ -190,6 +190,8 @@ let appState = {
         notifications: true,
         autoSave: true
     }
+};
+
     if(
         !appState.holidays ||
         appState.holidays.length === 0
@@ -199,12 +201,11 @@ let appState = {
                 id: 'holiday1',
                 title: 'Tahsin Libur',
                 type: 'activity',
-                date: '2026-08-17',
-                activityId: 'tahsin'
+                date: '2026-06-09',
+                activityId: 'vocabularies'
             }
         ];
     }
-};
 
 // DATA STORE
 let MASTER_SANTRI = [];
