@@ -2681,10 +2681,37 @@ window.updateReportTab = function() {
             sunnahCol = `<span class="font-bold text-slate-600 dark:text-slate-400">${stats.sunnah.y}</span>`;
         } 
         else {
-            const pctFardu = stats.fardu.total ? Math.round((stats.fardu.h / stats.fardu.total)*100) : 0;
-            const pctSchool = stats.school.total ? Math.round((stats.school.h / stats.school.total)*100) : 0;
-            const pctKbm = stats.kbm.total ? Math.round((stats.kbm.h / stats.kbm.total)*100) : 0;
-            const pctSunnah = stats.sunnah.total ? Math.round((stats.sunnah.y / stats.sunnah.total)*100) : 0;
+            const pctShalat =
+                stats.shalat.total
+                    ? Math.round(
+                        (stats.shalat.h /
+                         stats.shalat.total) * 100
+                    )
+                    : 0;
+            
+            const pctSekolah =
+                stats.sekolah.total
+                    ? Math.round(
+                        (stats.sekolah.h /
+                         stats.sekolah.total) * 100
+                    )
+                    : 0;
+            
+            const pctMahad =
+                stats.mahad.total
+                    ? Math.round(
+                        (stats.mahad.h /
+                         stats.mahad.total) * 100
+                    )
+                    : 0;
+            
+            const pctSunnah =
+                stats.sunnah.total
+                    ? Math.round(
+                        (stats.sunnah.y /
+                         stats.sunnah.total) * 100
+                    )
+                    : 0;
 
             shalatCol = makeBar(pctFardu, 'bg-emerald-500');
             schoolCol = makeBar(pctSchool, 'bg-cyan-500');
