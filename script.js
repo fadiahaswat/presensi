@@ -2406,8 +2406,33 @@ window.updateReportTab = function() {
                     const point =
                         STATUS_WEIGHT[st] ?? 0;
 
-                    stats.scoreTotal += point;
-                    stats.scoreMax += weight;
+                    if(
+                        act.category === 'fardu'
+                    ){
+                        stats.spiritual.score += point;
+                        stats.spiritual.total++;
+                    }
+                    
+                    else if(
+                        act.category === 'sunnah'
+                    ){
+                        stats.spiritual.score += point;
+                        stats.spiritual.total++;
+                    }
+                    
+                    else if(
+                        act.category === 'school'
+                    ){
+                        stats.school.score += point;
+                        stats.school.total++;
+                    }
+                    
+                    else if(
+                        act.category === 'kbm'
+                    ){
+                        stats.kbm.score += point;
+                        stats.kbm.total++;
+                    }
 
                     if(act.category === 'fardu') {
                         stats.fardu.total++;
