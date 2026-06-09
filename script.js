@@ -1380,7 +1380,13 @@ window.renderAttendanceList = function() {
                 btn.classList.add('ring-4', 'ring-offset-4');
             }
         
-            btn.textContent = uiBtn.label;
+            if(isLibur){
+                btn.innerHTML =
+                    '<i data-lucide="calendar-x" class="w-5 h-5"></i>';
+            }else{
+                btn.textContent =
+                    uiBtn.label;
+            }
             
             btn.onclick = (e) => {
                 
