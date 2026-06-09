@@ -1947,6 +1947,7 @@ window.generateRekapBulanan = function() {
                     <span class="text-emerald-600">H: ${h}</span>
                     <span class="text-amber-600">S: ${s}</span>
                     <span class="text-blue-600">I: ${i}</span>
+                    <span class="text-purple-600">P: ${p}</span>
                     <span class="text-red-600">A: ${a}</span>
                 </div>
             </div>
