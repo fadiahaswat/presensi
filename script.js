@@ -2741,6 +2741,65 @@ window.updateReportTab = function() {
         else if(finalScore >= 70) scoreColor = 'text-blue-500';
         else if(finalScore >= 50) scoreColor = 'text-amber-500';
 
+        let gradeCells = '';
+        
+        if(
+            appState.reportMode ===
+            'semester'
+        ){
+        
+            gradeCells = `
+                <td class="p-3 text-center">
+        
+                    <div class="font-black text-lg">
+                        ${shalatGrade}
+                    </div>
+        
+                    <div class="text-[9px] text-slate-500">
+                        ${shalatPredikat}
+                    </div>
+        
+                </td>
+        
+                <td class="p-3 text-center">
+        
+                    <div class="font-black text-lg">
+                        ${sekolahGrade}
+                    </div>
+        
+                    <div class="text-[9px] text-slate-500">
+                        ${sekolahPredikat}
+                    </div>
+        
+                </td>
+        
+                <td class="p-3 text-center">
+        
+                    <div class="font-black text-lg">
+                        ${mahadGrade}
+                    </div>
+        
+                    <div class="text-[9px] text-slate-500">
+                        ${mahadPredikat}
+                    </div>
+        
+                </td>
+        
+                <td class="p-3 text-center">
+        
+                    <div class="font-black ${scoreColor} text-lg">
+                        ${grade}
+                    </div>
+        
+                    <div class="text-[9px] text-slate-500">
+                        ${predikat}
+                    </div>
+        
+                </td>
+            `;
+        
+        }
+        
         tr.innerHTML = `
             <td class="p-3 text-center text-slate-500 text-[10px] font-bold">${idx + 1}</td>
             <td class="p-3">
@@ -2750,51 +2809,6 @@ window.updateReportTab = function() {
             <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td>
             <td class="p-3 text-center align-middle">${kbmCol}</td>
             <td class="p-3 text-center align-middle">${sunnahCol}</td>
-            <td class="p-3 text-center">
-
-                <div class="font-black text-lg">
-                    ${shalatGrade}
-                </div>
-            
-                <div class="text-[9px] text-slate-500">
-                    ${shalatPredikat}
-                </div>
-            
-            </td>
-            
-            <td class="p-3 text-center">
-
-                <div class="font-black text-lg">
-                    ${sekolahGrade}
-                </div>
-            
-                <div class="text-[9px] text-slate-500">
-                    ${schoolPredikat}
-                </div>
-            
-            </td>
-            
-            <td class="p-3 text-center">
-
-                <div class="font-black text-lg">
-                    ${mahadGrade}
-                </div>
-            
-                <div class="text-[9px] text-slate-500">
-                    ${kbmPredikat}
-                </div>
-            
-            </td>
-            
-            <td class="p-3 text-center">
-                <div class="font-black ${scoreColor} text-lg">
-                    ${grade}
-                </div>
-            
-                <div class="text-[9px] text-slate-500">
-                    ${predikat}
-                </div>
-            </td>
         `;
         fragment.appendChild(tr);
     });
