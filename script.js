@@ -3899,8 +3899,8 @@ window.getReportDateRange = function(mode) {
         range.label = `${months[today.getMonth()]} ${today.getFullYear()}`;
     } else if (mode === 'semester') {
         range.label = today.getMonth() < 6
-            ? `Sem. Ganjil ${today.getFullYear()}`
-            : `Sem. Genap ${today.getFullYear()}`;
+            ? `Sem. Genap ${today.getFullYear()}`
+            : `Sem. Ganjil ${today.getFullYear()}`;
     }
     return range;
 };
