@@ -2321,6 +2321,30 @@ window.getGrade = function(
 
 };
 
+window.getPredikat = function(
+    grade
+){
+    if(
+        grade === 'A' ||
+        grade === 'A-'
+    ){
+        return 'Mumtaz';
+    }
+    if(
+        grade === 'B+' ||
+        grade === 'B'
+    ){
+        return 'Jayyid Jiddan';
+    }
+    if(
+        grade === 'B-' ||
+        grade === 'C+'
+    ){
+        return 'Jayyid';
+    }
+    return 'Maqbul';
+};
+
 window.updateReportTab = function() {
     const tbody = document.getElementById('daily-recap-tbody');
     const rangeLabel = document.getElementById('report-date-range');
