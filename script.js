@@ -2476,39 +2476,43 @@ window.updateReportTab = function() {
                     }
 
                     if(act.category === 'fardu') {
-                        stats.fardu.total++;
+
+                        stats.shalat.total++;
                     
                         if(
                             st === 'Hadir' ||
                             st === 'Telat'
                         ){
-                            stats.fardu.h++;
+                            stats.shalat.h++;
                         }
+                    
                     }
                     else if(act.category === 'school') {
-                        stats.school.total++;
+                    
+                        stats.sekolah.total++;
                     
                         if(
                             st === 'Hadir' ||
                             st === 'Telat'
                         ){
-                            stats.school.h++;
+                            stats.sekolah.h++;
                         }
+                    
                     }
                     else if(act.category === 'kbm') {
-                        stats.kbm.total++;
+                    
+                        stats.mahad.total++;
                     
                         if(
                             st === 'Hadir' ||
                             st === 'Telat'
                         ){
-                            stats.kbm.h++;
+                            stats.mahad.h++;
                         }
+                    
                     }
-                    else if(
-                        act.category === 'sunnah' ||
-                        act.category === 'dependent'
-                    ){
+                    else if(act.category === 'sunnah') {
+                    
                         stats.sunnah.total++;
                     
                         if(
@@ -2517,6 +2521,7 @@ window.updateReportTab = function() {
                         ){
                             stats.sunnah.y++;
                         }
+                    
                     }
                 });
             });
