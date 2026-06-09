@@ -3208,8 +3208,15 @@ window.runAnalysis = function() {
                         }
                         else if(act.category === 'fardu') {
                             stats.fardu.total++;
-                            if(st === 'Hadir') stats.fardu.h++;
-                            else stats.fardu.m++;
+                            if(
+                                st === 'Hadir' ||
+                                st === 'Telat'
+                            ){
+                                stats.fardu.h++;
+                            }
+                            else{
+                                stats.fardu.m++;
+                            }
                         }
                         else if(act.category === 'kbm') {
                             stats.kbm.total++;
