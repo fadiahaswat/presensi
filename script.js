@@ -1920,15 +1920,22 @@ window.generateRekapBulanan = function() {
             if(dayData) {
                 Object.values(SLOT_WAKTU).forEach(slot => {
                     const st = dayData[slot.id]?.[id]?.status?.shalat;
-                    if(st === 'Hadir' || st === 'Telat') h++;
-                    else if(st === 'Sakit') s++;
-                    else if(st === 'Izin') i++;
-                    else if(st === 'Alpa') a++;
+                    if(st === 'Hadir' || st === 'Telat')
+                        h++;
+                    else if(st === 'Sakit')
+                        s++;
+                    else if(st === 'Izin')
+                        i++;
+                    else if(st === 'Pulang')
+                        p++;
+                    else if(st === 'Alpa')
+                        a++;
                 });
             }
         }
         
-        const total = h + s + i + a;
+        const total =
+            h + s + i + p + a;
         const percent = total === 0 ? 0 : Math.round((h/total)*100);
         
         const div = document.createElement('div');
