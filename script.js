@@ -2802,14 +2802,39 @@ window.updateReportTab = function() {
         }
         
         tr.innerHTML = `
-            <td class="p-3 text-center text-slate-500 text-[10px] font-bold">${idx + 1}</td>
-            <td class="p-3">
-                <div class="font-bold text-slate-700 dark:text-slate-200 text-xs">${window.sanitizeHTML(s.nama)}</div>
+            <td class="p-3 text-center text-slate-500 text-[10px] font-bold">
+                ${idx + 1}
             </td>
-            <td class="p-3 text-center align-middle">${shalatCol}</td>
-            <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">${schoolCol}</td>
-            <td class="p-3 text-center align-middle">${kbmCol}</td>
-            <td class="p-3 text-center align-middle">${sunnahCol}</td>
+        
+            <td class="p-3">
+                <div class="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                    ${window.sanitizeHTML(s.nama)}
+                </div>
+            </td>
+        
+            ${
+                appState.reportMode === 'semester'
+        
+                ? gradeCells
+        
+                : `
+                    <td class="p-3 text-center align-middle">
+                        ${shalatCol}
+                    </td>
+        
+                    <td class="p-3 text-center align-middle bg-cyan-50/30 dark:bg-cyan-900/10 border-x border-cyan-100 dark:border-cyan-900/20">
+                        ${schoolCol}
+                    </td>
+        
+                    <td class="p-3 text-center align-middle">
+                        ${kbmCol}
+                    </td>
+        
+                    <td class="p-3 text-center align-middle">
+                        ${sunnahCol}
+                    </td>
+                `
+            }
         `;
         fragment.appendChild(tr);
     });
