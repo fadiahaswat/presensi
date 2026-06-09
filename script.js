@@ -2664,9 +2664,28 @@ window.updateReportTab = function() {
             <td class="p-3 text-center align-middle">${kbmCol}</td>
             <td class="p-3 text-center align-middle">${sunnahCol}</td>
             <td class="p-3 text-center">
+                <span class="font-black">
+                    ${spiritualGrade}
+                </span>
+            </td>
+            
+            <td class="p-3 text-center">
+                <span class="font-black">
+                    ${schoolGrade}
+                </span>
+            </td>
+            
+            <td class="p-3 text-center">
+                <span class="font-black">
+                    ${kbmGrade}
+                </span>
+            </td>
+            
+            <td class="p-3 text-center">
                 <div class="font-black ${scoreColor} text-lg">
                     ${grade}
                 </div>
+            
                 <div class="text-[9px] text-slate-500">
                     ${predikat}
                 </div>
