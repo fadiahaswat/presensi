@@ -2457,30 +2457,22 @@ window.updateReportTab = function() {
                     const point =
                         STATUS_WEIGHT[st] ?? 0;
 
-                    if(
-                        act.category === 'fardu'
-                    ){
-                        stats.spiritual.score += point;
-                        stats.spiritual.total++;
+                    if(act.category === 'fardu'){
+                        stats.shalat.score += point;
+                        stats.shalat.total++;
                     }
                     
-                    else if(
-                        act.category === 'sunnah'
-                    ){
-                        stats.spiritual.score += point;
-                        stats.spiritual.total++;
+                    else if(act.category === 'sunnah'){
+                        stats.sunnah.score += point;
+                        stats.sunnah.total++;
                     }
                     
-                    else if(
-                        act.category === 'school'
-                    ){
-                        stats.school.score += point;
+                    else if(act.category === 'school'){
+                        stats.sekolah.score += point;
                     }
                     
-                    else if(
-                        act.category === 'kbm'
-                    ){
-                        stats.kbm.score += point;
+                    else if(act.category === 'kbm'){
+                        stats.mahad.score += point;
                     }
 
                     if(act.category === 'fardu') {
