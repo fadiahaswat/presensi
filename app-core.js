@@ -374,64 +374,40 @@ window.countTotalAlpa = function(studentId) {
     return total;
 };
 
-window.isHoliday = function(
-    date,
-    slotId = null,
-    activityId = null
-){
-    if(
-        !appState.holidays ||
-        !appState.holidays.length
-    ){
-        return null;
-    }
-    const currentDate =
-        new Date(
-            date + 'T12:00:00'
-        );
-    return (
-        appState.holidays.find(rule => {
-            const startDate =
-                new Date(
-                    rule.startDate +
-                    'T12:00:00'
-                );
-            const endDate =
-                new Date(
-                    rule.endDate +
-                    'T12:00:00'
-                );
-            if(
-                currentDate < startDate ||
-                currentDate > endDate
-            ){
-                return false;
-            }
-            if(
-                rule.scope === 'all'
-            ){
-                return true;
-            }
-            if(
-                rule.scope === 'slot' &&
-                slotId
-            ){
-                return (
-                    rule.target === slotId
-                );
-            }
-            if(
-                rule.scope === 'activity' &&
-                activityId
-            ){
-                return (
-                    rule.target === activityId
-                );
-            }
+window.isHoliday = function(dateStr, slotId = null, activityId = null, category = null){
+
+    const holidays =
+        appState.holidays || [];
+
+    return holidays.some(h => {
+
+        if(h.date !== dateStr)
             return false;
-        })
-        || null
-    );
+
+        if(
+            h.type === 'activity' &&
+            activityId
+        ){
+            return h.activityId === activityId;
+        }
+
+        if(
+            h.type === 'slot' &&
+            slotId
+        ){
+            return h.slotId === slotId;
+        }
+
+        if(
+            h.type === 'category' &&
+            category
+        ){
+            return h.category === category;
+        }
+
+        return false;
+
+    });
 
 };
 
