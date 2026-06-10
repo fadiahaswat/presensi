@@ -4059,13 +4059,6 @@ window.setReportMode = function(mode) {
 // 2. Helper Range Tanggal (Update support Yearly)
 window.getReportDateRange = function(mode) {
     const today = new Date(appState.date);
-    if (mode === 'yearly') {
-        return {
-            start: new Date(today.getFullYear(), 0, 1),
-            end: new Date(today.getFullYear(), 11, 31),
-            label: `Tahun ${today.getFullYear()}`
-        };
-    }
     const range = window.getDateRange(mode);
     // Override labels with shorter format for the report view
     if (mode === 'monthly') {
