@@ -4,62 +4,64 @@
 let tahfizhInitialized = false;
 let tahfizhAppState = null;
 
-window.initTahfizhModule = async function() {
-    if (tahfizhInitialized) {
-        console.log('Tahfizh sudah diinisialisasi');
-        // Tampilkan tab tahfizh
-        const mainLayout = document.getElementById('main-layout');
-        if (mainLayout) mainLayout.classList.remove('hidden');
-        return;
+window.initTahfizhModule = async function () {
+  if (tahfizhInitialized) {
+    console.log("Tahfizh sudah diinisialisasi");
+    // Tampilkan tab tahfizh
+    const mainLayout = document.getElementById("main-layout");
+    if (mainLayout) mainLayout.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    console.log("Menginisialisasi Tahfizh Module...");
+
+    const container = document.getElementById("tahfizh-container");
+    if (!container) {
+      console.error("Container tahfizh tidak ditemukan");
+      return;
     }
 
-    try {
-        console.log('Menginisialisasi Tahfizh Module...');
-        
-        const container = document.getElementById('tahfizh-container');
-        if (!container) {
-            console.error('Container tahfizh tidak ditemukan');
-            return;
-        }
+    // Prepare Tahfizh Config from main config
+    setupTahfizhConfig();
 
-        // Prepare Tahfizh Config from main config
-        setupTahfizhConfig();
-        
-        // Load Tahfizh HTML template
-        await loadTahfizhUI(container);
-        
-        // Load Tahfizh App Logic
-        await loadTahfizhAppLogic();
-        
-        tahfizhInitialized = true;
-        console.log('Tahfizh Module berhasil diinisialisasi');
-    } catch (error) {
-        console.error('Error initializing Tahfizh:', error);
-        window.showToast('Gagal memuat modul Tahfizh', 'error');
-    }
+    // Load Tahfizh HTML template
+    await loadTahfizhUI(container);
+
+    // Load Tahfizh App Logic
+    await loadTahfizhAppLogic();
+
+    tahfizhInitialized = true;
+    console.log("Tahfizh Module berhasil diinisialisasi");
+  } catch (error) {
+    console.error("Error initializing Tahfizh:", error);
+    window.showToast("Gagal memuat modul Tahfizh", "error");
+  }
 };
 
 // Setup Tahfizh Config from main config
 function setupTahfizhConfig() {
-    if (!window.AppConfig && window.APP_TAHFIZH_CONFIG) {
-        window.AppConfig = {
-            scriptURL: window.APP_CREDENTIALS?.tahfizhScriptUrl || 'https://script.google.com/macros/s/AKfycbyl2FCcGUtolkJIDsoiTYFKeKp8IQwHT0V3z8n1pOHH9CLiyvYZTBaimrojILJM_A-HLg/exec',
-            classGroupOverrides: window.APP_TAHFIZH_CONFIG.classGroupOverrides || {},
-            musyrifSortOrder: window.APP_TAHFIZH_CONFIG.musyrifSortOrder || [],
-            deadlineJuz30Score: window.APP_TAHFIZH_CONFIG.deadlineJuz30Score,
-            deadlineTahfizhTuntas: window.APP_TAHFIZH_CONFIG.deadlineTahfizhTuntas,
-            perpulanganPeriods: window.APP_TAHFIZH_CONFIG.perpulanganPeriods || [],
-            scoringTiers: window.APP_TAHFIZH_CONFIG.scoringTiers || [],
-            hafalanData: null,
-            santriList: []
-        };
-    }
+  if (!window.AppConfig && window.APP_TAHFIZH_CONFIG) {
+    window.AppConfig = {
+      scriptURL:
+        window.APP_CREDENTIALS?.tahfizhScriptUrl ||
+        "https://script.google.com/macros/s/AKfycbyl2FCcGUtolkJIDsoiTYFKeKp8IQwHT0V3z8n1pOHH9CLiyvYZTBaimrojILJM_A-HLg/exec",
+      classGroupOverrides: window.APP_TAHFIZH_CONFIG.classGroupOverrides || {},
+      musyrifSortOrder: window.APP_TAHFIZH_CONFIG.musyrifSortOrder || [],
+      deadlineJuz30Score: window.APP_TAHFIZH_CONFIG.deadlineJuz30Score,
+      deadlineTahfizhTuntas: window.APP_TAHFIZH_CONFIG.deadlineTahfizhTuntas,
+      perpulanganPeriods: window.APP_TAHFIZH_CONFIG.perpulanganPeriods || [],
+      scoringTiers: window.APP_TAHFIZH_CONFIG.scoringTiers || [],
+      hafalanData: null,
+      santriList: [],
+    };
+  }
 }
 
 // Load Tahfizh UI
 async function loadTahfizhUI(container) {
-    // Create basic Tahfizh UI structure
-    container.innerHTML = `
+  // Create basic Tahfizh UI structure
+  container.innerHTML = `
         <div id="tahfizh-app" class="w-full h-full">
             <!-- Loading -->
             <div id="tahfizh-loading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white dark:bg-slate-900">
@@ -110,63 +112,62 @@ async function loadTahfizhUI(container) {
 
 // Load Tahfizh App Logic
 async function loadTahfizhAppLogic() {
-    try {
-        // Use tahfizh app adapter
-        if (window.initTahfizhAdapter) {
-            await window.initTahfizhAdapter();
-            return true;
-        } else {
-            console.warn('Tahfizh adapter not available');
-            initializeTahfizhAppFallback();
-        }
-        
-    } catch (error) {
-        console.error('Error loading Tahfizh app logic:', error);
-        // Use fallback
-        initializeTahfizhAppFallback();
+  try {
+    // Use tahfizh app adapter
+    if (window.initTahfizhAdapter) {
+      await window.initTahfizhAdapter();
+      return true;
+    } else {
+      console.warn("Tahfizh adapter not available");
+      initializeTahfizhAppFallback();
     }
+  } catch (error) {
+    console.error("Error loading Tahfizh app logic:", error);
+    // Use fallback
+    initializeTahfizhAppFallback();
+  }
 }
 
 // Fallback initialization for Tahfizh
 function initializeTahfizhAppFallback() {
-    console.log('Using fallback Tahfizh initialization');
-    
-    // Hide loading
-    const loading = document.getElementById('tahfizh-loading');
-    if (loading) loading.classList.add('hidden');
-    
-    // Show role selection
-    const roleModal = document.getElementById('role-selection-modal');
-    if (roleModal) roleModal.classList.remove('hidden');
+  console.log("Using fallback Tahfizh initialization");
+
+  // Hide loading
+  const loading = document.getElementById("tahfizh-loading");
+  if (loading) loading.classList.add("hidden");
+
+  // Show role selection
+  const roleModal = document.getElementById("role-selection-modal");
+  if (roleModal) roleModal.classList.remove("hidden");
 }
 
 // Set Tahfizh Role dan Load Data
-window.tahfizhSetRole = async function(role) {
-    try {
-        // Sembunyikan modal
-        document.getElementById('role-selection-modal').classList.add('hidden');
-        document.getElementById('tahfizh-loading').classList.remove('hidden');
-        
-        // Initialize with role using adapter
-        if (window.initializeTahfizhWithRole) {
-            await window.initializeTahfizhWithRole(role);
-        } else {
-            // Fallback
-            localStorage.setItem('tahfizh_role', role);
-            window.TahfizhRole = role;
-            
-            // Simulate loading
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
-            // Hide loading dan tampilkan main layout
-            document.getElementById('tahfizh-loading').classList.add('hidden');
-            document.getElementById('main-layout').classList.remove('hidden');
-            
-            // Display role information
-            const nav = document.getElementById('tahfizh-nav');
-            if (nav) {
-                const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-                nav.innerHTML = `
+window.tahfizhSetRole = async function (role) {
+  try {
+    // Sembunyikan modal
+    document.getElementById("role-selection-modal").classList.add("hidden");
+    document.getElementById("tahfizh-loading").classList.remove("hidden");
+
+    // Initialize with role using adapter
+    if (window.initializeTahfizhWithRole) {
+      await window.initializeTahfizhWithRole(role);
+    } else {
+      // Fallback
+      localStorage.setItem("tahfizh_role", role);
+      window.TahfizhRole = role;
+
+      // Simulate loading
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Hide loading dan tampilkan main layout
+      document.getElementById("tahfizh-loading").classList.add("hidden");
+      document.getElementById("main-layout").classList.remove("hidden");
+
+      // Display role information
+      const nav = document.getElementById("tahfizh-nav");
+      if (nav) {
+        const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+        nav.innerHTML = `
                     <div class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-1">
                         Mode: ${roleLabel}
                     </div>
@@ -180,31 +181,30 @@ window.tahfizhSetRole = async function(role) {
                         📈 Analisis
                     </button>
                 `;
-            }
-        }
-        
-        // Show status message
-        window.showToast(`Mode ${role} diaktifkan`, 'success');
-        
-    } catch (error) {
-        console.error('Error setting Tahfizh role:', error);
-        document.getElementById('tahfizh-loading').classList.add('hidden');
-        window.showToast('Gagal mengatur mode Tahfizh', 'error');
+      }
     }
+
+    // Show status message
+    window.showToast(`Mode ${role} diaktifkan`, "success");
+  } catch (error) {
+    console.error("Error setting Tahfizh role:", error);
+    document.getElementById("tahfizh-loading").classList.add("hidden");
+    window.showToast("Gagal mengatur mode Tahfizh", "error");
+  }
 };
 
 // Cleanup function
-window.closeTahfizhModule = function() {
-    tahfizhInitialized = false;
-    tahfizhAppState = null;
-    document.getElementById('tahfizh-container').innerHTML = '';
+window.closeTahfizhModule = function () {
+  tahfizhInitialized = false;
+  tahfizhAppState = null;
+  document.getElementById("tahfizh-container").innerHTML = "";
 };
 
 // Export untuk testing
 window.TahfizhModule = {
-    init: window.initTahfizhModule,
-    close: window.closeTahfizhModule,
-    setRole: window.tahfizhSetRole
+  init: window.initTahfizhModule,
+  close: window.closeTahfizhModule,
+  setRole: window.tahfizhSetRole,
 };
 
-console.log('Tahfizh Module loaded');
+console.log("Tahfizh Module loaded");

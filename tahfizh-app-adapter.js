@@ -4,243 +4,259 @@
 
 // Global State and DOM objects for tahfizh (extracted from app.js)
 window.TahfizhState = {
-    allSetoran: [],
-    verifiedSetoran: [],
-    pendingSetoran: [],
-    rawSantriList: [],
-    santriData: [],
-    classGroups: {},
-    currentRole: null,
-    userPassword: null,
-    setoranIdToDelete: null,
-    searchDebounceTimer: null,
-    santriNameMap: new Map(),
-    chartInstance: null,
-    countdownInterval: null,
+  allSetoran: [],
+  verifiedSetoran: [],
+  pendingSetoran: [],
+  rawSantriList: [],
+  santriData: [],
+  classGroups: {},
+  currentRole: null,
+  userPassword: null,
+  setoranIdToDelete: null,
+  searchDebounceTimer: null,
+  santriNameMap: new Map(),
+  chartInstance: null,
+  countdownInterval: null,
 };
 
 // Modified DOM caching for tahfizh to work with new container
 window.TahfizhDOM = {};
 
 function cacheTahfizhDOMElements() {
-    const elementMapping = {
-        // Layout & Navigation
-        mainLayout: 'main-layout',
-        mainNav: 'main-nav',
-        mainContent: 'main-content',
-        datetimeContainer: 'datetime-container',
-        
-        // Role Selection Modal
-        roleSelectionModal: 'role-selection-modal',
-        roleButtonsContainer: 'role-buttons',
-        
-        // Navigation menu items (simplified for presensi integration)
-        navItemInput: 'nav-item-input',
-        navItemAnalisis: 'nav-item-analisis',
-    };
-    
-    for (const [key, id] of Object.entries(elementMapping)) {
-        window.TahfizhDOM[key] = document.getElementById(id) || null;
-    }
+  const elementMapping = {
+    // Layout & Navigation
+    mainLayout: "main-layout",
+    mainNav: "main-nav",
+    mainContent: "main-content",
+    datetimeContainer: "datetime-container",
+
+    // Role Selection Modal
+    roleSelectionModal: "role-selection-modal",
+    roleButtonsContainer: "role-buttons",
+
+    // Navigation menu items (simplified for presensi integration)
+    navItemInput: "nav-item-input",
+    navItemAnalisis: "nav-item-analisis",
+  };
+
+  for (const [key, id] of Object.entries(elementMapping)) {
+    window.TahfizhDOM[key] = document.getElementById(id) || null;
+  }
 }
 
 // Initialize Tahfizh App Adapter
-window.initTahfizhAdapter = async function() {
-    try {
-        console.log('Initializing Tahfizh Adapter...');
-        
-        // Cache DOM elements
-        cacheTahfizhDOMElements();
-        
-        // Set up config
-        if (window.AppConfig && !window.APP_TAHFIZH_CONFIG) {
-            window.APP_TAHFIZH_CONFIG = window.AppConfig;
-        }
-        
-        // Initialize role if not set
-        if (!localStorage.getItem('tahfizh_role')) {
-            showTahfizhRoleSelectionModal();
-        } else {
-            const savedRole = localStorage.getItem('tahfizh_role');
-            await initializeTahfizhWithRole(savedRole);
-        }
-        
-        console.log('Tahfizh Adapter initialized successfully');
-        return true;
-        
-    } catch (error) {
-        console.error('Error initializing Tahfizh Adapter:', error);
-        throw error;
+window.initTahfizhAdapter = async function () {
+  try {
+    console.log("Initializing Tahfizh Adapter...");
+
+    // Cache DOM elements
+    cacheTahfizhDOMElements();
+
+    // Set up config
+    if (window.AppConfig && !window.APP_TAHFIZH_CONFIG) {
+      window.APP_TAHFIZH_CONFIG = window.AppConfig;
     }
+
+    // Initialize role if not set
+    if (!localStorage.getItem("tahfizh_role")) {
+      showTahfizhRoleSelectionModal();
+    } else {
+      const savedRole = localStorage.getItem("tahfizh_role");
+      await initializeTahfizhWithRole(savedRole);
+    }
+
+    console.log("Tahfizh Adapter initialized successfully");
+    return true;
+  } catch (error) {
+    console.error("Error initializing Tahfizh Adapter:", error);
+    throw error;
+  }
 };
 
 // Show Role Selection Modal
 function showTahfizhRoleSelectionModal() {
-    const modal = document.getElementById('role-selection-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
-    
-    // Hide loading and layout
-    const loading = document.getElementById('tahfizh-loading');
-    if (loading) loading.classList.add('hidden');
-    
-    const layout = document.getElementById('main-layout');
-    if (layout) layout.classList.add('hidden');
+  const modal = document.getElementById("role-selection-modal");
+  if (modal) {
+    modal.classList.remove("hidden");
+  }
+
+  // Hide loading and layout
+  const loading = document.getElementById("tahfizh-loading");
+  if (loading) loading.classList.add("hidden");
+
+  const layout = document.getElementById("main-layout");
+  if (layout) layout.classList.add("hidden");
 }
 
 // Initialize Tahfizh with selected role
-window.initializeTahfizhWithRole = async function(role) {
-    try {
-        // Set role
-        window.TahfizhState.currentRole = role;
-        localStorage.setItem('tahfizh_role', role);
-        
-        // Hide role modal
-        const modal = document.getElementById('role-selection-modal');
-        if (modal) modal.classList.add('hidden');
-        
-        // Show layout
-        const layout = document.getElementById('main-layout');
-        if (layout) {
-            layout.classList.remove('hidden');
-        }
-        
-        // Hide loading
-        const loading = document.getElementById('tahfizh-loading');
-        if (loading) loading.classList.add('hidden');
-        
-        // Create pages divs if they don't exist
-        const mainContent = document.getElementById('main-content');
-        if (mainContent && mainContent.children.length === 0) {
-            mainContent.innerHTML = `
+window.initializeTahfizhWithRole = async function (role) {
+  try {
+    // Set role
+    window.TahfizhState.currentRole = role;
+    localStorage.setItem("tahfizh_role", role);
+
+    // Hide role modal
+    const modal = document.getElementById("role-selection-modal");
+    if (modal) modal.classList.add("hidden");
+
+    // Show layout
+    const layout = document.getElementById("main-layout");
+    if (layout) {
+      layout.classList.remove("hidden");
+    }
+
+    // Hide loading
+    const loading = document.getElementById("tahfizh-loading");
+    if (loading) loading.classList.add("hidden");
+
+    // Create pages divs if they don't exist
+    const mainContent = document.getElementById("main-content");
+    if (mainContent && mainContent.children.length === 0) {
+      mainContent.innerHTML = `
                 <div id="page-beranda" class=""></div>
                 <div id="page-input" class="hidden"></div>
                 <div id="page-analisis" class="hidden"></div>
                 <div id="page-validasi" class="hidden"></div>
             `;
-        }
-        
-        // Render navigation based on role
-        renderTahfizhNavigation(role);
-        
-        // Show first page
-        window.switchTahfizhPage('page-beranda');
-        
-        // Simulate data loading
-        await simulateTahfizhDataLoading();
-        
-        console.log(`Tahfizh initialized with role: ${role}`);
-        
-        return true;
-        
-    } catch (error) {
-        console.error('Error initializing with role:', error);
-        window.showToast('Gagal menginisialisasi Tahfizh dengan role yang dipilih', 'error');
-        return false;
     }
+
+    // Render navigation based on role
+    renderTahfizhNavigation(role);
+
+    // Show first page
+    window.switchTahfizhPage("page-beranda");
+
+    // Simulate data loading
+    await simulateTahfizhDataLoading();
+
+    console.log(`Tahfizh initialized with role: ${role}`);
+
+    return true;
+  } catch (error) {
+    console.error("Error initializing with role:", error);
+    window.showToast(
+      "Gagal menginisialisasi Tahfizh dengan role yang dipilih",
+      "error",
+    );
+    return false;
+  }
 };
 
 // Render navigation based on role
 function renderTahfizhNavigation(role) {
-    const nav = document.getElementById('tahfizh-nav');
-    if (!nav) return;
-    
-    let navHTML = `<div class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-1 mb-3">
+  const nav = document.getElementById("tahfizh-nav");
+  if (!nav) return;
+
+  let navHTML = `<div class="text-xs font-bold text-slate-500 dark:text-slate-400 px-2 py-1 mb-3">
         Mode: ${role.charAt(0).toUpperCase() + role.slice(1)}
     </div>`;
-    
-    // Common navigation items
-    const navItems = [
-        { icon: '📊', label: 'Dashboard', id: 'page-beranda' },
-        { icon: '📝', label: 'Input Setor', id: 'page-input' },
-        { icon: '📈', label: 'Analisis', id: 'page-analisis' },
-    ];
-    
-    // Role-specific items
-    if (role === 'musyrif') {
-        navItems.push({ icon: '✅', label: 'Validasi', id: 'page-validasi' });
-    }
-    
-    navItems.forEach(item => {
-        navHTML += `
+
+  // Common navigation items
+  const navItems = [
+    { icon: "📊", label: "Dashboard", id: "page-beranda" },
+    { icon: "📝", label: "Input Setor", id: "page-input" },
+    { icon: "📈", label: "Analisis", id: "page-analisis" },
+  ];
+
+  // Role-specific items
+  if (role === "musyrif") {
+    navItems.push({ icon: "✅", label: "Validasi", id: "page-validasi" });
+  }
+
+  navItems.forEach((item) => {
+    navHTML += `
             <button onclick="window.switchTahfizhPage('${item.id}')" 
                     data-page="${item.id}"
                     class="w-full p-2 text-left text-sm font-medium rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                 <span>${item.icon}</span> ${item.label}
             </button>
         `;
-    });
-    
-    nav.innerHTML = navHTML;
+  });
+
+  nav.innerHTML = navHTML;
 }
 
 // Switch Tahfizh page
-window.switchTahfizhPage = function(pageId) {
-    console.log(`Switching to tahfizh page: ${pageId}`);
-    
-    // Hide all pages
-    const pages = ['page-beranda', 'page-input', 'page-analisis', 'page-validasi'];
-    pages.forEach(page => {
-        const pageEl = document.getElementById(page);
-        if (pageEl) pageEl.classList.add('hidden');
-    });
-    
-    // Show selected page
-    const selectedPage = document.getElementById(pageId);
-    if (selectedPage) {
-        selectedPage.classList.remove('hidden');
-        renderTahfizhPage(pageId);
+window.switchTahfizhPage = function (pageId) {
+  console.log(`Switching to tahfizh page: ${pageId}`);
+
+  // Hide all pages
+  const pages = [
+    "page-beranda",
+    "page-input",
+    "page-analisis",
+    "page-validasi",
+  ];
+  pages.forEach((page) => {
+    const pageEl = document.getElementById(page);
+    if (pageEl) pageEl.classList.add("hidden");
+  });
+
+  // Show selected page
+  const selectedPage = document.getElementById(pageId);
+  if (selectedPage) {
+    selectedPage.classList.remove("hidden");
+    renderTahfizhPage(pageId);
+  }
+
+  // Update active nav item
+  document.querySelectorAll("[data-page]").forEach((btn) => {
+    if (btn.dataset.page === pageId) {
+      btn.classList.add(
+        "bg-emerald-100",
+        "dark:bg-emerald-900/30",
+        "text-emerald-600",
+        "dark:text-emerald-400",
+      );
+    } else {
+      btn.classList.remove(
+        "bg-emerald-100",
+        "dark:bg-emerald-900/30",
+        "text-emerald-600",
+        "dark:text-emerald-400",
+      );
     }
-    
-    // Update active nav item
-    document.querySelectorAll('[data-page]').forEach(btn => {
-        if (btn.dataset.page === pageId) {
-            btn.classList.add('bg-emerald-100', 'dark:bg-emerald-900/30', 'text-emerald-600', 'dark:text-emerald-400');
-        } else {
-            btn.classList.remove('bg-emerald-100', 'dark:bg-emerald-900/30', 'text-emerald-600', 'dark:text-emerald-400');
-        }
-    });
+  });
 };
 
 // Render Tahfizh page content
 function renderTahfizhPage(pageId) {
-    const mainContent = document.getElementById('main-content');
-    if (!mainContent) return;
-    
-    let content = '';
-    const role = window.TahfizhState.currentRole;
-    
-    switch(pageId) {
-        case 'page-beranda':
-            content = renderTahfizhDashboard();
-            break;
-        case 'page-input':
-            content = renderTahfizhInputForm();
-            break;
-        case 'page-analisis':
-            content = renderTahfizhAnalysis();
-            break;
-        case 'page-validasi':
-            content = renderTahfizhValidation();
-            break;
-        default:
-            content = '<p class="p-4 text-slate-500">Pilih menu di sidebar</p>';
-    }
-    
-    mainContent.innerHTML = content;
-    
-    // Re-initialize lucide icons if available
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
+  const mainContent = document.getElementById("main-content");
+  if (!mainContent) return;
+
+  let content = "";
+  const role = window.TahfizhState.currentRole;
+
+  switch (pageId) {
+    case "page-beranda":
+      content = renderTahfizhDashboard();
+      break;
+    case "page-input":
+      content = renderTahfizhInputForm();
+      break;
+    case "page-analisis":
+      content = renderTahfizhAnalysis();
+      break;
+    case "page-validasi":
+      content = renderTahfizhValidation();
+      break;
+    default:
+      content = '<p class="p-4 text-slate-500">Pilih menu di sidebar</p>';
+  }
+
+  mainContent.innerHTML = content;
+
+  // Re-initialize lucide icons if available
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
 }
 
 // Render Dashboard
 function renderTahfizhDashboard() {
-    const role = window.TahfizhState.currentRole;
-    
-    return `
+  const role = window.TahfizhState.currentRole;
+
+  return `
         <div class="p-6 space-y-6">
             <div class="glass-card p-6 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20">
                 <h2 class="text-2xl font-bold text-emerald-900 dark:text-emerald-300">Sistem Tahfizh</h2>
@@ -272,7 +288,7 @@ function renderTahfizhDashboard() {
 
 // Render Input Form
 function renderTahfizhInputForm() {
-    return `
+  return `
         <div class="p-6 max-w-2xl">
             <div class="glass-card p-6 rounded-lg">
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white mb-6">Input Setor Hafalan</h2>
@@ -308,7 +324,7 @@ function renderTahfizhInputForm() {
 
 // Render Analysis
 function renderTahfizhAnalysis() {
-    return `
+  return `
         <div class="p-6">
             <div class="glass-card p-6 rounded-lg">
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white mb-4">Analisis Hafalan</h2>
@@ -323,7 +339,7 @@ function renderTahfizhAnalysis() {
 
 // Render Validation (for musyrif only)
 function renderTahfizhValidation() {
-    return `
+  return `
         <div class="p-6">
             <div class="glass-card p-6 rounded-lg">
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white mb-4">Validasi Setor</h2>
@@ -335,19 +351,19 @@ function renderTahfizhValidation() {
 
 // Simulate data loading
 async function simulateTahfizhDataLoading() {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            console.log('Tahfizh data loading simulation complete');
-            resolve();
-        }, 500);
-    });
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log("Tahfizh data loading simulation complete");
+      resolve();
+    }, 500);
+  });
 }
 
 // Export functions
 window.TahfizhAdapter = {
-    init: window.initTahfizhAdapter,
-    initWithRole: window.initializeTahfizhWithRole,
-    switchPage: window.switchTahfizhPage,
+  init: window.initTahfizhAdapter,
+  initWithRole: window.initializeTahfizhWithRole,
+  switchPage: window.switchTahfizhPage,
 };
 
-console.log('Tahfizh App Adapter loaded');
+console.log("Tahfizh App Adapter loaded");

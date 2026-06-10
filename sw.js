@@ -1,27 +1,27 @@
-const CACHE_NAME = 'musyrif-app-v10';
+const CACHE_NAME = "musyrif-app-v10";
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './output.css', // PERBAIKAN: Ganti style.css menjadi output.css
-  './config.js',
-  './script.js',
-  './santri-manager.js',
-  './data-santri.js',
-  './data-kelas.js',
-  './manifest.json'
+  "./",
+  "./index.html",
+  "./output.css", // PERBAIKAN: Ganti style.css menjadi output.css
+  "./config.js",
+  "./script.js",
+  "./santri-manager.js",
+  "./data-santri.js",
+  "./data-kelas.js",
+  "./manifest.json",
 ];
 
 // 1. Install Service Worker & Cache File
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
-    })
+    }),
   );
 });
 
 // 2. Activate & Hapus Cache Lama
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
@@ -29,28 +29,28 @@ self.addEventListener('activate', (event) => {
           if (key !== CACHE_NAME) {
             return caches.delete(key);
           }
-        })
+        }),
       );
-    })
+    }),
   );
 });
 
 // 3. Fetch Strategy: Cache First, then Network
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   // Cek apakah request menuju ke file eksternal (http/https)
-  if (event.request.url.startsWith('http')) {
-     // Gunakan strategi Network First untuk file eksternal agar tidak error CORS
-     event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request);
-        })
-     );
+  if (event.request.url.startsWith("http")) {
+    // Gunakan strategi Network First untuk file eksternal agar tidak error CORS
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(event.request);
+      }),
+    );
   } else {
-     // Untuk file lokal, gunakan Cache First (sesuai kode lama)
-     event.respondWith(
-        caches.match(event.request).then((response) => {
-          return response || fetch(event.request);
-        })
-     );
+    // Untuk file lokal, gunakan Cache First (sesuai kode lama)
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request);
+      }),
+    );
   }
 });
