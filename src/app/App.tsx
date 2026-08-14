@@ -5,7 +5,7 @@ import {
   ClipboardList, X, Users, BookOpen, Lock, Search,
   Download, SlidersHorizontal, Flame, AlertCircle,
   Zap, Award, Info, Compass, Clock, Moon,
-  MapPin, Navigation, Printer, ChevronDown, Star, RefreshCw,
+  MapPin, Navigation, Printer, ChevronDown, Star, RefreshCw, ArrowDown,
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send
@@ -3300,8 +3300,110 @@ export default function App() {
   const pendingMaghrib = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
   const hijri = toHijri(now);
 
+  // ─── PULL TO REFRESH LOGIC ───
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const isDragging = useRef(false);
+  const REFRESH_THRESHOLD = 75;
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    // Refresh local clock & re-sync records from localStorage
+    setNow(new Date());
+    try {
+      const savedRecs = localStorage.getItem(STORAGE_KEY_RECORDS);
+      if (savedRecs) {
+        const parsed = JSON.parse(savedRecs);
+        if (Array.isArray(parsed)) setRecords(parsed);
+      }
+      const savedIzin = localStorage.getItem(STORAGE_KEY_IZIN);
+      if (savedIzin) {
+        const parsedIzin = JSON.parse(savedIzin);
+        if (Array.isArray(parsedIzin)) setIzinList(parsedIzin);
+      }
+    } catch {}
+
+    // Simulated network sync delay for smooth microinteraction
+    await new Promise(res => setTimeout(res, 800));
+    setIsRefreshing(false);
+    setPullDistance(0);
+    showToast("Data presensi berhasil diperbarui!", "success");
+  }, [showToast]);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0 && !isRefreshing) {
+      touchStartY.current = e.touches[0].clientY;
+      isDragging.current = true;
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || isRefreshing) return;
+    if (window.scrollY > 0) {
+      isDragging.current = false;
+      setPullDistance(0);
+      return;
+    }
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    if (diff > 0) {
+      // Apply rubber-band friction
+      const dist = Math.min(100, diff * 0.45);
+      setPullDistance(dist);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const onTouchEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    if (pullDistance >= REFRESH_THRESHOLD && !isRefreshing) {
+      handleRefresh();
+    } else {
+      setPullDistance(0);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background" style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+    <div 
+      className="min-h-screen bg-background relative" 
+      style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Pull to Refresh Animated Indicator */}
+      <div 
+        className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none transition-transform duration-200 ease-out"
+        style={{
+          transform: `translateY(${isRefreshing ? 64 : Math.min(pullDistance, 85)}px)`,
+          opacity: pullDistance > 10 || isRefreshing ? 1 : 0,
+        }}
+      >
+        <div className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-emerald-100 text-xs font-semibold text-slate-700">
+          {isRefreshing ? (
+            <>
+              <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />
+              <span className="text-emerald-700">Memperbarui data...</span>
+            </>
+          ) : pullDistance >= REFRESH_THRESHOLD ? (
+            <>
+              <RefreshCw className="w-4 h-4 text-emerald-600 transition-transform duration-200 rotate-180" />
+              <span className="text-emerald-700 font-bold">Lepaskan untuk memuat ulang</span>
+            </>
+          ) : (
+            <>
+              <ArrowDown 
+                className="w-4 h-4 text-slate-400 transition-transform duration-150" 
+                style={{ transform: `rotate(${Math.min(180, (pullDistance / REFRESH_THRESHOLD) * 180)}deg)` }}
+              />
+              <span className="text-slate-500">Tarik untuk memuat ulang</span>
+            </>
+          )}
+        </div>
+      </div>
       
       {!isOnline && (
         <div className="bg-amber-500 text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-sm animate-in fade-in duration-300">
