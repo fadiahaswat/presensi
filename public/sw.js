@@ -1,8 +1,11 @@
-const CACHE_NAME = 'presensi-muallimin-v1';
+const CACHE_NAME = 'presensi-muallimin-v2';
+const BASE_PATH = self.location.pathname.includes('/presensi/') ? '/presensi/' : '/';
+
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest'
+  BASE_PATH,
+  `${BASE_PATH}index.html`,
+  `${BASE_PATH}manifest.webmanifest`,
+  `${BASE_PATH}muallimin-logo.png`
 ];
 
 self.addEventListener('install', (event) => {

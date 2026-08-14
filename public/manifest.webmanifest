@@ -2,20 +2,21 @@
   "name": "Presensi Musyrif Mu'allimin",
   "short_name": "Presensi Musyrif",
   "description": "Aplikasi Presensi Shalat, Mutaba'ah, & Kegiatan Keasramaan Madrasah Mu'allimin Muhammadiyah Yogyakarta",
-  "start_url": "/",
+  "start_url": "/presensi/",
+  "scope": "/presensi/",
   "display": "standalone",
   "background_color": "#064e3b",
   "theme_color": "#059669",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/muallimin-logo.png",
+      "src": "/presensi/muallimin-logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/muallimin-logo.png",
+      "src": "/presensi/muallimin-logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
