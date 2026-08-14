@@ -30,7 +30,7 @@
   --chart-3: #2E86AB;
   --chart-4: #8B4513;
   --chart-5: #6B4C93;
-  --radius: 0.75rem;
+  --radius: 1.25rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #030213;

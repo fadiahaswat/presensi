@@ -402,7 +402,7 @@ function Av({ name, src, sz="md" }: { name: string; src?: string; sz?: "xs"|"sm"
 }
 
 function Card({ ch, cls="" }: { ch: React.ReactNode; cls?: string }) {
-  return <div className={`bg-white rounded-2xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03),0_1px_3px_rgba(0,0,0,0.02)] ring-1 ring-slate-200/70 border border-slate-100/50 ${cls}`}>{ch}</div>;
+  return <div className={`bg-white rounded-[24px] shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 overflow-hidden ${cls}`}>{ch}</div>;
 }
 
 function Label({ ch }: { ch: React.ReactNode }) {
@@ -814,10 +814,10 @@ function PageDashboard({
           <button
             type="button"
             onClick={onOpenWA}
-            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-8 h-8 rounded-[14px] bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Share2 className="w-4 h-4"/>
               </div>
               <span className="text-[10px] font-bold text-emerald-700 font-mono">1-Klik</span>
@@ -832,10 +832,10 @@ function PageDashboard({
           <button
             type="button"
             onClick={onOpenIzin}
-            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col justify-between relative active:scale-[0.98]"
+            className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col justify-between relative active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-8 h-8 rounded-[14px] bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <FileCheck2 className="w-4 h-4"/>
               </div>
               {pendingIzinCount > 0 && (
@@ -854,10 +854,10 @@ function PageDashboard({
           <button
             type="button"
             onClick={onOpenAlarm}
-            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-8 h-8 rounded-[14px] bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <BellRing className="w-4 h-4"/>
               </div>
               <span className="text-[10px] font-bold text-amber-700 font-mono">Web Push</span>
@@ -872,10 +872,10 @@ function PageDashboard({
           <button
             type="button"
             onClick={onOpenKegiatan}
-            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
+              <div className="w-8 h-8 rounded-[14px] bg-teal-50 text-teal-600 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
                 🕌
               </div>
               <span className="text-[10px] font-bold text-teal-700 font-mono">Tahfidz</span>
@@ -890,10 +890,10 @@ function PageDashboard({
           <button
             type="button"
             onClick={onOpenMutabaah}
-            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
+              <div className="w-8 h-8 rounded-[14px] bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
                 📿
               </div>
               <span className="text-[10px] font-bold text-indigo-700 font-mono">Ibadah</span>

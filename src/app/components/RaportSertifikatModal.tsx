@@ -87,7 +87,7 @@ export function RaportSertifikatModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-slate-100">
+      <div className="bg-white rounded-[28px] shadow-2xl max-w-2xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-slate-100">
         
         {/* Header (No print) */}
         <div className="px-5 py-4 bg-emerald-800 text-white flex items-center justify-between print:hidden">

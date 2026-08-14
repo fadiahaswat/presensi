@@ -97,7 +97,7 @@ export function AlarmNotificationManager({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+      <div className="bg-white rounded-[28px] shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
         
         {/* Header */}
         <div className="px-5 py-4 bg-emerald-700 text-white flex items-center justify-between">
