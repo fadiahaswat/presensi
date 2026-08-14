@@ -7,7 +7,8 @@ import {
   Zap, Award, Info, Compass, Clock, Moon,
   MapPin, Navigation, Printer, ChevronDown, Star, RefreshCw,
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
-  ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee
+  ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
+  Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -19,6 +20,13 @@ import {
   LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, PieChart, Pie, Cell
 } from "recharts";
 import mualliminLogo from "./muallimin-logo.png";
+import { WhatsAppShareModal } from "./components/WhatsAppShareModal";
+import { IzinPengajuanModal, IzinRequest } from "./components/IzinPengajuanModal";
+import { AlarmNotificationManager } from "./components/AlarmNotificationManager";
+import { KegiatanAsramaModal, KegiatanRecord } from "./components/KegiatanAsramaModal";
+import { MutabaahYaumiyahModal, MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
+import { LeaderboardModal } from "./components/LeaderboardModal";
+import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -28,7 +36,7 @@ type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
 type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah";
 
-interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; }
+interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
   id: string;
   name: string;
@@ -319,10 +327,10 @@ function generateRecords(): AttendanceRecord[] {
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
 const S = {
-  hadir: { label:"Hadir", short:"H", dot:"bg-emerald-500", chip:"bg-emerald-50/90 text-emerald-700 ring-1 ring-emerald-200/80 shadow-2xs font-semibold", btn:"bg-emerald-600 text-white shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500" },
-  sakit: { label:"Sakit", short:"S", dot:"bg-amber-500",   chip:"bg-amber-50/90   text-amber-700   ring-1 ring-amber-200/80   shadow-2xs font-semibold", btn:"bg-amber-500   text-white shadow-md shadow-amber-500/25   ring-1 ring-amber-400" },
-  izin:  { label:"Ijin",  short:"I", dot:"bg-blue-500",    chip:"bg-blue-50/90    text-blue-700    ring-1 ring-blue-200/80    shadow-2xs font-semibold", btn:"bg-blue-600    text-white shadow-md shadow-blue-600/25    ring-1 ring-blue-500" },
-  alfa:  { label:"Alpa",  short:"A", dot:"bg-rose-500",    chip:"bg-rose-50/90    text-rose-700    ring-1 ring-rose-200/80    shadow-2xs font-semibold", btn:"bg-rose-600    text-white shadow-md shadow-rose-600/25    ring-1 ring-rose-500" },
+  hadir: { label:"Hadir", short:"H", dot:"bg-emerald-500", chip:"bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80 shadow-2xs font-semibold", btn:"bg-emerald-600 text-white shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500" },
+  sakit: { label:"Sakit", short:"S", dot:"bg-amber-500",   chip:"bg-amber-50 text-amber-800 ring-1 ring-amber-200/80 shadow-2xs font-semibold", btn:"bg-amber-500 text-white shadow-md shadow-amber-500/25 ring-1 ring-amber-400" },
+  izin:  { label:"Izin",  short:"I", dot:"bg-sky-500",     chip:"bg-sky-50 text-sky-800 ring-1 ring-sky-200/80 shadow-2xs font-semibold", btn:"bg-sky-600 text-white shadow-md shadow-sky-600/25 ring-1 ring-sky-500" },
+  alfa:  { label:"Alfa",  short:"A", dot:"bg-rose-500",    chip:"bg-rose-50 text-rose-800 ring-1 ring-rose-200/80 shadow-2xs font-semibold", btn:"bg-rose-600 text-white shadow-md shadow-rose-600/25 ring-1 ring-rose-500" },
 } as const;
 
 function Chip({ s }: { s?: AttendanceStatus }) {
@@ -354,7 +362,9 @@ function getAvatarPreset(name: string) {
   return AVATAR_PRESETS[Math.abs(hash) % AVATAR_PRESETS.length];
 }
 
-function Av({ name, sz="md" }: { name: string; src?: string; sz?: "xs"|"sm"|"md"|"lg" }) {
+function Av({ name, src, sz="md" }: { name: string; src?: string; sz?: "xs"|"sm"|"md"|"lg" }) {
+  const [imgError, setImgError] = useState(false);
+
   const c = {
     xs: "w-6 h-6",
     sm: "w-8 h-8",
@@ -371,6 +381,18 @@ function Av({ name, sz="md" }: { name: string; src?: string; sz?: "xs"|"sm"|"md"
 
   const preset = getAvatarPreset(name);
   const IconComp = preset.icon;
+
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className={`${c} rounded-full object-cover flex-shrink-0 shadow-md ring-2 ring-white/90 select-none`}
+      />
+    );
+  }
 
   return (
     <div className={`${c} ${preset.bg} ${preset.text} rounded-full flex-shrink-0 flex items-center justify-center shadow-md ring-2 ring-white/90 select-none transition-transform`}>
@@ -439,10 +461,82 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
   setTimeout(() => w.print(), 400);
 }
 
+function exportCSV(records: AttendanceRecord[], month: Date, asramaFilter: string) {
+  const mk = format(month, "yyyy-MM");
+  const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) })
+    .filter(d => !isBefore(new Date(), startOfDay(d)) || isToday(d));
+  const list = asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter);
+
+  const headers = ["No", "Nama Musyrif", "Kelas", "Asrama", "Kamar", "Pamong", "No WA", "Subuh Hadir", "Subuh Sakit", "Subuh Izin", "Subuh Alpa", "Maghrib Hadir", "Maghrib Sakit", "Maghrib Izin", "Maghrib Alpa", "Persentase Kehadiran"];
+  
+  const rows = list.map((m, i) => {
+    const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
+    const sh = rs.filter(r => r.subuh === "hadir").length;
+    const ss = rs.filter(r => r.subuh === "sakit").length;
+    const si = rs.filter(r => r.subuh === "izin").length;
+    const sa = rs.filter(r => r.subuh === "alfa").length;
+    const mh = rs.filter(r => r.maghrib === "hadir").length;
+    const ms = rs.filter(r => r.maghrib === "sakit").length;
+    const mi = rs.filter(r => r.maghrib === "izin").length;
+    const ma = rs.filter(r => r.maghrib === "alfa").length;
+    const pct = days.length ? Math.round(((sh + mh) / (days.length * 2)) * 100) : 0;
+
+    return [
+      i + 1,
+      `"${m.name.replace(/"/g, '""')}"`,
+      `"${m.kelas}"`,
+      `"${m.asrama}"`,
+      `"${m.kamar}"`,
+      `"${(m.pamong || "-").replace(/"/g, '""')}"`,
+      `"${m.phone || "-"}"`,
+      sh, ss, si, sa,
+      mh, ms, mi, ma,
+      `${pct}%`
+    ].join(",");
+  });
+
+  const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Rekap_Presensi_${asramaFilter.replace(/\s+/g, "_")}_${format(month, "yyyy_MM")}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
-function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecord[]; authUser: AuthUser|null; onGoTo: (p: Page) => void }) {
+function PageDashboard({ 
+  records, 
+  authUser, 
+  onGoTo, 
+  onSelectMusyrif,
+  onOpenWA,
+  onOpenIzin,
+  onOpenAlarm,
+  onOpenKegiatan,
+  onOpenMutabaah,
+  onOpenLeaderboard,
+  onOpenRaport,
+  pendingIzinCount = 0,
+}: { 
+  records: AttendanceRecord[]; 
+  authUser: AuthUser|null; 
+  onGoTo: (p: Page) => void; 
+  onSelectMusyrif?: (id: string) => void;
+  onOpenWA: () => void;
+  onOpenIzin: () => void;
+  onOpenAlarm: () => void;
+  onOpenKegiatan: () => void;
+  onOpenMutabaah: () => void;
+  onOpenLeaderboard: () => void;
+  onOpenRaport: () => void;
+  pendingIzinCount?: number;
+}) {
   const today = todayStr();
   const todayRecs = records.filter(r => r.date === today);
   const total = MUSYRIF_LIST.length;
@@ -703,6 +797,154 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
         </div>
       </div>}/>
 
+      {/* ───────────────────────────────────────────────────────────────────── */}
+      {/* PUSAT LAYANAN & FITUR INOVASI KEASRAMAAN */}
+      {/* ───────────────────────────────────────────────────────────────────── */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <Label ch="⚡ Pusat Layanan & Inovasi Keasramaan"/>
+          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+            Fitur Lengkap
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+          
+          {/* 1. Kirim WA */}
+          <button
+            type="button"
+            onClick={onOpenWA}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Share2 className="w-4 h-4"/>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 font-mono">1-Klik</span>
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Rekap WhatsApp</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Kirim laporan resmi grup</p>
+            </div>
+          </button>
+
+          {/* 2. Pengajuan Izin */}
+          <button
+            type="button"
+            onClick={onOpenIzin}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col justify-between relative active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FileCheck2 className="w-4 h-4"/>
+              </div>
+              {pendingIzinCount > 0 && (
+                <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
+                  {pendingIzinCount} Menunggu
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Izin & Sakit</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Self-service & approval</p>
+            </div>
+          </button>
+
+          {/* 3. Alarm & Notifikasi */}
+          <button
+            type="button"
+            onClick={onOpenAlarm}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <BellRing className="w-4 h-4"/>
+              </div>
+              <span className="text-[10px] font-bold text-amber-700 font-mono">Web Push</span>
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Alarm Presensi</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Pengingat sholat hisab</p>
+            </div>
+          </button>
+
+          {/* 4. Agenda Non-Shalat */}
+          <button
+            type="button"
+            onClick={onOpenKegiatan}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
+                🕌
+              </div>
+              <span className="text-[10px] font-bold text-teal-700 font-mono">Tahfidz</span>
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Agenda Khusus</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Tahfidz, Kuliah, Apel</p>
+            </div>
+          </button>
+
+          {/* 5. Mutaba'ah Yaumiyah */}
+          <button
+            type="button"
+            onClick={onOpenMutabaah}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
+                📿
+              </div>
+              <span className="text-[10px] font-bold text-indigo-700 font-mono">Ibadah</span>
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Mutaba'ah Yaumiyah</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Tahajjud, Tilawah, Dhuha</p>
+            </div>
+          </button>
+
+          {/* 6. Leaderboard */}
+          <button
+            type="button"
+            onClick={onOpenLeaderboard}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-purple-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Trophy className="w-4 h-4"/>
+              </div>
+              <span className="text-[10px] font-bold text-purple-700 font-mono">Rank</span>
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Leaderboard</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Musyrif teladan & badge</p>
+            </div>
+          </button>
+
+          {/* 7. Raport & E-Sertifikat */}
+          <button
+            type="button"
+            onClick={onOpenRaport}
+            className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-md transition-all text-left flex flex-col justify-between col-span-2 sm:col-span-1 md:col-span-2 active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform text-sm">
+                📜
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
+                Cetak PDF
+              </span>
+            </div>
+            <div>
+              <p className="font-bold text-xs text-slate-800 leading-tight">Rapor Disiplin & E-Sertifikat</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Format resmi lengkap tanda tangan Pamong</p>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
       {/* High-Utility Compact Asrama Command Matrix */}
       <Card ch={<div>
         {/* Header & Filter Tabs */}
@@ -926,10 +1168,20 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
             )}
 
             <div className="flex gap-2 mt-4">
-              <button onClick={()=>{ setDetailMusyrif(null); onGoTo("riwayat"); }} className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-semibold transition-all">
+              <button 
+                onClick={()=>{ 
+                  onSelectMusyrif?.(detailMusyrif.id);
+                  setDetailMusyrif(null); 
+                  onGoTo("riwayat"); 
+                }} 
+                className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs"
+              >
                 Lihat di Riwayat
               </button>
-              <button onClick={()=>setDetailMusyrif(null)} className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
+              <button 
+                onClick={()=>setDetailMusyrif(null)} 
+                className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all"
+              >
                 Tutup
               </button>
             </div>
@@ -1177,8 +1429,17 @@ function PageInputPrayer({
           value={search} 
           onChange={e=>setSearch(e.target.value)} 
           placeholder="Cari nama musyrif..." 
-          className="w-full pl-10 pr-4 py-2 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
+          className="w-full pl-10 pr-9 py-2 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
         />
+        {search && (
+          <button 
+            onClick={()=>setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all"
+            title="Hapus pencarian"
+          >
+            <X className="w-3 h-3"/>
+          </button>
+        )}
       </div>
 
       {/* Cards: Single prayer focused view */}
@@ -1290,12 +1551,13 @@ function PageInputPrayer({
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: REKAP
 // ─────────────────────────────────────────────────────────────────────────────
-function PageRekap({ records }: { records: AttendanceRecord[] }) {
+function PageRekap({ records, onSelectMusyrif, onGoTo }: { records: AttendanceRecord[]; onSelectMusyrif?: (id: string) => void; onGoTo?: (p: Page) => void }) {
   const [viewMonth, setViewMonth] = useState(new Date());
   const [filterAsrama, setFilterAsrama] = useState("Semua");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"pct"|"name">("pct");
   const [detail, setDetail] = useState<Musyrif|null>(null);
+  const [chartSlotFilter, setChartSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
   const mk = format(viewMonth,"yyyy-MM");
 
   const days = useMemo(()=>eachDayOfInterval({start:startOfMonth(viewMonth),end:endOfMonth(viewMonth)})
@@ -1332,19 +1594,37 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      {/* 1. Header with PDF Export */}
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Rekap Presensi</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Analisis & statistik kehadiran bulanan</p>
+      {/* 1. Executive Header with Unified Action Capsule */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 border border-emerald-200/50 px-2 py-0.5 rounded-lg font-mono tracking-wide uppercase">
+              📊 Laporan
+            </span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-tight truncate">Rekap Presensi</h2>
+          <p className="text-xs text-slate-400 mt-0.5 truncate">Analisis & statistik kehadiran bulanan</p>
         </div>
-        <button 
-          onClick={()=>exportPDF(records,viewMonth,filterAsrama)} 
-          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-2xl transition-all shadow-md shadow-emerald-600/20 active:scale-95 flex-shrink-0"
-        >
-          <Printer className="w-3.5 h-3.5"/>
-          <span>Cetak PDF</span>
-        </button>
+
+        {/* Unified Dual Export Capsule */}
+        <div className="flex items-center bg-white/95 backdrop-blur-md rounded-2xl p-1 shadow-xs border border-slate-200/80 ring-1 ring-slate-900/5">
+          <button 
+            onClick={()=>exportCSV(records,viewMonth,filterAsrama)} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-emerald-700 hover:bg-slate-50 transition-all active:scale-95"
+            title="Download Spreadsheet Excel (.CSV)"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-600"/>
+            <span>CSV</span>
+          </button>
+          <div className="w-[1px] h-4 bg-slate-200/80" />
+          <button 
+            onClick={()=>exportPDF(records,viewMonth,filterAsrama)} 
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs shadow-emerald-600/20 transition-all active:scale-95"
+          >
+            <Printer className="w-3.5 h-3.5"/>
+            <span>Cetak PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Sleek Month Selector */}
@@ -1397,13 +1677,29 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
         </div>
       </div>
 
-      {/* 4. Weekly Trend Chart */}
+      {/* 4. Weekly Trend Chart with Interactive Legend Filter */}
       <Card ch={<div className="p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren Kehadiran Mingguan</span>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-600"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
+          <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200/60">
+            <button
+              onClick={()=>setChartSlotFilter(f=>f==="subuh"?"all":"subuh")}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                chartSlotFilter!=="maghrib" ? "bg-amber-100 text-amber-900 shadow-2xs" : "text-slate-400 opacity-60 hover:opacity-100"
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full bg-amber-500"/>
+              <span>Subuh</span>
+            </button>
+            <button
+              onClick={()=>setChartSlotFilter(f=>f==="maghrib"?"all":"maghrib")}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                chartSlotFilter!=="subuh" ? "bg-emerald-100 text-emerald-900 shadow-2xs" : "text-slate-400 opacity-60 hover:opacity-100"
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-600"/>
+              <span>Maghrib</span>
+            </button>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={130}>
@@ -1412,8 +1708,8 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
             <XAxis dataKey="week" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
             <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
             <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:14,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
-            <Line type="monotone" dataKey="subuh"   stroke="#f59e0b" strokeWidth={3} dot={{r:4,fill:"#f59e0b",strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} name="subuh"/>
-            <Line type="monotone" dataKey="maghrib" stroke="#059669" strokeWidth={3} dot={{r:4,fill:"#059669",strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} name="maghrib"/>
+            {chartSlotFilter !== "maghrib" && <Line type="monotone" dataKey="subuh"   stroke="#f59e0b" strokeWidth={3} dot={{r:4,fill:"#f59e0b",strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} name="subuh"/>}
+            {chartSlotFilter !== "subuh" && <Line type="monotone" dataKey="maghrib" stroke="#059669" strokeWidth={3} dot={{r:4,fill:"#059669",strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} name="maghrib"/>}
           </LineChart>
         </ResponsiveContainer>
       </div>}/>
@@ -1442,8 +1738,17 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
               value={search} 
               onChange={e=>setSearch(e.target.value)} 
               placeholder="Cari nama musyrif..." 
-              className="w-full pl-10 pr-3 py-2.5 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
+              className="w-full pl-10 pr-9 py-2.5 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
             />
+            {search && (
+              <button 
+                onClick={()=>setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all"
+                title="Hapus pencarian"
+              >
+                <X className="w-3 h-3"/>
+              </button>
+            )}
           </div>
           <button 
             onClick={()=>setSortBy(s=>s==="pct"?"name":"pct")} 
@@ -1517,10 +1822,10 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
         </div>
       </div>}/>
 
-      {/* Detail modal */}
+      {/* Detail modal with Cross-Navigation to Riwayat */}
       {detail && detailM && (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setDetail(null)}>
-          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+          <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
             <div className="px-6 pt-5 pb-4 flex items-center gap-3 border-b border-slate-100">
               <Av name={detailM.name} sz="lg"/>
               <div className="flex-1 min-w-0">
@@ -1542,7 +1847,7 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
                 )}
                 {detailM.email && (
                   <a href={`mailto:${detailM.email}`}
-                    className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all">
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all">
                     <Mail className="w-3.5 h-3.5"/> Email
                   </a>
                 )}
@@ -1565,7 +1870,21 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
                 ))}
               </div>
             </div>
-            <div className="px-5 pb-5 pt-2"><button onClick={()=>setDetail(null)} className="w-full py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors">Tutup</button></div>
+            <div className="px-5 pb-5 pt-2 flex items-center gap-2">
+              <button 
+                onClick={()=>{
+                  onSelectMusyrif?.(detail.id);
+                  setDetail(null);
+                  onGoTo?.("riwayat");
+                }} 
+                className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95"
+              >
+                Lihat di Riwayat
+              </button>
+              <button onClick={()=>setDetail(null)} className="py-2.5 px-5 bg-slate-100 text-slate-500 rounded-xl text-xs font-semibold hover:bg-slate-200 transition-colors">
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1576,14 +1895,20 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: RIWAYAT
 // ─────────────────────────────────────────────────────────────────────────────
-function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[];authUser:AuthUser|null;onLogin:()=>void}) {
+function PageRiwayat({ records, authUser, onLogin, initialMusyrifId, onSelectMusyrifId }: {records:AttendanceRecord[];authUser:AuthUser|null;onLogin:()=>void;initialMusyrifId?:string|null;onSelectMusyrifId?:(id:string)=>void}) {
   const [viewMonth, setViewMonth] = useState(new Date());
-  const [selId, setSelId] = useState(MUSYRIF_LIST[0].id);
+  const [selId, setSelId] = useState(initialMusyrifId || MUSYRIF_LIST[0].id);
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
   const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
   const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
   const [pickerAsrama, setPickerAsrama] = useState<string>("all");
   const [pickerSearch, setPickerSearch] = useState("");
+
+  useEffect(() => {
+    if (initialMusyrifId) {
+      setSelId(initialMusyrifId);
+    }
+  }, [initialMusyrifId]);
 
   if (!authUser) return (
     <div className="flex flex-col items-center justify-center gap-6 py-24 text-center px-4">
@@ -1624,46 +1949,35 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
 
   const alfaList = mRecs.filter(r=>r.subuh==="alfa"||r.maghrib==="alfa").slice(-5).reverse();
 
-  const doExport = () => {
-    const lines=[`Riwayat Presensi — ${musyrif.name} — ${format(viewMonth,"MMMM yyyy",{locale:id})}`,""];
-    pastDays.forEach(d=>{const r=getR(d);lines.push(`${format(d,"d MMM yyyy")} | Subuh: ${r?.subuh??"-"} | Maghrib: ${r?.maghrib??"-"}`);});
-    const b=new Blob([lines.join("\n")],{type:"text/plain"});
-    const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=`presensi-${musyrif.name.replace(/ /g,"-")}-${mk}.txt`;a.click();
-  };
-
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      {/* 1. Header with Switcher & Export */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+      {/* 1. Balanced Header with Compact Switcher */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-[10px] font-bold text-teal-700 bg-teal-100/70 border border-teal-200/50 px-2 py-0.5 rounded-lg font-mono tracking-wide uppercase">
+              📅 Kalender
+            </span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-tight whitespace-nowrap">
             {isPersonalMusyrif ? "Riwayat Saya" : "Riwayat Presensi"}
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5 truncate">
             {isPersonalMusyrif ? "Rekapan kehadiran ibadah pribadi Anda" : "Detail presensi & kalender per musyrif"}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {!isPersonalMusyrif && (
-            <button 
-              onClick={()=>setShowMusyrifPicker(true)} 
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/90 px-3.5 py-2 rounded-2xl transition-all active:scale-95 shadow-2xs"
-            >
-              <Users className="w-3.5 h-3.5 text-emerald-600"/>
-              <span>Pilih Musyrif</span>
-              <ChevronDown className="w-3 h-3 text-slate-400"/>
-            </button>
-          )}
-
+        {/* Action Button: Pilih Musyrif */}
+        {!isPersonalMusyrif && (
           <button 
-            onClick={doExport} 
-            className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-3.5 py-2 rounded-2xl transition-all active:scale-95 shadow-2xs"
+            onClick={()=>setShowMusyrifPicker(true)} 
+            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-emerald-700 shadow-xs transition-all active:scale-95 flex-shrink-0"
           >
-            <Download className="w-3.5 h-3.5"/>
-            <span>Export TXT</span>
+            <Users className="w-3.5 h-3.5 text-emerald-600"/>
+            <span>Pilih Musyrif</span>
+            <ChevronDown className="w-3 h-3 text-slate-400"/>
           </button>
-        </div>
+        )}
       </div>
 
       {/* 2. Executive Musyrif Profile Hero Card */}
@@ -2021,9 +2335,18 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
                   value={pickerSearch} 
                   onChange={e=>setPickerSearch(e.target.value)} 
                   placeholder="Cari nama, kelas, atau pamong..." 
-                  className="w-full bg-slate-50 ring-1 ring-slate-200/80 rounded-2xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="w-full bg-slate-50 ring-1 ring-slate-200/80 rounded-2xl pl-10 pr-9 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   autoFocus
                 />
+                {pickerSearch && (
+                  <button 
+                    onClick={()=>setPickerSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-500 flex items-center justify-center transition-all"
+                    title="Hapus pencarian"
+                  >
+                    <X className="w-3 h-3"/>
+                  </button>
+                )}
               </div>
 
               {/* Asrama Filter Chips */}
@@ -2080,7 +2403,6 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
                           <p className="text-[10px] text-slate-400 truncate mt-0.5">
                             {m.kelas} · {m.asrama}
                           </p>
-                          {m.pamong && <p className="text-[9px] text-slate-400 truncate">Pamong: {m.pamong}</p>}
                         </div>
                       </div>
                       {isCurrent && (
@@ -2120,7 +2442,13 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
   const [heading, setHeading] = useState<number|null>(null);
   const [demoH, setDemoH]     = useState(0);
   const [permDenied, setPermDenied] = useState(false);
-  const [markedFasts, setMarkedFasts] = useState<Set<string>>(new Set());
+  const [markedFasts, setMarkedFasts] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("presensi_sunnah_fasts");
+      if (saved) return new Set(JSON.parse(saved));
+    } catch {}
+    return new Set();
+  });
   const [tab, setTab]         = useState<"jadwal"|"kiblat"|"puasa">("jadwal");
   const [puasaDetail, setPuasaDetail] = useState<{ icon: string; name: string; desc: string; dalil?: string } | null>(null);
 
@@ -2157,18 +2485,29 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
     } else {
       window.addEventListener("deviceorientation",handler);
     }
-    const iv = setInterval(()=>setDemoH(h=>h+0.5),20);
+    const iv = setInterval(()=>setDemoH(h=>(h+0.4)%360),30);
     return ()=>{ window.removeEventListener("deviceorientation",handler); clearInterval(iv); };
   },[]);
 
   const activeHeading = heading ?? demoH;
   const relQibla = (qibla - activeHeading + 360) % 360;
+  const isAligned = Math.abs(relQibla) < 5 || Math.abs(relQibla - 360) < 5;
   const SIZE = 260, C = SIZE/2, RING = 100;
   const qRad  = (relQibla - 90) * Math.PI / 180;
   const dotX = C + RING * Math.cos(qRad);
   const dotY = C + RING * Math.sin(qRad);
 
-  const toggleFast = (id: string) => setMarkedFasts(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleFast = (id: string) => {
+    setMarkedFasts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem("presensi_sunnah_fasts", JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
 
   const pIcons: Record<string,React.ReactNode> = {
     subuh:<Sunrise className="w-4 h-4"/>, terbit:<Sun className="w-4 h-4 opacity-50"/>,
@@ -2260,7 +2599,7 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
                 const ar=(a-90)*Math.PI/180;
                 return <text key={l} x={C+(RING+36)*Math.cos(ar)} y={C+(RING+36)*Math.sin(ar)} textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="700" fontFamily="'JetBrains Mono',monospace" fill={l==="U"?"#ef4444":"#94a3b8"}>{l}</text>;
               })}
-              <circle cx={C} cy={C} r={RING} fill="none" stroke="#e2e8f0" strokeWidth="1.5"/>
+              <circle cx={C} cy={C} r={RING} fill="none" stroke={isAligned ? "#10b981" : "#e2e8f0"} strokeWidth={isAligned ? 3 : 1.5} className="transition-all duration-300"/>
               {/* Inner decor */}
               <circle cx={C} cy={C} r={RING*0.5} fill="none" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 6"/>
               {/* Glow halos */}
@@ -2273,18 +2612,47 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
               <text x={dotX} y={dotY} textAnchor="middle" dominantBaseline="central" fontSize="12">🕋</text>
               {/* Center arrow */}
               <g transform={`rotate(${relQibla} ${C} ${C})`}>
-                <polygon points={`${C},${C-30} ${C-7},${C+12} ${C+7},${C+12}`} fill="#059669" opacity="0.9"/>
+                <polygon points={`${C},${C-30} ${C-7},${C+12} ${C+7},${C+12}`} fill={isAligned ? "#10b981" : "#059669"} opacity="0.9"/>
                 <polygon points={`${C},${C+30} ${C-7},${C-12} ${C+7},${C-12}`} fill="#d1fae5" opacity="0.6"/>
               </g>
               <circle cx={C} cy={C} r={6} fill="white" stroke="#059669" strokeWidth="2"/>
             </svg>
           </div>
-          <div className="text-center">
+          <div className="text-center px-4">
+            {isAligned ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono mb-2 animate-bounce">
+                <span>✓ Menghadap Kiblat Tepat!</span>
+              </div>
+            ) : null}
             <p className="text-3xl font-bold text-slate-800 font-mono">{Math.round(dist).toLocaleString()} <span className="text-base font-normal text-slate-400">km</span></p>
             <p className="text-sm text-slate-400 mt-0.5">dari Ka'bah · Makkah</p>
-            <p className="text-xs text-slate-300 mt-3 font-mono">{Math.round(qibla)}° dari Utara</p>
-            {heading===null && <p className="text-[10px] text-slate-300 mt-1 italic">Demo berputar — aktifkan kompas perangkat untuk arah real-time</p>}
+            <p className="text-xs text-slate-400 mt-2 font-mono">{Math.round(qibla)}° dari Utara</p>
           </div>
+
+          {/* Interactive manual compass tester for desktop / non-sensor */}
+          {heading === null && (
+            <div className="w-full px-6 pt-3 border-t border-slate-100 flex flex-col gap-2 max-w-sm">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-600">Simulasi Sudut Kompas:</span>
+                <span className="font-mono font-bold text-emerald-700">{Math.round(demoH)}°</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="360" 
+                value={Math.round(demoH)} 
+                onChange={e => setDemoH(Number(e.target.value))}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+              <div className="flex justify-between text-[9px] text-slate-400 font-mono">
+                <span>0° U</span>
+                <span>90° T</span>
+                <span>180° S</span>
+                <span>270° B</span>
+              </div>
+            </div>
+          )}
+
           {permDenied&&<div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-4 py-2.5 mx-4 text-center"><AlertCircle className="w-4 h-4 flex-shrink-0"/>Izinkan akses kompas di pengaturan browser/perangkat.</div>}
         </div>}/>
       </>}
@@ -2438,7 +2806,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
   };
 
   // Whitelist verification handler strictly from Google OAuth JWT
-  const handleGoogleCredential = useCallback((inputEmail: string) => {
+  const handleGoogleCredential = useCallback((inputEmail: string, googlePicture?: string) => {
     setErrorMsg(null);
     setSuccessMsg(null);
     const clean = (inputEmail || "").trim().toLowerCase();
@@ -2451,9 +2819,13 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
     // 1. Check in AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
     const foundAuth = AUTH_USERS.find(u => u.email.trim().toLowerCase() === clean);
     if (foundAuth) {
+      const userToLogin: AuthUser = {
+        ...foundAuth,
+        picture: googlePicture || foundAuth.picture,
+      };
       setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundAuth.name} (${ROLE_LABELS[foundAuth.role] || "Pengelola"})...`);
       setTimeout(() => {
-        onLogin(foundAuth);
+        onLogin(userToLogin);
         onClose();
       }, 500);
       return;
@@ -2469,6 +2841,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
         role: "musyrif",
         asrama: foundMusyrif.asrama,
         musyrifId: foundMusyrif.id,
+        picture: googlePicture,
       };
       setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai Musyrif: ${foundMusyrif.name}...`);
       setTimeout(() => {
@@ -2496,7 +2869,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
               if (response?.credential) {
                 const payload = parseJwt(response.credential);
                 if (payload?.email) {
-                  handleGoogleCredential(payload.email);
+                  handleGoogleCredential(payload.email, payload.picture);
                 } else {
                   setErrorMsg("Gagal membaca profil akun Google.");
                 }
@@ -2653,6 +3026,9 @@ const NAV = [
 ];
 
 const STORAGE_KEY_RECORDS = "presensi_attendance_records_v2";
+const STORAGE_KEY_IZIN = "presensi_izin_requests_v2";
+const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v2";
+const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
 
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser|null>(() => {
@@ -2664,7 +3040,7 @@ export default function App() {
       if (!cleanEmail) return null;
       
       const validAuth = AUTH_USERS.find(u => u.email.toLowerCase() === cleanEmail);
-      if (validAuth) return validAuth;
+      if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
 
       const validMusyrif = MUSYRIF_LIST.find(m => m.email && m.email.toLowerCase() === cleanEmail);
       if (validMusyrif) {
@@ -2675,6 +3051,7 @@ export default function App() {
           role: "musyrif",
           asrama: validMusyrif.asrama,
           musyrifId: validMusyrif.id,
+          picture: parsed.picture,
         };
       }
       return null;
@@ -2696,7 +3073,83 @@ export default function App() {
     return initial;
   });
 
+  // State for Izin Requests
+  const [izinList, setIzinList] = useState<IzinRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_IZIN);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [
+      {
+        id: "izin-1",
+        musyrifId: "m1",
+        musyrifName: "Ahmad Fauzi",
+        asrama: "1",
+        kamar: "101",
+        type: "sakit",
+        category: "Sakit",
+        startDate: format(new Date(), "yyyy-MM-dd"),
+        endDate: format(new Date(), "yyyy-MM-dd"),
+        prayerSlot: "subuh",
+        reason: "Demam dan flu berat, istirahat di UKS Asrama 1",
+        status: "approved",
+        createdAt: format(new Date(), "yyyy-MM-dd HH:mm")
+      }
+    ];
+  });
+
+  // State for Kegiatan Records
+  const [kegiatanRecords, setKegiatanRecords] = useState<KegiatanRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_KEGIATAN);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  // State for Mutabaah Yaumiyah
+  const [mutabaahData, setMutabaahData] = useState<MutabaahStorage>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_MUTABAAH);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === "object" && parsed !== null) return parsed;
+      }
+    } catch {}
+    return {};
+  });
+
+  // Modals Visibility
+  const [showWA, setShowWA] = useState(false);
+  const [showIzin, setShowIzin] = useState(false);
+  const [showAlarm, setShowAlarm] = useState(false);
+  const [showKegiatan, setShowKegiatan] = useState(false);
+  const [showMutabaah, setShowMutabaah] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showRaport, setShowRaport] = useState(false);
+
+  // Online / Offline Status
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const [page,     setPage]       = useState<Page>("dashboard");
+  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [now, setNow] = useState(new Date());
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
@@ -2710,10 +3163,20 @@ export default function App() {
 
   // Save records to localStorage whenever they change
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
-    } catch {}
+    try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records)); } catch {}
   }, [records]);
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_IZIN, JSON.stringify(izinList)); } catch {}
+  }, [izinList]);
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_KEGIATAN, JSON.stringify(kegiatanRecords)); } catch {}
+  }, [kegiatanRecords]);
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(mutabaahData)); } catch {}
+  }, [mutabaahData]);
 
   useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),60000); return()=>clearInterval(t); },[]);
 
@@ -2748,6 +3211,90 @@ export default function App() {
     MUSYRIF_LIST.filter(m=>m.asrama===asrama).forEach(m=>handleMark(m.id,prayer,status,date));
   },[handleMark]);
 
+  // Submit Izin Request
+  const handleSubmitIzin = (req: Omit<IzinRequest, "id" | "status" | "createdAt">) => {
+    const newIzin: IzinRequest = {
+      ...req,
+      id: `izin-${Date.now()}`,
+      status: "pending",
+      createdAt: format(new Date(), "yyyy-MM-dd HH:mm")
+    };
+    setIzinList(prev => [newIzin, ...prev]);
+    showToast("Pengajuan izin berhasil dikirim ke Pamong.", "success");
+  };
+
+  // Approve / Reject Izin
+  const handleApproveIzin = (reqId: string, approved: boolean) => {
+    const target = izinList.find(i => i.id === reqId);
+    if (!target) return;
+
+    setIzinList(prev => prev.map(i => {
+      if (i.id === reqId) {
+        return {
+          ...i,
+          status: approved ? "approved" : "rejected",
+          reviewedBy: authUser?.name || "Pamong",
+          reviewedAt: format(new Date(), "yyyy-MM-dd HH:mm")
+        };
+      }
+      return i;
+    }));
+
+    if (approved) {
+      const dates = [target.startDate];
+      if (target.endDate !== target.startDate) {
+        dates.push(target.endDate);
+      }
+      dates.forEach(d => {
+        if (target.prayerSlot === "all" || target.prayerSlot === "subuh") {
+          handleMark(target.musyrifId, "subuh", target.type, d, target.reason);
+        }
+        if (target.prayerSlot === "all" || target.prayerSlot === "maghrib") {
+          handleMark(target.musyrifId, "maghrib", target.type, d, target.reason);
+        }
+      });
+      showToast(`Izin ${target.musyrifName} disetujui & presensi otomatis diperbarui!`, "success");
+    } else {
+      showToast(`Pengajuan izin ${target.musyrifName} ditolak.`, "info");
+    }
+  };
+
+  // Save Kegiatan
+  const handleSaveKegiatan = (rec: KegiatanRecord) => {
+    setKegiatanRecords(prev => {
+      const existingIdx = prev.findIndex(r => r.id === rec.id);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = rec;
+        return next;
+      }
+      return [rec, ...prev];
+    });
+    showToast("Presensi kegiatan asrama berhasil disimpan!", "success");
+  };
+
+  // Save Mutabaah
+  const handleSaveMutabaah = (musyrifId: string, date: string, entry: MutabaahEntry) => {
+    setMutabaahData(prev => ({
+      ...prev,
+      [musyrifId]: {
+        ...(prev[musyrifId] || {}),
+        [date]: entry
+      }
+    }));
+    showToast("Mutaba'ah yaumiyah berhasil disimpan!", "success");
+  };
+
+  // Records map for quick lookup in modals
+  const recordsMap = useMemo(() => {
+    const map: Record<string, AttendanceRecord> = {};
+    records.forEach(r => {
+      map[`${r.musyrifId}_${r.date}`] = r;
+    });
+    return map;
+  }, [records]);
+
+  const pendingIzinCount = izinList.filter(i => i.status === "pending").length;
   const todayRecs = records.filter(r=>r.date===todayStr());
   const pendingSubuh = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh; }).length;
   const pendingMaghrib = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
@@ -2755,6 +3302,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background" style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+      
+      {!isOnline && (
+        <div className="bg-amber-500 text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-sm animate-in fade-in duration-300">
+          <WifiOff className="w-4 h-4" />
+          <span>Mode Offline Aktif — Presensi tetap tersimpan lokal dan akan sinkron saat terhubung kembali.</span>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-xl border flex items-center gap-2.5 max-w-[90vw] sm:max-w-sm w-auto animate-in fade-in slide-in-from-top-3 duration-200 backdrop-blur-md"
@@ -2774,25 +3329,47 @@ export default function App() {
         </div>
       )}
 
-      {/* Header - Pure Logo without container or text */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-emerald-100/60 shadow-2xs">
-        <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+      {/* Seamless Header - Non-sticky & Natural Scroll */}
+      <header className="w-full pt-5 sm:pt-6 pb-1">
+        <div className="max-w-2xl mx-auto px-4 flex items-center justify-between gap-3">
           
-          {/* Logo Mu'allimin direct without container, aligned with Hero Card content */}
-          <div className="cursor-pointer select-none flex items-center pl-5 sm:pl-6" onClick={()=>setPage("dashboard")}>
+          {/* Pure Logo Mu'allimin - Direct, Containerless & Aligned with Halo */}
+          <div 
+            className="cursor-pointer select-none flex items-center pl-5 sm:pl-6 active:scale-95 transition-transform" 
+            onClick={()=>setPage("dashboard")}
+          >
             <img 
               src={mualliminLogo} 
               alt="Logo Madrasah Mu'allimin" 
-              className="h-7 sm:h-8 w-auto object-contain drop-shadow-xs active:scale-95 transition-transform"
+              className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs"
             />
           </div>
 
-          {/* Right Area: User / Login */}
-          <div className="flex items-center gap-1.5 pr-5 sm:pr-6">
+          {/* Header Quick Action Icons (Alarm, WA, User) - Flush Right with Hero Card */}
+          <div className="flex items-center gap-1.5 pr-0">
+            
+            {/* Quick Alarm Button */}
+            <button
+              onClick={() => setShowAlarm(true)}
+              title="Pengaturan Alarm & Notifikasi Shalat"
+              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-amber-50 hover:text-amber-600 text-slate-600 shadow-xs flex items-center justify-center transition-all active:scale-95"
+            >
+              <Bell className="w-4 h-4"/>
+            </button>
+
+            {/* Quick Share WA Button */}
+            <button
+              onClick={() => setShowWA(true)}
+              title="Kirim Rekap WA Cepat"
+              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-emerald-50 hover:text-emerald-600 text-slate-600 shadow-xs flex items-center justify-center transition-all active:scale-95"
+            >
+              <Share2 className="w-4 h-4"/>
+            </button>
+
             {authUser ? (
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-full pl-1 pr-2.5 py-0.5 shadow-2xs">
-                  <Av name={authUser.name} sz="xs" />
+              <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs rounded-full p-1 pl-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 pr-2">
+                  <Av name={authUser.name} src={authUser.picture} sz="xs" />
                   <span className="text-xs font-semibold text-slate-700 truncate max-w-[90px]">
                     {authUser.name.split(" ")[0]}
                   </span>
@@ -2800,15 +3377,15 @@ export default function App() {
                 <button 
                   onClick={handleLogout} 
                   title="Keluar akun" 
-                  className="w-7 h-7 rounded-full bg-slate-100/80 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-all active:scale-95"
+                  className="w-6 h-6 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-all active:scale-95"
                 >
-                  <LogOut className="w-3.5 h-3.5"/>
+                  <LogOut className="w-3 h-3"/>
                 </button>
               </div>
             ) : (
               <button 
                 onClick={()=>setShowLogin(true)} 
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-xs active:scale-95 transition-all"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-md shadow-emerald-600/25 active:scale-95 transition-all"
               >
                 <LogIn className="w-3.5 h-3.5"/>
                 <span>Masuk</span>
@@ -2821,11 +3398,26 @@ export default function App() {
 
       {/* Main */}
       <main className="max-w-2xl mx-auto px-4 py-5 pb-36">
-        {page==="dashboard" && <PageDashboard records={records} authUser={authUser} onGoTo={setPage}/>}
+        {page==="dashboard" && (
+          <PageDashboard 
+            records={records} 
+            authUser={authUser} 
+            onGoTo={setPage} 
+            onSelectMusyrif={setSelectedMusyrifId}
+            onOpenWA={() => setShowWA(true)}
+            onOpenIzin={() => setShowIzin(true)}
+            onOpenAlarm={() => setShowAlarm(true)}
+            onOpenKegiatan={() => setShowKegiatan(true)}
+            onOpenMutabaah={() => setShowMutabaah(true)}
+            onOpenLeaderboard={() => setShowLeaderboard(true)}
+            onOpenRaport={() => setShowRaport(true)}
+            pendingIzinCount={pendingIzinCount}
+          />
+        )}
         {page==="subuh"     && <PageInputPrayer slot="subuh" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>}
         {page==="maghrib"   && <PageInputPrayer slot="maghrib" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>}
-        {page==="rekap"     && <PageRekap records={records}/>}
-        {page==="riwayat"   && <PageRiwayat records={records} authUser={authUser} onLogin={()=>setShowLogin(true)}/>}
+        {page==="rekap"     && <PageRekap records={records} onSelectMusyrif={setSelectedMusyrifId} onGoTo={setPage}/>}
+        {page==="riwayat"   && <PageRiwayat records={records} authUser={authUser} onLogin={()=>setShowLogin(true)} initialMusyrifId={selectedMusyrifId} onSelectMusyrifId={setSelectedMusyrifId}/>}
         {page==="ibadah"    && <PageIbadah onBack={()=>setPage("dashboard")}/>}
       </main>
 
@@ -2862,7 +3454,87 @@ export default function App() {
         </nav>
       </div>
 
+      {/* Login Modal */}
       {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onLogin={handleLogin}/>}
+
+      {/* 1. WhatsApp Generator Modal */}
+      {showWA && (
+        <WhatsAppShareModal
+          onClose={() => setShowWA(false)}
+          musyrifList={MUSYRIF_LIST}
+          records={recordsMap}
+          asramaList={ASRAMAS}
+        />
+      )}
+
+      {/* 2. Izin & Sakit Modal */}
+      {showIzin && (
+        <IzinPengajuanModal
+          onClose={() => setShowIzin(false)}
+          authUser={authUser}
+          musyrifList={MUSYRIF_LIST}
+          izinList={izinList}
+          onSubmitIzin={handleSubmitIzin}
+          onApproveIzin={handleApproveIzin}
+        />
+      )}
+
+      {/* 3. Alarm & Web Notification Modal */}
+      {showAlarm && (
+        <AlarmNotificationManager
+          onClose={() => setShowAlarm(false)}
+          nextPrayerName={new Date().getHours() < 12 ? "Subuh" : "Maghrib"}
+          nextPrayerTime={new Date().getHours() < 12 ? "04:35" : "17:48"}
+        />
+      )}
+
+      {/* 4. Agenda Non-Shalat Modal */}
+      {showKegiatan && (
+        <KegiatanAsramaModal
+          onClose={() => setShowKegiatan(false)}
+          musyrifList={MUSYRIF_LIST}
+          asramaList={ASRAMAS}
+          kegiatanRecords={kegiatanRecords}
+          onSaveKegiatan={handleSaveKegiatan}
+          authUser={authUser}
+        />
+      )}
+
+      {/* 5. Mutaba'ah Yaumiyah Modal */}
+      {showMutabaah && (
+        <MutabaahYaumiyahModal
+          onClose={() => setShowMutabaah(false)}
+          authUser={authUser}
+          musyrifList={MUSYRIF_LIST}
+          mutabaahData={mutabaahData}
+          onSaveMutabaah={handleSaveMutabaah}
+        />
+      )}
+
+      {/* 6. Leaderboard Modal */}
+      {showLeaderboard && (
+        <LeaderboardModal
+          onClose={() => setShowLeaderboard(false)}
+          musyrifList={MUSYRIF_LIST}
+          records={recordsMap}
+          onSelectMusyrif={(mid) => {
+            setSelectedMusyrifId(mid);
+            setShowLeaderboard(false);
+            setPage("riwayat");
+          }}
+        />
+      )}
+
+      {/* 7. Raport & E-Sertifikat Modal */}
+      {showRaport && (
+        <RaportSertifikatModal
+          onClose={() => setShowRaport(false)}
+          musyrifList={MUSYRIF_LIST}
+          records={recordsMap}
+        />
+      )}
+
     </div>
   );
 }
+
