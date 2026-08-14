@@ -522,6 +522,7 @@ function PageDashboard({
   onOpenMutabaah,
   onOpenLeaderboard,
   onOpenRaport,
+  onLogin,
   pendingIzinCount = 0,
 }: { 
   records: AttendanceRecord[]; 
@@ -535,6 +536,7 @@ function PageDashboard({
   onOpenMutabaah: () => void;
   onOpenLeaderboard: () => void;
   onOpenRaport: () => void;
+  onLogin?: () => void;
   pendingIzinCount?: number;
 }) {
   const today = todayStr();
@@ -813,7 +815,7 @@ function PageDashboard({
           {/* 1. Kirim WA */}
           <button
             type="button"
-            onClick={onOpenWA}
+            onClick={() => authUser ? onOpenWA() : onLogin?.()}
             className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
@@ -831,18 +833,22 @@ function PageDashboard({
           {/* 2. Pengajuan Izin */}
           <button
             type="button"
-            onClick={onOpenIzin}
+            onClick={() => authUser ? onOpenIzin() : onLogin?.()}
             className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-md transition-all text-left flex flex-col justify-between relative active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-[14px] bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <FileCheck2 className="w-4 h-4"/>
               </div>
-              {pendingIzinCount > 0 && (
+              {pendingIzinCount > 0 ? (
                 <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
                   {pendingIzinCount} Menunggu
                 </span>
-              )}
+              ) : !authUser ? (
+                <span className="text-[9px] font-bold text-slate-400 font-mono flex items-center gap-0.5">
+                  <Lock className="w-2.5 h-2.5" /> Login
+                </span>
+              ) : null}
             </div>
             <div>
               <p className="font-bold text-xs text-slate-800 leading-tight">Izin & Sakit</p>
@@ -871,7 +877,7 @@ function PageDashboard({
           {/* 4. Agenda Non-Shalat */}
           <button
             type="button"
-            onClick={onOpenKegiatan}
+            onClick={() => authUser ? onOpenKegiatan() : onLogin?.()}
             className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
@@ -889,7 +895,7 @@ function PageDashboard({
           {/* 5. Mutaba'ah Yaumiyah */}
           <button
             type="button"
-            onClick={onOpenMutabaah}
+            onClick={() => authUser ? onOpenMutabaah() : onLogin?.()}
             className="group p-3.5 rounded-[20px] bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-md transition-all text-left flex flex-col justify-between active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
@@ -3513,6 +3519,7 @@ export default function App() {
             onOpenMutabaah={() => setShowMutabaah(true)}
             onOpenLeaderboard={() => setShowLeaderboard(true)}
             onOpenRaport={() => setShowRaport(true)}
+            onLogin={() => setShowLogin(true)}
             pendingIzinCount={pendingIzinCount}
           />
         )}
@@ -3523,9 +3530,9 @@ export default function App() {
         {page==="ibadah"    && <PageIbadah onBack={()=>setPage("dashboard")}/>}
       </main>
 
-      {/* Floating Bottom Nav Dock */}
+      {/* Floating Bottom Nav Dock - Full Rounded Capsule */}
       <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-1 pointer-events-none flex justify-center">
-        <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_12px_36px_-8px_rgba(6,78,59,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 p-1.5 flex items-center justify-around border border-white/60">
+        <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-full shadow-[0_12px_36px_-8px_rgba(6,78,59,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 px-2 py-1.5 flex items-center justify-around border border-white/60">
           {NAV.map(nav=>{
             const active = page === nav.id;
             const badgeCount = nav.id === "subuh" ? pendingSubuh : nav.id === "maghrib" ? pendingMaghrib : 0;
@@ -3535,7 +3542,7 @@ export default function App() {
               <button 
                 key={nav.id} 
                 onClick={()=>setPage(nav.id)} 
-                className={`flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all duration-200 relative active:scale-90 select-none ${
+                className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-full transition-all duration-200 relative active:scale-90 select-none ${
                   active 
                     ? (nav.id === "subuh" ? "text-amber-700 bg-amber-50/90 font-bold shadow-2xs" : "text-emerald-700 bg-emerald-50/90 font-bold shadow-2xs") 
                     : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/60"
