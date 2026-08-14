@@ -7,7 +7,7 @@ import {
   Zap, Award, Info, Compass, Clock, Moon,
   MapPin, Navigation, Printer, ChevronDown, Star, RefreshCw,
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
-  ShieldCheck, ShieldAlert
+  ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -24,8 +24,8 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
-type AttendanceStatus = "hadir" | "izin" | "alfa";
-type Page = "dashboard" | "input" | "rekap" | "riwayat" | "ibadah";
+type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; }
 interface Musyrif {
@@ -198,19 +198,23 @@ const AUTH_USERS: AuthUser[] = [
   { id:"k2", name:"Akmal Wildan Syifauddin, S.Pd.",    email:"akmalws@muallimin.sch.id",          role:"koordinator_musyrif" },
 
   // ─── PAMONG ASRAMA ───
-  { id:"p1", name:"Galang Putra Muhammady, S.Pd.",     email:"galang@muallimin.sch.id",           role:"pamong", asrama:"Asrama 1" },
-  { id:"p2", name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"aulia.abdan@muallimin.sch.id",      role:"pamong", asrama:"Asrama 8A" },
-  { id:"p3", name:"Anang Fathurrahman, Lc.",           email:"anang.fathur@muallimin.sch.id",     role:"pamong", asrama:"Asrama 8B" },
-  { id:"p4", name:"Inggit Prabowo, S.Pd.",             email:"inggit.prabowo@muallimin.sch.id",   role:"pamong", asrama:"Asrama 10" },
-  { id:"p5", name:"Rais Yudhistira, Lc.",              email:"rais.yudhistira@muallimin.sch.id",  role:"pamong", asrama:"Asrama Sedayu Gedung A" },
-  { id:"p6", name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaf.lubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B" },
-  { id:"p7", name:"M. Ismail Marzuq, S.Sos.",          email:"ismail.marzuq@muallimin.sch.id",    role:"pamong", asrama:"Asrama Sedayu Gedung C" },
-  { id:"p8", name:"Ariel Amarta Dzikrillah, S.Sos.",   email:"ariel.amarta@muallimin.sch.id",     role:"pamong", asrama:"Asrama Sedayu Gedung D" },
+  { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galang@muallimin.sch.id",          role:"pamong", asrama:"Asrama 1" },
+  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"aulia.abdan@muallimin.sch.id",     role:"pamong", asrama:"Asrama 8A" },
+  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"anang.fathur@muallimin.sch.id",    role:"pamong", asrama:"Asrama 8B" },
+  { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggit.prabowo@muallimin.sch.id",  role:"pamong", asrama:"Asrama 10" },
+  { id:"p5a", name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com",              role:"pamong", asrama:"Asrama Sedayu Gedung A" },
+  { id:"p5b", name:"Rais Yudhistira, Lc.",              email:"cutisrais@gmail.com",              role:"pamong", asrama:"Asrama Sedayu Gedung A" },
+  { id:"p6",  name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaflubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B" },
+  { id:"p7",  name:"M. Ismail Marzuq, S.Sos.",          email:"izmaelpoenya04@gmail.com",         role:"pamong", asrama:"Asrama Sedayu Gedung C" },
+  { id:"p8",  name:"Ariel Amarta Dzikrillah, S.Sos.",   email:"arilamarta@gmail.com",             role:"pamong", asrama:"Asrama Sedayu Gedung D" },
 
   // ─── KOORDINATOR ASRAMA / GEDUNG ───
-  { id:"g1", name:"Koordinator Asrama 1 & 10",         email:"koord.asrama1.10@muallimin.sch.id",  role:"koordinator_gedung", asrama:"Asrama 1" },
-  { id:"g2", name:"Koordinator Asrama 8 (A, B, C)",    email:"koord.asrama8@muallimin.sch.id",     role:"koordinator_gedung", asrama:"Asrama 8A" },
-  { id:"g3", name:"Koordinator Sedayu Kampus",         email:"koord.sedayu@muallimin.sch.id",      role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung A" },
+  { id:"g1", name:"Koordinator Asrama 1 & 10",         email:"koord.asrama1.10@muallimin.sch.id", role:"koordinator_gedung", asrama:"Asrama 1" },
+  { id:"g2", name:"Koordinator Asrama 8 (A, B, C)",    email:"koord.asrama8@muallimin.sch.id",    role:"koordinator_gedung", asrama:"Asrama 8A" },
+  { id:"g3", name:"Hafidz Nawaf Fauzil Adhim, S.Pd.",  email:"fauziladhim2001@gmail.com",         role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung A" },
+  { id:"g4", name:"Rayhan Bachtiar Dwi Bayu Baskara",  email:"rayhan.baskara68@gmail.com",        role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung B" },
+  { id:"g5", name:"Rifqi Adha Pradipa",                email:"rifqipradipa62@gmail.com",          role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung C" },
+  { id:"g6", name:"Wahyu Dermawan",                    email:"wahyudermawan1212@gmail.com",       role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung D" },
 ];
 
 const MUSYRIF_LIST: Musyrif[] = [
@@ -231,7 +235,7 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m10", name:"Bryan Mahir Muharram",         kelas:"1 Lower B",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"bryanmuharram06@gmail.com",       phone:"6282140095932" },
   { id:"m11", name:"Auzia Difa Mubarok",           kelas:"1 Lower C",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"difaamubaarak@gmail.com",         phone:"6289526256385" },
   { id:"m20", name:"Muhammad Adhwa Janitra Handoko",kelas:"2 Lower A",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"handokohowareyou@gmail.com",      phone:"6287786969082" },
-  { id:"m21", name:"Zaky Risky Kurniawan",         kelas:"2 Lower B",   tingkat:"Kelas 2", asrama:"Kelas 2", kamar:"2 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"zakyrisky182@gmail.com",          phone:"6288983445038" },
+  { id:"m21", name:"Zaky Risky Kurniawan",         kelas:"2 Lower B",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"zakyrisky182@gmail.com",          phone:"6288983445038" },
   { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",kelas:"2 Lower C",tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285217017024" },
   { id:"m23", name:"Abdullah, S.Pd.",              kelas:"3 A",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 A",         pamong:"Rais Yudhistira, Lc.",                email:"abdullahmuallimin@muallimin.sch.id",phone:"62881025916368" },
   { id:"m31", name:"Naufal Muzakki",               kelas:"3 Upper A",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"naufalmuzakki.idn@gmail.com",     phone:"6287844185012" },
@@ -290,7 +294,7 @@ const MUSYRIF_LIST: Musyrif[] = [
 
 function generateRecords(): AttendanceRecord[] {
   const out: AttendanceRecord[] = [];
-  const pool: AttendanceStatus[] = ["hadir","hadir","hadir","hadir","hadir","izin","alfa"];
+  const pool: AttendanceStatus[] = ["hadir","hadir","hadir","hadir","sakit","izin","alfa"];
   const today = new Date();
   MUSYRIF_LIST.forEach(m => {
     for (let i = 90; i >= 1; i--) {
@@ -310,57 +314,68 @@ function generateRecords(): AttendanceRecord[] {
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
 const S = {
-  hadir: { label:"Hadir", dot:"bg-emerald-500", chip:"bg-emerald-50 text-emerald-700 ring-emerald-200", btn:"bg-emerald-500 text-white shadow-emerald-200" },
-  izin:  { label:"Izin",  dot:"bg-amber-400",   chip:"bg-amber-50  text-amber-700  ring-amber-200",    btn:"bg-amber-400  text-white shadow-amber-200" },
-  alfa:  { label:"Alfa",  dot:"bg-red-500",     chip:"bg-red-50    text-red-700    ring-red-200",      btn:"bg-red-500    text-white shadow-red-200" },
+  hadir: { label:"Hadir", short:"H", dot:"bg-emerald-500", chip:"bg-emerald-50/90 text-emerald-700 ring-1 ring-emerald-200/80 shadow-2xs font-semibold", btn:"bg-emerald-600 text-white shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500" },
+  sakit: { label:"Sakit", short:"S", dot:"bg-amber-500",   chip:"bg-amber-50/90   text-amber-700   ring-1 ring-amber-200/80   shadow-2xs font-semibold", btn:"bg-amber-500   text-white shadow-md shadow-amber-500/25   ring-1 ring-amber-400" },
+  izin:  { label:"Ijin",  short:"I", dot:"bg-blue-500",    chip:"bg-blue-50/90    text-blue-700    ring-1 ring-blue-200/80    shadow-2xs font-semibold", btn:"bg-blue-600    text-white shadow-md shadow-blue-600/25    ring-1 ring-blue-500" },
+  alfa:  { label:"Alpa",  short:"A", dot:"bg-rose-500",    chip:"bg-rose-50/90    text-rose-700    ring-1 ring-rose-200/80    shadow-2xs font-semibold", btn:"bg-rose-600    text-white shadow-md shadow-rose-600/25    ring-1 ring-rose-500" },
 } as const;
 
 function Chip({ s }: { s?: AttendanceStatus }) {
   if (!s) return <span className="text-xs text-slate-300 font-mono">–</span>;
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ${S[s].chip}`}>{S[s].label}</span>;
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] ${S[s].chip}`}>{S[s].label}</span>;
 }
 
-const AV_THEMES = [
-  "bg-emerald-600 text-white shadow-emerald-600/20",
-  "bg-teal-600 text-white shadow-teal-600/20",
-  "bg-indigo-600 text-white shadow-indigo-600/20",
-  "bg-cyan-700 text-white shadow-cyan-700/20",
-  "bg-sky-600 text-white shadow-sky-600/20",
-  "bg-violet-600 text-white shadow-violet-600/20",
+const AVATAR_PRESETS = [
+  { icon: User,          bg: "bg-emerald-600", text: "text-white" },
+  { icon: GraduationCap, bg: "bg-indigo-600",  text: "text-white" },
+  { icon: Smile,         bg: "bg-amber-500",   text: "text-white" },
+  { icon: Sparkles,      bg: "bg-violet-600",  text: "text-white" },
+  { icon: BookOpen,      bg: "bg-teal-600",    text: "text-white" },
+  { icon: Crown,         bg: "bg-amber-600",   text: "text-white" },
+  { icon: Award,         bg: "bg-rose-500",    text: "text-white" },
+  { icon: Heart,         bg: "bg-pink-500",    text: "text-white" },
+  { icon: Star,          bg: "bg-yellow-500",  text: "text-white" },
+  { icon: Feather,       bg: "bg-cyan-600",    text: "text-white" },
+  { icon: ShieldCheck,   bg: "bg-blue-600",    text: "text-white" },
+  { icon: Flame,         bg: "bg-orange-500",  text: "text-white" },
+  { icon: Compass,       bg: "bg-emerald-700", text: "text-white" },
+  { icon: Coffee,        bg: "bg-slate-700",   text: "text-white" },
 ];
 
-function getInitials(name: string) {
-  if (!name) return "M";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-function getAvatarTheme(name: string) {
+function getAvatarPreset(name: string) {
+  if (!name) return AVATAR_PRESETS[0];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AV_THEMES[Math.abs(hash) % AV_THEMES.length];
+  return AVATAR_PRESETS[Math.abs(hash) % AVATAR_PRESETS.length];
 }
 
 function Av({ name, sz="md" }: { name: string; src?: string; sz?: "xs"|"sm"|"md"|"lg" }) {
   const c = {
-    xs: "w-6 h-6 text-[10px]",
-    sm: "w-8 h-8 text-[11px]",
-    md: "w-9 h-9 text-xs",
-    lg: "w-12 h-12 text-sm",
+    xs: "w-6 h-6",
+    sm: "w-8 h-8",
+    md: "w-9 h-9",
+    lg: "w-12 h-12",
   }[sz];
-  const theme = getAvatarTheme(name);
-  const initials = getInitials(name);
+
+  const iconSz = {
+    xs: "w-3 h-3",
+    sm: "w-4 h-4",
+    md: "w-4.5 h-4.5",
+    lg: "w-6 h-6",
+  }[sz];
+
+  const preset = getAvatarPreset(name);
+  const IconComp = preset.icon;
 
   return (
-    <div className={`${c} ${theme} rounded-full flex-shrink-0 flex items-center justify-center font-bold tracking-tight shadow-md ring-2 ring-white select-none`}>
-      {initials}
+    <div className={`${c} ${preset.bg} ${preset.text} rounded-full flex-shrink-0 flex items-center justify-center shadow-md ring-2 ring-white/90 select-none transition-transform`}>
+      <IconComp className={iconSz} strokeWidth={2.2} />
     </div>
   );
 }
 
 function Card({ ch, cls="" }: { ch: React.ReactNode; cls?: string }) {
-  return <div className={`bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 ${cls}`}>{ch}</div>;
+  return <div className={`bg-white rounded-2xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03),0_1px_3px_rgba(0,0,0,0.02)] ring-1 ring-slate-200/70 border border-slate-100/50 ${cls}`}>{ch}</div>;
 }
 
 function Label({ ch }: { ch: React.ReactNode }) {
@@ -392,10 +407,10 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
 
   const rows = list.map((m,i) => {
     const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
-    const sh=rs.filter(r=>r.subuh==="hadir").length, si=rs.filter(r=>r.subuh==="izin").length, sa=rs.filter(r=>r.subuh==="alfa").length;
-    const mh=rs.filter(r=>r.maghrib==="hadir").length, mi=rs.filter(r=>r.maghrib==="izin").length, ma=rs.filter(r=>r.maghrib==="alfa").length;
+    const sh=rs.filter(r=>r.subuh==="hadir").length, ss=rs.filter(r=>r.subuh==="sakit").length, si=rs.filter(r=>r.subuh==="izin").length, sa=rs.filter(r=>r.subuh==="alfa").length;
+    const mh=rs.filter(r=>r.maghrib==="hadir").length, ms=rs.filter(r=>r.maghrib==="sakit").length, mi=rs.filter(r=>r.maghrib==="izin").length, ma=rs.filter(r=>r.maghrib==="alfa").length;
     const pct = days.length ? Math.round(((sh+mh)/(days.length*2))*100) : 0;
-    return `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.kelas}</td><td>${m.pamong||"-"}</td><td>${m.phone||"-"}</td><td style="color:#16a34a">${sh}</td><td style="color:#d97706">${si}</td><td style="color:#dc2626">${sa}</td><td style="color:#16a34a">${mh}</td><td style="color:#d97706">${mi}</td><td style="color:#dc2626">${ma}</td><td><b>${pct}%</b></td></tr>`;
+    return `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.kelas}</td><td>${m.pamong||"-"}</td><td>${m.phone||"-"}</td><td style="color:#16a34a">${sh}</td><td style="color:#d97706">${ss}</td><td style="color:#2563eb">${si}</td><td style="color:#dc2626">${sa}</td><td style="color:#16a34a">${mh}</td><td style="color:#d97706">${ms}</td><td style="color:#2563eb">${mi}</td><td style="color:#dc2626">${ma}</td><td><b>${pct}%</b></td></tr>`;
   }).join("");
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rekap Presensi ${format(month,"MMMM yyyy",{locale:id})}</title>
@@ -408,7 +423,7 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
   @media print{@page{size:A4 landscape;margin:1.5cm}}</style></head><body>
   <h1>Rekap Presensi Musyrif</h1>
   <p class="sub">${format(month,"MMMM yyyy",{locale:id})} · ${asramaFilter} · ${days.length} hari · ${list.length} musyrif</p>
-  <table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th>Pamong</th><th>No. WA</th><th>Sub.H</th><th>Sub.I</th><th>Sub.A</th><th>Mag.H</th><th>Mag.I</th><th>Mag.A</th><th>%</th></tr></thead>
+  <table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th>Pamong</th><th>No. WA</th><th>Sub.H</th><th>Sub.S</th><th>Sub.I</th><th>Sub.A</th><th>Mag.H</th><th>Mag.S</th><th>Mag.I</th><th>Mag.A</th><th>%</th></tr></thead>
   <tbody>${rows}</tbody></table>
   <p class="foot">Dicetak: ${format(new Date(),"d MMMM yyyy, HH:mm")} · Sistem Presensi Musyrif</p></body></html>`;
 
@@ -431,6 +446,8 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
   const belumS = MUSYRIF_LIST.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.subuh));
   const belumM = MUSYRIF_LIST.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.maghrib));
   const now = new Date();
+
+  const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
 
   const prayerTimes = calcPrayerTimes(now, -7.7956, 110.3695, 7);
   const hijri = toHijri(now);
@@ -480,32 +497,41 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Hero card */}
-      <div className="rounded-2xl overflow-hidden relative" style={{background:"linear-gradient(135deg,#064e3b 0%,#065f46 50%,#059669 100%)",minHeight:190}}>
-        <div className="absolute inset-0 opacity-10">
-          <svg width="100%" height="100%"><pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="white"/></pattern><rect width="100%" height="100%" fill="url(#dots)"/></svg>
+      {/* Hero card - Aurora mesh gradient */}
+      <div 
+        className="rounded-3xl overflow-hidden relative shadow-xl shadow-emerald-950/15 ring-1 ring-emerald-400/20"
+        style={{
+          background: "radial-gradient(at 100% 0%, rgba(52, 211, 153, 0.35) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.25) 0px, transparent 50%), linear-gradient(135deg, #064e3b 0%, #065f46 55%, #047857 100%)",
+          minHeight: 195
+        }}
+      >
+        <div className="absolute inset-0 opacity-15">
+          <svg width="100%" height="100%"><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="white"/></pattern><rect width="100%" height="100%" fill="url(#dots)"/></svg>
         </div>
-        <div className="relative px-5 pt-5 pb-5">
-          <div className="flex items-start justify-between mb-4">
+        <div className="relative p-5 sm:p-6">
+          <div className="flex items-start justify-between mb-5">
             <div>
-              <p className="text-emerald-200 text-xs mb-1">{hijri.day} {hijri.monthName} {hijri.year} H</p>
-              <h1 className="text-white text-2xl font-bold">{authUser ? `Halo, ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
-              <p className="text-emerald-200 text-sm mt-0.5">{format(now,"EEEE, d MMMM yyyy",{locale:id})}</p>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-300/20 mb-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"/>
+                <p className="text-emerald-100 text-[11px] font-mono tracking-tight">{hijri.day} {hijri.monthName} {hijri.year} H</p>
+              </div>
+              <h1 className="text-white text-2xl sm:text-3xl font-extrabold tracking-tight">{authUser ? `Halo, ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
+              <p className="text-emerald-200/90 text-xs sm:text-sm mt-0.5">{format(now,"EEEE, d MMMM yyyy",{locale:id})}</p>
             </div>
-            <button onClick={()=>onGoTo("ibadah")} className="bg-white/10 rounded-xl px-3 py-2 text-right hover:bg-white/20 transition-colors">
-              <p className="text-white font-bold text-sm font-mono">{nextPrayer.name}</p>
-              <p className="text-emerald-200 text-xs">{minsDisp}</p>
+            <button onClick={()=>onGoTo("ibadah")} className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-right hover:bg-white/20 transition-all active:scale-95 border border-white/15 shadow-inner">
+              <p className="text-white font-bold text-xs sm:text-sm font-mono flex items-center justify-end gap-1"><Compass className="w-3.5 h-3.5"/>{nextPrayer.name}</p>
+              <p className="text-emerald-200 text-[11px] font-mono mt-0.5">{minsDisp}</p>
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {[
               {label:"Subuh",  val:`${sh}/${total}`, icon:<Sun className="w-3.5 h-3.5"/>},
               {label:"Maghrib",val:`${mh}/${total}`, icon:<Moon className="w-3.5 h-3.5"/>},
               {label:"vs bln lalu", val:`${delta>0?"+":""}${delta}%`, icon:<TrendingUp className="w-3.5 h-3.5"/>},
             ].map(s=>(
-              <div key={s.label} className="bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2">
-                <div className="flex items-center gap-1 text-emerald-200 mb-1">{s.icon}<span className="text-[10px]">{s.label}</span></div>
-                <p className="font-bold text-base text-white font-mono">{s.val}</p>
+              <div key={s.label} className="bg-white/10 backdrop-blur-md rounded-2xl px-3.5 py-2.5 border border-white/10 shadow-xs">
+                <div className="flex items-center gap-1.5 text-emerald-200 mb-1">{s.icon}<span className="text-[10px] font-medium">{s.label}</span></div>
+                <p className="font-bold text-base sm:text-lg text-white font-mono tracking-tight">{s.val}</p>
               </div>
             ))}
           </div>
@@ -514,39 +540,82 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
 
       {/* Sunnah fast alert */}
       {todayFasts.length > 0 && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3.5">
-          <span className="text-xl">{todayFasts[0].icon}</span>
+        <div className="flex items-start gap-3 bg-gradient-to-r from-amber-50/90 to-orange-50/80 border border-amber-200/80 rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]" onClick={()=>onGoTo("ibadah")}>
+          <span className="text-2xl">{todayFasts[0].icon}</span>
           <div className="flex-1">
-            <p className="text-sm font-bold text-amber-800">{todayFasts[0].name}</p>
-            <p className="text-xs text-amber-600 mt-0.5">{todayFasts[0].desc}</p>
-            {todayFasts.length > 1 && <p className="text-xs text-amber-500 mt-1">+{todayFasts.length-1} puasa sunnah lainnya</p>}
+            <p className="text-sm font-bold text-amber-900">{todayFasts[0].name}</p>
+            <p className="text-xs text-amber-700 mt-0.5">{todayFasts[0].desc}</p>
+            {todayFasts.length > 1 && <p className="text-xs text-amber-600 mt-1 font-medium">+{todayFasts.length-1} puasa sunnah lainnya</p>}
           </div>
-          <button onClick={()=>onGoTo("ibadah")} className="text-amber-400 mt-0.5"><ChevronDown className="-rotate-90 w-4 h-4"/></button>
+          <ChevronRight className="w-4 h-4 text-amber-400 mt-1"/>
         </div>
       )}
 
-      {/* Alert - belum presensi */}
+      {/* Alert - belum presensi terpisah Subuh & Maghrib */}
       {authUser && (belumS.length > 0 || belumM.length > 0) && (
-        <button onClick={()=>onGoTo("input")} className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5 text-left hover:bg-red-100 transition-colors w-full">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0"/>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-red-800">Presensi belum lengkap</p>
-            <p className="text-xs text-red-500 mt-0.5">
-              {belumS.length > 0 && `${belumS.length} belum Subuh`}
-              {belumS.length>0&&belumM.length>0?" · ":""}
-              {belumM.length>0&&`${belumM.length} belum Maghrib`}
-            </p>
-          </div>
-          <ChevronDown className="-rotate-90 w-4 h-4 text-red-300 flex-shrink-0"/>
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {belumS.length > 0 && (
+            <button onClick={()=>onGoTo("subuh")} className="flex items-center gap-3 bg-amber-50/90 border border-amber-200/80 rounded-2xl p-3.5 text-left hover:bg-amber-100/90 hover:shadow-sm transition-all active:scale-[0.99]">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <Sun className="w-5 h-5"/>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-amber-900">Belum Lengkap Subuh</p>
+                <p className="text-[11px] text-amber-700 mt-0.5 truncate font-mono">{belumS.length} musyrif belum terisi</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-amber-400 flex-shrink-0"/>
+            </button>
+          )}
+          {belumM.length > 0 && (
+            <button onClick={()=>onGoTo("maghrib")} className="flex items-center gap-3 bg-indigo-50/90 border border-indigo-200/80 rounded-2xl p-3.5 text-left hover:bg-indigo-100/90 hover:shadow-sm transition-all active:scale-[0.99]">
+              <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Moon className="w-5 h-5"/>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-indigo-900">Belum Lengkap Maghrib</p>
+                <p className="text-[11px] text-indigo-700 mt-0.5 truncate font-mono">{belumM.length} musyrif belum terisi</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-indigo-400 flex-shrink-0"/>
+            </button>
+          )}
+        </div>
       )}
 
-      {/* CTA */}
+      {/* CTA: Pisahkan tombol Input Subuh dan Input Maghrib */}
       {authUser
-        ? <button onClick={()=>onGoTo("input")} className="flex items-center justify-between bg-emerald-600 text-white rounded-2xl px-5 py-4 shadow-lg shadow-emerald-500/25 hover:bg-emerald-700 active:scale-[0.98] transition-all">
-            <div><p className="font-bold">Isi Presensi Sekarang</p><p className="text-emerald-200 text-xs mt-0.5">Subuh &amp; Maghrib</p></div>
-            <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center"><ChevronDown className="-rotate-90 w-4 h-4"/></div>
-          </button>
+        ? <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={()=>onGoTo("subuh")}
+              className="group flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 text-white rounded-3xl shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 active:scale-[0.98] transition-all text-left relative overflow-hidden border border-white/10"
+            >
+              <div className="flex items-center justify-between w-full mb-4">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <Sun className="w-5 h-5"/>
+                </div>
+                <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono">{sh}/{total}</span>
+              </div>
+              <div>
+                <p className="font-bold text-base sm:text-lg leading-tight">Presensi Subuh</p>
+                <p className="text-amber-100 text-xs mt-0.5">Isi kehadiran pagi</p>
+              </div>
+            </button>
+
+            <button
+              onClick={()=>onGoTo("maghrib")}
+              className="group flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-emerald-600 via-teal-600 to-teal-700 text-white rounded-3xl shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 active:scale-[0.98] transition-all text-left relative overflow-hidden border border-white/10"
+            >
+              <div className="flex items-center justify-between w-full mb-4">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <Moon className="w-5 h-5"/>
+                </div>
+                <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono">{mh}/{total}</span>
+              </div>
+              <div>
+                <p className="font-bold text-base sm:text-lg leading-tight">Presensi Maghrib</p>
+                <p className="text-emerald-100 text-xs mt-0.5">Isi kehadiran petang</p>
+              </div>
+            </button>
+          </div>
         : <Card ch={<div className="px-5 py-4 flex items-center gap-3"><Info className="w-5 h-5 text-emerald-500 flex-shrink-0"/><p className="text-sm text-slate-500">Rekap <b className="text-slate-800">publik</b>. Pamong/koordinator login untuk input presensi.</p></div>}/>
       }
 
@@ -595,9 +664,12 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
         </div>
       </div>}/>
 
-      {/* Per asrama */}
+      {/* Per asrama - Clickable to open presensi */}
       <div>
-        <Label ch="Status Per Asrama Hari Ini"/>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest font-mono">Status Per Asrama Hari Ini</p>
+          <span className="text-[10px] text-emerald-600 font-semibold cursor-pointer hover:underline" onClick={()=>onGoTo("rekap")}>Lihat Rekap Lengkap →</span>
+        </div>
         <div className="flex flex-col gap-2">
           {ASRAMAS.map(a => {
             const ins = MUSYRIF_LIST.filter(m=>m.asrama===a);
@@ -606,7 +678,11 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
             const pct = ins.length ? Math.round((sh2+mh2)/(ins.length*2)*100) : 0;
             const kelasList = Array.from(new Set(ins.map(m=>m.kelas))).join(", ");
             return (
-              <Card key={a} ch={<div className="px-4 py-3.5 flex items-center gap-4">
+              <button 
+                key={a} 
+                onClick={()=>onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
+                className="w-full bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-4 py-3.5 flex items-center gap-4 text-left hover:ring-emerald-300 hover:shadow-md transition-all active:scale-[0.99]"
+              >
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4 text-emerald-600"/></div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1.5"><p className="font-semibold text-sm text-slate-800 truncate">{a}</p><span className="text-xs font-bold text-slate-700 font-mono flex-shrink-0">{pct}%</span></div>
@@ -616,38 +692,49 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
                     <span className="flex-shrink-0 font-mono">S:{sh2}/{ins.length} · M:{mh2}/{ins.length}</span>
                   </div>
                 </div>
-              </div>}/>
+                <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0"/>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* Streak leaderboard */}
+      {/* Streak leaderboard - Clickable to open detail */}
       <div>
         <Label ch="🔥 Streak Tertinggi"/>
         <Card ch={<div className="divide-y divide-slate-50">
           {streakTop.map((m,i)=>(
-            <div key={m.id} className="flex items-center gap-3 px-4 py-3.5">
+            <button 
+              key={m.id} 
+              onClick={()=>setDetailMusyrif(m)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors"
+            >
               <span className="text-base w-5 text-center">{["🥇","🥈","🥉"][i]}</span>
               <Av name={m.name} src={m.photo} sz="sm"/>
               <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-400">{m.asrama}</p></div>
               <div className="text-right"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-orange-400"/><span className="font-bold text-slate-800 font-mono">{m.cur}</span><span className="text-xs text-slate-400">hari</span></div><p className="text-[10px] text-slate-400">terbaik: {m.best}h</p></div>
-            </div>
+              <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0 ml-1"/>
+            </button>
           ))}
         </div>}/>
       </div>
 
-      {/* Perlu perhatian */}
+      {/* Perlu perhatian - Clickable to open detail */}
       {alfaRank.length > 0 && (
         <div>
           <Label ch="⚠️ Perlu Perhatian Bulan Ini"/>
           <Card ch={<div className="divide-y divide-slate-50">
             {alfaRank.map(m=>(
-              <div key={m.id} className="flex items-center gap-3 px-4 py-3.5">
+              <button 
+                key={m.id} 
+                onClick={()=>setDetailMusyrif(m)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors"
+              >
                 <Av name={m.name} src={m.photo} sz="sm"/>
                 <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-400">{m.asrama}</p></div>
                 <div className="flex items-center gap-1.5 bg-red-50 px-3 py-1.5 rounded-xl"><AlertCircle className="w-3.5 h-3.5 text-red-400"/><span className="text-sm font-bold text-red-600 font-mono">{m.alfa}</span><span className="text-xs text-red-400">alfa</span></div>
-              </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0 ml-1"/>
+              </button>
             ))}
           </div>}/>
         </div>
@@ -667,20 +754,78 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
           </button>
         ))}
       </div>
+
+      {/* Musyrif Detail Modal for Dashboard */}
+      {detailMusyrif && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setDetailMusyrif(null)}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+              <Av name={detailMusyrif.name} sz="lg"/>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-slate-800 text-base truncate">{detailMusyrif.name}</h3>
+                <span className="inline-block text-[10px] bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded mt-0.5">{detailMusyrif.kelas}</span>
+                <p className="text-xs text-slate-400 mt-1">{detailMusyrif.asrama} · Pamong: {detailMusyrif.pamong || "-"}</p>
+              </div>
+            </div>
+
+            {(detailMusyrif.phone || detailMusyrif.email) && (
+              <div className="flex items-center gap-2 my-4">
+                {detailMusyrif.phone && (
+                  <a href={`https://wa.me/${detailMusyrif.phone}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition-all shadow-sm">
+                    <MessageCircle className="w-4 h-4"/> Hubungi WhatsApp
+                  </a>
+                )}
+                {detailMusyrif.email && (
+                  <a href={`mailto:${detailMusyrif.email}`} className="flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200 text-xs font-semibold py-2.5 px-3 rounded-xl transition-all">
+                    <Mail className="w-4 h-4"/> Email
+                  </a>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-4">
+              <button onClick={()=>{ setDetailMusyrif(null); onGoTo("riwayat"); }} className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-semibold transition-all">
+                Lihat di Riwayat
+              </button>
+              <button onClick={()=>setDetailMusyrif(null)} className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PAGE: INPUT
+// PAGE: INPUT PRESENSI (SUBUH / MAGHRIB TERPISAH)
 // ─────────────────────────────────────────────────────────────────────────────
-function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:AuthUser|null;records:AttendanceRecord[];onMark:MarkFn;onMarkAll:MarkAllFn;onLogin:()=>void}) {
+function PageInputPrayer({
+  slot,
+  authUser,
+  records,
+  onMark,
+  onMarkAll,
+  onLogin,
+  onSwitchSlot,
+  showToast
+}: {
+  slot: PrayerSlot;
+  authUser: AuthUser | null;
+  records: AttendanceRecord[];
+  onMark: MarkFn;
+  onMarkAll: MarkAllFn;
+  onLogin: () => void;
+  onSwitchSlot?: (slot: PrayerSlot) => void;
+  showToast?: (msg: string, type?: "success" | "info" | "error") => void;
+}) {
   const [selDate, setSelDate] = useState(todayStr());
   const [selAsrama, setSelAsrama] = useState(ASRAMAS[0]);
   const [search, setSearch] = useState("");
-  const [noteFor, setNoteFor] = useState<{id:string;prayer:PrayerSlot}|null>(null);
+  const [noteFor, setNoteFor] = useState<{ id: string; prayer: PrayerSlot } | null>(null);
   const [noteText, setNoteText] = useState("");
-  const [confirmAll, setConfirmAll] = useState<PrayerSlot|null>(null);
+  const [confirmAll, setConfirmAll] = useState<PrayerSlot | null>(null);
 
   if (!authUser) return (
     <div className="flex flex-col items-center justify-center gap-6 py-24 text-center px-4">
@@ -693,29 +838,60 @@ function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:
   const fullAccess = hasFullAccess(authUser);
   const activeAsrama = fullAccess ? selAsrama : authUser.asrama!;
   const musyrifList = MUSYRIF_LIST.filter(m => m.asrama === activeAsrama);
-  const filtered = search ? musyrifList.filter(m=>m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
+  const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
-  const doneCount = musyrifList.filter(m => { const r=getRecord(m.id); return r?.subuh && r?.maghrib; }).length;
+  const doneCount = musyrifList.filter(m => Boolean(getRecord(m.id)?.[slot])).length;
   const isFuture = selDate > todayStr();
 
-  const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => onMark(mid,p,s,selDate,note);
-
+  const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
+    onMark(mid, p, s, selDate, note);
+    const mName = musyrifList.find(m => m.id === mid)?.name?.split(" ")[0] || "Musyrif";
+    showToast?.(`${mName}: ${S[s].label} (${p === "subuh" ? "Subuh" : "Maghrib"})`);
+  };
   const hijriSel = toHijri(parseISO(selDate));
 
   const prevDay = () => {
-    const d = parseISO(selDate); d.setDate(d.getDate()-1);
-    setSelDate(format(d,"yyyy-MM-dd"));
+    const d = parseISO(selDate); d.setDate(d.getDate() - 1);
+    setSelDate(format(d, "yyyy-MM-dd"));
   };
   const nextDay = () => {
     if (selDate >= todayStr()) return;
-    const d = parseISO(selDate); d.setDate(d.getDate()+1);
-    setSelDate(format(d,"yyyy-MM-dd"));
+    const d = parseISO(selDate); d.setDate(d.getDate() + 1);
+    setSelDate(format(d, "yyyy-MM-dd"));
   };
+
+  const isSubuh = slot === "subuh";
+  const otherSlot: PrayerSlot = isSubuh ? "maghrib" : "subuh";
 
   return (
     <div className="flex flex-col gap-5">
-      <div><h2 className="text-2xl font-bold text-slate-900">Input Presensi</h2></div>
+      {/* Page Header with slot switcher */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md ${
+            isSubuh ? "bg-amber-500 text-white shadow-amber-500/20" : "bg-emerald-600 text-white shadow-emerald-600/20"
+          }`}>
+            {isSubuh ? <Sun className="w-6 h-6"/> : <Moon className="w-6 h-6"/>}
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">{isSubuh ? "Presensi Subuh" : "Presensi Maghrib"}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{isSubuh ? "Presensi ibadah shubuh berjamaah" : "Presensi ibadah maghrib berjamaah"}</p>
+          </div>
+        </div>
+
+        {onSwitchSlot && (
+          <button
+            onClick={() => onSwitchSlot(otherSlot)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+              isSubuh ? "text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100" : "text-amber-700 ring-amber-200 bg-amber-50 hover:bg-amber-100"
+            }`}
+          >
+            {isSubuh ? <Moon className="w-3.5 h-3.5"/> : <Sun className="w-3.5 h-3.5"/>}
+            <span>Ke {isSubuh ? "Maghrib" : "Subuh"}</span>
+          </button>
+        )}
+      </div>
 
       {/* Date navigator */}
       <Card ch={<div className="p-3 flex items-center gap-2">
@@ -745,7 +921,7 @@ function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:
 
       {/* User info */}
       <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
-        <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{authUser.name[0]}</div>
+        <Av name={authUser.name} sz="md" />
         <div className="flex-1"><p className="font-semibold text-sm text-slate-800">{authUser.name}</p><p className="text-xs text-slate-400">{{pamong:"Pamong",koordinator_musyrif:"Koordinator Musyrif",koordinator_gedung:`Koordinator Gedung · ${authUser.asrama}`,musyrif:`Musyrif · ${authUser.asrama}`}[authUser.role]}</p></div>
       </div>
 
@@ -761,21 +937,32 @@ function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:
       {/* Progress */}
       {!isFuture && (
         <Card ch={<div className="px-4 py-3.5">
-          <div className="flex justify-between mb-2"><span className="text-sm font-semibold text-slate-700">Progress {activeAsrama}</span><span className="text-sm font-bold text-emerald-600 font-mono">{doneCount}/{musyrifList.length}</span></div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{width:`${musyrifList.length?(doneCount/musyrifList.length)*100:0}%`}}/></div>
-          {doneCount===musyrifList.length&&musyrifList.length>0&&<p className="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5"/>Semua musyrif sudah dipresensi!</p>}
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-semibold text-slate-700">Progress {isSubuh ? "Subuh" : "Maghrib"} · {activeAsrama}</span>
+            <span className={`text-sm font-bold font-mono ${isSubuh ? "text-amber-600" : "text-emerald-600"}`}>{doneCount}/{musyrifList.length}</span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${isSubuh ? "bg-amber-500" : "bg-emerald-500"}`}
+              style={{width:`${musyrifList.length?(doneCount/musyrifList.length)*100:0}%`}}
+            />
+          </div>
+          {doneCount===musyrifList.length&&musyrifList.length>0&&<p className="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5"/>Semua musyrif sudah dipresensi {isSubuh ? "Subuh" : "Maghrib"}!</p>}
         </div>}/>
       )}
 
       {/* Batch hadir */}
       {!isFuture && (
-        <div className="grid grid-cols-2 gap-2">
-          {(["subuh","maghrib"] as PrayerSlot[]).map(p=>(
-            <button key={p} onClick={()=>setConfirmAll(p)} className="flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors">
-              <Zap className="w-3.5 h-3.5"/>Hadir Semua {p==="subuh"?"Subuh":"Maghrib"}
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={()=>setConfirmAll(slot)}
+          className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm active:scale-[0.99] ${
+            isSubuh
+              ? "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+              : "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
+          }`}
+        >
+          <Zap className="w-4 h-4"/>Tandai Semua Hadir {isSubuh ? "Subuh" : "Maghrib"}
+        </button>
       )}
 
       {/* Search */}
@@ -784,49 +971,72 @@ function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari musyrif..." className="w-full pl-10 pr-4 py-2.5 bg-white ring-1 ring-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"/>
       </div>
 
-      {/* Cards */}
+      {/* Cards: Single prayer focused view */}
       <div className="flex flex-col gap-3">
         {filtered.map(m=>{
           const rec = getRecord(m.id);
-          const done = rec?.subuh && rec?.maghrib;
+          const cur = rec?.[slot];
+          const note = slot === "subuh" ? rec?.subuhNote : rec?.maghribNote;
+          const isDone = Boolean(cur);
+
           return (
-            <Card key={m.id} cls={done?"ring-2 ring-emerald-200":""} ch={<div className="p-4">
+            <Card key={m.id} cls={isDone ? "ring-2 ring-emerald-200" : ""} ch={<div className="p-3.5 sm:p-4">
               <div className="flex items-center gap-3 mb-3">
-                <Av name={m.name}/>
+                <Av name={m.name} src={m.photo}/>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="font-semibold text-sm text-slate-800 truncate">{m.name}</p>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold font-mono">{m.kelas}</span>
+                    <p className="font-bold text-sm text-slate-800 truncate">{m.name}</p>
+                    <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold font-mono">{m.kelas}</span>
                   </div>
                   <p className="text-xs text-slate-400 truncate mt-0.5">Pamong: {m.pamong || "-"}</p>
                 </div>
-                {done ? <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0"/> : <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex-shrink-0">Belum</span>}
+                {isDone ? (
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 flex-shrink-0 ${
+                    cur === "hadir" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
+                    cur === "sakit" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                    cur === "izin" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                    "bg-red-100 text-red-800 border border-red-200"
+                  }`}>
+                    {cur === "hadir" && <CheckCircle2 className="w-3.5 h-3.5"/>}
+                    {S[cur].label}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 flex-shrink-0 font-medium">Belum Presensi</span>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(["subuh","maghrib"] as PrayerSlot[]).map(prayer=>{
-                  const cur = rec?.[prayer];
-                  const note = prayer==="subuh" ? rec?.subuhNote : rec?.maghribNote;
-                  return (
-                    <div key={prayer}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 uppercase tracking-widest font-mono">
-                          {prayer==="subuh"?<Sun className="w-3 h-3 text-amber-400"/>:<Moon className="w-3 h-3 text-indigo-400"/>}{prayer}
-                        </div>
-                        {(cur==="izin"||cur==="alfa")&&!isFuture&&(
-                          <button onClick={()=>{setNoteFor({id:m.id,prayer});setNoteText(note||"");}} className="text-[10px] text-emerald-500 underline">{note?"edit":"+ catatan"}</button>
-                        )}
-                      </div>
-                      {note&&<p className="text-[10px] text-slate-400 italic bg-slate-50 rounded-lg px-2 py-1 mb-2">"{note}"</p>}
-                      <div className="flex gap-1.5">
-                        {([["hadir","H"],["izin","I"],["alfa","A"]] as [AttendanceStatus,string][]).map(([s,sh])=>(
-                          <button key={s} disabled={isFuture} onClick={()=>mark(m.id,prayer,s)}
-                            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed ${cur===s?`${S[s].btn} shadow-md`:"bg-slate-100 text-slate-400 hover:bg-slate-200"}`}>{sh}</button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+
+              {/* Note preview if any */}
+              {note && (
+                <div className="mb-3 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                  <span className="text-slate-500 italic truncate">"{note}"</span>
+                  <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText(note);}} className="text-emerald-600 font-semibold ml-2 flex-shrink-0 hover:underline">Edit</button>
+                </div>
+              )}
+
+              {/* Action Buttons: Hadir, Sakit, Ijin, Alpa */}
+              <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+                {([["hadir","Hadir","H"],["sakit","Sakit","S"],["izin","Ijin","I"],["alfa","Alpa","A"]] as [AttendanceStatus,string,string][]).map(([s,label,sh])=>(
+                  <button
+                    key={s}
+                    disabled={isFuture}
+                    onClick={()=>mark(m.id,slot,s)}
+                    className={`py-2 px-0.5 sm:px-1 rounded-xl text-[11px] sm:text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${
+                      cur===s
+                        ? `${S[s].btn} shadow-md scale-[1.02]`
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95"
+                    }`}
+                  >
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
+
+              {/* Add note link for sakit/izin/alfa if no note yet */}
+              {(cur==="sakit"||cur==="izin"||cur==="alfa") && !note && !isFuture && (
+                <div className="mt-2 text-right">
+                  <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText("");}} className="text-xs text-emerald-600 font-semibold hover:underline">+ Tambah Catatan Keterangan</button>
+                </div>
+              )}
             </div>}/>
           );
         })}
@@ -834,14 +1044,14 @@ function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:
 
       {/* Note modal */}
       {noteFor&&(
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setNoteFor(null)}>
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setNoteFor(null)}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
             <h3 className="font-bold text-slate-800 mb-1">Catatan Keterangan</h3>
-            <p className="text-xs text-slate-400 mb-4">{MUSYRIF_LIST.find(m=>m.id===noteFor.id)?.name} · {noteFor.prayer}</p>
-            <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Sakit, izin keluarga, dll." rows={3} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"/>
+            <p className="text-xs text-slate-400 mb-4">{MUSYRIF_LIST.find(m=>m.id===noteFor.id)?.name} · Presensi {noteFor.prayer === "subuh" ? "Subuh" : "Maghrib"}</p>
+            <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Contoh: Sakit demam, izin kepulangan, tugas luar, dll." rows={3} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"/>
             <div className="flex gap-2 mt-4">
               <button onClick={()=>setNoteFor(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold">Batal</button>
-              <button onClick={()=>{const r=getRecord(noteFor.id);if(r?.[noteFor.prayer])mark(noteFor.id,noteFor.prayer,r[noteFor.prayer]!,noteText);setNoteFor(null);setNoteText("");}} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all">Simpan</button>
+              <button onClick={()=>{const r=getRecord(noteFor.id);if(r?.[noteFor.prayer])mark(noteFor.id,noteFor.prayer,r[noteFor.prayer]!,noteText);showToast?.("Catatan keterangan disimpan");setNoteFor(null);setNoteText("");}} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all">Simpan</button>
             </div>
           </div>
         </div>
@@ -849,14 +1059,16 @@ function PageInput({ authUser, records, onMark, onMarkAll, onLogin }: {authUser:
 
       {/* Confirm all modal */}
       {confirmAll&&(
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setConfirmAll(null)}>
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mb-4"><Zap className="w-6 h-6 text-emerald-600"/></div>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setConfirmAll(null)}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
+            <div className={`w-12 h-12 rounded-2xl ${confirmAll === "subuh" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"} flex items-center justify-center mb-4`}>
+              <Zap className="w-6 h-6"/>
+            </div>
             <h3 className="font-bold text-slate-800">Tandai Semua Hadir?</h3>
-            <p className="text-sm text-slate-500 mt-1 mb-5">Semua musyrif <b>{activeAsrama}</b> ditandai <b>Hadir</b> untuk <b>{confirmAll}</b> · {format(parseISO(selDate),"d MMM yyyy",{locale:id})}</p>
+            <p className="text-sm text-slate-500 mt-1 mb-5">Semua musyrif <b>{activeAsrama}</b> ditandai <b>Hadir</b> untuk <b>Presensi {confirmAll === "subuh" ? "Subuh" : "Maghrib"}</b> · {format(parseISO(selDate),"d MMM yyyy",{locale:id})}</p>
             <div className="flex gap-2">
               <button onClick={()=>setConfirmAll(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold">Batal</button>
-              <button onClick={()=>{onMarkAll(activeAsrama,confirmAll,"hadir",selDate);setConfirmAll(null);}} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all">Ya, Tandai</button>
+              <button onClick={()=>{onMarkAll(activeAsrama,confirmAll,"hadir",selDate);showToast?.(`Semua musyrif ${activeAsrama} ditandai Hadir (${confirmAll === "subuh" ? "Subuh" : "Maghrib"})`);setConfirmAll(null);}} className={`flex-1 py-2.5 text-white rounded-xl text-sm font-semibold transition-all ${confirmAll === "subuh" ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>Ya, Tandai Hadir</button>
             </div>
           </div>
         </div>
@@ -892,10 +1104,10 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
 
   const ranked = useMemo(()=>fMusyrif.map(m=>{
     const rs=mRecs.filter(r=>r.musyrifId===m.id);
-    const sh=rs.filter(r=>r.subuh==="hadir").length,si=rs.filter(r=>r.subuh==="izin").length,sa=rs.filter(r=>r.subuh==="alfa").length;
-    const mh=rs.filter(r=>r.maghrib==="hadir").length,mi=rs.filter(r=>r.maghrib==="izin").length,ma=rs.filter(r=>r.maghrib==="alfa").length;
+    const sh=rs.filter(r=>r.subuh==="hadir").length,ss=rs.filter(r=>r.subuh==="sakit").length,si=rs.filter(r=>r.subuh==="izin").length,sa=rs.filter(r=>r.subuh==="alfa").length;
+    const mh=rs.filter(r=>r.maghrib==="hadir").length,ms=rs.filter(r=>r.maghrib==="sakit").length,mi=rs.filter(r=>r.maghrib==="izin").length,ma=rs.filter(r=>r.maghrib==="alfa").length;
     const pct=days.length?Math.round((sh+mh)/(days.length*2)*100):0;
-    return {...m,sh,si,sa,mh,mi,ma,pct};
+    return {...m,sh,ss,si,sa,mh,ms,mi,ma,pct};
   }).sort((a,b)=>sortBy==="pct"?b.pct-a.pct:a.name.localeCompare(b.name)),[fMusyrif,mRecs,days,sortBy]);
 
   const weeklyData = Array.from({length:Math.max(1,Math.ceil(days.length/7))},(_,wi)=>{
@@ -993,7 +1205,14 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
         <div className="px-5 py-4 border-b border-slate-50 flex justify-between"><p className="font-bold text-slate-800">Status Hari Ini</p><span className="text-xs text-slate-400 font-mono">{format(new Date(),"d MMM")}</span></div>
         <div className="divide-y divide-slate-50">
           {fMusyrif.map(m=>{const rec=records.find(r=>r.musyrifId===m.id&&r.date===todayStr());return(
-            <div key={m.id} className="px-5 py-3 flex items-center gap-3"><Av name={m.name} src={m.photo} sz="sm"/><span className="flex-1 text-sm font-medium text-slate-700 truncate">{m.name}</span><div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.maghrib}/></div></div>
+            <button key={m.id} onClick={()=>setDetail(m)} className="w-full px-5 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left">
+              <Av name={m.name} src={m.photo} sz="sm"/>
+              <span className="flex-1 text-sm font-medium text-slate-700 truncate">{m.name}</span>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.maghrib}/></div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300"/>
+              </div>
+            </button>
           );})}
         </div>
       </div>}/>
@@ -1030,10 +1249,10 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
               </div>
             )}
             <div className="p-5 overflow-y-auto flex-1">
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {[{l:"Sub.H",v:detailM.sh,c:"text-emerald-600 bg-emerald-50"},{l:"Sub.I",v:detailM.si,c:"text-amber-600 bg-amber-50"},{l:"Sub.A",v:detailM.sa,c:"text-red-600 bg-red-50"},
-                  {l:"Mag.H",v:detailM.mh,c:"text-emerald-600 bg-emerald-50"},{l:"Mag.I",v:detailM.mi,c:"text-amber-600 bg-amber-50"},{l:"Mag.A",v:detailM.ma,c:"text-red-600 bg-red-50"}].map(s=>(
-                  <div key={s.l} className={`rounded-xl p-2.5 text-center ${s.c.split(" ")[1]}`}><p className={`text-lg font-bold font-mono ${s.c.split(" ")[0]}`}>{s.v}</p><p className="text-[9px] text-slate-400 mt-0.5">{s.l}</p></div>
+              <div className="grid grid-cols-4 gap-1.5 mb-4">
+                {[{l:"Sub.H",v:detailM.sh,c:"text-emerald-600 bg-emerald-50"},{l:"Sub.S",v:detailM.ss,c:"text-amber-600 bg-amber-50"},{l:"Sub.I",v:detailM.si,c:"text-blue-600 bg-blue-50"},{l:"Sub.A",v:detailM.sa,c:"text-red-600 bg-red-50"},
+                  {l:"Mag.H",v:detailM.mh,c:"text-emerald-600 bg-emerald-50"},{l:"Mag.S",v:detailM.ms,c:"text-amber-600 bg-amber-50"},{l:"Mag.I",v:detailM.mi,c:"text-blue-600 bg-blue-50"},{l:"Mag.A",v:detailM.ma,c:"text-red-600 bg-red-50"}].map(s=>(
+                  <div key={s.l} className={`rounded-xl p-2 text-center ${s.c.split(" ")[1]}`}><p className={`text-base font-bold font-mono ${s.c.split(" ")[0]}`}>{s.v}</p><p className="text-[9px] text-slate-400 mt-0.5">{s.l}</p></div>
                 ))}
               </div>
               <Label ch="10 Hari Terakhir"/>
@@ -1060,6 +1279,8 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
 function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[];authUser:AuthUser|null;onLogin:()=>void}) {
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selId, setSelId] = useState(MUSYRIF_LIST[0].id);
+  const [musyrifSearch, setMusyrifSearch] = useState("");
+  const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
 
   if (!authUser) return (
     <div className="flex flex-col items-center justify-center gap-6 py-24 text-center px-4">
@@ -1074,7 +1295,12 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
     : authUser.role === "musyrif"
       ? MUSYRIF_LIST.filter(m => m.id === authUser.musyrifId || m.email === authUser.email)
       : MUSYRIF_LIST.filter(m => m.asrama === authUser.asrama);
-  const musyrif = allowed.find(m=>m.id===selId) ?? allowed[0] ?? MUSYRIF_LIST[0];
+  
+  const filteredAllowed = musyrifSearch 
+    ? allowed.filter(m => m.name.toLowerCase().includes(musyrifSearch.toLowerCase()) || m.kelas.toLowerCase().includes(musyrifSearch.toLowerCase()) || (m.pamong && m.pamong.toLowerCase().includes(musyrifSearch.toLowerCase())))
+    : allowed;
+
+  const musyrif = allowed.find(m=>m.id===selId) ?? filteredAllowed[0] ?? allowed[0] ?? MUSYRIF_LIST[0];
   const mk = format(viewMonth,"yyyy-MM");
   const mRecs = records.filter(r=>r.musyrifId===musyrif.id&&r.date.startsWith(mk));
   const allRecs = records.filter(r=>r.musyrifId===musyrif.id);
@@ -1105,12 +1331,28 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between">
         <div><h2 className="text-2xl font-bold text-slate-900">Riwayat</h2><p className="text-sm text-slate-400 mt-0.5">Detail per musyrif</p></div>
-        <button onClick={doExport} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-xl hover:bg-emerald-100 transition-colors"><Download className="w-3.5 h-3.5"/>Export</button>
+        <button onClick={doExport} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs"><Download className="w-3.5 h-3.5"/>Export</button>
       </div>
 
-      <div className="relative"><select value={musyrif.id} onChange={e=>setSelId(e.target.value)} className="w-full bg-white ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10">
-        {allowed.map(m=><option key={m.id} value={m.id}>{m.name} — {m.kelas} (Pamong: {m.pamong || "-"})</option>)}
-      </select><ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"/></div>
+      {/* Musyrif selector & search */}
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+          <input 
+            type="text" 
+            value={musyrifSearch} 
+            onChange={e=>setMusyrifSearch(e.target.value)} 
+            placeholder="Cari musyrif / pamong..." 
+            className="w-full bg-white ring-1 ring-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          />
+        </div>
+        <div className="relative">
+          <select value={musyrif.id} onChange={e=>setSelId(e.target.value)} className="w-full bg-white ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10">
+            {filteredAllowed.map(m=><option key={m.id} value={m.id}>{m.name} — {m.kelas} (Pamong: {m.pamong || "-"})</option>)}
+          </select>
+          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"/>
+        </div>
+      </div>
 
       <Card ch={<div className="p-4">
         <div className="flex items-center gap-4">
@@ -1173,34 +1415,97 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {[{l:"Sub.H",v:mRecs.filter(r=>r.subuh==="hadir").length,c:"text-emerald-600 bg-emerald-50"},{l:"Sub.I",v:mRecs.filter(r=>r.subuh==="izin").length,c:"text-amber-600 bg-amber-50"},{l:"Sub.A",v:mRecs.filter(r=>r.subuh==="alfa").length,c:"text-red-600 bg-red-50"},
-          {l:"Mag.H",v:mRecs.filter(r=>r.maghrib==="hadir").length,c:"text-emerald-600 bg-emerald-50"},{l:"Mag.I",v:mRecs.filter(r=>r.maghrib==="izin").length,c:"text-amber-600 bg-amber-50"},{l:"Mag.A",v:mRecs.filter(r=>r.maghrib==="alfa").length,c:"text-red-600 bg-red-50"}].map(s=>(
-          <div key={s.l} className={`rounded-2xl p-3 text-center ${s.c.split(" ")[1]}`}><p className={`text-xl font-bold font-mono ${s.c.split(" ")[0]}`}>{s.v}</p><p className="text-[10px] text-slate-400 mt-0.5">{s.l}</p></div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {[{l:"Sub.H",v:mRecs.filter(r=>r.subuh==="hadir").length,c:"text-emerald-600 bg-emerald-50"},{l:"Sub.S",v:mRecs.filter(r=>r.subuh==="sakit").length,c:"text-amber-600 bg-amber-50"},{l:"Sub.I",v:mRecs.filter(r=>r.subuh==="izin").length,c:"text-blue-600 bg-blue-50"},{l:"Sub.A",v:mRecs.filter(r=>r.subuh==="alfa").length,c:"text-red-600 bg-red-50"},
+          {l:"Mag.H",v:mRecs.filter(r=>r.maghrib==="hadir").length,c:"text-emerald-600 bg-emerald-50"},{l:"Mag.S",v:mRecs.filter(r=>r.maghrib==="sakit").length,c:"text-amber-600 bg-amber-50"},{l:"Mag.I",v:mRecs.filter(r=>r.maghrib==="izin").length,c:"text-blue-600 bg-blue-50"},{l:"Mag.A",v:mRecs.filter(r=>r.maghrib==="alfa").length,c:"text-red-600 bg-red-50"}].map(s=>(
+          <div key={s.l} className={`rounded-2xl p-2.5 text-center ${s.c.split(" ")[1]}`}><p className={`text-base font-bold font-mono ${s.c.split(" ")[0]}`}>{s.v}</p><p className="text-[10px] text-slate-400 mt-0.5">{s.l}</p></div>
         ))}
       </div>
 
-      {/* Calendar */}
+      {/* Interactive Calendar */}
       <Card ch={<div>
         <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
           {["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=><div key={d} className="text-center text-[10px] font-bold text-slate-400 py-2.5 font-mono">{d}</div>)}
         </div>
         <div className="grid grid-cols-7">
           {Array.from({length:adj}).map((_,i)=><div key={`b${i}`} className="border-b border-r border-slate-50 min-h-[48px]"/>)}
-          {days.map((day,i)=>{const r=getR(day);const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);const last=(adj+i+1)%7===0;const perfect=r?.subuh==="hadir"&&r?.maghrib==="hadir";return(
-            <div key={day.toISOString()} className={`min-h-[48px] border-b border-r border-slate-50 p-1 flex flex-col ${isToday(day)?"bg-emerald-50/50":perfect&&!future?"bg-emerald-50/30":""} ${future?"opacity-20":""} ${last?"border-r-0":""}`}>
-              <span className={`text-[10px] font-bold self-end w-5 h-5 flex items-center justify-center rounded-full font-mono ${isToday(day)?"bg-emerald-600 text-white":"text-slate-400"}`}>{format(day,"d")}</span>
-              {!future&&<div className="flex flex-col gap-[3px] mt-1 px-0.5"><div className={`h-[4px] rounded-full ${r?.subuh?S[r.subuh].dot:"bg-slate-200"}`}/><div className={`h-[4px] rounded-full ${r?.maghrib?S[r.maghrib].dot:"bg-slate-200"}`}/></div>}
-            </div>
-          );})}
+          {days.map((day,i)=>{
+            const r=getR(day);
+            const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);
+            const last=(adj+i+1)%7===0;
+            const perfect=r?.subuh==="hadir"&&r?.maghrib==="hadir";
+            return (
+              <div 
+                key={day.toISOString()} 
+                onClick={() => !future && setSelectedDay({ date: day, record: r })}
+                className={`min-h-[48px] border-b border-r border-slate-50 p-1 flex flex-col transition-all select-none ${
+                  isToday(day) ? "bg-emerald-50/50" : perfect&&!future ? "bg-emerald-50/30" : ""
+                } ${future ? "opacity-20 cursor-default" : "cursor-pointer hover:bg-emerald-50 hover:ring-1 hover:ring-emerald-300"} ${last ? "border-r-0" : ""}`}
+              >
+                <span className={`text-[10px] font-bold self-end w-5 h-5 flex items-center justify-center rounded-full font-mono ${isToday(day)?"bg-emerald-600 text-white":"text-slate-400"}`}>{format(day,"d")}</span>
+                {!future&&<div className="flex flex-col gap-[3px] mt-1 px-0.5"><div className={`h-[4px] rounded-full ${r?.subuh?S[r.subuh].dot:"bg-slate-200"}`}/><div className={`h-[4px] rounded-full ${r?.maghrib?S[r.maghrib].dot:"bg-slate-200"}`}/></div>}
+              </div>
+            );
+          })}
         </div>
-        <div className="px-4 py-2.5 border-t border-slate-100 flex gap-4 flex-wrap bg-slate-50/50">
-          {[{c:"bg-emerald-500",l:"Hadir"},{c:"bg-amber-400",l:"Izin"},{c:"bg-red-500",l:"Alfa"},{c:"bg-slate-200",l:"Kosong"}].map(x=>(
+        <div className="px-4 py-2.5 border-t border-slate-100 flex gap-3 flex-wrap bg-slate-50/50 items-center">
+          {[{c:"bg-emerald-500",l:"Hadir"},{c:"bg-amber-400",l:"Sakit"},{c:"bg-blue-500",l:"Ijin"},{c:"bg-red-500",l:"Alpa"},{c:"bg-slate-200",l:"Kosong"}].map(x=>(
             <div key={x.l} className="flex items-center gap-1.5"><div className={`w-2.5 h-2.5 rounded-full ${x.c}`}/><span className="text-[10px] text-slate-400">{x.l}</span></div>
           ))}
-          <span className="text-[10px] text-slate-300 ml-auto italic">↑ Subuh · ↓ Maghrib</span>
+          <span className="text-[10px] text-slate-400 ml-auto italic">Klik tanggal untuk detail</span>
         </div>
       </div>}/>
+
+      {/* Calendar Day Detail Modal */}
+      {selectedDay && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setSelectedDay(null)}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">{format(selectedDay.date, "EEEE, d MMMM yyyy", {locale:id})}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{musyrif.name} ({musyrif.kelas})</p>
+              </div>
+              <button onClick={()=>setSelectedDay(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 mb-5">
+              {/* Subuh details */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-start justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                    <Sun className="w-4 h-4"/>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Presensi Subuh</p>
+                    <p className="text-[11px] text-slate-400">{selectedDay.record?.subuhNote ? `"${selectedDay.record.subuhNote}"` : "Tidak ada catatan"}</p>
+                  </div>
+                </div>
+                <Chip s={selectedDay.record?.subuh}/>
+              </div>
+
+              {/* Maghrib details */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-start justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <Moon className="w-4 h-4"/>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Presensi Maghrib</p>
+                    <p className="text-[11px] text-slate-400">{selectedDay.record?.maghribNote ? `"${selectedDay.record.maghribNote}"` : "Tidak ada catatan"}</p>
+                  </div>
+                </div>
+                <Chip s={selectedDay.record?.maghrib}/>
+              </div>
+            </div>
+
+            <button onClick={()=>setSelectedDay(null)} className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition-all">
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
 
       {alfaList.length>0&&<Card ch={<div>
         <div className="px-5 py-4 border-b border-slate-100"><p className="font-bold text-slate-800 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-red-400"/>Ketidakhadiran Terbaru</p></div>
@@ -1220,7 +1525,7 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: IBADAH (Prayer + Qibla + Sunnah Fasting)
 // ─────────────────────────────────────────────────────────────────────────────
-function PageIbadah() {
+function PageIbadah({ onBack }: { onBack?: () => void }) {
   const [loc, setLoc]         = useState<{lat:number;lon:number;name:string}>({lat:-7.7956,lon:110.3695,name:"Yogyakarta"});
   const [locLoading, setLocLoading] = useState(false);
   const [heading, setHeading] = useState<number|null>(null);
@@ -1228,6 +1533,7 @@ function PageIbadah() {
   const [permDenied, setPermDenied] = useState(false);
   const [markedFasts, setMarkedFasts] = useState<Set<string>>(new Set());
   const [tab, setTab]         = useState<"jadwal"|"kiblat"|"puasa">("jadwal");
+  const [puasaDetail, setPuasaDetail] = useState<{ icon: string; name: string; desc: string; dalil?: string } | null>(null);
 
   const now = new Date();
   const hijri = toHijri(now);
@@ -1283,9 +1589,20 @@ function PageIbadah() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Jadwal Ibadah</h2>
-        <p className="text-sm text-slate-400 mt-0.5">{hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah</p>
+      <div className="flex items-center gap-3">
+        {onBack && (
+          <button 
+            onClick={onBack} 
+            className="w-10 h-10 rounded-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs flex-shrink-0"
+            title="Kembali ke Dasbor"
+          >
+            <ChevronLeft className="w-5 h-5"/>
+          </button>
+        )}
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Jadwal Ibadah</h2>
+          <p className="text-sm text-slate-400 mt-0.5">{hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah</p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -1407,18 +1724,18 @@ function PageIbadah() {
           }
         </div>
 
-        {/* Info cards */}
+        {/* Info cards - Clickable */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            {icon:"☀️", label:"Senin", sub:"Mingguan"},
-            {icon:"✨", label:"Kamis", sub:"Mingguan"},
-            {icon:"🌕", label:"Ayyamul Bidh", sub:"13-15 Hijri"},
+            {icon:"☀️", label:"Senin", sub:"Mingguan", desc:"Amalan dibuka setiap hari Senin dan Kamis. Hari Rasulullah ﷺ dilahirkan dan menerima wahyu pertama.", dalil:"HR. Muslim no. 1162"},
+            {icon:"✨", label:"Kamis", sub:"Mingguan", desc:"Hari diangkatnya amalan-amalan hamba kepada Allah Ta'ala.", dalil:"HR. Tirmidzi no. 747"},
+            {icon:"🌕", label:"Ayyamul Bidh", sub:"13-15 Hijri", desc:"Puasa pada hari ke-13, 14, dan 15 tiap bulan Hijriyah (saat bulan purnama), setara puasa sepanjang tahun.", dalil:"HR. Bukhari no. 1981"},
           ].map(f=>(
-            <div key={f.label} className="bg-white ring-1 ring-slate-100 rounded-2xl p-3 text-center">
+            <button key={f.label} onClick={()=>setPuasaDetail({icon:f.icon, name:`Puasa ${f.label}`, desc:f.desc, dalil:f.dalil})} className="bg-white ring-1 ring-slate-100 rounded-2xl p-3 text-center hover:ring-emerald-300 hover:shadow-sm transition-all active:scale-[0.97]">
               <span className="text-2xl block mb-1.5">{f.icon}</span>
               <p className="text-xs font-bold text-slate-700">{f.label}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">{f.sub}</p>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -1437,10 +1754,10 @@ function PageIbadah() {
                     </div>
                     <div className="flex-1">
                       {fasts.map(f=>(
-                        <div key={f.id} className="flex items-center gap-1.5 mb-1">
+                        <button key={f.id} onClick={()=>setPuasaDetail({icon:f.icon, name:f.name, desc:f.desc, dalil:"Sunnah Mu'akkadah"})} className="w-full text-left flex items-center gap-1.5 mb-1 hover:bg-slate-50 p-1 rounded-lg transition-colors">
                           <span className="text-base">{f.icon}</span>
                           <div><p className="text-xs font-semibold text-slate-700">{f.name}</p><p className="text-[10px] text-slate-400">{f.type==="weekly"?"Mingguan":f.type==="monthly"?"Bulanan":"Tahunan"}</p></div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -1449,24 +1766,46 @@ function PageIbadah() {
           }
         </div>
 
-        {/* Keutamaan summary */}
+        {/* Keutamaan summary - Clickable */}
         <Card ch={<div className="p-5">
-          <Label ch="Puasa Sunnah Utama"/>
-          <div className="flex flex-col gap-3">
+          <Label ch="Puasa Sunnah Utama (Klik untuk Penjelasan)"/>
+          <div className="flex flex-col gap-2">
             {[
-              {icon:"⭐",name:"Asyura (10 Muharram)",    reward:"Menghapus dosa setahun lalu"},
-              {icon:"🕋",name:"Arafah (9 Dzulhijjah)",   reward:"Menghapus dosa 2 tahun"},
-              {icon:"🎉",name:"6 hari Syawal",            reward:"Seperti puasa sepanjang tahun"},
-              {icon:"🌕",name:"Ayyamul Bidh (13-15)",    reward:"Seperti puasa sebulan penuh"},
-              {icon:"☀️",name:"Senin",                    reward:"Hari kelahiran & amalan Nabi ﷺ"},
+              {icon:"⭐",name:"Asyura (10 Muharram)",    reward:"Menghapus dosa setahun lalu", desc:"Puasa pada hari ke-10 Muharram untuk mengenang diselamatkannya Nabi Musa AS dari Fir'aun.", dalil:"HR. Muslim no. 1162"},
+              {icon:"🕋",name:"Arafah (9 Dzulhijjah)",   reward:"Menghapus dosa 2 tahun", desc:"Puasa bagi yang tidak menunaikan ibadah haji pada hari Arafah, menghapus dosa setahun lalu dan setahun yang akan datang.", dalil:"HR. Muslim no. 1162"},
+              {icon:"🎉",name:"6 Hari Syawal",            reward:"Seperti puasa sepanjang tahun", desc:"Barangsiapa berpuasa Ramadan kemudian melanjutkannya dengan 6 hari di bulan Syawal, pahalanya seperti puasa setahun penuh.", dalil:"HR. Muslim no. 1164"},
+              {icon:"🌕",name:"Ayyamul Bidh (13-15)",    reward:"Seperti puasa sebulan penuh", desc:"Puasa tiga hari di pertengahan bulan Hijriah saat bulan purnama sempurna.", dalil:"HR. Tirmidzi no. 761"},
+              {icon:"☀️",name:"Senin & Kamis",            reward:"Hari amalan diangkat kepada Allah", desc:"Rasulullah ﷺ menyukai agar ketika amalannya diangkat, beliau dalam keadaan berpuasa.", dalil:"HR. An-Nasa'i no. 2358"},
             ].map(f=>(
-              <div key={f.name} className="flex items-center gap-3">
+              <button key={f.name} onClick={()=>setPuasaDetail({icon:f.icon, name:f.name, desc:f.desc, dalil:f.dalil})} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
                 <span className="text-xl flex-shrink-0">{f.icon}</span>
                 <div className="flex-1"><p className="text-sm font-semibold text-slate-700">{f.name}</p><p className="text-xs text-slate-400">{f.reward}</p></div>
-              </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0"/>
+              </button>
             ))}
           </div>
         </div>}/>
+
+        {/* Puasa Detail Modal */}
+        {puasaDetail && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{background:"rgba(0,0,0,.4)",backdropFilter:"blur(8px)"}} onClick={()=>setPuasaDetail(null)}>
+            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-2xl flex items-center justify-center mb-3">
+                {puasaDetail.icon}
+              </div>
+              <h3 className="font-bold text-slate-800 text-base">{puasaDetail.name}</h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">{puasaDetail.desc}</p>
+              {puasaDetail.dalil && (
+                <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-500 font-mono">
+                  📚 Dalil: {puasaDetail.dalil}
+                </div>
+              )}
+              <button onClick={()=>setPuasaDetail(null)} className="w-full mt-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all">
+                Mengerti
+              </button>
+            </div>
+          </div>
+        )}
       </>}
     </div>
   );
@@ -1699,11 +2038,13 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
 // ─────────────────────────────────────────────────────────────────────────────
 const NAV = [
   { id:"dashboard" as Page, label:"Dasbor",  Icon:LayoutDashboard },
-  { id:"input"     as Page, label:"Input",   Icon:ClipboardList },
+  { id:"subuh"     as Page, label:"Subuh",   Icon:Sun },
+  { id:"maghrib"   as Page, label:"Maghrib", Icon:Moon },
   { id:"rekap"     as Page, label:"Rekap",   Icon:TrendingUp },
   { id:"riwayat"   as Page, label:"Riwayat", Icon:BookOpen },
-  { id:"ibadah"    as Page, label:"Ibadah",  Icon:Compass },
 ];
+
+const STORAGE_KEY_RECORDS = "presensi_attendance_records_v2";
 
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser|null>(() => {
@@ -1717,10 +2058,38 @@ export default function App() {
       return null;
     }
   });
-  const [records,  setRecords]    = useState<AttendanceRecord[]>(()=>generateRecords());
+
+  const [records, setRecords] = useState<AttendanceRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_RECORDS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    const initial = generateRecords();
+    try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(initial)); } catch {}
+    return initial;
+  });
+
   const [page,     setPage]       = useState<Page>("dashboard");
   const [showLogin, setShowLogin] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
+
+  const showToast = useCallback((message: string, type: "success" | "info" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
+  }, []);
+
+  // Save records to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
+    } catch {}
+  }, [records]);
 
   useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),60000); return()=>clearInterval(t); },[]);
 
@@ -1729,7 +2098,8 @@ export default function App() {
     try {
       localStorage.setItem("presensi_auth_user", JSON.stringify(u));
     } catch {}
-    setPage("input");
+    showToast(`Selamat datang, ${u.name.split(" ")[0]}!`);
+    setPage(new Date().getHours() < 12 ? "subuh" : "maghrib");
   };
 
   const handleLogout = () => {
@@ -1737,6 +2107,7 @@ export default function App() {
     try {
       localStorage.removeItem("presensi_auth_user");
     } catch {}
+    showToast("Anda telah keluar.", "info");
     setPage("dashboard");
   };
 
@@ -1754,11 +2125,31 @@ export default function App() {
   },[handleMark]);
 
   const todayRecs = records.filter(r=>r.date===todayStr());
-  const pending = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh||!r?.maghrib; }).length;
+  const pendingSubuh = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh; }).length;
+  const pendingMaghrib = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
   const hijri = toHijri(now);
 
   return (
     <div className="min-h-screen bg-background" style={{fontFamily:"'Inter',sans-serif"}}>
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-xl border flex items-center gap-2.5 max-w-[90vw] sm:max-w-sm w-auto animate-in fade-in slide-in-from-top-3 duration-200 backdrop-blur-md"
+             style={{
+               backgroundColor: toast.type === "error" ? "rgba(254, 242, 242, 0.95)" : toast.type === "info" ? "rgba(240, 249, 255, 0.95)" : "rgba(236, 253, 245, 0.95)",
+               borderColor: toast.type === "error" ? "#fecaca" : toast.type === "info" ? "#bae6fd" : "#a7f3d0",
+               color: toast.type === "error" ? "#991b1b" : toast.type === "info" ? "#0369a1" : "#065f46"
+             }}>
+          {toast.type === "error" ? (
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          ) : toast.type === "info" ? (
+            <Info className="w-4 h-4 text-sky-600 flex-shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          )}
+          <span className="text-xs font-semibold">{toast.message}</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-emerald-100/80 shadow-sm shadow-black/5">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -1773,8 +2164,8 @@ export default function App() {
           </div>
           {authUser
             ? <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-2 bg-slate-50 rounded-full px-3 py-1.5">
-                  <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-[10px]">{authUser.name[0]}</div>
+                <div className="hidden sm:flex items-center gap-2 bg-slate-50 rounded-full pl-1.5 pr-3 py-1">
+                  <Av name={authUser.name} sz="xs" />
                   <span className="text-xs font-semibold text-slate-700">{authUser.name.split(" ")[0]}</span>
                 </div>
                 <button onClick={handleLogout} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-all"><LogOut className="w-3.5 h-3.5"/></button>
@@ -1787,25 +2178,40 @@ export default function App() {
       {/* Main */}
       <main className="max-w-2xl mx-auto px-4 py-5 pb-28">
         {page==="dashboard" && <PageDashboard records={records} authUser={authUser} onGoTo={setPage}/>}
-        {page==="input"     && <PageInput authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)}/>}
+        {page==="subuh"     && <PageInputPrayer slot="subuh" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>}
+        {page==="maghrib"   && <PageInputPrayer slot="maghrib" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>}
         {page==="rekap"     && <PageRekap records={records}/>}
         {page==="riwayat"   && <PageRiwayat records={records} authUser={authUser} onLogin={()=>setShowLogin(true)}/>}
-        {page==="ibadah"    && <PageIbadah/>}
+        {page==="ibadah"    && <PageIbadah onBack={()=>setPage("dashboard")}/>}
       </main>
 
-      {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-4 pt-2" style={{background:"linear-gradient(to top,rgba(240,253,244,.98) 70%,transparent)"}}>
-        <nav className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl shadow-black/10 ring-1 ring-black/5 px-1 flex">
+      {/* Floating Bottom Nav Dock */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-1 pointer-events-none flex justify-center">
+        <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-3xl shadow-[0_12px_36px_-8px_rgba(6,78,59,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 p-1.5 flex items-center justify-around border border-white/60">
           {NAV.map(nav=>{
             const active = page === nav.id;
-            const badge = nav.id==="input" && authUser && pending > 0;
+            const badgeCount = nav.id === "subuh" ? pendingSubuh : nav.id === "maghrib" ? pendingMaghrib : 0;
+            const showBadge = (nav.id === "subuh" || nav.id === "maghrib") && authUser && badgeCount > 0;
+
             return (
-              <button key={nav.id} onClick={()=>setPage(nav.id)} className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl transition-all duration-200 relative ${active?"text-emerald-600":"text-slate-400 hover:text-slate-600"}`}>
-                <div className={`p-1.5 rounded-xl transition-all duration-200 relative ${active?"bg-emerald-50":""}`}>
-                  <nav.Icon className="w-[18px] h-[18px]"/>
-                  {badge && <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white font-bold">{pending>9?"9+":pending}</span>}
+              <button 
+                key={nav.id} 
+                onClick={()=>setPage(nav.id)} 
+                className={`flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all duration-200 relative active:scale-90 select-none ${
+                  active 
+                    ? (nav.id === "subuh" ? "text-amber-700 bg-amber-50/90 font-bold shadow-2xs" : "text-emerald-700 bg-emerald-50/90 font-bold shadow-2xs") 
+                    : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/60"
+                }`}
+              >
+                <div className="relative">
+                  <nav.Icon className={`w-5 h-5 transition-transform ${active ? "scale-110" : ""}`}/>
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 ring-2 ring-white rounded-full flex items-center justify-center text-[8px] text-white font-bold animate-pulse">
+                      {badgeCount>9?"9+":badgeCount}
+                    </span>
+                  )}
                 </div>
-                <span className="text-[10px] font-semibold">{nav.label}</span>
+                <span className="text-[10px] tracking-tight">{nav.label}</span>
               </button>
             );
           })}
