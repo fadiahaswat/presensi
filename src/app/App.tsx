@@ -18,6 +18,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, PieChart, Pie, Cell
 } from "recharts";
+import mualliminLogo from "./muallimin-logo.png";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -297,12 +298,16 @@ function generateRecords(): AttendanceRecord[] {
   const pool: AttendanceStatus[] = ["hadir","hadir","hadir","hadir","sakit","izin","alfa"];
   const today = new Date();
   MUSYRIF_LIST.forEach(m => {
-    for (let i = 90; i >= 1; i--) {
+    for (let i = 90; i >= 0; i--) {
       const d = new Date(today); d.setDate(d.getDate() - i);
-      out.push({ musyrifId: m.id, date: format(d,"yyyy-MM-dd"),
-        subuh:   pool[Math.floor(Math.random() * pool.length)],
-        maghrib: pool[Math.floor(Math.random() * pool.length)],
-        markedBy:"a1" });
+      const isTodayDate = i === 0;
+      out.push({
+        musyrifId: m.id,
+        date: format(d,"yyyy-MM-dd"),
+        subuh: pool[Math.floor(Math.random() * pool.length)],
+        maghrib: isTodayDate ? (today.getHours() >= 18 ? pool[Math.floor(Math.random() * pool.length)] : undefined) : pool[Math.floor(Math.random() * pool.length)],
+        markedBy: "a1"
+      });
     }
   });
   return out;
@@ -448,6 +453,8 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
   const now = new Date();
 
   const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
+  const [asramaCampus, setAsramaCampus] = useState<"all" | "sparman" | "sedayu">("all");
+  const [expandedAsrama, setExpandedAsrama] = useState<string | null>(null);
 
   const prayerTimes = calcPrayerTimes(now, -7.7956, 110.3695, 7);
   const hijri = toHijri(now);
@@ -515,7 +522,7 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"/>
                 <p className="text-emerald-100 text-[11px] font-mono tracking-tight">{hijri.day} {hijri.monthName} {hijri.year} H</p>
               </div>
-              <h1 className="text-white text-2xl sm:text-3xl font-extrabold tracking-tight">{authUser ? `Halo, ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
+              <h1 className="text-white text-2xl sm:text-3xl font-extrabold tracking-tight">{authUser ? `Halo, Ustadz ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
               <p className="text-emerald-200/90 text-xs sm:text-sm mt-0.5">{format(now,"EEEE, d MMMM yyyy",{locale:id})}</p>
             </div>
             <button onClick={()=>onGoTo("ibadah")} className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-right hover:bg-white/20 transition-all active:scale-95 border border-white/15 shadow-inner">
@@ -540,109 +547,141 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
 
       {/* Sunnah fast alert */}
       {todayFasts.length > 0 && (
-        <div className="flex items-start gap-3 bg-gradient-to-r from-amber-50/90 to-orange-50/80 border border-amber-200/80 rounded-2xl p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]" onClick={()=>onGoTo("ibadah")}>
+        <div className="flex items-start gap-3 bg-gradient-to-r from-amber-50/90 via-amber-50/70 to-orange-50/80 border border-amber-200/70 rounded-3xl p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99]" onClick={()=>onGoTo("ibadah")}>
           <span className="text-2xl">{todayFasts[0].icon}</span>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-amber-900">{todayFasts[0].name}</p>
-            <p className="text-xs text-amber-700 mt-0.5">{todayFasts[0].desc}</p>
-            {todayFasts.length > 1 && <p className="text-xs text-amber-600 mt-1 font-medium">+{todayFasts.length-1} puasa sunnah lainnya</p>}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-amber-900">{todayFasts[0].name}</span>
+              <span className="text-[9px] bg-amber-200/70 text-amber-900 font-bold px-2 py-0.5 rounded-full">Sunnah</span>
+            </div>
+            <p className="text-xs text-amber-700 mt-0.5 leading-snug">{todayFasts[0].desc}</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-amber-400 mt-1"/>
+          <ChevronRight className="w-4 h-4 text-amber-400 mt-1 flex-shrink-0"/>
         </div>
       )}
 
-      {/* Alert - belum presensi terpisah Subuh & Maghrib */}
-      {authUser && (belumS.length > 0 || belumM.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {belumS.length > 0 && (
-            <button onClick={()=>onGoTo("subuh")} className="flex items-center gap-3 bg-amber-50/90 border border-amber-200/80 rounded-2xl p-3.5 text-left hover:bg-amber-100/90 hover:shadow-sm transition-all active:scale-[0.99]">
-              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
-                <Sun className="w-5 h-5"/>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-amber-900">Belum Lengkap Subuh</p>
-                <p className="text-[11px] text-amber-700 mt-0.5 truncate font-mono">{belumS.length} musyrif belum terisi</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-amber-400 flex-shrink-0"/>
-            </button>
-          )}
-          {belumM.length > 0 && (
-            <button onClick={()=>onGoTo("maghrib")} className="flex items-center gap-3 bg-indigo-50/90 border border-indigo-200/80 rounded-2xl p-3.5 text-left hover:bg-indigo-100/90 hover:shadow-sm transition-all active:scale-[0.99]">
-              <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                <Moon className="w-5 h-5"/>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-indigo-900">Belum Lengkap Maghrib</p>
-                <p className="text-[11px] text-indigo-700 mt-0.5 truncate font-mono">{belumM.length} musyrif belum terisi</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-indigo-400 flex-shrink-0"/>
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* CTA: Pisahkan tombol Input Subuh dan Input Maghrib */}
+      {/* Unicorn Action Cards (Consolidating alert + CTA into 2 powerful interactive cards) */}
       {authUser
-        ? <div className="grid grid-cols-2 gap-3">
+        ? <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* Subuh Action Card */}
             <button
               onClick={()=>onGoTo("subuh")}
-              className="group flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 text-white rounded-3xl shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30 active:scale-[0.98] transition-all text-left relative overflow-hidden border border-white/10"
+              className="group relative flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 text-white rounded-3xl shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/35 active:scale-[0.98] transition-all text-left overflow-hidden border border-white/15"
             >
-              <div className="flex items-center justify-between w-full mb-4">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+              <div className="flex items-center justify-between w-full mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
                   <Sun className="w-5 h-5"/>
                 </div>
-                <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono">{sh}/{total}</span>
+                <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full font-mono">
+                  {sh}/{total}
+                </span>
               </div>
+              
               <div>
-                <p className="font-bold text-base sm:text-lg leading-tight">Presensi Subuh</p>
-                <p className="text-amber-100 text-xs mt-0.5">Isi kehadiran pagi</p>
+                <p className="font-extrabold text-base sm:text-lg leading-tight tracking-tight">Presensi Subuh</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    belumS.length > 0 ? "bg-amber-950/25 text-amber-100" : "bg-emerald-950/25 text-emerald-100"
+                  }`}>
+                    {belumS.length > 0 ? `${belumS.length} belum terisi` : "Lengkap ✓"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress bar inside card */}
+              <div className="w-full bg-white/20 h-1 rounded-full mt-3 overflow-hidden">
+                <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(sh/total)*100:0}%`}}/>
               </div>
             </button>
 
+            {/* Maghrib Action Card */}
             <button
               onClick={()=>onGoTo("maghrib")}
-              className="group flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-emerald-600 via-teal-600 to-teal-700 text-white rounded-3xl shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 active:scale-[0.98] transition-all text-left relative overflow-hidden border border-white/10"
+              className="group relative flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-emerald-600 via-teal-600 to-teal-700 text-white rounded-3xl shadow-lg shadow-emerald-600/25 hover:shadow-xl hover:shadow-emerald-600/35 active:scale-[0.98] transition-all text-left overflow-hidden border border-white/15"
             >
-              <div className="flex items-center justify-between w-full mb-4">
-                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+              <div className="flex items-center justify-between w-full mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
                   <Moon className="w-5 h-5"/>
                 </div>
-                <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono">{mh}/{total}</span>
+                <span className="text-xs font-bold bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full font-mono">
+                  {mh}/{total}
+                </span>
               </div>
+
               <div>
-                <p className="font-bold text-base sm:text-lg leading-tight">Presensi Maghrib</p>
-                <p className="text-emerald-100 text-xs mt-0.5">Isi kehadiran petang</p>
+                <p className="font-extrabold text-base sm:text-lg leading-tight tracking-tight">Presensi Maghrib</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    belumM.length > 0 ? "bg-teal-950/25 text-teal-100" : "bg-emerald-950/25 text-emerald-100"
+                  }`}>
+                    {belumM.length > 0 ? `${belumM.length} belum terisi` : "Lengkap ✓"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress bar inside card */}
+              <div className="w-full bg-white/20 h-1 rounded-full mt-3 overflow-hidden">
+                <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(mh/total)*100:0}%`}}/>
               </div>
             </button>
           </div>
         : <Card ch={<div className="px-5 py-4 flex items-center gap-3"><Info className="w-5 h-5 text-emerald-500 flex-shrink-0"/><p className="text-sm text-slate-500">Rekap <b className="text-slate-800">publik</b>. Pamong/koordinator login untuk input presensi.</p></div>}/>
       }
 
-      {/* Today overview */}
-      <Card ch={<div className="p-5 flex items-center gap-4">
-        <div>
-          <PieChart width={80} height={80}>
-            <Pie data={donutData} cx={40} cy={40} innerRadius={26} outerRadius={38} paddingAngle={2} dataKey="value" startAngle={90} endAngle={-270}>
-              {donutData.map((e,i)=><Cell key={i} fill={e.color}/>)}
-            </Pie>
-          </PieChart>
-        </div>
-        <div className="flex-1">
-          <p className="font-bold text-slate-800 mb-2">Ringkasan Hari Ini</p>
-          <div className="flex flex-col gap-1">
-            {donutData.map(d=>(
-              <div key={d.name} className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:d.color}}/>
-                <span className="text-xs text-slate-500 flex-1">{d.name}</span>
-                <span className="text-xs font-bold text-slate-700 font-mono">{d.value}</span>
-              </div>
-            ))}
+      {/* Modern Unicorn Overview Card */}
+      <Card ch={<div className="p-4 sm:p-5 flex items-center gap-4 sm:gap-5">
+        {/* Pixel-Perfect SVG Circular Ring */}
+        <div className="relative w-[88px] h-[88px] flex-shrink-0 flex items-center justify-center">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 90 90">
+            {/* Background Track */}
+            <circle
+              cx="45"
+              cy="45"
+              r="34"
+              className="stroke-slate-100"
+              strokeWidth="8"
+              fill="transparent"
+            />
+            {/* Active Emerald Progress Ring */}
+            <circle
+              cx="45"
+              cy="45"
+              r="34"
+              className="stroke-emerald-600 transition-all duration-700 ease-out"
+              strokeWidth="8"
+              strokeDasharray={213.63}
+              strokeDashoffset={213.63 * (1 - (allTodayPossible ? todayHadir / allTodayPossible : 0))}
+              strokeLinecap="round"
+              fill="transparent"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-sm font-extrabold text-slate-900 font-mono tracking-tight leading-none">
+              {allTodayPossible ? Math.round((todayHadir / allTodayPossible) * 100) : 0}%
+            </span>
+            <span className="text-[9px] text-slate-400 font-medium mt-0.5 leading-none">Hadir</span>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-bold text-emerald-600 font-mono">{total ? Math.round(todayHadir/allTodayPossible*100) : 0}<span className="text-base font-normal text-slate-400">%</span></p>
-          <p className="text-[10px] text-slate-400 mt-0.5">kehadiran</p>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-bold text-sm text-slate-800">Ringkasan Hari Ini</p>
+            <span className="text-[10px] text-slate-400 font-mono">{format(now,"d MMM yyyy")}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="bg-emerald-50/90 rounded-2xl p-2 text-center border border-emerald-200/60 shadow-2xs">
+              <span className="text-[9px] text-emerald-700 font-semibold block leading-tight">Hadir</span>
+              <span className="text-xs font-extrabold text-emerald-800 font-mono mt-0.5 block">{todayHadir}</span>
+            </div>
+            <div className="bg-amber-50/90 rounded-2xl p-2 text-center border border-amber-200/60 shadow-2xs">
+              <span className="text-[9px] text-amber-700 font-semibold block leading-tight">Izin/Skt</span>
+              <span className="text-xs font-extrabold text-amber-800 font-mono mt-0.5 block">{todayLain}</span>
+            </div>
+            <div className="bg-slate-100/90 rounded-2xl p-2 text-center border border-slate-200/60 shadow-2xs">
+              <span className="text-[9px] text-slate-600 font-semibold block leading-tight">Belum</span>
+              <span className="text-xs font-extrabold text-slate-700 font-mono mt-0.5 block">{todayBelum}</span>
+            </div>
+          </div>
         </div>
       </div>}/>
 
@@ -664,40 +703,143 @@ function PageDashboard({ records, authUser, onGoTo }: { records: AttendanceRecor
         </div>
       </div>}/>
 
-      {/* Per asrama - Clickable to open presensi */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest font-mono">Status Per Asrama Hari Ini</p>
-          <span className="text-[10px] text-emerald-600 font-semibold cursor-pointer hover:underline" onClick={()=>onGoTo("rekap")}>Lihat Rekap Lengkap →</span>
-        </div>
-        <div className="flex flex-col gap-2">
-          {ASRAMAS.map(a => {
-            const ins = MUSYRIF_LIST.filter(m=>m.asrama===a);
-            const rs = todayRecs.filter(r=>ins.some(m=>m.id===r.musyrifId));
-            const sh2=rs.filter(r=>r.subuh==="hadir").length, mh2=rs.filter(r=>r.maghrib==="hadir").length;
-            const pct = ins.length ? Math.round((sh2+mh2)/(ins.length*2)*100) : 0;
-            const kelasList = Array.from(new Set(ins.map(m=>m.kelas))).join(", ");
-            return (
-              <button 
-                key={a} 
-                onClick={()=>onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
-                className="w-full bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-4 py-3.5 flex items-center gap-4 text-left hover:ring-emerald-300 hover:shadow-md transition-all active:scale-[0.99]"
+      {/* High-Utility Compact Asrama Command Matrix */}
+      <Card ch={<div>
+        {/* Header & Filter Tabs */}
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+              <Users className="w-3.5 h-3.5"/>
+            </div>
+            <div>
+              <p className="font-bold text-sm text-slate-800 leading-tight">Matriks Presensi Asrama</p>
+              <p className="text-[10px] text-slate-400 font-mono">Hari ini · {ASRAMAS.length} Unit Asrama</p>
+            </div>
+          </div>
+
+          {/* Campus Filter Pills */}
+          <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
+            {[
+              { id: "all", label: "Semua", count: 8 },
+              { id: "sparman", label: "S. Parman", count: 5 },
+              { id: "sedayu", label: "Sedayu", count: 3 }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setAsramaCampus(tab.id as any)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                  asramaCampus === tab.id
+                    ? "bg-white text-emerald-800 shadow-2xs font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
               >
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><Users className="w-4 h-4 text-emerald-600"/></div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-1.5"><p className="font-semibold text-sm text-slate-800 truncate">{a}</p><span className="text-xs font-bold text-slate-700 font-mono flex-shrink-0">{pct}%</span></div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{width:`${pct}%`}}/></div>
-                  <div className="flex items-center justify-between gap-2 mt-1 text-[10px] text-slate-400">
-                    <span className="truncate text-slate-500 font-medium">{kelasList}</span>
-                    <span className="flex-shrink-0 font-mono">S:{sh2}/{ins.length} · M:{mh2}/{ins.length}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Compact Matrix Table */}
+        <div className="divide-y divide-slate-50">
+          {ASRAMAS.filter(a => {
+            if (asramaCampus === "sparman") return !a.toLowerCase().includes("sedayu");
+            if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
+            return true;
+          }).map(a => {
+            const ins = MUSYRIF_LIST.filter(m => m.asrama === a);
+            const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
+            const sh2 = rs.filter(r => r.subuh === "hadir").length;
+            const mh2 = rs.filter(r => r.maghrib === "hadir").length;
+            const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
+            const isExpanded = expandedAsrama === a;
+
+            return (
+              <div key={a} className="transition-colors">
+                <div 
+                  onClick={() => setExpandedAsrama(isExpanded ? null : a)}
+                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 cursor-pointer select-none"
+                >
+                  {/* Asrama info */}
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-slate-300"
+                    }`}/>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate leading-tight">{a}</p>
+                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">{ins.length} musyrif</p>
+                    </div>
+                  </div>
+
+                  {/* Subuh & Maghrib Pills */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                      sh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                      sh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-400 border-slate-200/60"
+                    }`}>
+                      S: {sh2}/{ins.length}
+                    </span>
+
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                      mh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                      mh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-400 border-slate-200/60"
+                    }`}>
+                      M: {mh2}/{ins.length}
+                    </span>
+
+                    <span className={`w-11 text-right text-xs font-extrabold font-mono ${
+                      pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"
+                    }`}>
+                      {pct}%
+                    </span>
+
+                    <ChevronDown className={`w-4 h-4 text-slate-300 transition-transform duration-200 ${isExpanded ? "rotate-180 text-emerald-600" : ""}`}/>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0"/>
-              </button>
+
+                {/* Expanded Musyrif Roster & Quick Actions */}
+                {isExpanded && (
+                  <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 space-y-2 animate-in fade-in duration-150">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">Daftar Musyrif ({ins.length})</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ins.map(m => {
+                        const rec = todayRecs.find(r => r.musyrifId === m.id);
+                        return (
+                          <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Av name={m.name} src={m.photo} sz="xs"/>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-slate-800 truncate">{m.name}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{m.kelas}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                rec?.subuh === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-400"
+                              }`}>S:{rec?.subuh ? S[rec.subuh].short : "–"}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                rec?.maghrib === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-400"
+                              }`}>M:{rec?.maghrib ? S[rec.maghrib].short : "–"}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5"/>
+                        <span>Buka Form Presensi {a}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
-      </div>
+      </div>}/>
 
       {/* Streak leaderboard - Clickable to open detail */}
       <div>
@@ -827,11 +969,30 @@ function PageInputPrayer({
   const [noteText, setNoteText] = useState("");
   const [confirmAll, setConfirmAll] = useState<PrayerSlot | null>(null);
 
-  if (!authUser) return (
-    <div className="flex flex-col items-center justify-center gap-6 py-24 text-center px-4">
-      <div className="w-20 h-20 rounded-3xl bg-emerald-50 flex items-center justify-center"><Lock className="w-9 h-9 text-emerald-500"/></div>
-      <div><h2 className="text-xl font-bold text-slate-800">Akses Terbatas</h2><p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto leading-relaxed">Hanya pamong dan koordinator yang berwenang mengisi presensi.</p></div>
-      <button onClick={onLogin} className="flex items-center gap-2 bg-emerald-600 text-white font-semibold px-7 py-3.5 rounded-2xl shadow-lg shadow-emerald-500/25 hover:bg-emerald-700 transition-all"><LogIn className="w-4 h-4"/>Masuk dengan Google</button>
+  if (!authUser || authUser.role === "musyrif") return (
+    <div className="flex flex-col items-center justify-center gap-6 py-20 text-center px-4">
+      <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center shadow-xs">
+        <Lock className="w-8 h-8 text-amber-600"/>
+      </div>
+      <div>
+        <h2 className="text-xl font-bold text-slate-800">
+          {authUser?.role === "musyrif" ? "Akses Khusus Pamong & Koordinator" : "Akses Terbatas"}
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-sm mx-auto leading-relaxed">
+          {authUser?.role === "musyrif"
+            ? "Akun Musyrif hanya memiliki hak akses untuk melihat Riwayat Presensi pribadi. Pengisian presensi ibadah dilakukan oleh Pamong Asrama dan Koordinator."
+            : "Silakan masuk dengan akun Google Pamong atau Koordinator untuk mengisi presensi."}
+        </p>
+      </div>
+      {authUser?.role === "musyrif" ? (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-medium max-w-xs">
+          💡 Silakan buka tab <b>Riwayat</b> pada navigasi di bawah untuk melihat kalender dan status kehadiran Anda.
+        </div>
+      ) : (
+        <button onClick={onLogin} className="flex items-center gap-2 bg-emerald-600 text-white font-semibold px-6 py-3 rounded-2xl shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all text-xs">
+          <LogIn className="w-4 h-4"/> Masuk Akun Google
+        </button>
+      )}
     </div>
   );
 
@@ -865,110 +1026,159 @@ function PageInputPrayer({
   const otherSlot: PrayerSlot = isSubuh ? "maghrib" : "subuh";
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Page Header with slot switcher */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-md ${
-            isSubuh ? "bg-amber-500 text-white shadow-amber-500/20" : "bg-emerald-600 text-white shadow-emerald-600/20"
-          }`}>
-            {isSubuh ? <Sun className="w-6 h-6"/> : <Moon className="w-6 h-6"/>}
+    <div className="flex flex-col gap-3">
+      {/* 1. Unified Master Header Card */}
+      <div className="bg-white rounded-3xl p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
+        {/* Top title & Switch button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 ${
+              isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-emerald-600 text-white shadow-emerald-600/25"
+            }`}>
+              {isSubuh ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                {isSubuh ? "Presensi Subuh" : "Presensi Maghrib"}
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {isSubuh ? "Ibadah Shubuh Berjamaah" : "Ibadah Maghrib Berjamaah"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">{isSubuh ? "Presensi Subuh" : "Presensi Maghrib"}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">{isSubuh ? "Presensi ibadah shubuh berjamaah" : "Presensi ibadah maghrib berjamaah"}</p>
+
+          {onSwitchSlot && (
+            <button
+              onClick={() => onSwitchSlot(otherSlot)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 ${
+                isSubuh 
+                  ? "text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80" 
+                  : "text-amber-700 ring-amber-200 bg-amber-50 hover:bg-amber-100/80"
+              }`}
+            >
+              {isSubuh ? <Moon className="w-3.5 h-3.5 text-emerald-600"/> : <Sun className="w-3.5 h-3.5 text-amber-500"/>}
+              <span>Ke {isSubuh ? "Maghrib" : "Subuh"}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Integrated Date Navigation Row */}
+        <div className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-1.5 border border-slate-100/80">
+          <button 
+            onClick={prevDay} 
+            title="Hari sebelumnya"
+            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
+          >
+            <ChevronLeft className="w-4 h-4"/>
+          </button>
+
+          <div className="flex-1 text-center px-1">
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="font-bold text-xs text-slate-800 font-mono">
+                {format(parseISO(selDate),"EEE, d MMM yyyy",{locale:id})}
+              </span>
+              {isToday(parseISO(selDate)) && (
+                <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-md font-bold font-mono">
+                  Hari ini
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+              {hijriSel.day} {hijriSel.monthName} {hijriSel.year} H
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <label className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer active:scale-95 transition-all relative" title="Pilih tanggal">
+              <Calendar className="w-3.5 h-3.5"/>
+              <input 
+                type="date" 
+                value={selDate} 
+                onChange={e=>setSelDate(e.target.value)} 
+                max={todayStr()} 
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </label>
+            <button 
+              onClick={nextDay} 
+              disabled={selDate >= todayStr()} 
+              title="Hari berikutnya"
+              className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all"
+            >
+              <ChevronRight className="w-4 h-4"/>
+            </button>
           </div>
         </div>
 
-        {onSwitchSlot && (
-          <button
-            onClick={() => onSwitchSlot(otherSlot)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
-              isSubuh ? "text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100" : "text-amber-700 ring-amber-200 bg-amber-50 hover:bg-amber-100"
-            }`}
-          >
-            {isSubuh ? <Moon className="w-3.5 h-3.5"/> : <Sun className="w-3.5 h-3.5"/>}
-            <span>Ke {isSubuh ? "Maghrib" : "Subuh"}</span>
-          </button>
+        {/* Asrama Filter Pills */}
+        {fullAccess && (
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
+            {ASRAMAS.map(a => (
+              <button
+                key={a}
+                onClick={() => setSelAsrama(a)}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                  selAsrama === a
+                    ? (isSubuh ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25" : "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25")
+                    : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                }`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Date navigator */}
-      <Card ch={<div className="p-3 flex items-center gap-2">
-        <button onClick={prevDay} className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all flex-shrink-0">
-          <ChevronLeft className="w-5 h-5 text-slate-500"/>
-        </button>
-        <div className="flex-1 text-center">
-          <p className="font-bold text-sm text-slate-800">{format(parseISO(selDate),"EEEE, d MMMM yyyy",{locale:id})}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{hijriSel.day} {hijriSel.monthName} {hijriSel.year} H</p>
-          {isToday(parseISO(selDate)) && <span className="inline-block text-[10px] bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-semibold mt-1">Hari ini</span>}
-        </div>
-        <button onClick={nextDay} disabled={selDate >= todayStr()} className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
-          <ChevronRight className="w-5 h-5 text-slate-500"/>
-        </button>
-      </div>}/>
-
-      {/* Show date picker fallback */}
-      <details className="bg-white ring-1 ring-slate-100 rounded-2xl px-4 py-3">
-        <summary className="text-xs text-slate-400 cursor-pointer select-none flex items-center gap-2 font-semibold">
-          <Calendar className="w-3.5 h-3.5"/>Pilih tanggal spesifik
-        </summary>
-        <input type="date" value={selDate} onChange={e=>setSelDate(e.target.value)} max={todayStr()}
-          className="mt-3 w-full text-sm text-slate-800 bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"/>
-      </details>
-
-      {isFuture && <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0"/>Tidak bisa mengisi presensi untuk tanggal yang akan datang.</div>}
-
-      {/* User info */}
-      <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
-        <Av name={authUser.name} sz="md" />
-        <div className="flex-1"><p className="font-semibold text-sm text-slate-800">{authUser.name}</p><p className="text-xs text-slate-400">{{pamong:"Pamong",koordinator_musyrif:"Koordinator Musyrif",koordinator_gedung:`Koordinator Gedung · ${authUser.asrama}`,musyrif:`Musyrif · ${authUser.asrama}`}[authUser.role]}</p></div>
-      </div>
-
-      {/* Asrama tabs */}
-      {fullAccess && (
-        <div className="flex gap-1.5 p-1 bg-slate-100 rounded-2xl overflow-x-auto">
-          {ASRAMAS.map(a=>(
-            <button key={a} onClick={()=>setSelAsrama(a)} className={`flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${selAsrama===a?"bg-white text-emerald-600 shadow-sm":"text-slate-500 hover:text-slate-700"}`}>{a}</button>
-          ))}
+      {isFuture && (
+        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl px-4 py-2.5 text-xs text-amber-700 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0"/>
+          <span>Tidak bisa mengisi presensi untuk tanggal yang akan datang.</span>
         </div>
       )}
 
-      {/* Progress */}
+      {/* 2. Compact Progress & Quick Action Bar */}
       {!isFuture && (
-        <Card ch={<div className="px-4 py-3.5">
-          <div className="flex justify-between mb-2">
-            <span className="text-sm font-semibold text-slate-700">Progress {isSubuh ? "Subuh" : "Maghrib"} · {activeAsrama}</span>
-            <span className={`text-sm font-bold font-mono ${isSubuh ? "text-amber-600" : "text-emerald-600"}`}>{doneCount}/{musyrifList.length}</span>
+        <div className="bg-white rounded-2xl p-3 sm:p-3.5 shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-bold text-slate-700 truncate">Progress {activeAsrama}</span>
+              <span className={`text-xs font-bold font-mono ${isSubuh ? "text-amber-600" : "text-emerald-600"}`}>
+                {doneCount}/{musyrifList.length} <span className="text-[10px] text-slate-400 font-normal">({musyrifList.length ? Math.round((doneCount/musyrifList.length)*100) : 0}%)</span>
+              </span>
+            </div>
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${isSubuh ? "bg-amber-500" : "bg-emerald-500"}`}
+                style={{width:`${musyrifList.length?(doneCount/musyrifList.length)*100:0}%`}}
+              />
+            </div>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${isSubuh ? "bg-amber-500" : "bg-emerald-500"}`}
-              style={{width:`${musyrifList.length?(doneCount/musyrifList.length)*100:0}%`}}
-            />
-          </div>
-          {doneCount===musyrifList.length&&musyrifList.length>0&&<p className="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5"/>Semua musyrif sudah dipresensi {isSubuh ? "Subuh" : "Maghrib"}!</p>}
-        </div>}/>
+
+          {doneCount < musyrifList.length && (
+            <button
+              onClick={()=>setConfirmAll(slot)}
+              className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 ${
+                isSubuh
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5"/> Semua Hadir
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Batch hadir */}
-      {!isFuture && (
-        <button
-          onClick={()=>setConfirmAll(slot)}
-          className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm active:scale-[0.99] ${
-            isSubuh
-              ? "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
-              : "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
-          }`}
-        >
-          <Zap className="w-4 h-4"/>Tandai Semua Hadir {isSubuh ? "Subuh" : "Maghrib"}
-        </button>
-      )}
-
-      {/* Search */}
+      {/* 3. Search Bar */}
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari musyrif..." className="w-full pl-10 pr-4 py-2.5 bg-white ring-1 ring-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"/>
+        <input 
+          value={search} 
+          onChange={e=>setSearch(e.target.value)} 
+          placeholder="Cari nama musyrif..." 
+          className="w-full pl-10 pr-4 py-2 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
+        />
       </div>
 
       {/* Cards: Single prayer focused view */}
@@ -1121,99 +1331,189 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
   const detailRecs = detail ? mRecs.filter(r=>r.musyrifId===detail.id) : [];
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-start justify-between">
-        <div><h2 className="text-2xl font-bold text-slate-900">Rekap Presensi</h2><p className="text-sm text-slate-400 mt-0.5">Data terbuka untuk publik</p></div>
-        <button onClick={()=>exportPDF(records,viewMonth,filterAsrama)} className="flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-500/25">
-          <Printer className="w-3.5 h-3.5"/>PDF
+    <div className="flex flex-col gap-4 sm:gap-5">
+      {/* 1. Header with PDF Export */}
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Rekap Presensi</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Analisis & statistik kehadiran bulanan</p>
+        </div>
+        <button 
+          onClick={()=>exportPDF(records,viewMonth,filterAsrama)} 
+          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-2xl transition-all shadow-md shadow-emerald-600/20 active:scale-95 flex-shrink-0"
+        >
+          <Printer className="w-3.5 h-3.5"/>
+          <span>Cetak PDF</span>
         </button>
       </div>
 
-      {/* Month nav */}
-      <div className="flex items-center gap-3">
-        <button onClick={()=>setViewMonth(subMonths(viewMonth,1))} className="w-9 h-9 rounded-xl bg-white ring-1 ring-slate-100 flex items-center justify-center hover:ring-emerald-300 transition-all"><ChevronLeft className="w-4 h-4 text-slate-400"/></button>
-        <div className="flex-1 text-center font-bold text-slate-800">{format(viewMonth,"MMMM yyyy",{locale:id})}</div>
-        <button onClick={()=>setViewMonth(addMonths(viewMonth,1))} className="w-9 h-9 rounded-xl bg-white ring-1 ring-slate-100 flex items-center justify-center hover:ring-emerald-300 transition-all"><ChevronRight className="w-4 h-4 text-slate-400"/></button>
+      {/* 2. Sleek Month Selector */}
+      <div className="bg-white rounded-2xl p-2 shadow-xs ring-1 ring-slate-200/80 flex items-center justify-between gap-2">
+        <button 
+          onClick={()=>setViewMonth(subMonths(viewMonth,1))} 
+          className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-600 flex items-center justify-center transition-all"
+        >
+          <ChevronLeft className="w-4 h-4"/>
+        </button>
+        <div className="text-center font-bold text-xs sm:text-sm text-slate-800 font-mono">
+          {format(viewMonth,"MMMM yyyy",{locale:id})}
+        </div>
+        <button 
+          onClick={()=>setViewMonth(addMonths(viewMonth,1))} 
+          className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-600 flex items-center justify-center transition-all"
+        >
+          <ChevronRight className="w-4 h-4"/>
+        </button>
       </div>
 
-      {/* Rate cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-4 text-white shadow-lg shadow-amber-400/20">
-          <div className="flex items-center gap-1.5 mb-2"><Sun className="w-4 h-4 opacity-80"/><span className="text-xs font-semibold opacity-80">Subuh</span></div>
-          <p className="text-4xl font-bold font-mono">{rate("subuh")}<span className="text-lg opacity-70">%</span></p>
-          <p className="text-xs opacity-60 mt-1">{days.length}h · {fMusyrif.length} musyrif</p>
+      {/* 3. High-Impact Rate Cards */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-orange-500 rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-amber-500/25 border border-white/15">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Sun className="w-4 h-4 opacity-90"/>
+              <span className="text-xs font-semibold">Subuh</span>
+            </div>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-mono font-bold">Rata-rata</span>
+          </div>
+          <p className="text-3xl sm:text-4xl font-extrabold font-mono tracking-tight leading-none mt-1">
+            {rate("subuh")}<span className="text-base font-normal opacity-80">%</span>
+          </p>
+          <p className="text-[11px] text-amber-100 mt-2 font-mono">{days.length} hari · {fMusyrif.length} musyrif</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20">
-          <div className="flex items-center gap-1.5 mb-2"><Moon className="w-4 h-4 opacity-80"/><span className="text-xs font-semibold opacity-80">Maghrib</span></div>
-          <p className="text-4xl font-bold font-mono">{rate("maghrib")}<span className="text-lg opacity-70">%</span></p>
-          <p className="text-xs opacity-60 mt-1">{days.length}h · {fMusyrif.length} musyrif</p>
+
+        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-teal-700 rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-emerald-600/25 border border-white/15">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Moon className="w-4 h-4 opacity-90"/>
+              <span className="text-xs font-semibold">Maghrib</span>
+            </div>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-mono font-bold">Rata-rata</span>
+          </div>
+          <p className="text-3xl sm:text-4xl font-extrabold font-mono tracking-tight leading-none mt-1">
+            {rate("maghrib")}<span className="text-base font-normal opacity-80">%</span>
+          </p>
+          <p className="text-[11px] text-emerald-100 mt-2 font-mono">{days.length} hari · {fMusyrif.length} musyrif</p>
         </div>
       </div>
 
-      {/* Weekly chart */}
-      <Card ch={<div className="p-5">
-        <Label ch="Tren Mingguan"/>
-        <ResponsiveContainer width="100%" height={120}>
-          <LineChart data={weeklyData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+      {/* 4. Weekly Trend Chart */}
+      <Card ch={<div className="p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren Kehadiran Mingguan</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-600"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={130}>
+          <LineChart data={weeklyData} margin={{top:5,right:10,left:-20,bottom:0}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false}/>
             <XAxis dataKey="week" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
-            <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`} width={30}/>
-            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,.08)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
-            <Line type="monotone" dataKey="subuh"   stroke="#f59e0b" strokeWidth={2.5} dot={{r:4,fill:"#f59e0b"}} name="subuh"/>
-            <Line type="monotone" dataKey="maghrib" stroke="#059669" strokeWidth={2.5} dot={{r:4,fill:"#059669"}} name="maghrib"/>
+            <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
+            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:14,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
+            <Line type="monotone" dataKey="subuh"   stroke="#f59e0b" strokeWidth={3} dot={{r:4,fill:"#f59e0b",strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} name="subuh"/>
+            <Line type="monotone" dataKey="maghrib" stroke="#059669" strokeWidth={3} dot={{r:4,fill:"#059669",strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} name="maghrib"/>
           </LineChart>
         </ResponsiveContainer>
       </div>}/>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2 overflow-x-auto pb-0.5">
+      {/* 5. Asrama Filter & Search Row */}
+      <div className="flex flex-col gap-2.5">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
           {["Semua",...ASRAMAS].map(a=>(
-            <button key={a} onClick={()=>setFilterAsrama(a)} className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${filterAsrama===a?"bg-emerald-600 text-white shadow-md shadow-emerald-500/25":"bg-white ring-1 ring-slate-200 text-slate-500 hover:ring-emerald-300"}`}>{a}</button>
+            <button 
+              key={a} 
+              onClick={()=>setFilterAsrama(a)} 
+              className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                filterAsrama===a
+                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25"
+                  : "bg-white ring-1 ring-slate-200/80 text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+              }`}
+            >
+              {a}
+            </button>
           ))}
         </div>
         <div className="flex gap-2">
-          <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari musyrif..." className="w-full pl-9 pr-3 py-2 bg-white ring-1 ring-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"/></div>
-          <button onClick={()=>setSortBy(s=>s==="pct"?"name":"pct")} className="bg-white ring-1 ring-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 flex items-center gap-1 hover:ring-emerald-300 transition-all"><SlidersHorizontal className="w-3.5 h-3.5"/>{sortBy==="pct"?"%":"A-Z"}</button>
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+            <input 
+              value={search} 
+              onChange={e=>setSearch(e.target.value)} 
+              placeholder="Cari nama musyrif..." 
+              className="w-full pl-10 pr-3 py-2.5 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
+            />
+          </div>
+          <button 
+            onClick={()=>setSortBy(s=>s==="pct"?"name":"pct")} 
+            className="bg-white ring-1 ring-slate-200/80 rounded-2xl px-3.5 py-2.5 text-xs text-slate-600 font-semibold flex items-center gap-1.5 hover:bg-slate-50 active:scale-95 transition-all shadow-2xs"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400"/>
+            <span>{sortBy==="pct" ? "Peringkat %" : "Nama A-Z"}</span>
+          </button>
         </div>
       </div>
 
-      {/* Ranking */}
+      {/* 6. Leaderboard Ranking */}
       <Card ch={<div>
-        <div className="px-5 py-4 border-b border-slate-50 flex justify-between items-center">
-          <p className="font-bold text-slate-800">Peringkat Kehadiran</p>
-          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-mono">{ranked.length} musyrif</span>
+        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+          <p className="font-bold text-sm text-slate-800">Peringkat Kehadiran</p>
+          <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full font-mono font-semibold">
+            {ranked.length} musyrif
+          </span>
         </div>
         <div className="divide-y divide-slate-50">
           {ranked.map((m,i)=>(
-            <button key={m.id} onClick={()=>setDetail(m)} className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left">
-              <span className={`w-5 text-sm font-bold text-center flex-shrink-0 font-mono ${i<3?["text-amber-400","text-slate-400","text-amber-600"][i]:"text-slate-300"}`}>{i+1}</span>
+            <button 
+              key={m.id} 
+              onClick={()=>setDetail(m)} 
+              className="w-full px-4 sm:px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50/80 transition-all text-left group"
+            >
+              <span className={`w-6 text-sm font-bold text-center flex-shrink-0 font-mono ${
+                i===0 ? "text-amber-500 text-base" : i===1 ? "text-slate-400 text-base" : i===2 ? "text-amber-700 text-base" : "text-slate-300"
+              }`}>
+                {i < 3 ? ["🥇","🥈","🥉"][i] : i+1}
+              </span>
               <Av name={m.name} src={m.photo} sz="sm"/>
-              <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-[10px] text-slate-400">{m.asrama} · S:{m.sh}/{days.length} M:{m.mh}/{days.length}</p></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate group-hover:text-emerald-700 transition-colors">{m.name}</p>
+                <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{m.asrama} · S:{m.sh}/{days.length} M:{m.mh}/{days.length}</p>
+              </div>
               <div className="flex-shrink-0 flex items-center gap-2">
-                <div className="w-12"><div className="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full rounded-full ${m.pct>=80?"bg-emerald-500":m.pct>=60?"bg-amber-400":"bg-red-400"}`} style={{width:`${m.pct}%`}}/></div></div>
-                <span className="text-sm font-bold text-slate-700 w-9 text-right font-mono">{m.pct}%</span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-300"/>
+                <div className="w-12 sm:w-16 hidden sm:block">
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${m.pct>=80?"bg-emerald-500":m.pct>=60?"bg-amber-400":"bg-rose-400"}`} style={{width:`${m.pct}%`}}/>
+                  </div>
+                </div>
+                <span className={`text-xs sm:text-sm font-bold w-10 text-right font-mono ${m.pct>=80?"text-emerald-600":m.pct>=60?"text-amber-600":"text-rose-600"}`}>{m.pct}%</span>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
               </div>
             </button>
           ))}
         </div>
       </div>}/>
 
-      {/* Today status */}
+      {/* 7. Today status */}
       <Card ch={<div>
-        <div className="px-5 py-4 border-b border-slate-50 flex justify-between"><p className="font-bold text-slate-800">Status Hari Ini</p><span className="text-xs text-slate-400 font-mono">{format(new Date(),"d MMM")}</span></div>
+        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+          <p className="font-bold text-sm text-slate-800">Status Hari Ini</p>
+          <span className="text-[11px] text-slate-400 font-mono">{format(new Date(),"d MMM yyyy")}</span>
+        </div>
         <div className="divide-y divide-slate-50">
-          {fMusyrif.map(m=>{const rec=records.find(r=>r.musyrifId===m.id&&r.date===todayStr());return(
-            <button key={m.id} onClick={()=>setDetail(m)} className="w-full px-5 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left">
-              <Av name={m.name} src={m.photo} sz="sm"/>
-              <span className="flex-1 text-sm font-medium text-slate-700 truncate">{m.name}</span>
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.maghrib}/></div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-300"/>
-              </div>
-            </button>
-          );})}
+          {fMusyrif.map(m=>{
+            const rec=records.find(r=>r.musyrifId===m.id&&r.date===todayStr());
+            return (
+              <button key={m.id} onClick={()=>setDetail(m)} className="w-full px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-slate-50/80 transition-colors text-left group">
+                <Av name={m.name} src={m.photo} sz="sm"/>
+                <span className="flex-1 text-xs sm:text-sm font-medium text-slate-700 truncate group-hover:text-emerald-700 transition-colors">{m.name}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.maghrib}/></div>
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>}/>
 
@@ -1279,8 +1579,11 @@ function PageRekap({ records }: { records: AttendanceRecord[] }) {
 function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[];authUser:AuthUser|null;onLogin:()=>void}) {
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selId, setSelId] = useState(MUSYRIF_LIST[0].id);
-  const [musyrifSearch, setMusyrifSearch] = useState("");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
+  const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
+  const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
+  const [pickerAsrama, setPickerAsrama] = useState<string>("all");
+  const [pickerSearch, setPickerSearch] = useState("");
 
   if (!authUser) return (
     <div className="flex flex-col items-center justify-center gap-6 py-24 text-center px-4">
@@ -1290,17 +1593,18 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
     </div>
   );
 
-  const allowed = hasFullAccess(authUser)
-    ? MUSYRIF_LIST
-    : authUser.role === "musyrif"
-      ? MUSYRIF_LIST.filter(m => m.id === authUser.musyrifId || m.email === authUser.email)
-      : MUSYRIF_LIST.filter(m => m.asrama === authUser.asrama);
-  
-  const filteredAllowed = musyrifSearch 
-    ? allowed.filter(m => m.name.toLowerCase().includes(musyrifSearch.toLowerCase()) || m.kelas.toLowerCase().includes(musyrifSearch.toLowerCase()) || (m.pamong && m.pamong.toLowerCase().includes(musyrifSearch.toLowerCase())))
-    : allowed;
+  const isPersonalMusyrif = authUser.role === "musyrif";
 
-  const musyrif = allowed.find(m=>m.id===selId) ?? filteredAllowed[0] ?? allowed[0] ?? MUSYRIF_LIST[0];
+  const allowed = isPersonalMusyrif
+    ? MUSYRIF_LIST.filter(m => m.id === authUser.musyrifId || (m.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
+    : hasFullAccess(authUser)
+      ? MUSYRIF_LIST
+      : MUSYRIF_LIST.filter(m => m.asrama === authUser.asrama);
+
+  const musyrif = isPersonalMusyrif
+    ? (allowed[0] ?? MUSYRIF_LIST.find(m => m.id === authUser.musyrifId) ?? MUSYRIF_LIST[0])
+    : (allowed.find(m=>m.id===selId) ?? allowed[0] ?? MUSYRIF_LIST[0]);
+
   const mk = format(viewMonth,"yyyy-MM");
   const mRecs = records.filter(r=>r.musyrifId===musyrif.id&&r.date.startsWith(mk));
   const allRecs = records.filter(r=>r.musyrifId===musyrif.id);
@@ -1328,131 +1632,302 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-start justify-between">
-        <div><h2 className="text-2xl font-bold text-slate-900">Riwayat</h2><p className="text-sm text-slate-400 mt-0.5">Detail per musyrif</p></div>
-        <button onClick={doExport} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs"><Download className="w-3.5 h-3.5"/>Export</button>
+    <div className="flex flex-col gap-4 sm:gap-5">
+      {/* 1. Header with Switcher & Export */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            {isPersonalMusyrif ? "Riwayat Saya" : "Riwayat Presensi"}
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {isPersonalMusyrif ? "Rekapan kehadiran ibadah pribadi Anda" : "Detail presensi & kalender per musyrif"}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isPersonalMusyrif && (
+            <button 
+              onClick={()=>setShowMusyrifPicker(true)} 
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/90 px-3.5 py-2 rounded-2xl transition-all active:scale-95 shadow-2xs"
+            >
+              <Users className="w-3.5 h-3.5 text-emerald-600"/>
+              <span>Pilih Musyrif</span>
+              <ChevronDown className="w-3 h-3 text-slate-400"/>
+            </button>
+          )}
+
+          <button 
+            onClick={doExport} 
+            className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-3.5 py-2 rounded-2xl transition-all active:scale-95 shadow-2xs"
+          >
+            <Download className="w-3.5 h-3.5"/>
+            <span>Export TXT</span>
+          </button>
+        </div>
       </div>
 
-      {/* Musyrif selector & search */}
-      <div className="flex flex-col gap-2">
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-          <input 
-            type="text" 
-            value={musyrifSearch} 
-            onChange={e=>setMusyrifSearch(e.target.value)} 
-            placeholder="Cari musyrif / pamong..." 
-            className="w-full bg-white ring-1 ring-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
-        </div>
-        <div className="relative">
-          <select value={musyrif.id} onChange={e=>setSelId(e.target.value)} className="w-full bg-white ring-1 ring-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-400 pr-10">
-            {filteredAllowed.map(m=><option key={m.id} value={m.id}>{m.name} — {m.kelas} (Pamong: {m.pamong || "-"})</option>)}
-          </select>
-          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"/>
-        </div>
-      </div>
-
-      <Card ch={<div className="p-4">
-        <div className="flex items-center gap-4">
-          <Av name={musyrif.name} sz="lg"/>
+      {/* 2. Executive Musyrif Profile Hero Card */}
+      {isPersonalMusyrif ? (
+        <div className="flex items-center gap-3 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl px-4 py-3 text-emerald-800 shadow-2xs">
+          <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0"/>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="font-bold text-slate-800">{musyrif.name}</p>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold font-mono">{musyrif.kelas}</span>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">Pamong: {musyrif.pamong || "-"}</p>
+            <p className="text-xs font-bold leading-tight">Riwayat Presensi Pribadi Anda</p>
+            <p className="text-[11px] text-emerald-600 mt-0.5 truncate">Menampilkan data presensi ibadah khusus akun Anda</p>
           </div>
-          <div className="text-right"><p className="text-3xl font-bold text-slate-800 font-mono">{pct}<span className="text-sm text-slate-400 font-normal">%</span></p><p className="text-[10px] text-slate-400">bulan ini</p></div>
         </div>
-        {(musyrif.phone || musyrif.email) && (
-          <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-100">
-            {musyrif.phone && (
-              <a href={`https://wa.me/${musyrif.phone}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">
-                <MessageCircle className="w-3.5 h-3.5"/> Hubungi WhatsApp
-              </a>
-            )}
-            {musyrif.email && (
-              <a href={`mailto:${musyrif.email}`} className="flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 ring-1 ring-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all">
-                <Mail className="w-3.5 h-3.5"/> Email
-              </a>
-            )}
-          </div>
-        )}
-      </div>}/>
+      ) : null}
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-orange-50 rounded-2xl p-3.5 flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0"><Flame className="w-5 h-5 text-orange-500"/></div>
-          <div><p className="text-xl font-bold text-orange-600 font-mono">{streak.cur} <span className="text-sm font-normal">hari</span></p><p className="text-[10px] text-orange-400">Streak saat ini</p></div>
+      <div className="relative overflow-hidden bg-gradient-to-br from-white via-slate-50/60 to-emerald-50/40 rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs">
+        <div className="flex items-start justify-between gap-3 mb-3.5">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="relative">
+              <Av name={musyrif.name} sz="lg"/>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full"/>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 truncate leading-tight">
+                  {musyrif.name}
+                </h3>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-extrabold font-mono">
+                  {musyrif.kelas}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-1 truncate flex items-center gap-1">
+                <span className="text-slate-400">Pamong:</span> {musyrif.pamong || "-"}
+              </p>
+              <p className="text-[11px] text-emerald-700 font-semibold mt-0.5 truncate">
+                {musyrif.asrama} · {musyrif.kamar}
+              </p>
+            </div>
+          </div>
+
+          {/* Attendance Score Badge */}
+          <div className="flex flex-col items-center justify-center flex-shrink-0 bg-white p-2.5 rounded-2xl border border-slate-200/60 shadow-2xs">
+            <span className="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono tracking-tight leading-none">
+              {pct}<span className="text-xs font-semibold text-slate-400">%</span>
+            </span>
+            <span className="text-[9px] text-slate-400 font-medium mt-0.5 leading-none">Bulan Ini</span>
+          </div>
         </div>
-        <div className="bg-purple-50 rounded-2xl p-3.5 flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0"><Award className="w-5 h-5 text-purple-500"/></div>
-          <div><p className="text-xl font-bold text-purple-600 font-mono">{streak.best} <span className="text-sm font-normal">hari</span></p><p className="text-[10px] text-purple-400">Streak terbaik</p></div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 pt-3 border-t border-slate-100/90">
+          {musyrif.phone && (
+            <a 
+              href={`https://wa.me/${musyrif.phone}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-2xl transition-all shadow-xs active:scale-95"
+            >
+              <MessageCircle className="w-3.5 h-3.5"/> 
+              <span>Hubungi WhatsApp</span>
+            </a>
+          )}
+          {musyrif.email && (
+            <a 
+              href={`mailto:${musyrif.email}`} 
+              className="flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 text-xs font-bold py-2.5 px-3 rounded-2xl transition-all shadow-2xs active:scale-95"
+            >
+              <Mail className="w-3.5 h-3.5 text-slate-500"/> 
+              <span>Kirim Email</span>
+            </a>
+          )}
         </div>
       </div>
 
-      {/* 3-month trend */}
-      <Card ch={<div className="p-5">
-        <Label ch="Tren 3 Bulan"/>
+      {/* 4. Streak Stats */}
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="bg-amber-50/90 border border-amber-200/70 rounded-3xl p-3.5 flex items-center gap-3 shadow-2xs">
+          <div className="w-10 h-10 rounded-2xl bg-amber-100/90 text-amber-600 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <Flame className="w-5 h-5"/>
+          </div>
+          <div>
+            <p className="text-lg sm:text-xl font-bold text-amber-900 font-mono leading-none">{streak.cur} <span className="text-xs font-normal">hari</span></p>
+            <p className="text-[10px] text-amber-700 mt-1 font-medium">Streak saat ini</p>
+          </div>
+        </div>
+        <div className="bg-purple-50/90 border border-purple-200/70 rounded-3xl p-3.5 flex items-center gap-3 shadow-2xs">
+          <div className="w-10 h-10 rounded-2xl bg-purple-100/90 text-purple-600 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <Award className="w-5 h-5"/>
+          </div>
+          <div>
+            <p className="text-lg sm:text-xl font-bold text-purple-900 font-mono leading-none">{streak.best} <span className="text-xs font-normal">hari</span></p>
+            <p className="text-[10px] text-purple-700 mt-1 font-medium">Streak terbaik</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. 3-month trend */}
+      <Card ch={<div className="p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren 3 Bulan Terakhir</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-600"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={110}>
-          <BarChart data={trendData} barGap={3} barCategoryGap="35%">
+          <BarChart data={trendData} barGap={4} barCategoryGap="30%">
             <XAxis dataKey="month" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
-            <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}`} width={24}/>
-            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,.08)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
+            <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`} width={28}/>
+            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
             <Bar dataKey="subuh"   name="subuh"   fill="#f59e0b" radius={[4,4,0,0]}/>
             <Bar dataKey="maghrib" name="maghrib"  fill="#059669" radius={[4,4,0,0]}/>
           </BarChart>
         </ResponsiveContainer>
       </div>}/>
 
-      {/* Month nav */}
-      <div className="flex items-center gap-3">
-        <button onClick={()=>setViewMonth(subMonths(viewMonth,1))} className="w-9 h-9 rounded-xl bg-white ring-1 ring-slate-100 flex items-center justify-center hover:ring-emerald-300 transition-all"><ChevronLeft className="w-4 h-4 text-slate-400"/></button>
-        <div className="flex-1 text-center font-bold text-slate-800">{format(viewMonth,"MMMM yyyy",{locale:id})}</div>
-        <button onClick={()=>setViewMonth(addMonths(viewMonth,1))} className="w-9 h-9 rounded-xl bg-white ring-1 ring-slate-100 flex items-center justify-center hover:ring-emerald-300 transition-all"><ChevronRight className="w-4 h-4 text-slate-400"/></button>
-      </div>
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-1.5">
-        {[{l:"Sub.H",v:mRecs.filter(r=>r.subuh==="hadir").length,c:"text-emerald-600 bg-emerald-50"},{l:"Sub.S",v:mRecs.filter(r=>r.subuh==="sakit").length,c:"text-amber-600 bg-amber-50"},{l:"Sub.I",v:mRecs.filter(r=>r.subuh==="izin").length,c:"text-blue-600 bg-blue-50"},{l:"Sub.A",v:mRecs.filter(r=>r.subuh==="alfa").length,c:"text-red-600 bg-red-50"},
-          {l:"Mag.H",v:mRecs.filter(r=>r.maghrib==="hadir").length,c:"text-emerald-600 bg-emerald-50"},{l:"Mag.S",v:mRecs.filter(r=>r.maghrib==="sakit").length,c:"text-amber-600 bg-amber-50"},{l:"Mag.I",v:mRecs.filter(r=>r.maghrib==="izin").length,c:"text-blue-600 bg-blue-50"},{l:"Mag.A",v:mRecs.filter(r=>r.maghrib==="alfa").length,c:"text-red-600 bg-red-50"}].map(s=>(
-          <div key={s.l} className={`rounded-2xl p-2.5 text-center ${s.c.split(" ")[1]}`}><p className={`text-base font-bold font-mono ${s.c.split(" ")[0]}`}>{s.v}</p><p className="text-[10px] text-slate-400 mt-0.5">{s.l}</p></div>
-        ))}
-      </div>
-
-      {/* Interactive Calendar */}
+      {/* 6. Unified All-in-One Calendar & Attendance Hub */}
       <Card ch={<div>
-        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
-          {["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=><div key={d} className="text-center text-[10px] font-bold text-slate-400 py-2.5 font-mono">{d}</div>)}
+        {/* Top Bar: Month Nav + Quick Jump */}
+        <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/50">
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={()=>setViewMonth(subMonths(viewMonth,1))} 
+              className="w-7 h-7 rounded-xl bg-white border border-slate-200/80 hover:bg-slate-50 active:scale-95 text-slate-600 flex items-center justify-center transition-all shadow-2xs"
+            >
+              <ChevronLeft className="w-3.5 h-3.5"/>
+            </button>
+            <span className="font-extrabold text-xs sm:text-sm text-slate-800 font-mono px-1">
+              {format(viewMonth,"MMMM yyyy",{locale:id})}
+            </span>
+            <button 
+              onClick={()=>setViewMonth(addMonths(viewMonth,1))} 
+              className="w-7 h-7 rounded-xl bg-white border border-slate-200/80 hover:bg-slate-50 active:scale-95 text-slate-600 flex items-center justify-center transition-all shadow-2xs"
+            >
+              <ChevronRight className="w-3.5 h-3.5"/>
+            </button>
+          </div>
+
+          {format(viewMonth,"yyyy-MM") !== format(new Date(),"yyyy-MM") && (
+            <button 
+              onClick={()=>setViewMonth(new Date())}
+              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-xl transition-all"
+            >
+              Bulan Ini
+            </button>
+          )}
         </div>
+
+        {/* Compact 2-in-1 Slot Selector Ribbon */}
+        <div className="p-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 gap-2">
+          {/* Subuh Tab */}
+          <button
+            onClick={()=>setCalendarSlotFilter(f=>f==="subuh"?"all":"subuh")}
+            className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
+              calendarSlotFilter==="subuh" 
+                ? "bg-amber-500 text-white border-amber-600 shadow-xs" 
+                : "bg-white text-slate-700 border-slate-200/80 hover:border-amber-300"
+            }`}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Sun className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-500"}`}/>
+              <div className="min-w-0 leading-tight">
+                <p className="text-[11px] font-bold truncate">Subuh</p>
+                <p className={`text-[9px] font-mono ${calendarSlotFilter==="subuh" ? "text-amber-100" : "text-slate-400"}`}>
+                  {mRecs.filter(r=>r.subuh==="hadir").length}/{pastDays.length} Hadir
+                </p>
+              </div>
+            </div>
+            <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-700"}`}>
+              {pastDays.length ? Math.round(mRecs.filter(r=>r.subuh==="hadir").length/pastDays.length*100) : 0}%
+            </span>
+          </button>
+
+          {/* Maghrib Tab */}
+          <button
+            onClick={()=>setCalendarSlotFilter(f=>f==="maghrib"?"all":"maghrib")}
+            className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
+              calendarSlotFilter==="maghrib" 
+                ? "bg-teal-600 text-white border-teal-700 shadow-xs" 
+                : "bg-white text-slate-700 border-slate-200/80 hover:border-teal-300"
+            }`}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Moon className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="maghrib" ? "text-white" : "text-teal-600"}`}/>
+              <div className="min-w-0 leading-tight">
+                <p className="text-[11px] font-bold truncate">Maghrib</p>
+                <p className={`text-[9px] font-mono ${calendarSlotFilter==="maghrib" ? "text-teal-100" : "text-slate-400"}`}>
+                  {mRecs.filter(r=>r.maghrib==="hadir").length}/{pastDays.length} Hadir
+                </p>
+              </div>
+            </div>
+            <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="maghrib" ? "text-white" : "text-teal-700"}`}>
+              {pastDays.length ? Math.round(mRecs.filter(r=>r.maghrib==="hadir").length/pastDays.length*100) : 0}%
+            </span>
+          </button>
+        </div>
+
+        {/* Days Header */}
+        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
+          {["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=>(
+            <div key={d} className="text-center text-[10px] font-extrabold text-slate-400 py-2 font-mono">{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
         <div className="grid grid-cols-7">
-          {Array.from({length:adj}).map((_,i)=><div key={`b${i}`} className="border-b border-r border-slate-50 min-h-[48px]"/>)}
+          {Array.from({length:adj}).map((_,i)=><div key={`b${i}`} className="border-b border-r border-slate-50 min-h-[44px] bg-slate-50/20"/>)}
           {days.map((day,i)=>{
             const r=getR(day);
             const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);
             const last=(adj+i+1)%7===0;
             const perfect=r?.subuh==="hadir"&&r?.maghrib==="hadir";
+
             return (
               <div 
                 key={day.toISOString()} 
                 onClick={() => !future && setSelectedDay({ date: day, record: r })}
-                className={`min-h-[48px] border-b border-r border-slate-50 p-1 flex flex-col transition-all select-none ${
-                  isToday(day) ? "bg-emerald-50/50" : perfect&&!future ? "bg-emerald-50/30" : ""
-                } ${future ? "opacity-20 cursor-default" : "cursor-pointer hover:bg-emerald-50 hover:ring-1 hover:ring-emerald-300"} ${last ? "border-r-0" : ""}`}
+                className={`min-h-[44px] border-b border-r border-slate-100/70 p-1 flex flex-col justify-between transition-all select-none ${
+                  isToday(day) ? "bg-emerald-50/80 ring-1 ring-emerald-400 inset-0 z-10" : perfect&&!future ? "bg-emerald-50/30" : "bg-white"
+                } ${future ? "opacity-25 cursor-default bg-slate-50/30" : "cursor-pointer hover:bg-emerald-50/60 active:scale-95"} ${last ? "border-r-0" : ""}`}
               >
-                <span className={`text-[10px] font-bold self-end w-5 h-5 flex items-center justify-center rounded-full font-mono ${isToday(day)?"bg-emerald-600 text-white":"text-slate-400"}`}>{format(day,"d")}</span>
-                {!future&&<div className="flex flex-col gap-[3px] mt-1 px-0.5"><div className={`h-[4px] rounded-full ${r?.subuh?S[r.subuh].dot:"bg-slate-200"}`}/><div className={`h-[4px] rounded-full ${r?.maghrib?S[r.maghrib].dot:"bg-slate-200"}`}/></div>}
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold font-mono px-1 rounded-full ${
+                    isToday(day) ? "bg-emerald-600 text-white px-1.5 shadow-2xs" : "text-slate-600"
+                  }`}>
+                    {format(day,"d")}
+                  </span>
+                  {isToday(day) && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping mr-0.5"/>}
+                </div>
+
+                {!future && (
+                  <div className="flex flex-col gap-1 my-0.5 px-0.5">
+                    {calendarSlotFilter !== "maghrib" && (
+                      <div 
+                        className={`h-1.5 rounded-full transition-all ${
+                          r?.subuh ? S[r.subuh].dot : "bg-slate-200"
+                        }`} 
+                        title={`Subuh: ${r?.subuh ?? "Belum"}`}
+                      />
+                    )}
+                    {calendarSlotFilter !== "subuh" && (
+                      <div 
+                        className={`h-1.5 rounded-full transition-all ${
+                          r?.maghrib ? S[r.maghrib].dot : "bg-slate-200"
+                        }`} 
+                        title={`Maghrib: ${r?.maghrib ?? "Belum"}`}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-        <div className="px-4 py-2.5 border-t border-slate-100 flex gap-3 flex-wrap bg-slate-50/50 items-center">
-          {[{c:"bg-emerald-500",l:"Hadir"},{c:"bg-amber-400",l:"Sakit"},{c:"bg-blue-500",l:"Ijin"},{c:"bg-red-500",l:"Alpa"},{c:"bg-slate-200",l:"Kosong"}].map(x=>(
-            <div key={x.l} className="flex items-center gap-1.5"><div className={`w-2.5 h-2.5 rounded-full ${x.c}`}/><span className="text-[10px] text-slate-400">{x.l}</span></div>
-          ))}
-          <span className="text-[10px] text-slate-400 ml-auto italic">Klik tanggal untuk detail</span>
+
+        {/* Compact Legend */}
+        <div className="px-3.5 py-2 border-t border-slate-100 flex gap-2.5 flex-wrap bg-slate-50/60 items-center justify-between text-[10px]">
+          <div className="flex items-center gap-2 flex-wrap">
+            {[{c:"bg-emerald-500",l:"Hadir"},{c:"bg-amber-500",l:"Sakit"},{c:"bg-blue-600",l:"Izin"},{c:"bg-rose-600",l:"Alpa"}].map(x=>(
+              <div key={x.l} className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full ${x.c}`}/>
+                <span className="text-slate-500">{x.l}</span>
+              </div>
+            ))}
+          </div>
+          <span className="text-emerald-700 font-semibold italic">👆 Klik tgl untuk detail</span>
         </div>
       </div>}/>
 
@@ -1503,6 +1978,120 @@ function PageRiwayat({ records, authUser, onLogin }: {records:AttendanceRecord[]
             <button onClick={()=>setSelectedDay(null)} className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition-all">
               Tutup
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Musyrif Picker Command Dialog */}
+      {showMusyrifPicker && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" 
+          style={{background:"rgba(0,0,0,.45)",backdropFilter:"blur(8px)"}} 
+          onClick={()=>setShowMusyrifPicker(false)}
+        >
+          <div 
+            className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200" 
+            onClick={e=>e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <Users className="w-4 h-4"/>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-800">Pilih Musyrif</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">Total {allowed.length} musyrif</p>
+                </div>
+              </div>
+              <button 
+                onClick={()=>setShowMusyrifPicker(false)} 
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all"
+              >
+                <X className="w-4 h-4"/>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-3 border-b border-slate-100 space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+                <input 
+                  type="text" 
+                  value={pickerSearch} 
+                  onChange={e=>setPickerSearch(e.target.value)} 
+                  placeholder="Cari nama, kelas, atau pamong..." 
+                  className="w-full bg-slate-50 ring-1 ring-slate-200/80 rounded-2xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  autoFocus
+                />
+              </div>
+
+              {/* Asrama Filter Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                <button
+                  onClick={()=>setPickerAsrama("all")}
+                  className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all ${
+                    pickerAsrama === "all" ? "bg-emerald-600 text-white shadow-2xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Semua Asrama
+                </button>
+                {ASRAMAS.map(a => (
+                  <button
+                    key={a}
+                    onClick={()=>setPickerAsrama(a)}
+                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all ${
+                      pickerAsrama === a ? "bg-emerald-600 text-white shadow-2xs" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Musyrif Roster List */}
+            <div className="overflow-y-auto divide-y divide-slate-50 flex-1 p-2">
+              {allowed
+                .filter(m => {
+                  const matchSearch = !pickerSearch || m.name.toLowerCase().includes(pickerSearch.toLowerCase()) || m.kelas.toLowerCase().includes(pickerSearch.toLowerCase()) || (m.pamong && m.pamong.toLowerCase().includes(pickerSearch.toLowerCase()));
+                  const matchAsrama = pickerAsrama === "all" || m.asrama === pickerAsrama;
+                  return matchSearch && matchAsrama;
+                })
+                .map(m => {
+                  const isCurrent = m.id === musyrif.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setSelId(m.id);
+                        setShowMusyrifPicker(false);
+                      }}
+                      className={`w-full p-2.5 rounded-2xl flex items-center justify-between gap-3 text-left transition-all ${
+                        isCurrent ? "bg-emerald-50/80 ring-1 ring-emerald-300" : "hover:bg-slate-50 active:scale-[0.99]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Av name={m.name} src={m.photo} sz="sm"/>
+                        <div className="min-w-0">
+                          <p className={`text-xs font-bold truncate leading-tight ${isCurrent ? "text-emerald-900" : "text-slate-800"}`}>
+                            {m.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            {m.kelas} · {m.asrama}
+                          </p>
+                          {m.pamong && <p className="text-[9px] text-slate-400 truncate">Pamong: {m.pamong}</p>}
+                        </div>
+                      </div>
+                      {isCurrent && (
+                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs flex-shrink-0">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
           </div>
         </div>
       )}
@@ -1859,7 +2448,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
       return;
     }
 
-    // Check ONLY in AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
+    // 1. Check in AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
     const foundAuth = AUTH_USERS.find(u => u.email.trim().toLowerCase() === clean);
     if (foundAuth) {
       setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundAuth.name} (${ROLE_LABELS[foundAuth.role] || "Pengelola"})...`);
@@ -1870,8 +2459,27 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
       return;
     }
 
+    // 2. Check in MUSYRIF_LIST (Musyrif Biasa)
+    const foundMusyrif = MUSYRIF_LIST.find(m => m.email && m.email.trim().toLowerCase() === clean);
+    if (foundMusyrif) {
+      const musyrifUser: AuthUser = {
+        id: foundMusyrif.id,
+        name: foundMusyrif.name,
+        email: foundMusyrif.email!,
+        role: "musyrif",
+        asrama: foundMusyrif.asrama,
+        musyrifId: foundMusyrif.id,
+      };
+      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai Musyrif: ${foundMusyrif.name}...`);
+      setTimeout(() => {
+        onLogin(musyrifUser);
+        onClose();
+      }, 500);
+      return;
+    }
+
     // Rejected - Not in authorized Whitelist
-    setErrorMsg(`Akses Ditolak: Akun Google "${inputEmail}" tidak terdaftar dalam Whitelist pengelola.`);
+    setErrorMsg(`Akses Ditolak: Akun Google "${inputEmail}" tidak terdaftar dalam database Musyrif maupun Pengelola.`);
   }, [onLogin, onClose]);
 
   // Initialize official Google Identity Services
@@ -2052,8 +2660,24 @@ export default function App() {
       const saved = localStorage.getItem("presensi_auth_user");
       if (!saved) return null;
       const parsed = JSON.parse(saved);
-      const valid = AUTH_USERS.find(u => u.email.toLowerCase() === parsed?.email?.toLowerCase());
-      return valid || null;
+      const cleanEmail = parsed?.email?.toLowerCase();
+      if (!cleanEmail) return null;
+      
+      const validAuth = AUTH_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+      if (validAuth) return validAuth;
+
+      const validMusyrif = MUSYRIF_LIST.find(m => m.email && m.email.toLowerCase() === cleanEmail);
+      if (validMusyrif) {
+        return {
+          id: validMusyrif.id,
+          name: validMusyrif.name,
+          email: validMusyrif.email!,
+          role: "musyrif",
+          asrama: validMusyrif.asrama,
+          musyrifId: validMusyrif.id,
+        };
+      }
+      return null;
     } catch {
       return null;
     }
@@ -2098,7 +2722,7 @@ export default function App() {
     try {
       localStorage.setItem("presensi_auth_user", JSON.stringify(u));
     } catch {}
-    showToast(`Selamat datang, ${u.name.split(" ")[0]}!`);
+    showToast(`Selamat datang, Ustadz ${u.name.split(" ")[0]}!`);
     setPage(new Date().getHours() < 12 ? "subuh" : "maghrib");
   };
 
@@ -2130,7 +2754,7 @@ export default function App() {
   const hijri = toHijri(now);
 
   return (
-    <div className="min-h-screen bg-background" style={{fontFamily:"'Inter',sans-serif"}}>
+    <div className="min-h-screen bg-background" style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
       {/* Toast Notification */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-xl border flex items-center gap-2.5 max-w-[90vw] sm:max-w-sm w-auto animate-in fade-in slide-in-from-top-3 duration-200 backdrop-blur-md"
@@ -2150,33 +2774,53 @@ export default function App() {
         </div>
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-emerald-100/80 shadow-sm shadow-black/5">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shadow-md shadow-emerald-500/25">
-              <CheckCircle2 className="w-4 h-4 text-white"/>
-            </div>
-            <div>
-              <p className="font-bold text-sm leading-none text-slate-800">Presensi Musyrif</p>
-              <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{format(now,"HH:mm")} · {hijri.day} {hijri.monthName}</p>
-            </div>
+      {/* Header - Pure Logo without container or text */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-emerald-100/60 shadow-2xs">
+        <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+          
+          {/* Logo Mu'allimin direct without container, aligned with Hero Card content */}
+          <div className="cursor-pointer select-none flex items-center pl-5 sm:pl-6" onClick={()=>setPage("dashboard")}>
+            <img 
+              src={mualliminLogo} 
+              alt="Logo Madrasah Mu'allimin" 
+              className="h-7 sm:h-8 w-auto object-contain drop-shadow-xs active:scale-95 transition-transform"
+            />
           </div>
-          {authUser
-            ? <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-2 bg-slate-50 rounded-full pl-1.5 pr-3 py-1">
+
+          {/* Right Area: User / Login */}
+          <div className="flex items-center gap-1.5 pr-5 sm:pr-6">
+            {authUser ? (
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 rounded-full pl-1 pr-2.5 py-0.5 shadow-2xs">
                   <Av name={authUser.name} sz="xs" />
-                  <span className="text-xs font-semibold text-slate-700">{authUser.name.split(" ")[0]}</span>
+                  <span className="text-xs font-semibold text-slate-700 truncate max-w-[90px]">
+                    {authUser.name.split(" ")[0]}
+                  </span>
                 </div>
-                <button onClick={handleLogout} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-all"><LogOut className="w-3.5 h-3.5"/></button>
+                <button 
+                  onClick={handleLogout} 
+                  title="Keluar akun" 
+                  className="w-7 h-7 rounded-full bg-slate-100/80 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-all active:scale-95"
+                >
+                  <LogOut className="w-3.5 h-3.5"/>
+                </button>
               </div>
-            : <button onClick={()=>setShowLogin(true)} className="flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all"><LogIn className="w-3.5 h-3.5"/>Masuk</button>
-          }
+            ) : (
+              <button 
+                onClick={()=>setShowLogin(true)} 
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-xs active:scale-95 transition-all"
+              >
+                <LogIn className="w-3.5 h-3.5"/>
+                <span>Masuk</span>
+              </button>
+            )}
+          </div>
+
         </div>
       </header>
 
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 py-5 pb-28">
+      <main className="max-w-2xl mx-auto px-4 py-5 pb-36">
         {page==="dashboard" && <PageDashboard records={records} authUser={authUser} onGoTo={setPage}/>}
         {page==="subuh"     && <PageInputPrayer slot="subuh" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>}
         {page==="maghrib"   && <PageInputPrayer slot="maghrib" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>}
