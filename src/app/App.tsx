@@ -600,11 +600,11 @@ function PageDashboard({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Hero card - Aurora mesh gradient */}
+      {/* Hero card - Soft Luxurious Emerald Gradient */}
       <div 
-        className="rounded-3xl overflow-hidden relative shadow-xl shadow-emerald-950/15 ring-1 ring-emerald-400/20"
+        className="rounded-[28px] overflow-hidden relative shadow-lg shadow-emerald-950/10 ring-1 ring-emerald-400/20"
         style={{
-          background: "radial-gradient(at 100% 0%, rgba(52, 211, 153, 0.35) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.25) 0px, transparent 50%), linear-gradient(135deg, #064e3b 0%, #065f46 55%, #047857 100%)",
+          background: "radial-gradient(at 90% 10%, rgba(52, 211, 153, 0.18) 0px, transparent 65%), radial-gradient(at 10% 90%, rgba(5, 150, 105, 0.15) 0px, transparent 65%), linear-gradient(145deg, #064e3b 0%, #065f46 60%, #047857 100%)",
           minHeight: 195
         }}
       >
