@@ -27,6 +27,7 @@ import { KegiatanAsramaModal, KegiatanRecord } from "./components/KegiatanAsrama
 import { MutabaahYaumiyahModal, MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
 import { LeaderboardModal } from "./components/LeaderboardModal";
 import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
+import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -324,7 +325,7 @@ function generateRecords(): AttendanceRecord[] {
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-const todayStr = () => format(new Date(), "yyyy-MM-dd");
+const todayStr = () => format(getTrustedDate(), "yyyy-MM-dd");
 
 const S = {
   hadir: { label:"Hadir", short:"H", dot:"bg-emerald-500", chip:"bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200/80 shadow-2xs font-semibold", btn:"bg-emerald-600 text-white shadow-md shadow-emerald-600/25 ring-1 ring-emerald-500" },
@@ -3157,8 +3158,17 @@ export default function App() {
   const [page,     setPage]       = useState<Page>("dashboard");
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState(() => getTrustedDate());
+  const [timeSyncState, setTimeSyncState] = useState<TimeSyncState | null>(null);
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeTimeSync((st) => {
+      setTimeSyncState(st);
+      setNow(st.serverDate);
+    });
+    return unsub;
+  }, []);
 
   const showToast = useCallback((message: string, type: "success" | "info" | "error" = "success") => {
     setToast({ message, type });
@@ -3184,7 +3194,7 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(mutabaahData)); } catch {}
   }, [mutabaahData]);
 
-  useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),60000); return()=>clearInterval(t); },[]);
+  useEffect(()=>{ const t=setInterval(()=>setNow(getTrustedDate()),30000); return()=>clearInterval(t); },[]);
 
   const handleLogin = (u: AuthUser) => {
     setAuthUser(u);
@@ -3192,7 +3202,7 @@ export default function App() {
       localStorage.setItem("presensi_auth_user", JSON.stringify(u));
     } catch {}
     showToast(`Selamat datang, Ustadz ${u.name.split(" ")[0]}!`);
-    setPage(new Date().getHours() < 12 ? "subuh" : "maghrib");
+    setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
   };
 
   const handleLogout = () => {
@@ -3315,8 +3325,10 @@ export default function App() {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // Refresh local clock & re-sync records from localStorage
-    setNow(new Date());
+    // Refresh server-synchronized clock & anti-spoofing
+    const syncRes = await syncServerTime();
+    setNow(syncRes.serverDate);
+
     try {
       const savedRecs = localStorage.getItem(STORAGE_KEY_RECORDS);
       if (savedRecs) {
@@ -3331,10 +3343,15 @@ export default function App() {
     } catch {}
 
     // Simulated network sync delay for smooth microinteraction
-    await new Promise(res => setTimeout(res, 800));
+    await new Promise(res => setTimeout(res, 600));
     setIsRefreshing(false);
     setPullDistance(0);
-    showToast("Data presensi berhasil diperbarui!", "success");
+    showToast(
+      syncRes.status === "drift_detected"
+        ? `Presensi dikalibrasi ke Waktu Server resmi (${syncRes.driftMinutes}m drift)`
+        : "Data & Waktu Server berhasil diperbarui!",
+      syncRes.status === "drift_detected" ? "info" : "success"
+    );
   }, [showToast]);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -3506,6 +3523,25 @@ export default function App() {
 
       {/* Main */}
       <main className="max-w-2xl mx-auto px-4 py-5 pb-36">
+        {/* Anti Time-Spoofing & Drift Alert Banner */}
+        {timeSyncState?.status === "drift_detected" && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-md flex items-start gap-3 shadow-xs">
+            <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 text-xs">
+              <p className="font-bold text-amber-900">Perbedaan Jam Terdeteksi ({timeSyncState.driftMinutes} menit)</p>
+              <p className="text-amber-800 mt-0.5 leading-relaxed">
+                Jam perangkat Anda tidak sinkron. Sistem otomatis menggunakan <strong>Waktu Server ({timeSyncState.source})</strong> untuk memastikan validitas presensi.
+              </p>
+            </div>
+            <button
+              onClick={() => handleRefresh()}
+              className="px-2.5 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-medium text-[11px] shrink-0 active:scale-95 transition-all shadow-xs"
+            >
+              Sinkronkan
+            </button>
+          </div>
+        )}
+
         {page==="dashboard" && (
           <PageDashboard 
             records={records} 

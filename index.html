@@ -9,6 +9,23 @@
       <meta name="description" content="This app enables authorized users to log attendance for morning and afternoon prayers, allowing oversight and daily tracking of participants." />
       <meta name="robots" content="noindex, nofollow" />
       <meta name="theme-color" content="#059669" />
+      <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+      <meta name="referrer" content="strict-origin-when-cross-origin" />
+      <!-- Content Security Policy (CSP) -->
+      <meta
+        http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com/gsi/client https://apis.google.com;
+          style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+          font-src 'self' https://fonts.gstatic.com data:;
+          img-src 'self' data: blob: https://*.googleusercontent.com https://accounts.google.com;
+          connect-src 'self' https://accounts.google.com/gsi/ https://worldtimeapi.org https://timeapi.io;
+          frame-src 'self' https://accounts.google.com/;
+          object-src 'none';
+          base-uri 'self';
+        "
+      />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       <meta name="apple-mobile-web-app-title" content="Presensi Musyrif" />
