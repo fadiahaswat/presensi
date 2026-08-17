@@ -31,6 +31,8 @@ import { SantriSakitModal, SantriSakitRecord } from "./components/SantriSakitMod
 import { LeaderboardModal } from "./components/LeaderboardModal";
 import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
 import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
+import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
+import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { motion, AnimatePresence } from "motion/react";
 import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdropVariants, modalContentVariants } from "./utils/animations";
@@ -319,25 +321,6 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m50", name:"Ubaidillah Syafiq Atqiya",     kelas:"6 Internasional",tingkat:"Kelas 6", asrama:"Asrama 1",            kamar:"6 Int.",      pamong:"Galang Putra Muhammady, S.Pd.",       email:"ubay.syafiq03@gmail.com",         phone:"6281284985750" },
 ];
 
-function generateRecords(): AttendanceRecord[] {
-  const out: AttendanceRecord[] = [];
-  const pool: AttendanceStatus[] = ["hadir","hadir","hadir","hadir","sakit","izin","alfa"];
-  const today = new Date();
-  MUSYRIF_LIST.forEach(m => {
-    for (let i = 90; i >= 0; i--) {
-      const d = new Date(today); d.setDate(d.getDate() - i);
-      const isTodayDate = i === 0;
-      out.push({
-        musyrifId: m.id,
-        date: format(d,"yyyy-MM-dd"),
-        subuh: pool[Math.floor(Math.random() * pool.length)],
-        maghrib: isTodayDate ? (today.getHours() >= 18 ? pool[Math.floor(Math.random() * pool.length)] : undefined) : pool[Math.floor(Math.random() * pool.length)],
-        markedBy: "a1"
-      });
-    }
-  });
-  return out;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -428,6 +411,10 @@ function Label({ ch }: { ch: React.ReactNode }) {
 }
 
 function hasFullAccess(u: AuthUser) { return u.role === "koordinator_musyrif"; }
+
+// Only this admin email can access database settings
+const ADMIN_DB_EMAIL = "andiaqillahfadiahaswat@gmail.com";
+function isDbAdmin(u: AuthUser | null): boolean { return !!u && u.email === ADMIN_DB_EMAIL; }
 
 function computeStreak(mid: string, records: AttendanceRecord[]) {
   let cur = 0, best = 0, tmp = 0;
@@ -1823,26 +1810,41 @@ function PageInputPrayer({
 
               {/* Action Buttons: Hadir, Sakit, Izin, Alfa */}
               <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                {([["hadir","Hadir"],["sakit","Sakit"],["izin","Izin"],["alfa","Alfa"]] as [AttendanceStatus,string][]).map(([s,label])=>(
+                {(["hadir","sakit","izin","alfa"] as AttendanceStatus[]).map(s=>(
                   <button
                     key={s}
                     disabled={isFuture}
-                    onClick={()=>mark(m.id,slot,s)}
+                    onClick={()=>{if(cur===s&&onResetMark){onResetMark(m.id,slot,selDate);showToast?.("Presensi di-reset","info");}else{mark(m.id,slot,s);}}}
                     className={`min-h-[44px] py-2.5 px-1 rounded-2xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${
                       cur===s
                         ? `${S[s].btn} shadow-xs ring-2 ring-emerald-500/20 scale-[1.02]`
                         : "bg-slate-100/90 text-slate-700 hover:bg-slate-200 active:scale-95 border border-slate-200/50"
                     }`}
                   >
-                    <span>{label}</span>
+                    <span>{S[s].label}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Add note link for sakit/izin/alfa if no note yet */}
-              {(cur==="sakit"||cur==="izin"||cur==="alfa") && !note && !isFuture && (
-                <div className="mt-2 text-right">
-                  <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText("");}} className="text-xs text-emerald-700 font-semibold hover:underline">+ Tambah Catatan Keterangan</button>
+              {/* Bottom row: note link + reset button */}
+              {cur && !isFuture && (
+                <div className="mt-2 flex items-center justify-between">
+                  {(cur==="sakit"||cur==="izin"||cur==="alfa") && !note ? (
+                    <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText("");}} className="text-xs text-emerald-700 font-semibold hover:underline">+ Tambah Catatan</button>
+                  ) : <span/>}
+                  {onResetMark && (
+                    <button
+                      onClick={()=>{
+                        if(window.confirm("Reset / hapus presensi ini?")) {
+                          onResetMark(m.id, slot, selDate);
+                          showToast?.("Presensi berhasil di-reset","info");
+                        }
+                      }}
+                      className="text-xs text-rose-500 font-semibold hover:text-rose-700 hover:underline flex items-center gap-0.5"
+                    >
+                      ↩ Reset
+                    </button>
+                  )}
                 </div>
               )}
             </div>}/>
@@ -3149,9 +3151,13 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      const arr = [...next];
       try {
-        localStorage.setItem("presensi_sunnah_fasts", JSON.stringify([...next]));
+        localStorage.setItem("presensi_sunnah_fasts", JSON.stringify(arr));
       } catch {}
+      // Sync to Sheet: store as a single record per user keyed by authUser id
+      const userId = (window as any).__presensiAuthUserId__ || "guest";
+      googleSyncService.enqueue("SunnahFasts", { id: `sunnah_${userId}`, userId, fasts: JSON.stringify(arr) }, "upsert");
       return next;
     });
   };
@@ -3743,12 +3749,10 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY_RECORDS);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
-    const initial = generateRecords();
-    try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(initial)); } catch {}
-    return initial;
+    return [];
   });
 
   // State for Izin Requests
@@ -3760,23 +3764,7 @@ export default function App() {
         if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
-    return [
-      {
-        id: "izin-1",
-        musyrifId: "m1",
-        musyrifName: "Ahmad Fauzi",
-        asrama: "1",
-        kamar: "101",
-        type: "sakit",
-        category: "Sakit",
-        startDate: format(new Date(), "yyyy-MM-dd"),
-        endDate: format(new Date(), "yyyy-MM-dd"),
-        prayerSlot: "subuh",
-        reason: "Demam dan flu berat, istirahat di UKS Asrama 1",
-        status: "approved",
-        createdAt: format(new Date(), "yyyy-MM-dd HH:mm")
-      }
-    ];
+    return [];
   });
 
   // State for Kegiatan Records (Agenda Khusus Asrama)
@@ -3824,23 +3812,7 @@ export default function App() {
         if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
-    return [
-      {
-        id: "sakit-init-1",
-        musyrifId: "m1",
-        musyrifName: "Wahyu Dermawan",
-        asrama: "Asrama 1",
-        kamar: "102",
-        date: format(new Date(), "yyyy-MM-dd"),
-        namaSantri: "Muhammad Raihan Al-Fatih",
-        kelasSantri: "1 A",
-        keluhan: "Demam 38.2C, sakit kepala sejak malam",
-        lokasiPerawatan: "uks",
-        catatanTindakan: "Diberi Paracetamol 500mg, istirahat di UKS",
-        status: "dalam_perawatan",
-        createdAt: format(new Date(), "yyyy-MM-dd HH:mm")
-      }
-    ];
+    return [];
   });
 
   // Modals Visibility
@@ -3854,6 +3826,7 @@ export default function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
   const [showMusyrifManager, setShowMusyrifManager] = useState(false);
+  const [showCloudSync, setShowCloudSync] = useState(false);
 
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -3961,7 +3934,7 @@ export default function App() {
     }, 3000);
   }, []);
 
-  // Save records to localStorage whenever they change
+  // Save records to local working cache whenever they change
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records)); } catch {}
   }, [records]);
@@ -3990,19 +3963,177 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
   }, [musyrifList]);
 
+  // Initial Cloud Hydration & Realtime Delta Subscription
+  useEffect(() => {
+    // 1. Subscribe to incoming delta updates from Google Sheets
+    const unsubData = googleSyncService.subscribeDataUpdates((tableName, cloudRecords, isFullReplace) => {
+      const tbl = tableName.toLowerCase();
+
+      // Full replace: always set state directly from Sheet (even if empty [])
+      // This wipes stale localStorage cache when Sheet is empty
+      if (isFullReplace) {
+        if (tbl === "records") {
+          setRecords(Array.isArray(cloudRecords) ? cloudRecords : []);
+        } else if (tbl === "izin") {
+          setIzinList(Array.isArray(cloudRecords) ? cloudRecords : []);
+        } else if (tbl === "kegiatan") {
+          setKegiatanRecords(Array.isArray(cloudRecords) ? cloudRecords : []);
+        } else if (tbl === "santrisakit") {
+          setSantriSakitList(Array.isArray(cloudRecords) ? cloudRecords : []);
+        } else if (tbl === "musyrif") {
+          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+            setMusyrifList(cloudRecords);
+          }
+        } else if (tbl === "logbook") {
+          const next: LogbookStorage = {};
+          (cloudRecords || []).forEach((cr: any) => {
+            if (cr.musyrifId && cr.date) {
+              if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
+              next[cr.musyrifId][cr.date] = cr;
+            }
+          });
+          setLogbookData(next);
+        } else if (tbl === "mutabaah") {
+          const next: MutabaahStorage = {};
+          (cloudRecords || []).forEach((cr: any) => {
+            if (cr.musyrifId && cr.date) {
+              if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
+              next[cr.musyrifId][cr.date] = cr;
+            }
+          });
+          setMutabaahData(next);
+        }
+        return;
+      }
+
+      // Delta merge: only called for incremental updates, skip empty arrays
+      if (!Array.isArray(cloudRecords) || cloudRecords.length === 0) return;
+
+      if (tbl === "records") {
+        setRecords(prev => {
+          const map = new Map<string, AttendanceRecord>();
+          prev.forEach(r => map.set(`${r.musyrifId}_${r.date}`, r));
+          cloudRecords.forEach(cr => {
+            const key = `${cr.musyrifId}_${cr.date}`;
+            if (cr.is_deleted) {
+              map.delete(key);
+            } else {
+              map.set(key, { ...(map.get(key) || {}), ...cr });
+            }
+          });
+          return Array.from(map.values());
+        });
+      } else if (tbl === "izin") {
+        setIzinList(prev => {
+          const map = new Map<string, IzinRequest>();
+          prev.forEach(i => map.set(i.id, i));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          return Array.from(map.values());
+        });
+      } else if (tbl === "kegiatan") {
+        setKegiatanRecords(prev => {
+          const map = new Map<string, KegiatanRecord>();
+          prev.forEach(k => map.set(k.id, k));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          return Array.from(map.values());
+        });
+      } else if (tbl === "santrisakit") {
+        setSantriSakitList(prev => {
+          const map = new Map<string, SantriSakitRecord>();
+          prev.forEach(s => map.set(s.id, s));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          return Array.from(map.values());
+        });
+      } else if (tbl === "musyrif") {
+        setMusyrifList(prev => {
+          const map = new Map<string, Musyrif>();
+          prev.forEach(m => map.set(m.id, m));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          return Array.from(map.values());
+        });
+      } else if (tbl === "logbook") {
+        setLogbookData(prev => {
+          const next = { ...prev };
+          cloudRecords.forEach(cr => {
+            const mId = cr.musyrifId;
+            const dt = cr.date;
+            if (mId && dt) {
+              if (cr.is_deleted) {
+                if (next[mId]) {
+                  const copy = { ...next[mId] };
+                  delete copy[dt];
+                  next[mId] = copy;
+                }
+              } else {
+                if (!next[mId]) next[mId] = {};
+                next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
+              }
+            }
+          });
+          return next;
+        });
+      } else if (tbl === "mutabaah") {
+        setMutabaahData(prev => {
+          const next = { ...prev };
+          cloudRecords.forEach(cr => {
+            const mId = cr.musyrifId;
+            const dt = cr.date;
+            if (mId && dt) {
+              if (cr.is_deleted) {
+                if (next[mId]) {
+                  const copy = { ...next[mId] };
+                  delete copy[dt];
+                  next[mId] = copy;
+                }
+              } else {
+                if (!next[mId]) next[mId] = {};
+                next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
+              }
+            }
+          });
+          return next;
+        });
+      }
+    });
+
+    // 2. Perform initial full cloud pull — this is the Single Source of Truth
+    // Always fetch from Sheet on startup; state will be replaced via isFullReplace flag
+    if (googleSyncService.getGasUrl()) {
+      googleSyncService.fetchAllFromCloud();
+    }
+
+    return unsubData;
+  }, []);
+
   useEffect(()=>{ const t=setInterval(()=>setNow(getTrustedDate()),30000); return()=>clearInterval(t); },[]);
 
   const handleLogin = (u: AuthUser) => {
     setAuthUser(u);
+    (window as any).__presensiAuthUserId__ = u.id;
     try {
       localStorage.setItem("presensi_auth_user", JSON.stringify(u));
     } catch {}
     showToast(`Selamat datang, Ustadz ${u.name.split(" ")[0]}!`);
     setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
+    // Immediately sync all data from Sheet after login
+    googleSyncService.fetchAllFromCloud();
   };
 
   const handleLogout = () => {
     setAuthUser(null);
+    (window as any).__presensiAuthUserId__ = null;
     try {
       localStorage.removeItem("presensi_auth_user");
     } catch {}
@@ -4010,31 +4141,41 @@ export default function App() {
     setPage("dashboard");
   };
 
-  // Master Data Musyrif SCRUD Handlers
+  // Master Data Musyrif SCRUD Handlers (Synchronized to Google Sheet)
   const handleAddMusyrif = (newM: Omit<Musyrif, "id">) => {
     const newId = `m_${Date.now()}`;
     const created: Musyrif = { ...newM, id: newId };
     setMusyrifList(prev => [created, ...prev]);
+    googleSyncService.enqueue("Musyrif", created, "upsert");
     showToast(`Musyrif ${created.name} berhasil ditambahkan!`, "success");
   };
 
   const handleUpdateMusyrif = (updated: Musyrif) => {
     setMusyrifList(prev => prev.map(m => m.id === updated.id ? updated : m));
+    googleSyncService.enqueue("Musyrif", updated, "upsert");
     showToast(`Data musyrif ${updated.name} berhasil diperbarui!`, "success");
   };
 
   const handleDeleteMusyrif = (id: string) => {
     const target = musyrifList.find(m => m.id === id);
     setMusyrifList(prev => prev.filter(m => m.id !== id));
+    googleSyncService.enqueue("Musyrif", { id }, "delete");
     showToast(`Data musyrif ${target?.name || id} berhasil dihapus.`, "info");
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
     const nk = prayer==="subuh"?"subuhNote":"maghribNote";
-    setRecords(prev=>{
-      const ex=prev.find(r=>r.musyrifId===mid&&r.date===date);
-      if(ex) return prev.map(r=>r.musyrifId===mid&&r.date===date?{...r,[prayer]:status,...(note!==undefined?{[nk]:note}:{})}:r);
-      return [...prev,{musyrifId:mid,date,[prayer]:status,...(note?{[nk]:note}:{}),markedBy:authUser?.id}];
+    setRecords(prev => {
+      const ex = prev.find(r => r.musyrifId === mid && r.date === date);
+      if (ex) {
+        const updatedRec: AttendanceRecord = { ...ex, [prayer]: status, ...(note !== undefined ? { [nk]: note } : {}) };
+        // Schedule enqueue outside render cycle
+        setTimeout(() => googleSyncService.enqueue("Records", { ...updatedRec, id: `${mid}_${date}` }, "upsert"), 0);
+        return prev.map(r => r.musyrifId === mid && r.date === date ? updatedRec : r);
+      }
+      const newRec: AttendanceRecord = { musyrifId: mid, date, [prayer]: status, ...(note ? { [nk]: note } : {}), markedBy: authUser?.id };
+      setTimeout(() => googleSyncService.enqueue("Records", { ...newRec, id: `${mid}_${date}` }, "upsert"), 0);
+      return [...prev, newRec];
     });
   },[authUser]);
 
@@ -4045,6 +4186,8 @@ export default function App() {
         const copy = { ...r };
         delete copy[prayer];
         delete copy[nk];
+        // Schedule enqueue outside render cycle
+        setTimeout(() => googleSyncService.enqueue("Records", { ...copy, id: `${mid}_${date}` }, "upsert"), 0);
         return copy;
       }
       return r;
@@ -4056,7 +4199,7 @@ export default function App() {
     list.filter(m=>m.asrama===asrama).forEach(m=>handleMark(m.id,prayer,status,date));
   },[handleMark, musyrifList]);
 
-  // Submit Izin Request
+  // Submit Izin Request (Synchronized to Google Sheet)
   const handleSubmitIzin = (req: Omit<IzinRequest, "id" | "status" | "createdAt">) => {
     const newIzin: IzinRequest = {
       ...req,
@@ -4065,31 +4208,31 @@ export default function App() {
       createdAt: format(new Date(), "yyyy-MM-dd HH:mm")
     };
     setIzinList(prev => [newIzin, ...prev]);
+    googleSyncService.enqueue("Izin", newIzin, "upsert");
     showToast("Pengajuan izin berhasil dikirim ke Pamong.", "success");
   };
 
-  // Update Izin Request
+  // Update Izin Request (Synchronized to Google Sheet)
   const handleUpdateIzin = (updated: IzinRequest) => {
     setIzinList(prev => prev.map(i => i.id === updated.id ? updated : i));
+    googleSyncService.enqueue("Izin", updated, "upsert");
     showToast(`Data pengajuan izin ${updated.musyrifName} diperbarui!`, "success");
   };
 
-  // Approve / Reject Izin
+  // Approve / Reject Izin (Synchronized to Google Sheet)
   const handleApproveIzin = (reqId: string, approved: boolean) => {
     const target = izinList.find(i => i.id === reqId);
     if (!target) return;
 
-    setIzinList(prev => prev.map(i => {
-      if (i.id === reqId) {
-        return {
-          ...i,
-          status: approved ? "approved" : "rejected",
-          reviewedBy: authUser?.name || "Pamong",
-          reviewedAt: format(new Date(), "yyyy-MM-dd HH:mm")
-        };
-      }
-      return i;
-    }));
+    const updatedIzin: IzinRequest = {
+      ...target,
+      status: approved ? "approved" : "rejected",
+      reviewedBy: authUser?.name || "Pamong",
+      reviewedAt: format(new Date(), "yyyy-MM-dd HH:mm")
+    };
+
+    setIzinList(prev => prev.map(i => i.id === reqId ? updatedIzin : i));
+    googleSyncService.enqueue("Izin", updatedIzin, "upsert");
 
     if (approved) {
       const dates = [target.startDate];
@@ -4110,13 +4253,14 @@ export default function App() {
     }
   };
 
-  // Delete Izin
+  // Delete Izin (Synchronized to Google Sheet)
   const handleDeleteIzin = (reqId: string) => {
     setIzinList(prev => prev.filter(i => i.id !== reqId));
+    googleSyncService.enqueue("Izin", { id: reqId }, "delete");
     showToast("Pengajuan izin berhasil dibatalkan/dihapus.", "info");
   };
 
-  // Save Kegiatan
+  // Save Kegiatan (Synchronized to Google Sheet)
   const handleSaveKegiatan = (rec: KegiatanRecord) => {
     setKegiatanRecords(prev => {
       const existingIdx = prev.findIndex(r => r.id === rec.id);
@@ -4127,16 +4271,18 @@ export default function App() {
       }
       return [rec, ...prev];
     });
+    googleSyncService.enqueue("Kegiatan", rec, "upsert");
     showToast("Presensi kegiatan asrama berhasil disimpan!", "success");
   };
 
-  // Delete Kegiatan
+  // Delete Kegiatan (Synchronized to Google Sheet)
   const handleDeleteKegiatan = (id: string) => {
     setKegiatanRecords(prev => prev.filter(k => k.id !== id));
+    googleSyncService.enqueue("Kegiatan", { id }, "delete");
     showToast("Data presensi kegiatan berhasil dihapus.", "info");
   };
 
-  // Save Jurnal Logbook
+  // Save Jurnal Logbook (Synchronized to Google Sheet)
   const handleSaveLogbook = (musyrifId: string, date: string, entry: JurnalLogbookEntry) => {
     setLogbookData(prev => ({
       ...prev,
@@ -4145,6 +4291,7 @@ export default function App() {
         [date]: entry
       }
     }));
+    googleSyncService.enqueue("Logbook", { id: `${musyrifId}_${date}`, musyrifId, date, ...entry }, "upsert");
     showToast("Jurnal logbook berhasil disimpan!", "success");
   };
 
@@ -4159,10 +4306,11 @@ export default function App() {
       }
       return copy;
     });
+    googleSyncService.enqueue("Logbook", { id: `${musyrifId}_${date}` }, "delete");
     showToast("Jurnal logbook hari ini berhasil di-reset.", "info");
   };
 
-  // Save Mutabaah
+  // Save Mutabaah (Synchronized to Google Sheet)
   const handleSaveMutabaah = (musyrifId: string, date: string, entry: MutabaahEntry) => {
     setMutabaahData(prev => ({
       ...prev,
@@ -4171,6 +4319,7 @@ export default function App() {
         [date]: entry
       }
     }));
+    googleSyncService.enqueue("Mutabaah", { id: `${musyrifId}_${date}`, musyrifId, date, ...entry }, "upsert");
     showToast("Mutaba'ah yaumiyah berhasil disimpan!", "success");
   };
 
@@ -4185,10 +4334,11 @@ export default function App() {
       }
       return copy;
     });
+    googleSyncService.enqueue("Mutabaah", { id: `${musyrifId}_${date}` }, "delete");
     showToast("Catatan mutaba'ah hari ini berhasil di-reset.", "info");
   };
 
-  // Handlers for Santri Sakit
+  // Handlers for Santri Sakit (Synchronized to Google Sheet)
   const handleSaveSantriSakit = (rec: SantriSakitRecord) => {
     setSantriSakitList(prev => {
       const idx = prev.findIndex(s => s.id === rec.id);
@@ -4199,20 +4349,39 @@ export default function App() {
       }
       return [rec, ...prev];
     });
+    googleSyncService.enqueue("SantriSakit", rec, "upsert");
     showToast(`Data santri sakit (${rec.namaSantri}) berhasil disimpan!`, "success");
   };
 
   const handleUpdateStatusSantriSakit = (id: string, newStatus: "dalam_perawatan" | "sembuh") => {
     setSantriSakitList(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
+    const target = santriSakitList.find(s => s.id === id);
+    if (target) {
+      googleSyncService.enqueue("SantriSakit", { ...target, status: newStatus }, "upsert");
+    }
     showToast(`Status santri diperbarui menjadi ${newStatus === "sembuh" ? "Sembuh" : "Dalam Perawatan"}`, "success");
   };
 
   const handleDeleteSantriSakit = (id: string) => {
     setSantriSakitList(prev => prev.filter(s => s.id !== id));
+    googleSyncService.enqueue("SantriSakit", { id }, "delete");
     showToast("Data santri sakit dihapus", "info");
   };
 
   const activeSantriSakitCount = santriSakitList.filter(s => s.status === "dalam_perawatan").length;
+
+  // Reset All System Data (Wipe local states and clear Google Sheet tabs)
+  const handleResetAll = async () => {
+    setRecords([]);
+    setIzinList([]);
+    setKegiatanRecords([]);
+    setLogbookData({});
+    setMutabaahData({});
+    setSantriSakitList([]);
+    setMusyrifList(MUSYRIF_LIST);
+    await googleSyncService.resetAllData();
+    showToast("Seluruh database & cache berhasil di-reset bersih!", "info");
+  };
 
   // Records map for quick lookup in modals
   const recordsMap = useMemo(() => {
@@ -4242,18 +4411,9 @@ export default function App() {
     const syncRes = await syncServerTime();
     setNow(syncRes.serverDate);
 
-    try {
-      const savedRecs = localStorage.getItem(STORAGE_KEY_RECORDS);
-      if (savedRecs) {
-        const parsed = JSON.parse(savedRecs);
-        if (Array.isArray(parsed)) setRecords(parsed);
-      }
-      const savedIzin = localStorage.getItem(STORAGE_KEY_IZIN);
-      if (savedIzin) {
-        const parsedIzin = JSON.parse(savedIzin);
-        if (Array.isArray(parsedIzin)) setIzinList(parsedIzin);
-      }
-    } catch {}
+    // Flush pending queue then force full re-fetch from Sheet (Single Source of Truth)
+    await googleSyncService.flushQueue();
+    await googleSyncService.fetchAllFromCloud();
 
     // Simulated network sync delay for smooth microinteraction
     await new Promise(res => setTimeout(res, 600));
@@ -4262,7 +4422,7 @@ export default function App() {
     showToast(
       syncRes.status === "drift_detected"
         ? `Presensi dikalibrasi ke Waktu Server resmi (${syncRes.driftMinutes}m drift)`
-        : "Data & Waktu Server berhasil diperbarui!",
+        : "Data & Waktu Sheet berhasil disinkronkan!",
       syncRes.status === "drift_detected" ? "info" : "success"
     );
   }, [showToast]);
@@ -4393,6 +4553,11 @@ export default function App() {
 
           {/* Header Quick Action Icons - Role & Public Aware */}
           <div className="flex items-center gap-1.5 pr-0">
+            {/* Realtime Cloud Sync Badge — only for DB Admin */}
+            {isDbAdmin(authUser) && (
+              <CloudSyncBadge onClick={() => setShowCloudSync(true)} />
+            )}
+
             {authUser ? (
               <>
                 {/* Quick Alarm Button */}
@@ -4884,6 +5049,22 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* 11. Google Sheets Cloud Sync Modal */}
+      <CloudSyncModal
+        isOpen={showCloudSync}
+        onClose={() => setShowCloudSync(false)}
+        onResetAll={handleResetAll}
+        stats={{
+          records: records.length,
+          izin: izinList.length,
+          kegiatan: kegiatanRecords.length,
+          logbook: Object.keys(logbookData).length,
+          mutabaah: Object.keys(mutabaahData).length,
+          santriSakit: santriSakitList.length,
+          musyrif: musyrifList.length
+        }}
+      />
 
     </div>
   );
