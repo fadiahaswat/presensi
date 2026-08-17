@@ -20,25 +20,39 @@ export interface Musyrif {
   photo?: string;
 }
 
+const DEFAULT_ASRAMAS = [
+  "Asrama 1",
+  "Asrama 8A",
+  "Asrama 8B",
+  "Asrama 8C",
+  "Asrama 10",
+  "Asrama Sedayu Gedung A",
+  "Asrama Sedayu Gedung B",
+  "Asrama Sedayu Gedung C",
+  "Asrama Sedayu Gedung D",
+];
+
 interface MusyrifManagerModalProps {
   onClose: () => void;
   musyrifList: Musyrif[];
-  asramaList: string[];
+  asramaList?: string[];
   onAddMusyrif: (musyrif: Omit<Musyrif, "id">) => void;
   onUpdateMusyrif: (musyrif: Musyrif) => void;
   onDeleteMusyrif: (id: string) => void;
+  authUser?: any;
   isPage?: boolean;
 }
 
 export function MusyrifManagerModal({
   onClose,
-  musyrifList,
-  asramaList,
+  musyrifList = [],
+  asramaList = DEFAULT_ASRAMAS,
   onAddMusyrif,
   onUpdateMusyrif,
   onDeleteMusyrif,
   isPage = false
 }: MusyrifManagerModalProps) {
+  const activeAsramaList = (asramaList && asramaList.length > 0) ? asramaList : DEFAULT_ASRAMAS;
   const [activeTab, setActiveTab] = useState<"daftar" | "tambah">("daftar");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAsrama, setSelectedAsrama] = useState<string>("all");
@@ -48,7 +62,7 @@ export function MusyrifManagerModal({
   const [name, setName] = useState("");
   const [kelas, setKelas] = useState("1 A");
   const [tingkat, setTingkat] = useState("Kelas 1");
-  const [asrama, setAsrama] = useState(asramaList[0] || "Asrama 1");
+  const [asrama, setAsrama] = useState(activeAsramaList[0] || "Asrama 1");
   const [kamar, setKamar] = useState("1 A");
   const [pamong, setPamong] = useState("");
   const [email, setEmail] = useState("");
@@ -58,7 +72,7 @@ export function MusyrifManagerModal({
     setName("");
     setKelas("1 A");
     setTingkat("Kelas 1");
-    setAsrama(asramaList[0] || "Asrama 1");
+    setAsrama(activeAsramaList[0] || "Asrama 1");
     setKamar("1 A");
     setPamong("");
     setEmail("");
@@ -246,7 +260,7 @@ export function MusyrifManagerModal({
                 onChange={e => setAsrama(e.target.value)}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
               >
-                {asramaList.map(a => (
+                {activeAsramaList.map(a => (
                   <option key={a} value={a}>{a}</option>
                 ))}
               </select>
@@ -377,7 +391,7 @@ export function MusyrifManagerModal({
               >
                 Semua Asrama ({musyrifList.length})
               </button>
-              {asramaList.map(asr => {
+              {activeAsramaList.map(asr => {
                 const count = musyrifList.filter(m => m.asrama === asr).length;
                 return (
                   <button

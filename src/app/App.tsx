@@ -4670,6 +4670,7 @@ export default function App() {
                 isPage={true}
                 onClose={() => setPage("dashboard")}
                 musyrifList={musyrifList}
+                asramaList={ASRAMAS}
                 onAddMusyrif={handleAddMusyrif}
                 onUpdateMusyrif={handleUpdateMusyrif}
                 onDeleteMusyrif={handleDeleteMusyrif}
@@ -4875,6 +4876,7 @@ export default function App() {
           <MusyrifManagerModal
             onClose={() => setShowMusyrifManager(false)}
             musyrifList={musyrifList}
+            asramaList={ASRAMAS}
             onAddMusyrif={handleAddMusyrif}
             onUpdateMusyrif={handleUpdateMusyrif}
             onDeleteMusyrif={handleDeleteMusyrif}
