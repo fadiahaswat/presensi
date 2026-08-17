@@ -31,6 +31,7 @@ import { SantriSakitModal, SantriSakitRecord } from "./components/SantriSakitMod
 import { LeaderboardModal } from "./components/LeaderboardModal";
 import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
 import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
+import { PamongManagerModal, Pamong } from "./components/PamongManagerModal";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
@@ -43,7 +44,7 @@ import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdrop
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
@@ -530,6 +531,7 @@ function PageDashboard({
   onOpenLeaderboard,
   onOpenRaport,
   onOpenMusyrifManager,
+  onOpenPamongManager,
   onInstallPWA,
   onLogin,
   pendingIzinCount = 0,
@@ -551,6 +553,7 @@ function PageDashboard({
   onOpenLeaderboard: () => void;
   onOpenRaport: () => void;
   onOpenMusyrifManager?: () => void;
+  onOpenPamongManager?: () => void;
   onInstallPWA?: () => void;
   onLogin?: () => void;
   pendingIzinCount?: number;
@@ -1228,6 +1231,26 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Master Musyrif</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Kelola & data musyrif</p>
+              </div>
+            </button>
+
+            {/* 11. Master Data Pamong (SCRUD) */}
+            <button
+              type="button"
+              onClick={() => onOpenPamongManager ? onOpenPamongManager() : onGoTo("pamong-manager")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-fuchsia-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-fuchsia-50 text-fuchsia-700 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold text-fuchsia-800 bg-fuchsia-100 px-2 py-0.5 rounded-lg font-mono">
+                  SCRUD
+                </span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Master Pamong</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Kelola akun pamong</p>
               </div>
             </button>
           </div>
@@ -3454,7 +3477,7 @@ function parseJwt(token: string): { email?: string; name?: string; picture?: str
 // ─────────────────────────────────────────────────────────────────────────────
 // LOGIN MODAL (Google Identity Services + Whitelist Protection)
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: AuthUser) => void }) {
+function LoginModal({ onClose, onLogin, authUsers, musyrifSource }: { onClose: () => void; onLogin: (u: AuthUser) => void; authUsers: AuthUser[]; musyrifSource: Musyrif[] }) {
   const [errorMsg, setErrorMsg]     = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
@@ -3478,8 +3501,8 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
       return;
     }
 
-    // 1. Check in AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
-    const foundAuth = AUTH_USERS.find(u => u.email.trim().toLowerCase() === clean);
+    // 1. Check in authUsers (Pamong, Koordinator Musyrif, Koordinator Asrama)
+    const foundAuth = authUsers.find(u => u.email.trim().toLowerCase() === clean);
     if (foundAuth) {
       const userToLogin: AuthUser = {
         ...foundAuth,
@@ -3493,8 +3516,8 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
       return;
     }
 
-    // 2. Check in MUSYRIF_LIST (Musyrif Biasa)
-    const foundMusyrif = MUSYRIF_LIST.find(m => m.email && m.email.trim().toLowerCase() === clean);
+    // 2. Check in musyrifSource (Musyrif Biasa)
+    const foundMusyrif = musyrifSource.find(m => m.email && m.email.trim().toLowerCase() === clean);
     if (foundMusyrif) {
       const musyrifUser: AuthUser = {
         id: foundMusyrif.id,
@@ -3515,7 +3538,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
 
     // Rejected - Not in authorized Whitelist
     setErrorMsg(`Akses Ditolak: Akun Google "${inputEmail}" tidak terdaftar dalam database Musyrif maupun Pengelola.`);
-  }, [onLogin, onClose]);
+  }, [onLogin, onClose, authUsers, musyrifSource]);
 
   // Initialize official Google Identity Services
   useEffect(() => {
@@ -3702,6 +3725,7 @@ const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v2";
 const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v2";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v2";
+const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v2";
 
 export default function App() {
   const [musyrifList, setMusyrifList] = useState<Musyrif[]>(() => {
@@ -3715,6 +3739,17 @@ export default function App() {
     return MUSYRIF_LIST;
   });
 
+  const [authUsers, setAuthUsers] = useState<AuthUser[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_AUTH_USERS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return AUTH_USERS;
+  });
+
   const [authUser, setAuthUser] = useState<AuthUser|null>(() => {
     try {
       const saved = localStorage.getItem("presensi_auth_user");
@@ -3723,7 +3758,18 @@ export default function App() {
       const cleanEmail = parsed?.email?.toLowerCase();
       if (!cleanEmail) return null;
       
-      const validAuth = AUTH_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+      const validAuth = ((): AuthUser | undefined => {
+        try {
+          const savedAuthUsers = localStorage.getItem(STORAGE_KEY_AUTH_USERS);
+          if (savedAuthUsers) {
+            const parsed = JSON.parse(savedAuthUsers);
+            if (Array.isArray(parsed)) {
+              return parsed.find((u: AuthUser) => u.email.toLowerCase() === cleanEmail);
+            }
+          }
+        } catch {}
+        return AUTH_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+      })();
       if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
 
       const validMusyrif = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).find(m => m.email && m.email.toLowerCase() === cleanEmail);
@@ -3826,6 +3872,7 @@ export default function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
   const [showMusyrifManager, setShowMusyrifManager] = useState(false);
+  const [showPamongManager, setShowPamongManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
 
   // PWA Install Prompt
@@ -3962,6 +4009,10 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
   }, [musyrifList]);
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(authUsers)); } catch {}
+  }, [authUsers]);
 
   // Initial Cloud Hydration & Realtime Delta Subscription
   useEffect(() => {
@@ -4161,6 +4212,40 @@ export default function App() {
     setMusyrifList(prev => prev.filter(m => m.id !== id));
     googleSyncService.enqueue("Musyrif", { id }, "delete");
     showToast(`Data musyrif ${target?.name || id} berhasil dihapus.`, "info");
+  };
+
+  const pamongList = useMemo<Pamong[]>(
+    () => authUsers
+      .filter(u => u.role === "pamong")
+      .map(u => ({ id: u.id, name: u.name, email: u.email, asrama: u.asrama })),
+    [authUsers]
+  );
+
+  const handleAddPamong = (newPamong: Omit<Pamong, "id">) => {
+    const created: AuthUser = {
+      id: `p_${Date.now()}`,
+      name: newPamong.name,
+      email: newPamong.email.trim().toLowerCase(),
+      role: "pamong",
+      asrama: newPamong.asrama,
+    };
+    setAuthUsers(prev => [created, ...prev]);
+    showToast(`Pamong ${created.name} berhasil ditambahkan!`, "success");
+  };
+
+  const handleUpdatePamong = (updatedPamong: Pamong) => {
+    setAuthUsers(prev => prev.map(u => (
+      u.id === updatedPamong.id
+        ? { ...u, name: updatedPamong.name, email: updatedPamong.email.trim().toLowerCase(), asrama: updatedPamong.asrama, role: "pamong" as Role }
+        : u
+    )));
+    showToast(`Data pamong ${updatedPamong.name} berhasil diperbarui!`, "success");
+  };
+
+  const handleDeletePamong = (id: string) => {
+    const target = authUsers.find(u => u.id === id && u.role === "pamong");
+    setAuthUsers(prev => prev.filter(u => u.id !== id));
+    showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
@@ -4654,6 +4739,7 @@ export default function App() {
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
                 onOpenRaport={() => setShowRaport(true)}
                 onOpenMusyrifManager={() => setShowMusyrifManager(true)}
+                onOpenPamongManager={() => setShowPamongManager(true)}
                 onInstallPWA={handleInstallPWA}
                 onLogin={() => setShowLogin(true)}
                 pendingIzinCount={pendingIzinCount}
@@ -4843,6 +4929,19 @@ export default function App() {
               />
             </motion.div>
           )}
+          {page==="pamong-manager" && (
+            <motion.div key="pamong-manager" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PamongManagerModal
+                isPage={true}
+                onClose={() => setPage("dashboard")}
+                pamongList={pamongList}
+                asramaList={ASRAMAS}
+                onAddPamong={handleAddPamong}
+                onUpdatePamong={handleUpdatePamong}
+                onDeletePamong={handleDeletePamong}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -4894,7 +4993,14 @@ export default function App() {
 
       {/* Login Modal */}
       <AnimatePresence>
-        {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onLogin={handleLogin}/>}
+        {showLogin && (
+          <LoginModal
+            onClose={()=>setShowLogin(false)}
+            onLogin={handleLogin}
+            authUsers={authUsers}
+            musyrifSource={musyrifList}
+          />
+        )}
       </AnimatePresence>
 
       {/* 1. WhatsApp Generator Modal */}
@@ -5050,7 +5156,21 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 11. Google Sheets Cloud Sync Modal */}
+      {/* 11. Master Data Pamong Modal (SCRUD) */}
+      <AnimatePresence>
+        {showPamongManager && (
+          <PamongManagerModal
+            onClose={() => setShowPamongManager(false)}
+            pamongList={pamongList}
+            asramaList={ASRAMAS}
+            onAddPamong={handleAddPamong}
+            onUpdatePamong={handleUpdatePamong}
+            onDeletePamong={handleDeletePamong}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 12. Google Sheets Cloud Sync Modal */}
       <CloudSyncModal
         isOpen={showCloudSync}
         onClose={() => setShowCloudSync(false)}
@@ -5069,4 +5189,3 @@ export default function App() {
     </div>
   );
 }
-
