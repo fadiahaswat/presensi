@@ -227,12 +227,15 @@ export interface GeofenceResult {
   matchedBuilding?: SpecificBuildingLocation;
   distanceMeters: number;
   targetAsrama: string;
+  userLat?: number;
+  userLng?: number;
+  error?: string;
   simulated?: boolean;
 }
 
 export function checkAsramaGeofence(
-  userLat: number = -7.807631,
-  userLng: number = 110.350905,
+  userLat: number,
+  userLng: number,
   asramaName: string = "Asrama 1"
 ): GeofenceResult {
   const safeName = (asramaName || "Asrama 1").trim().toLowerCase();
@@ -246,7 +249,7 @@ export function checkAsramaGeofence(
   // 2. Also find which broad campus belongs to this asrama
   const matchedCampus = CAMPUS_LOCATIONS.find(c => 
     c.asramas.some(a => a.toLowerCase() === safeName || a.toLowerCase().includes(safeName))
-  ) || CAMPUS_LOCATIONS[0];
+  ) || (safeName.includes("sedayu") ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
 
   let distance: number;
   let isInRange: boolean;
@@ -254,8 +257,8 @@ export function checkAsramaGeofence(
   if (exactBuilding) {
     distance = getDistanceFromLatLonInMeters(userLat, userLng, exactBuilding.lat, exactBuilding.lng);
     const campusDist = getDistanceFromLatLonInMeters(userLat, userLng, matchedCampus.lat, matchedCampus.lng);
-    // In range if within specific building radius (+120m buffer) OR within broad campus area
-    isInRange = distance <= (exactBuilding.radiusMeters + 120) || campusDist <= matchedCampus.radiusMeters;
+    // In range if within specific building radius OR within broad campus area
+    isInRange = distance <= exactBuilding.radiusMeters || campusDist <= matchedCampus.radiusMeters;
   } else {
     distance = getDistanceFromLatLonInMeters(userLat, userLng, matchedCampus.lat, matchedCampus.lng);
     isInRange = distance <= matchedCampus.radiusMeters;
@@ -266,7 +269,9 @@ export function checkAsramaGeofence(
     closestCampus: matchedCampus,
     matchedBuilding: exactBuilding,
     distanceMeters: distance,
-    targetAsrama: asramaName || "Asrama 1"
+    targetAsrama: asramaName || "Asrama 1",
+    userLat,
+    userLng
   };
 }
 
@@ -278,19 +283,30 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
           const res = checkAsramaGeofence(pos.coords.latitude, pos.coords.longitude, asramaName);
           resolve(res);
         },
-        () => {
+        (err) => {
           const safeAsrama = (asramaName || "Asrama 1").toLowerCase();
           const matchedCampus = CAMPUS_LOCATIONS.find(c => 
             c.asramas.some(a => a.toLowerCase() === safeAsrama)
-          ) || CAMPUS_LOCATIONS[0];
-          const res = checkAsramaGeofence(matchedCampus.lat, matchedCampus.lng, asramaName || "Asrama 1");
-          resolve({ ...res, simulated: true });
+          ) || (safeAsrama.includes("sedayu") ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
+          
+          resolve({
+            isInRange: false,
+            closestCampus: matchedCampus,
+            distanceMeters: 99999,
+            targetAsrama: asramaName || "Asrama 1",
+            error: err.code === 1 ? "Izin GPS ditolak oleh browser." : "Gagal mendeteksi koordinat GPS."
+          });
         },
-        { timeout: 5000, enableHighAccuracy: true }
+        { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 }
       );
     } else {
-      const res = checkAsramaGeofence(-7.807631, 110.350905, asramaName);
-      resolve({ ...res, simulated: true });
+      resolve({
+        isInRange: false,
+        closestCampus: CAMPUS_LOCATIONS[0],
+        distanceMeters: 99999,
+        targetAsrama: asramaName || "Asrama 1",
+        error: "Perangkat / browser tidak mendukung Geolocation."
+      });
     }
   });
 }

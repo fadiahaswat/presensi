@@ -53,11 +53,20 @@ export function RaportSertifikatModal({
   isPage = false
 }: RaportSertifikatModalProps) {
   const [activeTab, setActiveTab] = useState<"raport" | "sertifikat">("raport");
-  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(musyrifList[0]?.id || "");
   const [selectedAsramaFilter, setSelectedAsramaFilter] = useState<string>("all");
-  const [periodName, setPeriodName] = useState<string>("Bulan Berjalan (Agustus 2026)");
+  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(musyrifList[0]?.id || "");
+  const [periodName, setPeriodName] = useState<string>(`Bulan ${format(new Date(), "MMMM yyyy", { locale: id })}`);
 
-  const musyrif = musyrifList.find(m => m.id === selectedMusyrifId) || musyrifList[0];
+  // Filter musyrif list by selected asrama
+  const filteredMusyrifList = musyrifList.filter(m => 
+    selectedAsramaFilter === "all" ? true : m.asrama === selectedAsramaFilter
+  );
+
+  // Auto-adjust selected musyrif if filtered out
+  const musyrif = filteredMusyrifList.find(m => m.id === selectedMusyrifId) || filteredMusyrifList[0] || musyrifList[0];
+
+  // Extract unique asrama list
+  const asramaOptions = Array.from(new Set(musyrifList.map(m => m.asrama)));
 
   // 1. Shalat Fardhu Statistics
   let totalSubuhHadir = 0, totalSubuhIzin = 0, totalSubuhSakit = 0, totalSubuhAlfa = 0;
@@ -195,40 +204,66 @@ export function RaportSertifikatModal({
 
       {/* Musyrif & Tab Switcher Bar */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-3 no-print">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          {/* Asrama Filter */}
+          <div className="sm:col-span-4">
             <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <User className="w-3.5 h-3.5 text-emerald-600" /> Pilih Musyrif yang Dievaluasi
+              <Building2 className="w-3.5 h-3.5 text-emerald-600" /> Filter Asrama
+            </label>
+            <select
+              value={selectedAsramaFilter}
+              onChange={(e) => {
+                const newAsr = e.target.value;
+                setSelectedAsramaFilter(newAsr);
+                const nextList = musyrifList.filter(m => newAsr === "all" ? true : m.asrama === newAsr);
+                if (nextList.length > 0 && !nextList.some(m => m.id === selectedMusyrifId)) {
+                  setSelectedMusyrifId(nextList[0].id);
+                }
+              }}
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
+            >
+              <option value="all">Semua Asrama ({musyrifList.length})</option>
+              {asramaOptions.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Musyrif Selector */}
+          <div className="sm:col-span-5">
+            <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <User className="w-3.5 h-3.5 text-emerald-600" /> Pilih Musyrif ({filteredMusyrifList.length})
             </label>
             <select
               value={selectedMusyrifId}
               onChange={(e) => setSelectedMusyrifId(e.target.value)}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
             >
-              {musyrifList.map(m => (
-                <option key={m.id} value={m.id}>{m.name} ({m.asrama} - Kamar {m.kamar})</option>
+              {filteredMusyrifList.map(m => (
+                <option key={m.id} value={m.id}>{m.name} ({m.asrama} - Kmr {m.kamar})</option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          {/* Tab Switcher */}
+          <div className="sm:col-span-3 flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveTab("raport")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === "raport" ? "bg-white text-emerald-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Lembar Raport
+              Raport
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("sertifikat")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === "sertifikat" ? "bg-white text-emerald-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Piagam Penghargaan
+              Piagam
             </button>
           </div>
         </div>

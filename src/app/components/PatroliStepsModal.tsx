@@ -24,21 +24,29 @@ export function PatroliStepsModal({
   initialSteps = 0,
   onConfirmSteps
 }: PatroliStepsModalProps) {
+  const [hasStarted, setHasStarted] = useState(initialSteps > 0);
   const [steps, setSteps] = useState(initialSteps);
-  const [isActive, setIsActive] = useState(true);
+  const [isActive, setIsActive] = useState(false);
   const [magnitude, setMagnitude] = useState(9.8);
 
   useEffect(() => {
     pedometerInstance.reset(initialSteps);
-    pedometerInstance.start(
-      (newSteps) => setSteps(newSteps),
-      (mag) => setMagnitude(mag)
-    );
-
     return () => {
       pedometerInstance.stop();
     };
   }, [initialSteps]);
+
+  const handleStartPatrol = async () => {
+    triggerHaptic("medium");
+    await pedometerInstance.requestPermission();
+    pedometerInstance.reset(steps);
+    pedometerInstance.start(
+      (newSteps) => setSteps(newSteps),
+      (mag) => setMagnitude(mag)
+    );
+    setHasStarted(true);
+    setIsActive(true);
+  };
 
   const handleToggleTracking = async () => {
     triggerHaptic("light");
@@ -56,6 +64,10 @@ export function PatroliStepsModal({
   };
 
   const handleSimulateStep = () => {
+    if (!hasStarted) {
+      setHasStarted(true);
+      setIsActive(true);
+    }
     triggerHaptic("light");
     pedometerInstance.simulateStep();
   };
@@ -64,6 +76,8 @@ export function PatroliStepsModal({
     triggerHaptic("light");
     pedometerInstance.reset(0);
     setSteps(0);
+    setIsActive(false);
+    setHasStarted(false);
   };
 
   const isTargetReached = steps >= targetSteps;
@@ -112,12 +126,19 @@ export function PatroliStepsModal({
           {/* Status Badge */}
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold font-mono ${
-              isActive 
+              !hasStarted
+                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                : isActive 
                 ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
                 : "bg-slate-100 text-slate-600 border border-slate-200"
             }`}>
-              <span className={`w-2 h-2 rounded-full ${isActive ? "bg-emerald-500 animate-ping" : "bg-slate-400"}`} />
-              {isActive ? (
+              <span className={`w-2 h-2 rounded-full ${!hasStarted ? "bg-amber-500" : isActive ? "bg-emerald-500 animate-ping" : "bg-slate-400"}`} />
+              {!hasStarted ? (
+                <span className="flex items-center gap-1">
+                  <Play className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Siap Mulai Patroli</span>
+                </span>
+              ) : isActive ? (
                 isMoving ? (
                   <span className="flex items-center gap-1">
                     <Footprints className="w-3.5 h-3.5 text-emerald-700" />
@@ -184,61 +205,80 @@ export function PatroliStepsModal({
             </div>
           </div>
 
-          {/* Verification Status Banner */}
-          {isTargetReached ? (
-            <div className="w-full p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-emerald-900 text-left">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-bold leading-tight">Target Patroli Berhasil Tervalidasi!</p>
-                <p className="text-[11px] text-emerald-800/80 mt-0.5">Musyrif terbukti aktif bergerak menyisir kamar santri.</p>
-              </div>
+          {/* Main Action if Not Started */}
+          {!hasStarted ? (
+            <div className="w-full space-y-2">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Pencet tombol <strong>Mulai Patroli</strong> di bawah, lalu bawa HP Anda saat berkeliling menyisir asrama/kamar santri.
+              </p>
+              <button
+                type="button"
+                onClick={handleStartPatrol}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-md shadow-emerald-600/25 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Play className="w-4 h-4 fill-white" />
+                <span>Mulai Patroli Langkah</span>
+              </button>
             </div>
           ) : (
-            <div className="w-full p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-xs flex items-center justify-center gap-1.5">
-              <Compass className="w-4 h-4 text-emerald-600 animate-spin" style={{ animationDuration: '6s' }} />
-              <span>Bawa perangkat menyisir asrama ({targetSteps - steps} langkah lagi)</span>
-            </div>
+            <>
+              {/* Verification Status Banner */}
+              {isTargetReached ? (
+                <div className="w-full p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-emerald-900 text-left">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold leading-tight">Target Patroli Berhasil Tervalidasi!</p>
+                    <p className="text-[11px] text-emerald-800/80 mt-0.5">Musyrif terbukti aktif bergerak menyisir kamar santri.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-xs flex items-center justify-center gap-1.5">
+                  <Compass className="w-4 h-4 text-emerald-600 animate-spin" style={{ animationDuration: '6s' }} />
+                  <span>Bawa perangkat menyisir asrama ({targetSteps - steps} langkah lagi)</span>
+                </div>
+              )}
+
+              {/* Live Sensor Indicator */}
+              <div className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" /> Sensor Gerak
+                </span>
+                <span className="font-mono font-bold text-slate-700">
+                  {magnitude.toFixed(1)} m/s² {isActive ? "(Aktif)" : "(Jeda)"}
+                </span>
+              </div>
+
+              {/* Controls */}
+              <div className="w-full flex items-center justify-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSimulateStep}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-bold text-emerald-700 active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <Zap className="w-3 h-3 text-emerald-600" />
+                  <span>+1 Langkah</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleTracking}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 active:scale-95 transition-all flex items-center gap-1"
+                >
+                  {isActive ? <Pause className="w-3 h-3 text-slate-600"/> : <Play className="w-3 h-3 text-emerald-600"/>}
+                  <span>{isActive ? "Jeda" : "Lanjut"}</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3 text-slate-500" />
+                  <span>Reset</span>
+                </button>
+              </div>
+            </>
           )}
-
-          {/* Live Sensor Indicator */}
-          <div className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span className="flex items-center gap-1.5 font-medium">
-              <Smartphone className="w-3.5 h-3.5 text-emerald-600" /> Sensor Gerak
-            </span>
-            <span className="font-mono font-bold text-slate-700">
-              {magnitude.toFixed(1)} m/s² {isActive ? "(Aktif)" : "(Jeda)"}
-            </span>
-          </div>
-
-          {/* Test Simulation Button */}
-          <div className="w-full flex items-center justify-center gap-2 pt-1">
-            <button
-              type="button"
-              onClick={handleSimulateStep}
-              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-bold text-emerald-700 active:scale-95 transition-all flex items-center gap-1"
-            >
-              <Zap className="w-3 h-3 text-emerald-600" />
-              <span>Simulasi +1 Langkah</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleToggleTracking}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 active:scale-95 transition-all flex items-center gap-1"
-            >
-              {isActive ? <Pause className="w-3 h-3 text-slate-600"/> : <Play className="w-3 h-3 text-emerald-600"/>}
-              <span>{isActive ? "Jeda" : "Lanjut"}</span>
-            </button>
-            
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 active:scale-95 transition-all flex items-center gap-1"
-            >
-              <RotateCcw className="w-3 h-3 text-slate-500" />
-              <span>Reset</span>
-            </button>
-          </div>
 
         </div>
 

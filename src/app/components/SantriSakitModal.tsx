@@ -59,6 +59,8 @@ export function SantriSakitModal({
   const [filterAsrama, setFilterAsrama] = useState<string>(isMusyrif && authUser?.asrama ? authUser.asrama : "all");
   const [filterStatus, setFilterStatus] = useState<"all" | "dalam_perawatan" | "sembuh">("dalam_perawatan");
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCatatanText, setEditCatatanText] = useState<string>("");
 
   // Form State
   const defaultMusyrif = isMusyrif 
@@ -77,6 +79,12 @@ export function SantriSakitModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formNama.trim() || !formKeluhan.trim()) return;
+
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (formDate > todayStr) {
+      alert("Tanggal pemeriksaan santri sakit tidak dapat dicatat untuk tanggal di masa depan.");
+      return;
+    }
 
     const selectedM = musyrifList.find(m => m.id === formMusyrifId) || defaultMusyrif;
 
@@ -470,18 +478,60 @@ export function SantriSakitModal({
                   <span className="text-slate-500 font-semibold">Keluhan: </span>
                   {item.keluhan}
                 </p>
-                {item.catatanTindakan && (
-                  <p className="text-xs text-slate-700 leading-relaxed">
-                    <span className="text-slate-500 font-semibold">Tindakan/Obat: </span>
-                    {item.catatanTindakan}
-                  </p>
+                {/* Edit inline update tindakan medis */}
+                {editingId === item.id ? (
+                  <div className="pt-2 border-t border-slate-200/80 space-y-2 animate-in fade-in duration-150">
+                    <label className="text-[11px] font-bold text-slate-700">Perbarui Tindakan Medis / Catatan Perkembangan:</label>
+                    <textarea
+                      rows={2}
+                      value={editCatatanText}
+                      onChange={e => setEditCatatanText(e.target.value)}
+                      placeholder="Tulis perkembangan kondisi santri atau rujukan dokter..."
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSaveSantriSakit({
+                            ...item,
+                            catatanTindakan: editCatatanText.trim()
+                          });
+                          setEditingId(null);
+                        }}
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs"
+                      >
+                        Simpan Perkembangan
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pt-1 text-[11px] text-slate-400 font-mono flex items-center justify-between">
+                    <span>Dicatat: {item.createdAt}</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(item.id);
+                          setEditCatatanText(item.catatanTindakan || "");
+                        }}
+                        className="text-xs font-bold text-emerald-700 hover:underline font-sans"
+                      >
+                        + Update Tindakan
+                      </button>
+                      <span className={item.status === "dalam_perawatan" ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>
+                        {item.status === "dalam_perawatan" ? "Sedang Dirawat" : "Sembuh"}
+                      </span>
+                    </div>
+                  </div>
                 )}
-                <div className="pt-1 text-[11px] text-slate-400 font-mono flex items-center justify-between">
-                  <span>Dicatat: {item.createdAt}</span>
-                  <span className={item.status === "dalam_perawatan" ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>
-                    {item.status === "dalam_perawatan" ? "Sedang Dalam Perawatan" : "Telah Pulih / Sembuh"}
-                  </span>
-                </div>
               </div>
             </div>
           ))

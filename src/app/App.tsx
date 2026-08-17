@@ -645,7 +645,7 @@ function PageDashboard({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"/>
                 <p className="text-emerald-100 text-[11px] font-mono tracking-tight">{hijri.day} {hijri.monthName} {hijri.year} H</p>
               </div>
-              <h1 className="text-white text-2xl sm:text-3xl font-extrabold tracking-tight">{authUser ? `Halo, Ustadz ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
+              <h1 className="text-white text-2xl sm:text-3xl font-extrabold tracking-tight">{authUser ? `Ahlan, Ustadz ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
               <p className="text-emerald-200/90 text-xs sm:text-sm mt-0.5">{format(now,"EEEE, d MMMM yyyy",{locale:id})}</p>
             </div>
             <button onClick={()=>onGoTo("ibadah")} className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-right hover:bg-white/20 transition-all active:scale-95 border border-white/15 shadow-inner">
@@ -839,79 +839,6 @@ function PageDashboard({
           </button>
         </div>
       )}
-
-      {/* Modern Overview Card */}
-      <Card ch={<div className="p-4 sm:p-5 flex items-center gap-4 sm:gap-5">
-        {/* SVG Circular Progress Ring */}
-        <div className="relative w-[88px] h-[88px] flex-shrink-0 flex items-center justify-center">
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 90 90">
-            <circle
-              cx="45"
-              cy="45"
-              r="34"
-              className="stroke-slate-100"
-              strokeWidth="8"
-              fill="transparent"
-            />
-            <circle
-              cx="45"
-              cy="45"
-              r="34"
-              className="stroke-emerald-600 transition-all duration-700 ease-out"
-              strokeWidth="8"
-              strokeDasharray={213.63}
-              strokeDashoffset={213.63 * (1 - (allTodayPossible ? todayHadir / allTodayPossible : 0))}
-              strokeLinecap="round"
-              fill="transparent"
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-sm font-extrabold text-slate-900 font-mono tracking-tight leading-none">
-              {allTodayPossible ? Math.round((todayHadir / allTodayPossible) * 100) : 0}%
-            </span>
-            <span className="text-[10px] text-slate-500 font-semibold mt-1 leading-none">Hadir</span>
-          </div>
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-bold text-sm text-slate-800">Ringkasan Hari Ini</p>
-            <span className="text-xs text-slate-500 font-mono">{format(now,"d MMM yyyy")}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <div className="bg-emerald-50/90 rounded-2xl p-2 text-center border border-emerald-200/60 shadow-2xs">
-              <span className="text-[10px] text-emerald-700 font-semibold block leading-tight">Hadir</span>
-              <span className="text-xs font-extrabold text-emerald-800 font-mono mt-0.5 block">{todayHadir}</span>
-            </div>
-            <div className="bg-amber-50/90 rounded-2xl p-2 text-center border border-amber-200/60 shadow-2xs">
-              <span className="text-[10px] text-amber-700 font-semibold block leading-tight">Izin / Sakit</span>
-              <span className="text-xs font-extrabold text-amber-800 font-mono mt-0.5 block">{todayLain}</span>
-            </div>
-            <div className="bg-slate-100/90 rounded-2xl p-2 text-center border border-slate-200/60 shadow-2xs">
-              <span className="text-[10px] text-slate-600 font-semibold block leading-tight">Belum</span>
-              <span className="text-xs font-extrabold text-slate-700 font-mono mt-0.5 block">{todayBelum}</span>
-            </div>
-          </div>
-        </div>
-      </div>}/>
-
-      {/* 7-day chart */}
-      <Card ch={<div className="p-5">
-        <Label ch="Tingkat Kehadiran 7 Hari Terakhir"/>
-        <ResponsiveContainer width="100%" height={100}>
-          <BarChart data={weekData} barGap={2} barCategoryGap="30%">
-            <XAxis dataKey="day" tick={{fontSize:10,fill:"#64748b",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
-            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,.08)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
-            <Bar dataKey="subuh"   name="subuh"   fill="#d97706" radius={[4,4,0,0]}/>
-            <Bar dataKey="maghrib" name="maghrib"  fill="#047857" radius={[4,4,0,0]}/>
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="flex gap-4 mt-1 justify-center">
-          {[{c:"bg-amber-600",l:"Subuh"},{c:"bg-emerald-700",l:"Maghrib"}].map(x=>(
-            <div key={x.l} className="flex items-center gap-1.5"><div className={`w-2 h-2 rounded-sm ${x.c}`}/><span className="text-xs text-slate-500 font-medium">{x.l}</span></div>
-          ))}
-        </div>
-      </div>}/>
 
       {/* ───────────────────────────────────────────────────────────────────── */}
       {/* PUSAT LAYANAN & FITUR INOVASI KEASRAMAAN */}
@@ -1294,146 +1221,148 @@ function PageDashboard({
         )}
       </div>
 
-      {/* High-Utility Compact Asrama Command Matrix */}
-      <Card ch={<div>
-        {/* Header & Filter Tabs */}
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-              <Users className="w-3.5 h-3.5"/>
+      {/* High-Utility Compact Asrama Command Matrix for Pamong / Public */}
+      {(!authUser || hasFullAccess(authUser)) && (
+        <Card ch={<div>
+          {/* Header & Filter Tabs */}
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                <Users className="w-3.5 h-3.5"/>
+              </div>
+              <div>
+                <p className="font-bold text-sm text-slate-800 leading-tight">Matriks Presensi Asrama</p>
+                <p className="text-[10px] text-slate-500 font-mono">Hari ini · {ASRAMAS.length} Unit Asrama</p>
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-sm text-slate-800 leading-tight">Matriks Presensi Asrama</p>
-              <p className="text-[10px] text-slate-500 font-mono">Hari ini · {ASRAMAS.length} Unit Asrama</p>
-            </div>
-          </div>
 
-          {/* Campus Filter Pills */}
-          <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
-            {[
-              { id: "all", label: "Semua", count: 8 },
-              { id: "sparman", label: "S. Parman", count: 5 },
-              { id: "sedayu", label: "Sedayu", count: 3 }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setAsramaCampus(tab.id as any)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                  asramaCampus === tab.id
-                    ? "bg-white text-emerald-800 shadow-2xs font-bold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Compact Matrix Table */}
-        <div className="divide-y divide-slate-50">
-          {ASRAMAS.filter(a => {
-            if (asramaCampus === "sparman") return !a.toLowerCase().includes("sedayu");
-            if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
-            return true;
-          }).map(a => {
-            const ins = MUSYRIF_LIST.filter(m => m.asrama === a);
-            const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
-            const sh2 = rs.filter(r => r.subuh === "hadir").length;
-            const mh2 = rs.filter(r => r.maghrib === "hadir").length;
-            const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
-            const isExpanded = expandedAsrama === a;
-
-            return (
-              <div key={a} className="transition-colors">
-                <div 
-                  onClick={() => setExpandedAsrama(isExpanded ? null : a)}
-                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 cursor-pointer select-none"
+            {/* Campus Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
+              {[
+                { id: "all", label: "Semua", count: 8 },
+                { id: "sparman", label: "S. Parman", count: 5 },
+                { id: "sedayu", label: "Sedayu", count: 3 }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setAsramaCampus(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    asramaCampus === tab.id
+                      ? "bg-white text-emerald-800 shadow-2xs font-bold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
                 >
-                  {/* Asrama info */}
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-slate-300"
-                    }`}/>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate leading-tight">{a}</p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-0.5">{ins.length} musyrif</p>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Compact Matrix Table */}
+          <div className="divide-y divide-slate-50">
+            {ASRAMAS.filter(a => {
+              if (asramaCampus === "sparman") return !a.toLowerCase().includes("sedayu");
+              if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
+              return true;
+            }).map(a => {
+              const ins = MUSYRIF_LIST.filter(m => m.asrama === a);
+              const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
+              const sh2 = rs.filter(r => r.subuh === "hadir").length;
+              const mh2 = rs.filter(r => r.maghrib === "hadir").length;
+              const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
+              const isExpanded = expandedAsrama === a;
+
+              return (
+                <div key={a} className="transition-colors">
+                  <div 
+                    onClick={() => setExpandedAsrama(isExpanded ? null : a)}
+                    className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 cursor-pointer select-none"
+                  >
+                    {/* Asrama info */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-slate-300"
+                      }`}/>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate leading-tight">{a}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">{ins.length} musyrif</p>
+                      </div>
+                    </div>
+
+                    {/* Subuh & Maghrib Pills */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                        sh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                        sh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
+                      }`}>
+                        S: {sh2}/{ins.length}
+                      </span>
+
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                        mh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                        mh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
+                      }`}>
+                        M: {mh2}/{ins.length}
+                      </span>
+
+                      <span className={`w-11 text-right text-xs font-extrabold font-mono ${
+                        pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"
+                      }`}>
+                        {pct}%
+                      </span>
+
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180 text-emerald-600" : ""}`}/>
                     </div>
                   </div>
 
-                  {/* Subuh & Maghrib Pills */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
-                      sh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                      sh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
-                    }`}>
-                      S: {sh2}/{ins.length}
-                    </span>
-
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
-                      mh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                      mh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
-                    }`}>
-                      M: {mh2}/{ins.length}
-                    </span>
-
-                    <span className={`w-11 text-right text-xs font-extrabold font-mono ${
-                      pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"
-                    }`}>
-                      {pct}%
-                    </span>
-
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180 text-emerald-600" : ""}`}/>
-                  </div>
-                </div>
-
-                {/* Expanded Musyrif Roster & Quick Actions */}
-                {isExpanded && (
-                  <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 space-y-2 animate-in fade-in duration-150">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Daftar Musyrif ({ins.length})</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {ins.map(m => {
-                        const rec = todayRecs.find(r => r.musyrifId === m.id);
-                        return (
-                          <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Av name={m.name} src={m.photo} sz="xs"/>
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-slate-800 truncate">{m.name}</p>
-                                <p className="text-[10px] text-slate-500 truncate">{m.kelas}</p>
+                  {/* Expanded Musyrif Roster & Quick Actions */}
+                  {isExpanded && (
+                    <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 space-y-2 animate-in fade-in duration-150">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Daftar Musyrif ({ins.length})</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {ins.map(m => {
+                          const rec = todayRecs.find(r => r.musyrifId === m.id);
+                          return (
+                            <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Av name={m.name} src={m.photo} sz="xs"/>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-slate-800 truncate">{m.name}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">{m.kelas}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                  rec?.subuh === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                                }`}>S:{rec?.subuh ? S[rec.subuh].short : "–"}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                  rec?.maghrib === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                                }`}>M:{rec?.maghrib ? S[rec.maghrib].short : "–"}</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
-                                rec?.subuh === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                              }`}>S:{rec?.subuh ? S[rec.subuh].short : "–"}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
-                                rec?.maghrib === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                              }`}>M:{rec?.maghrib ? S[rec.maghrib].short : "–"}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {authUser && authUser.role !== "musyrif" && (
-                      <div className="pt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5"/>
-                          <span>Buka Form Presensi {a}</span>
-                        </button>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>}/>
+                      {authUser && authUser.role !== "musyrif" && (
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5"/>
+                            <span>Buka Form Presensi {a}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>}/>
+      )}
 
       {/* Streak leaderboard - Clickable to open detail */}
       <div>
@@ -1630,6 +1559,10 @@ function PageInputPrayer({
   const isFuture = selDate > todayStr();
 
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
+    if (selDate > todayStr()) {
+      showToast?.("Tidak dapat mengisi presensi untuk tanggal di masa depan.", "error");
+      return;
+    }
     triggerHaptic(s === "hadir" ? "light" : "medium");
     onMark(mid, p, s, selDate, note);
     const mName = musyrifList.find(m => m.id === mid)?.name?.split(" ")[0] || "Musyrif";
@@ -2230,12 +2163,57 @@ function PageRekap({ records, authUser, onSelectMusyrif, onGoTo }: { records: At
                 )}
               </div>
             )}
-            <div className="p-5 overflow-y-auto flex-1">
-              <div className="grid grid-cols-4 gap-1.5 mb-4">
-                {[{l:"Sub.H",v:detailM.sh,c:"text-emerald-600 bg-emerald-50"},{l:"Sub.S",v:detailM.ss,c:"text-amber-600 bg-amber-50"},{l:"Sub.I",v:detailM.si,c:"text-blue-600 bg-blue-50"},{l:"Sub.A",v:detailM.sa,c:"text-red-600 bg-red-50"},
-                  {l:"Mag.H",v:detailM.mh,c:"text-emerald-600 bg-emerald-50"},{l:"Mag.S",v:detailM.ms,c:"text-amber-600 bg-amber-50"},{l:"Mag.I",v:detailM.mi,c:"text-blue-600 bg-blue-50"},{l:"Mag.A",v:detailM.ma,c:"text-red-600 bg-red-50"}].map(s=>(
-                  <div key={s.l} className={`rounded-xl p-2 text-center ${s.c.split(" ")[1]}`}><p className={`text-base font-bold font-mono ${s.c.split(" ")[0]}`}>{s.v}</p><p className="text-[9px] text-slate-400 mt-0.5">{s.l}</p></div>
-                ))}
+            <div className="p-5 overflow-y-auto flex-1 space-y-3.5">
+              {/* Shalat Subuh Breakdown */}
+              <div className="bg-amber-50/50 rounded-2xl p-3 border border-amber-200/60">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Sun className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="text-[11px] font-bold text-amber-900 font-mono uppercase tracking-wider">Shalat Subuh</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-emerald-700">{detailM.sh}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Hadir</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-amber-700">{detailM.ss}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Sakit</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-blue-700">{detailM.si}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Izin</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-rose-700">{detailM.sa}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Alfa</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shalat Maghrib Breakdown */}
+              <div className="bg-emerald-50/50 rounded-2xl p-3 border border-emerald-200/60">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Moon className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-[11px] font-bold text-emerald-900 font-mono uppercase tracking-wider">Shalat Maghrib</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-emerald-700">{detailM.mh}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Hadir</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-amber-700">{detailM.ms}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Sakit</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-blue-700">{detailM.mi}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Izin</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-rose-700">{detailM.ma}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Alfa</p>
+                  </div>
+                </div>
               </div>
               <Label ch="10 Hari Terakhir"/>
               <div className="flex flex-col gap-1">
@@ -2279,7 +2257,23 @@ function PageRekap({ records, authUser, onSelectMusyrif, onGoTo }: { records: At
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: RIWAYAT
 // ─────────────────────────────────────────────────────────────────────────────
-function PageRiwayat({ records, authUser, onLogin, initialMusyrifId, onSelectMusyrifId }: {records:AttendanceRecord[];authUser:AuthUser|null;onLogin:()=>void;initialMusyrifId?:string|null;onSelectMusyrifId?:(id:string)=>void}) {
+function PageRiwayat({ 
+  records, 
+  authUser, 
+  onLogin, 
+  initialMusyrifId, 
+  onSelectMusyrifId,
+  onMark,
+  showToast
+}: {
+  records: AttendanceRecord[];
+  authUser: AuthUser | null;
+  onLogin: () => void;
+  initialMusyrifId?: string | null;
+  onSelectMusyrifId?: (id: string) => void;
+  onMark?: MarkFn;
+  showToast?: (msg: string, type?: "success" | "info" | "error") => void;
+}) {
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selId, setSelId] = useState(initialMusyrifId || MUSYRIF_LIST[0].id);
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
@@ -2287,6 +2281,8 @@ function PageRiwayat({ records, authUser, onLogin, initialMusyrifId, onSelectMus
   const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
   const [pickerAsrama, setPickerAsrama] = useState<string>("all");
   const [pickerSearch, setPickerSearch] = useState("");
+  const [editingSlot, setEditingSlot] = useState<"subuh" | "maghrib" | null>(null);
+  const [editNoteText, setEditNoteText] = useState("");
 
   useEffect(() => {
     if (initialMusyrifId) {
@@ -2303,6 +2299,7 @@ function PageRiwayat({ records, authUser, onLogin, initialMusyrifId, onSelectMus
   );
 
   const isPersonalMusyrif = authUser.role === "musyrif";
+  const isPamongOrKoord = authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung";
 
   const allowed = isPersonalMusyrif
     ? MUSYRIF_LIST.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
@@ -2341,6 +2338,27 @@ function PageRiwayat({ records, authUser, onLogin, initialMusyrifId, onSelectMus
       .filter(r => (r.subuh && r.subuh !== "hadir") || (r.maghrib && r.maghrib !== "hadir"))
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [mRecs]);
+
+  // Handle direct quick status update for Pamong
+  const handleQuickMark = (prayer: PrayerSlot, status: AttendanceStatus) => {
+    if (!selectedDay || !onMark) return;
+    const dStr = format(selectedDay.date, "yyyy-MM-dd");
+    onMark(musyrif.id, prayer, status, dStr, editNoteText || undefined);
+    
+    // Update local modal state
+    const currentRec = records.find(r => r.musyrifId === musyrif.id && r.date === dStr) || { musyrifId: musyrif.id, date: dStr };
+    setSelectedDay({
+      date: selectedDay.date,
+      record: {
+        ...currentRec,
+        [prayer]: status,
+        ...(prayer === "subuh" ? { subuhNote: editNoteText || currentRec.subuhNote } : { maghribNote: editNoteText || currentRec.maghribNote })
+      }
+    });
+    setEditingSlot(null);
+    setEditNoteText("");
+    showToast?.(`Presensi ${prayer === "subuh" ? "Subuh" : "Maghrib"} (${musyrif.name}) diubah ke ${S[status].label}`, "success");
+  };
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
@@ -2723,51 +2741,147 @@ function PageRiwayat({ records, authUser, onLogin, initialMusyrifId, onSelectMus
         }/>
       </div>
 
-      {/* Calendar Day Detail Modal */}
+      {/* Calendar Day Detail Modal with Quick Pamong Status Revision */}
       {selectedDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>setSelectedDay(null)}>
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>{ setSelectedDay(null); setEditingSlot(null); }}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200 space-y-4" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="font-bold text-slate-800 text-base">{format(selectedDay.date, "EEEE, d MMMM yyyy", {locale:id})}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{musyrif.name} ({musyrif.kelas})</p>
+                <h3 className="font-bold text-slate-800 text-sm sm:text-base">{format(selectedDay.date, "EEEE, d MMMM yyyy", {locale:id})}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{musyrif.name} ({musyrif.asrama} - Kmr {musyrif.kamar})</p>
               </div>
-              <button onClick={()=>setSelectedDay(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+              <button 
+                type="button"
+                onClick={()=>{ setSelectedDay(null); setEditingSlot(null); }} 
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
+              >
                 <X className="w-4 h-4"/>
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 mb-5">
-              {/* Subuh details */}
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
-                    <Sun className="w-4 h-4"/>
+            <div className="flex flex-col gap-3">
+              {/* Subuh details & quick edit */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                      <Sun className="w-4 h-4"/>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Presensi Subuh</p>
+                      <p className="text-[11px] text-slate-500">{selectedDay.record?.subuhNote ? `"${selectedDay.record.subuhNote}"` : "Tidak ada catatan"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">Presensi Subuh</p>
-                    <p className="text-[11px] text-slate-400">{selectedDay.record?.subuhNote ? `"${selectedDay.record.subuhNote}"` : "Tidak ada catatan"}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Chip s={selectedDay.record?.subuh}/>
+                    {isPamongOrKoord && onMark && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSlot(editingSlot === "subuh" ? null : "subuh");
+                          setEditNoteText(selectedDay.record?.subuhNote || "");
+                        }}
+                        className="text-[11px] font-bold text-emerald-700 hover:underline px-1 py-0.5"
+                      >
+                        {editingSlot === "subuh" ? "Tutup" : "Ubah"}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <Chip s={selectedDay.record?.subuh}/>
+
+                {editingSlot === "subuh" && (
+                  <div className="pt-2 border-t border-slate-200/80 space-y-2 animate-in fade-in duration-150">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(["hadir", "izin", "sakit", "alfa"] as const).map(st => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => handleQuickMark("subuh", st)}
+                          className={`py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                            selectedDay.record?.subuh === st
+                              ? "bg-amber-600 text-white shadow-xs"
+                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {st === "hadir" ? "Hadir" : st === "izin" ? "Izin" : st === "sakit" ? "Sakit" : "Alfa"}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Catatan keterangan Subuh..."
+                      value={editNoteText}
+                      onChange={e => setEditNoteText(e.target.value)}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Maghrib details */}
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                    <Moon className="w-4 h-4"/>
+              {/* Maghrib details & quick edit */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                      <Moon className="w-4 h-4"/>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Presensi Maghrib</p>
+                      <p className="text-[11px] text-slate-500">{selectedDay.record?.maghribNote ? `"${selectedDay.record.maghribNote}"` : "Tidak ada catatan"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">Presensi Maghrib</p>
-                    <p className="text-[11px] text-slate-400">{selectedDay.record?.maghribNote ? `"${selectedDay.record.maghribNote}"` : "Tidak ada catatan"}</p>
+                  <div className="flex items-center gap-1.5">
+                    <Chip s={selectedDay.record?.maghrib}/>
+                    {isPamongOrKoord && onMark && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSlot(editingSlot === "maghrib" ? null : "maghrib");
+                          setEditNoteText(selectedDay.record?.maghribNote || "");
+                        }}
+                        className="text-[11px] font-bold text-emerald-700 hover:underline px-1 py-0.5"
+                      >
+                        {editingSlot === "maghrib" ? "Tutup" : "Ubah"}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <Chip s={selectedDay.record?.maghrib}/>
+
+                {editingSlot === "maghrib" && (
+                  <div className="pt-2 border-t border-slate-200/80 space-y-2 animate-in fade-in duration-150">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(["hadir", "izin", "sakit", "alfa"] as const).map(st => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => handleQuickMark("maghrib", st)}
+                          className={`py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                            selectedDay.record?.maghrib === st
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {st === "hadir" ? "Hadir" : st === "izin" ? "Izin" : st === "sakit" ? "Sakit" : "Alfa"}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Catatan keterangan Maghrib..."
+                      value={editNoteText}
+                      onChange={e => setEditNoteText(e.target.value)}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            <button onClick={()=>setSelectedDay(null)} className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition-all">
+            <button 
+              type="button"
+              onClick={()=>{ setSelectedDay(null); setEditingSlot(null); }} 
+              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all"
+            >
               Tutup
             </button>
           </div>
@@ -3276,6 +3390,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const gisInitializedRef = useRef(false);
 
   const ROLE_LABELS: Record<string, string> = {
     koordinator_musyrif: "Koord. Musyrif",
@@ -3339,7 +3454,8 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
     const initGis = () => {
       try {
         // @ts-ignore
-        if (active && typeof window !== "undefined" && window.google?.accounts?.id && googleBtnRef.current) {
+        if (active && typeof window !== "undefined" && window.google?.accounts?.id && googleBtnRef.current && !gisInitializedRef.current) {
+          gisInitializedRef.current = true;
           // @ts-ignore
           window.google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
@@ -3379,7 +3495,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
     initGis();
     const timer = setInterval(() => {
       // @ts-ignore
-      if (window.google?.accounts?.id) {
+      if (window.google?.accounts?.id && !gisInitializedRef.current) {
         initGis();
         clearInterval(timer);
       }
@@ -3747,6 +3863,13 @@ export default function App() {
     }
   }, [authUser, page]);
 
+  // Always reset scroll position to top whenever page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [page]);
+
   useEffect(() => {
     const unsub = subscribeTimeSync((st) => {
       setTimeSyncState(st);
@@ -3868,6 +3991,12 @@ export default function App() {
     }
   };
 
+  // Delete Izin
+  const handleDeleteIzin = (reqId: string) => {
+    setIzinList(prev => prev.filter(i => i.id !== reqId));
+    showToast("Pengajuan izin berhasil dibatalkan/dihapus.", "info");
+  };
+
   // Save Kegiatan
   const handleSaveKegiatan = (rec: KegiatanRecord) => {
     setKegiatanRecords(prev => {
@@ -3880,6 +4009,12 @@ export default function App() {
       return [rec, ...prev];
     });
     showToast("Presensi kegiatan asrama berhasil disimpan!", "success");
+  };
+
+  // Delete Kegiatan
+  const handleDeleteKegiatan = (id: string) => {
+    setKegiatanRecords(prev => prev.filter(k => k.id !== id));
+    showToast("Data presensi kegiatan berhasil dihapus.", "info");
   };
 
   // Save Jurnal Logbook
@@ -4223,7 +4358,15 @@ export default function App() {
           )}
           {page==="riwayat" && (
             <motion.div key="riwayat" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageRiwayat records={records} authUser={authUser} onLogin={()=>setShowLogin(true)} initialMusyrifId={selectedMusyrifId} onSelectMusyrifId={setSelectedMusyrifId}/>
+              <PageRiwayat 
+                records={records} 
+                authUser={authUser} 
+                onLogin={()=>setShowLogin(true)} 
+                initialMusyrifId={selectedMusyrifId} 
+                onSelectMusyrifId={setSelectedMusyrifId}
+                onMark={handleMark}
+                showToast={showToast}
+              />
             </motion.div>
           )}
           {page==="ibadah" && (
@@ -4280,6 +4423,7 @@ export default function App() {
                 izinList={izinList}
                 onSubmitIzin={handleSubmitIzin}
                 onApproveIzin={handleApproveIzin}
+                onDeleteIzin={handleDeleteIzin}
               />
             </motion.div>
           )}
@@ -4292,6 +4436,7 @@ export default function App() {
                 asramaList={ASRAMAS}
                 kegiatanRecords={kegiatanRecords}
                 onSaveKegiatan={handleSaveKegiatan}
+                onDeleteKegiatan={handleDeleteKegiatan}
                 authUser={authUser}
               />
             </motion.div>
@@ -4306,9 +4451,13 @@ export default function App() {
                 logbookData={logbookData}
                 kegiatanRecords={kegiatanRecords}
                 mutabaahData={mutabaahData}
-                onSelectMusyrif={(mid) => {
+                onSelectMusyrif={(mid, mode) => {
                   setSelectedMusyrifId(mid);
-                  setPage("riwayat");
+                  if (mode === "raport" || !authUser) {
+                    setPage("raport");
+                  } else {
+                    setPage("riwayat");
+                  }
                 }}
               />
             </motion.div>
@@ -4402,6 +4551,7 @@ export default function App() {
             izinList={izinList}
             onSubmitIzin={handleSubmitIzin}
             onApproveIzin={handleApproveIzin}
+            onDeleteIzin={handleDeleteIzin}
           />
         )}
       </AnimatePresence>
@@ -4426,6 +4576,7 @@ export default function App() {
             asramaList={ASRAMAS}
             kegiatanRecords={kegiatanRecords}
             onSaveKegiatan={handleSaveKegiatan}
+            onDeleteKegiatan={handleDeleteKegiatan}
             authUser={authUser}
           />
         )}
@@ -4486,10 +4637,14 @@ export default function App() {
             logbookData={logbookData}
             kegiatanRecords={kegiatanRecords}
             mutabaahData={mutabaahData}
-            onSelectMusyrif={(mid) => {
+            onSelectMusyrif={(mid, mode) => {
               setSelectedMusyrifId(mid);
               setShowLeaderboard(false);
-              setPage("riwayat");
+              if (mode === "raport" || !authUser) {
+                setShowRaport(true);
+              } else {
+                setPage("riwayat");
+              }
             }}
           />
         )}

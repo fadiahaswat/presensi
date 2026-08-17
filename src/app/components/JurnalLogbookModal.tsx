@@ -326,15 +326,38 @@ export function JurnalLogbookModal({
     }
   }, [asramaTarget]);
 
-  // Handle task toggling
-  const toggleTask = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">) => {
-    if (!isMusyrifUser) return;
+  // Handle task toggling with strict validations (Date, Geofence, Time window)
+  const toggleTask = (taskDef: TaskDefinition) => {
+    if (!isMusyrifUser && !isPamongOrKoord) return;
+
+    const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
+    
+    // 1. Must be today (for musyrif)
+    if (!isToday && !isPamongOrKoord) {
+      alert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini).");
+      return;
+    }
+
+    // 2. Must be in Asrama (Geofencing check if GPS available)
+    if (gpsResult && !gpsResult.isInRange && !isPamongOrKoord) {
+      alert(`Anda terdeteksi berada di luar area ${asramaTarget} (${gpsResult.distanceMeters}m dari radius valid). Pencatatan tugas logbook hanya diizinkan saat Anda berada di lingkungan asrama.`);
+      return;
+    }
+
+    // 3. Must be in or after task start time (not upcoming before scheduled time)
+    const timeInfo = getTaskTimeStatus(taskDef);
+    const cur = formState[taskDef.key] || { done: false };
+
+    if (!cur.done && timeInfo.status === "upcoming" && !isPamongOrKoord) {
+      alert(`Tugas "${taskDef.title}" belum masuk waktu pelaksanaan.\nJadwal tugas: ${taskDef.timeWindow}.\n\nSilakan centang saat waktu pelaksanaan tugas telah tiba.`);
+      return;
+    }
+
+    const nextDone = !cur.done;
     setFormState(prev => {
-      const cur = prev[key] || { done: false };
-      const nextDone = !cur.done;
       return {
         ...prev,
-        [key]: {
+        [taskDef.key]: {
           ...cur,
           done: nextDone,
           completedAt: nextDone ? format(new Date(), "HH:mm") : undefined,
@@ -398,343 +421,186 @@ export function JurnalLogbookModal({
     } else if (curTotal > endTotal) {
       return { status: "passed", label: "Waktu Lewat", badgeClass: "bg-slate-100 text-slate-500" };
     } else {
-      return { status: "upcoming", label: "Akan Datang", badgeClass: "bg-blue-50 text-blue-700" };
+      return { status: "upcoming", label: "Belum Waktunya", badgeClass: "bg-rose-50 text-rose-700 border border-rose-200" };
     }
   };
 
+  // Filtered Tasks:
+  // User requested: "yang waktu lewat dan belum masuk jangan dimunculkan kartunya"
+  // For today: Only show active tasks OR completed tasks. (Pamong can toggle to view all)
+  const [showAllScheduled, setShowAllScheduled] = useState(false);
+  const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
+
   const filteredTasks = LOGBOOK_TASKS.filter(t => {
-    if (filterCategory === "all") return true;
-    return t.category === filterCategory;
+    // Category Filter
+    if (filterCategory !== "all" && t.category !== filterCategory) return false;
+
+    // Time status filtering when isToday and not explicitly showing all
+    if (isToday && !showAllScheduled && isMusyrifUser) {
+      const taskData = formState[t.key] || { done: false };
+      const timeInfo = getTaskTimeStatus(t);
+      // Only show if active right now OR already marked done
+      return timeInfo.status === "active" || taskData.done;
+    }
+
+    return true;
   });
+
+  const isGpsVerified = gpsResult?.isInRange ?? false;
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
-      {/* Header Bar */}
-      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${
-        isPage 
-          ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" 
-          : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"
-      }`}>
+      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${isPage ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"}`}>
         <div className="flex items-center gap-3">
-          <button 
-            type="button"
-            onClick={onClose}
-            aria-label="Kembali ke Dashboard"
-            className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${
-              isPage ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"
-            }`}
-          >
+          <button type="button" onClick={onClose} className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${isPage ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"}`}>
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Jurnal & Logbook Harian Musyrif
-              </h2>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${
-                isMusyrifUser ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-              }`}>
-                {isMusyrifUser ? "Pengisian Mandiri" : "Supervisi Pamong"}
+              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>Jurnal 11 Tugas Musyrif</h2>
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${isMusyrifUser ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                {isMusyrifUser ? "Mandiri" : "Pamong"}
               </span>
             </div>
-            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-slate-300"}`}>
-              11 agenda kedisiplinan asrama & sensor langkah patroli
-            </p>
+            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-slate-300"}`}>Monitoring kedisiplinan dan checklist tugas harian asrama</p>
           </div>
         </div>
-
-        {isMusyrifUser && (
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
-          >
-            <Check className="w-4 h-4" />
-            <span>Simpan Jurnal</span>
+        {isMusyrifUser && isGpsVerified && (
+          <button type="button" onClick={handleSave} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all">
+            <Check className="w-4 h-4" /> <span>Simpan Jurnal</span>
           </button>
         )}
       </div>
 
-      {/* GPS Geofence Status Banner */}
-      <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
-        gpsResult?.isInRange
-          ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-          : "bg-amber-50 text-amber-900 border-amber-200"
-      }`}>
-        <div className="flex items-center gap-2 min-w-0">
-          <MapPin className={`w-4 h-4 shrink-0 ${gpsResult?.isInRange ? "text-emerald-600" : "text-amber-600"}`} />
+      <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${isGpsVerified ? "bg-emerald-50 text-emerald-900 border-emerald-200" : "bg-rose-50 text-rose-900 border-rose-200"}`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <MapPin className={`w-5 h-5 shrink-0 ${isGpsVerified ? "text-emerald-600" : "text-rose-600"}`} />
           <div className="min-w-0">
             <p className="font-bold text-xs leading-tight truncate">
-              {isCheckingGps ? (
-                "Memeriksa koordinat GPS asrama..."
-              ) : !gpsResult ? (
-                `Validasi Geofence GPS Asrama (${asramaTarget})`
-              ) : gpsResult.isInRange ? (
-                `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)`
-              ) : (
-                `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters}m dari radius)`
-              )}
+              {isCheckingGps ? "Memeriksa koordinat GPS asrama..." : !gpsResult ? `GPS Belum Diperiksa (${asramaTarget})` : isGpsVerified ? `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)` : `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters === 99999 ? "GPS Tidak Terdeteksi / Ditolak" : `${gpsResult.distanceMeters}m dari radius`})`}
             </p>
-            <p className="text-[11px] opacity-75 truncate">
-              {gpsResult?.closestCampus 
-                ? `${gpsResult.closestCampus.name} · Radius Valid: ${gpsResult.closestCampus.radiusMeters}m` 
-                : "Verifikasi koordinat GPS mandiri untuk pencatatan patroli"}
-            </p>
+            <p className="text-[11px] opacity-80 truncate mt-0.5">{isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}</p>
           </div>
         </div>
-
-        <button
-          type="button"
-          disabled={isCheckingGps}
-          onClick={checkCurrentLocation}
-          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 shadow-xs flex items-center gap-1 active:scale-95 transition-all shrink-0"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin text-emerald-600" : ""}`} />
-          <span>Cek GPS</span>
+        <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-600 text-white hover:bg-rose-700"}`}>
+          <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Mengecek..." : isGpsVerified ? "Perbarui GPS" : "Cek GPS Sekarang"}</span>
         </button>
       </div>
 
-      {/* Date & Musyrif Controls */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Tanggal Tugas
-            </label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-            />
+            <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-emerald-600" /> Tanggal Tugas</label>
+            <input type="date" value={selectedDate} onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800" />
           </div>
-
           <div>
-            <label className="text-xs font-semibold text-slate-700 mb-1 block">
-              {isMusyrifUser ? "Akun Musyrif (Mandiri)" : "Pilih Musyrif Dipantau"}
-            </label>
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">{isMusyrifUser ? "Akun Musyrif (Mandiri)" : "Pilih Musyrif Dipantau"}</label>
             {isMusyrifUser ? (
-              <div className="w-full text-xs bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl px-3 py-2 font-bold truncate flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span className="truncate">{authUser?.name} ({authUser?.asrama ? `Asrama ${authUser.asrama}` : "Musyrif"})</span>
-              </div>
+              <div className="w-full text-xs bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl px-3 py-2 font-bold truncate flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> {authUser?.name}</div>
             ) : (
-              <select
-                value={selectedMusyrifId}
-                onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)}
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
-              >
-                {musyrifList.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.asrama})</option>
-                ))}
+              <select value={selectedMusyrifId} onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)} className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 outline-none cursor-pointer">
+                {musyrifList.map(m => <option key={m.id} value={m.id}>{m.name} ({m.asrama})</option>)}
               </select>
             )}
           </div>
         </div>
-
-        {/* Progress Banner */}
         <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center font-bold font-mono ${
-              scorePct === 100 ? "bg-emerald-600 text-white" : scorePct >= 60 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
-            }`}>
-              <span className="text-xs">{scorePct}%</span>
-            </div>
+            <div className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center font-bold font-mono ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-800"}`}><span className="text-xs">{scorePct}%</span></div>
             <div>
-              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                {scorePct === 100 ? "Seluruh Tugas Selesai" : scorePct >= 70 ? "Disiplin Sangat Baik" : "Sedang Berjalan"}
-              </h4>
-              <p className="text-xs text-slate-500 mt-0.5">
-                <strong>{completedTasks}</strong> dari <strong>{totalTasks}</strong> agenda terlaksana
-              </p>
+              <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Selesai" : "Sedang Berjalan"}</h4>
+              <p className="text-xs text-slate-500 mt-0.5"><strong>{completedTasks}</strong> dari <strong>{totalTasks}</strong> agenda terlaksana</p>
             </div>
           </div>
-
-          <div className="w-24 sm:w-32 bg-slate-200 h-2.5 rounded-full overflow-hidden">
-            <div 
-              className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${scorePct}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Category Filters */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-          {[
-            { id: "all", label: "Semua Waktu" },
-            { id: "Pagi", label: "Pagi" },
-            { id: "Siang", label: "Siang" },
-            { id: "Sore", label: "Sore" },
-            { id: "Malam", label: "Malam" }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setFilterCategory(tab.id as any)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                filterCategory === tab.id
-                  ? "bg-white text-emerald-800 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <div className="w-24 bg-slate-200 h-2.5 rounded-full overflow-hidden"><div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} /></div>
         </div>
       </div>
 
-      {/* Task List */}
-      <div className="space-y-3 pb-6">
-        {filteredTasks.map((t) => {
-          const taskData = formState[t.key] || { done: false };
-          const isDone = taskData.done;
-          const timeInfo = getTaskTimeStatus(t);
-          const isExpanded = expandedTask === t.key;
+      {isMusyrifUser && !isGpsVerified ? (
+        <div className="bg-white rounded-3xl p-8 text-center border border-rose-200 shadow-sm space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-rose-50 border-2 border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-inner"><MapPin className="w-8 h-8" /></div>
+          <div>
+            <h3 className="font-extrabold text-slate-900 text-base">Verifikasi Lokasi Asrama Diperlukan</h3>
+            <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto leading-relaxed">Daftar tugas logbook harian terkunci. Anda harus berada di lingkungan <strong>{asramaTarget}</strong> dan mengaktifkan GPS perangkat untuk membuka lembar tugas.</p>
+          </div>
+          <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-2xl shadow-lg shadow-rose-600/25 active:scale-95 transition-all inline-flex items-center gap-2">
+            <RefreshCw className={`w-4 h-4 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Sedang Mendeteksi Lokasi..." : "Verifikasi Lokasi GPS Sekarang"}</span>
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3 pb-6">
+          <div className="flex items-center justify-between px-1">
+            <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-emerald-600" /> <span>Tugas yang Aktif Saat Ini ({filteredTasks.length})</span></h4>
+            <button type="button" onClick={() => setShowAllScheduled(!showAllScheduled)} className="text-[11px] font-bold text-emerald-700 hover:underline">{showAllScheduled ? "Tampilkan Hanya Jam Aktif" : "Lihat Seluruh 11 Jadwal"}</button>
+          </div>
 
-          return (
-            <div 
-              key={t.key}
-              className={`bg-white rounded-3xl border transition-all overflow-hidden ${
-                isDone 
-                  ? "border-emerald-300 ring-1 ring-emerald-100" 
-                  : timeInfo.status === "active"
-                  ? "border-amber-300 ring-1 ring-amber-100"
-                  : "border-slate-200/70"
-              }`}
-            >
-              <div className="p-4 flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <button
-                    type="button"
-                    disabled={!isMusyrifUser}
-                    onClick={() => toggleTask(t.key)}
-                    className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
-                      isMusyrifUser ? "active:scale-90 cursor-pointer" : "cursor-default"
-                    } ${
-                      isDone 
-                        ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" 
-                        : "border-slate-300 bg-slate-50 text-transparent"
-                    }`}
-                    title={isMusyrifUser ? (isDone ? "Tandai belum" : "Tandai selesai") : "Status ceklist mandiri musyrif"}
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-900 leading-tight">
-                        {t.number}. {t.title}
-                      </span>
+          {filteredTasks.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center border border-slate-200/70 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-2.5"><Clock className="w-6 h-6" /></div>
+              <h4 className="font-bold text-slate-800 text-sm">Tidak Ada Tugas yang Sedang Aktif</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">Saat ini belum ada tugas dalam jendela waktu aktif. Kartu tugas akan otomatis muncul ketika jam pelaksanaannya tiba.</p>
+              <button type="button" onClick={() => setShowAllScheduled(true)} className="mt-3 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold active:scale-95 transition-all">Lihat Jadwal Keseluruhan</button>
+            </div>
+          ) : (
+            filteredTasks.map((t) => {
+              const taskData = formState[t.key] || { done: false };
+              const isDone = taskData.done;
+              const timeInfo = getTaskTimeStatus(t);
+              const isExpanded = expandedTask === t.key;
+              return (
+                <div key={t.key} className={`bg-white rounded-3xl border transition-all overflow-hidden ${isDone ? "border-emerald-300 ring-1 ring-emerald-100" : timeInfo.status === "active" ? "border-amber-300 ring-1 ring-amber-100 shadow-xs" : "border-slate-200/70 opacity-80"}`}>
+                  <div className="p-4 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <button type="button" disabled={!isMusyrifUser && !isPamongOrKoord} onClick={() => { if (t.isPatrol && isMusyrifUser && !isDone) { setActivePatrolTask(t); } else { toggleTask(t); } }} className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 transition-all ${isDone ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50 text-transparent"}`}>
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold text-slate-900 leading-tight">{t.number}. {t.title}</span>
+                        <p className="text-xs text-slate-500 mt-0.5 leading-snug">{t.shortDesc}</p>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
+                          <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60"><Clock className="w-3.5 h-3.5 text-slate-500" /> {t.timeWindow}</span>
+                          <span className={`font-semibold px-2.5 py-0.5 rounded-lg font-mono ${timeInfo.badgeClass}`}>{timeInfo.label}</span>
+                          {isDone && taskData.completedAt && <span className="font-semibold font-mono text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-lg">✓ Selesai {taskData.completedAt} WIB</span>}
+                          {taskData.stepsCount && <span className="font-semibold font-mono text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-lg flex items-center gap-1"><Footprints className="w-3.5 h-3.5" /> {taskData.stepsCount} Langkah</span>}
+                        </div>
+                      </div>
                     </div>
-
-                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                      {t.shortDesc}
-                    </p>
-
-                    <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
-                      <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60">
-                        <Clock className="w-3.5 h-3.5 text-slate-500" />
-                        {t.timeWindow}
-                      </span>
-
-                      <span className={`font-semibold px-2.5 py-0.5 rounded-lg font-mono ${timeInfo.badgeClass}`}>
-                        {timeInfo.label}
-                      </span>
-
-                      {isDone && taskData.completedAt && (
-                        <span className="font-semibold font-mono text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-lg">
-                          ✓ Selesai {taskData.completedAt} WIB
-                        </span>
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+                      {t.isPatrol && isMusyrifUser && !isDone && (
+                        <button type="button" onClick={() => { if (!isToday && !isPamongOrKoord) { alert("Patroli hanya dapat dilakukan pada tanggal hari ini."); return; } setActivePatrolTask(t); }} className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-xs active:scale-95 transition-all">
+                          <Footprints className="w-3.5 h-3.5" /> <span>Mulai Patroli ({t.targetSteps || 50} Langkah)</span>
+                        </button>
                       )}
-
-                      {taskData.stepsCount && (
-                        <span className="font-semibold font-mono text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                          <Footprints className="w-3.5 h-3.5" /> {taskData.stepsCount} Langkah
-                        </span>
+                      {t.key === "cekSakit" && onOpenSantriSakit && (
+                        <button type="button" onClick={onOpenSantriSakit} className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"><Stethoscope className="w-3.5 h-3.5" /> <span>Data Sakit</span></button>
                       )}
+                      <button type="button" onClick={() => setExpandedTask(isExpanded ? null : t.key)} className="text-xs font-semibold text-slate-500 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-1 transition-colors"><FileText className="w-3.5 h-3.5" /> <span>{taskData.notes ? "Catatan ✓" : "+ Catatan"}</span></button>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
-                  {t.isPatrol && isMusyrifUser && !isDone && (
-                    <button
-                      type="button"
-                      onClick={() => setActivePatrolTask(t)}
-                      className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-xs active:scale-95 transition-all"
-                    >
-                      <Footprints className="w-3.5 h-3.5" />
-                      <span>Mulai Patroli ({t.targetSteps || 50} Langkah)</span>
-                    </button>
-                  )}
-
-                  {t.key === "cekSakit" && onOpenSantriSakit && (
-                    <button
-                      type="button"
-                      onClick={onOpenSantriSakit}
-                      className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"
-                    >
-                      <Stethoscope className="w-3.5 h-3.5" />
-                      <span>Data Sakit</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setExpandedTask(isExpanded ? null : t.key)}
-                    className="text-xs font-semibold text-slate-500 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-1 transition-colors"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>{taskData.notes ? "Catatan ✓" : isMusyrifUser ? "+ Catatan" : "Catatan"}</span>
-                  </button>
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="px-4 pb-4 pt-1 border-t border-slate-100 bg-slate-50/70">
-                  <label className="text-xs font-bold text-slate-600 block mb-1">
-                    Catatan Pelaksanaan {t.title}:
-                  </label>
-                  {isMusyrifUser ? (
-                    <input
-                      type="text"
-                      value={taskData.notes || ""}
-                      onChange={(e) => updateTaskNotes(t.key, e.target.value)}
-                      placeholder="Misal: Santri kamar 102 dipanggil, semua rapi, 2 santri di UKS..."
-                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  ) : (
-                    <p className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium">
-                      {taskData.notes || <em className="text-slate-400">Tidak ada catatan dari musyrif.</em>}
-                    </p>
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 bg-slate-50/70">
+                      <label className="text-xs font-bold text-slate-600 block mb-1">Catatan Pelaksanaan {t.title}:</label>
+                      {isMusyrifUser ? (
+                        <input type="text" value={taskData.notes || ""} onChange={(e) => updateTaskNotes(t.key, e.target.value)} placeholder="Catatan tugas..." className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800" />
+                      ) : (
+                        <p className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium">{taskData.notes || <em className="text-slate-400">Tidak ada catatan dari musyrif.</em>}</p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-
-        <div className="bg-white rounded-3xl p-4 border border-slate-200/70 shadow-xs space-y-2">
-          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-            <FileText className="w-4 h-4 text-emerald-600" /> Catatan Tambahan / Kejadian Khusus Hari Ini
-          </label>
-          {isMusyrifUser ? (
-            <textarea
-              rows={2}
-              value={formState.generalNotes || ""}
-              onChange={(e) => setFormState(prev => ({ ...prev, generalNotes: e.target.value }))}
-              placeholder="Catatan umum keasramaan, kendala piket, atau pesan penting untuk Pamong..."
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none"
-            />
-          ) : (
-            <div className="w-full text-xs bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-700 font-medium leading-relaxed min-h-[50px]">
-              {formState.generalNotes || <em className="text-slate-400">Tidak ada catatan tambahan untuk hari ini.</em>}
-            </div>
+              );
+            })
           )}
+          <div className="bg-white rounded-3xl p-4 border border-slate-200/70 shadow-xs space-y-2">
+            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-600" /> Catatan Tambahan Hari Ini</label>
+            {isMusyrifUser ? (
+              <textarea rows={2} value={formState.generalNotes || ""} onChange={(e) => setFormState(prev => ({ ...prev, generalNotes: e.target.value }))} className="w-full text-xs bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-800" />
+            ) : (
+              <div className="w-full text-xs bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-700 font-medium">{formState.generalNotes || <em className="text-slate-400">Tidak ada catatan tambahan.</em>}</div>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Live Patrol Tracker Modal */}
+      )}
       {activePatrolTask && (
         <PatroliStepsModal
           onClose={() => setActivePatrolTask(null)}
@@ -742,33 +608,16 @@ export function JurnalLogbookModal({
           taskIcon={activePatrolTask.icon}
           targetSteps={activePatrolTask.targetSteps || 60}
           initialSteps={formState[activePatrolTask.key]?.stepsCount || 0}
-          onConfirmSteps={(steps) => {
-            handlePatrolSuccess(activePatrolTask.key, steps);
-            setActivePatrolTask(null);
-          }}
+          onConfirmSteps={(steps) => { handlePatrolSuccess(activePatrolTask.key, steps); setActivePatrolTask(null); }}
         />
       )}
     </div>
   );
 
-  if (isPage) {
-    return content;
-  }
-
+  if (isPage) return content;
   return (
-    <motion.div 
-      className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4" 
-      variants={modalBackdropVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      onClick={() => { triggerHaptic("light"); onClose(); }}
-    >
-      <motion.div 
-        className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100/80" 
-        variants={modalContentVariants}
-        onClick={e=>e.stopPropagation()}
-      >
+    <motion.div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4" variants={modalBackdropVariants} initial="initial" animate="animate" exit="exit" onClick={() => { onClose(); }}>
+      <motion.div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100/80" variants={modalContentVariants} onClick={e=>e.stopPropagation()}>
         {content}
       </motion.div>
     </motion.div>

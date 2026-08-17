@@ -79,15 +79,43 @@ export function MutabaahYaumiyahModal({
     setEntry(existing);
   };
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
     if (!isMusyrifUser) return;
+    if (selectedDate > todayStr) {
+      alert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.");
+      return;
+    }
     setEntry(prev => ({
       ...prev,
       [field]: !prev[field]
     }));
   };
 
+  const handleMarkAll = (done: boolean) => {
+    if (!isMusyrifUser) return;
+    if (selectedDate > todayStr) {
+      alert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.");
+      return;
+    }
+    setEntry({
+      tahajjud: done,
+      dhuha: done,
+      rawatib: done,
+      tilawahPages: done ? (entry.tilawahPages || 2) : 0,
+      dzikirPagi: done,
+      dzikirPetang: done,
+      puasaSunnah: done,
+      muthalaah: done
+    });
+  };
+
   const handleSave = () => {
+    if (selectedDate > todayStr) {
+      alert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.");
+      return;
+    }
     onSaveMutabaah(selectedMusyrifId, selectedDate, entry);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
@@ -106,6 +134,13 @@ export function MutabaahYaumiyahModal({
 
   const totalFields = 8;
   const scorePct = Math.round((completedCount / totalFields) * 100);
+
+  // Monthly summary for selected Musyrif
+  const mRecords = Object.values(mutabaahData[selectedMusyrifId] || {});
+  const monthlyTahajjud = mRecords.filter(r => r.tahajjud).length;
+  const monthlyDhuha = mRecords.filter(r => r.dhuha).length;
+  const monthlyPuasa = mRecords.filter(r => r.puasaSunnah).length;
+  const monthlyTilawahTotal = mRecords.reduce((acc, r) => acc + (r.tilawahPages || 0), 0);
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
@@ -150,7 +185,7 @@ export function MutabaahYaumiyahModal({
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
           >
             <Check className="w-4 h-4" />
-            <span>Simpan</span>
+            <span>{savedSuccess ? "Tersimpan!" : "Simpan"}</span>
           </button>
         )}
       </div>
@@ -165,6 +200,7 @@ export function MutabaahYaumiyahModal({
             <input
               type="date"
               value={selectedDate}
+              max={todayStr}
               onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
             />
@@ -193,29 +229,70 @@ export function MutabaahYaumiyahModal({
           </div>
         </div>
 
-        {/* Progress Banner */}
-        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center font-bold font-mono ${
-              scorePct >= 80 ? "bg-emerald-600 text-white" : scorePct >= 50 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
-            }`}>
-              <span className="text-xs">{scorePct}%</span>
+        {/* Progress Banner & Quick Actions */}
+        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center font-bold font-mono ${
+                scorePct >= 80 ? "bg-emerald-600 text-white" : scorePct >= 50 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"
+              }`}>
+                <span className="text-xs">{scorePct}%</span>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  {scorePct >= 80 ? "Amalan Harian Sangat Baik" : scorePct >= 50 ? "Tercapai Cukup Baik" : "Tingkatkan Amalan Sunnah"}
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  <strong>{completedCount}</strong> dari <strong>{totalFields}</strong> amalan yaumiyah terlaksana
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                {scorePct >= 80 ? "Amalan Harian Sangat Baik" : scorePct >= 50 ? "Tercapai Cukup Baik" : "Tingkatkan Amalan Sunnah"}
-              </h4>
-              <p className="text-xs text-slate-500 mt-0.5">
-                <strong>{completedCount}</strong> dari <strong>{totalFields}</strong> amalan yaumiyah terlaksana
-              </p>
-            </div>
+
+            {isMusyrifUser && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleMarkAll(true)}
+                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[11px] font-bold active:scale-95 transition-all"
+                >
+                  Tandai Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAll(false)}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-bold active:scale-95 transition-all"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="w-24 sm:w-32 bg-slate-200 h-2.5 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
             <div 
               className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
               style={{ width: `${scorePct}%` }}
             />
+          </div>
+        </div>
+
+        {/* Monthly Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-indigo-700 uppercase">Tahajjud</span>
+            <p className="text-sm font-extrabold text-indigo-900 font-mono mt-0.5">{monthlyTahajjud} Hari</p>
+          </div>
+          <div className="p-2.5 bg-amber-50/70 border border-amber-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-amber-700 uppercase">Dhuha</span>
+            <p className="text-sm font-extrabold text-amber-900 font-mono mt-0.5">{monthlyDhuha} Hari</p>
+          </div>
+          <div className="p-2.5 bg-emerald-50/70 border border-emerald-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-emerald-700 uppercase">Tilawah</span>
+            <p className="text-sm font-extrabold text-emerald-900 font-mono mt-0.5">{monthlyTilawahTotal} Halaman</p>
+          </div>
+          <div className="p-2.5 bg-teal-50/70 border border-teal-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-teal-700 uppercase">Puasa Sunnah</span>
+            <p className="text-sm font-extrabold text-teal-900 font-mono mt-0.5">{monthlyPuasa} Hari</p>
           </div>
         </div>
       </div>

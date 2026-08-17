@@ -33,6 +33,7 @@ interface KegiatanAsramaModalProps {
   asramaList: string[];
   kegiatanRecords: KegiatanRecord[];
   onSaveKegiatan: (record: KegiatanRecord) => void;
+  onDeleteKegiatan?: (id: string) => void;
   authUser: any;
   isPage?: boolean;
 }
@@ -60,6 +61,7 @@ export function KegiatanAsramaModal({
   asramaList,
   kegiatanRecords,
   onSaveKegiatan,
+  onDeleteKegiatan,
   authUser,
   isPage = false
 }: KegiatanAsramaModalProps) {
@@ -69,6 +71,11 @@ export function KegiatanAsramaModal({
   const [selectedAsrama, setSelectedAsrama] = useState<string>(asramaList[0] || "1");
   const [notes, setNotes] = useState<string>("");
   const [search, setSearch] = useState<string>("");
+
+  // Riwayat Tab Filter & Search
+  const [riwayatFilterType, setRiwayatFilterType] = useState<string>("all");
+  const [riwayatSearch, setRiwayatSearch] = useState<string>("");
+  const [expandedRecId, setExpandedRecId] = useState<string | null>(null);
 
   // Attendance state for current form
   const [attendance, setAttendance] = useState<Record<string, "hadir" | "izin" | "sakit" | "alfa">>({});
@@ -92,7 +99,13 @@ export function KegiatanAsramaModal({
     setAttendance(prev => ({ ...prev, ...updated }));
   };
 
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
   const handleSave = () => {
+    if (selectedDate > todayStr) {
+      alert("Presensi kegiatan asrama tidak dapat dicatat untuk tanggal di masa depan.");
+      return;
+    }
     const actMeta = ACTIVITIES.find(a => a.id === selectedActivity);
     const recId = `${selectedActivity}_${selectedAsrama}_${selectedDate}`;
     
@@ -212,6 +225,7 @@ export function KegiatanAsramaModal({
                 <input
                   type="date"
                   value={selectedDate}
+                  max={todayStr}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                 />
@@ -320,51 +334,166 @@ export function KegiatanAsramaModal({
         </div>
       ) : (
         <div className="space-y-3 pb-6">
-          {kegiatanRecords.length === 0 ? (
+          {/* Riwayat Search & Filter */}
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-xs space-y-2.5">
+            <div className="relative">
+              <input
+                type="text"
+                value={riwayatSearch}
+                onChange={(e) => setRiwayatSearch(e.target.value)}
+                placeholder="Cari judul kegiatan, asrama, atau tanggal..."
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              />
+              {riwayatSearch && (
+                <button
+                  type="button"
+                  onClick={() => setRiwayatSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              {[
+                { id: "all", label: "Semua Tipe" },
+                { id: "tahfidz", label: "Tahfidz" },
+                { id: "kajian", label: "Kajian" },
+                { id: "apel", label: "Apel" },
+                { id: "piket", label: "Piket" }
+              ].map(st => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setRiwayatFilterType(st.id)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    riwayatFilterType === st.id
+                      ? "bg-emerald-600 text-white shadow-2xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {kegiatanRecords
+            .filter(rec => {
+              const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
+              const q = riwayatSearch.toLowerCase();
+              const matchSearch = !riwayatSearch ||
+                rec.activityTitle.toLowerCase().includes(q) ||
+                rec.asrama.toLowerCase().includes(q) ||
+                rec.date.includes(q) ||
+                (rec.notes && rec.notes.toLowerCase().includes(q));
+              return matchType && matchSearch;
+            }).length === 0 ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/70 shadow-xs">
               <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3">
                 <BookOpen className="w-6 h-6" />
               </div>
-              <h4 className="font-bold text-slate-800 text-sm">Belum Ada Riwayat Kegiatan</h4>
+              <h4 className="font-bold text-slate-800 text-sm">Tidak Ada Riwayat Kegiatan</h4>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                Belum ada data presensi kegiatan non-shalat yang tersimpan di sistem.
+                {riwayatSearch || riwayatFilterType !== "all"
+                  ? "Tidak ada kegiatan yang cocok dengan filter atau pencarian Anda."
+                  : "Belum ada data presensi kegiatan non-shalat yang tersimpan di sistem."}
               </p>
             </div>
           ) : (
-            kegiatanRecords.map(rec => {
-              const actMeta = ACTIVITIES.find(a => a.id === rec.activityType);
-              const total = Object.keys(rec.attendees).length;
-              const hadirCount = Object.values(rec.attendees).filter(s => s === "hadir").length;
+            kegiatanRecords
+              .filter(rec => {
+                const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
+                const q = riwayatSearch.toLowerCase();
+                const matchSearch = !riwayatSearch ||
+                  rec.activityTitle.toLowerCase().includes(q) ||
+                  rec.asrama.toLowerCase().includes(q) ||
+                  rec.date.includes(q) ||
+                  (rec.notes && rec.notes.toLowerCase().includes(q));
+                return matchType && matchSearch;
+              })
+              .map(rec => {
+                const total = Object.keys(rec.attendees).length;
+                const hadirCount = Object.values(rec.attendees).filter(s => s === "hadir").length;
+                const izinCount = Object.values(rec.attendees).filter(s => s === "izin").length;
+                const isExpanded = expandedRecId === rec.id;
 
-              return (
-                <div key={rec.id} className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                        {getActivityIcon(rec.activityType)}
+                return (
+                  <div key={rec.id} className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                          {getActivityIcon(rec.activityType)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">{rec.activityTitle}</h4>
+                          <p className="text-xs text-slate-500 mt-0.5">Asrama {rec.asrama} · {rec.date}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900 text-sm">{rec.activityTitle}</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">Asrama {rec.asrama} · {rec.date}</p>
+                      <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full font-bold text-xs">
+                        {hadirCount}/{total} Hadir
+                      </span>
+                    </div>
+
+                    {rec.notes && (
+                      <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-100 italic leading-relaxed">
+                        "{rec.notes}"
+                      </p>
+                    )}
+
+                    {/* Expandable Attendees List */}
+                    {isExpanded && (
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        <h5 className="text-[11px] font-bold text-slate-700">Daftar Kehadiran Musyrif:</h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                          {Object.entries(rec.attendees).map(([mid, status]) => {
+                            const mObj = musyrifList.find(m => m.id === mid);
+                            return (
+                              <div key={mid} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                                <span className="font-semibold text-slate-800 truncate mr-2">{mObj?.name || mid}</span>
+                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono ${
+                                  status === "hadir" ? "bg-emerald-100 text-emerald-800" :
+                                  status === "izin" ? "bg-sky-100 text-sky-800" :
+                                  status === "sakit" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"
+                                }`}>
+                                  {status.toUpperCase()}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-xs text-slate-400 flex justify-between items-center pt-2 border-t border-slate-100">
+                      <span>Pamong: {rec.markedBy || "Pamong"}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRecId(isExpanded ? null : rec.id)}
+                          className="text-xs font-semibold text-emerald-700 hover:underline"
+                        >
+                          {isExpanded ? "Sembunyikan Rincian" : "Lihat Rincian Peserta"}
+                        </button>
+                        {onDeleteKegiatan && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Hapus data agenda "${rec.activityTitle}" tanggal ${rec.date}?`)) {
+                                onDeleteKegiatan(rec.id);
+                              }
+                            }}
+                            className="text-xs font-semibold text-rose-600 hover:underline"
+                          >
+                            Hapus
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full font-bold text-xs">
-                      {hadirCount}/{total} Hadir
-                    </span>
                   </div>
-
-                  {rec.notes && (
-                    <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-100 italic leading-relaxed">
-                      "{rec.notes}"
-                    </p>
-                  )}
-
-                  <div className="text-xs text-slate-400 flex justify-between items-center pt-2 border-t border-slate-100">
-                    <span>Petugas: {rec.markedBy || "Pamong"}</span>
-                  </div>
-                </div>
-              );
-            })
+                );
+              })
           )}
         </div>
       )}

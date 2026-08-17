@@ -50,6 +50,7 @@ interface IzinPengajuanModalProps {
   izinList: IzinRequest[];
   onSubmitIzin: (req: Omit<IzinRequest, "id" | "status" | "createdAt">) => void;
   onApproveIzin: (reqId: string, approved: boolean) => void;
+  onDeleteIzin?: (reqId: string) => void;
   isPage?: boolean;
 }
 
@@ -60,10 +61,16 @@ export function IzinPengajuanModal({
   izinList,
   onSubmitIzin,
   onApproveIzin,
+  onDeleteIzin,
   isPage = false
 }: IzinPengajuanModalProps) {
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
   const [activeTab, setActiveTab] = useState<"ajukan" | "daftar">(isPamongOrKoord ? "daftar" : "ajukan");
+
+  // Search & Filter State in Daftar Tab
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [filterType, setFilterType] = useState<"all" | "izin" | "sakit">("all");
 
   // Form State
   const defaultMusyrif = authUser?.musyrifId 
@@ -96,6 +103,10 @@ export function IzinPengajuanModal({
       alert("Harap isi alasan perizinan dengan jelas.");
       return;
     }
+    if (endDate < startDate) {
+      alert("Tanggal selesai izin tidak boleh lebih awal dari tanggal mulai izin.");
+      return;
+    }
     const currentMusyrif = musyrifList.find(m => m.id === selectedMusyrifId);
     if (!currentMusyrif) return;
 
@@ -117,6 +128,19 @@ export function IzinPengajuanModal({
     setAttachment(null);
     setActiveTab("daftar");
   };
+
+  // Filtered Izin List
+  const filteredIzinList = izinList.filter(item => {
+    const matchStatus = filterStatus === "all" || item.status === filterStatus;
+    const matchType = filterType === "all" || item.type === filterType;
+    const q = searchQuery.toLowerCase();
+    const matchSearch = !searchQuery || 
+      item.musyrifName.toLowerCase().includes(q) ||
+      item.asrama.toLowerCase().includes(q) ||
+      item.reason.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q);
+    return matchStatus && matchType && matchSearch;
+  });
 
   const pendingCount = izinList.filter(i => i.status === "pending").length;
 
@@ -343,18 +367,64 @@ export function IzinPengajuanModal({
         </form>
       ) : (
         <div className="space-y-3 pb-6">
-          {izinList.length === 0 ? (
+          {/* Search and Filters */}
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-xs space-y-2.5">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari musyrif, asrama, atau alasan..."
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              {[
+                { id: "all", label: "Semua Status" },
+                { id: "pending", label: `Menunggu (${pendingCount})` },
+                { id: "approved", label: "Disetujui" },
+                { id: "rejected", label: "Ditolak" }
+              ].map(st => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setFilterStatus(st.id as any)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    filterStatus === st.id
+                      ? "bg-emerald-600 text-white shadow-2xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filteredIzinList.length === 0 ? (
             <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/70 shadow-xs">
               <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3">
                 <FileCheck2 className="w-6 h-6" />
               </div>
-              <h4 className="font-bold text-slate-800 text-sm">Belum Ada Pengajuan Izin</h4>
+              <h4 className="font-bold text-slate-800 text-sm">Tidak Ada Pengajuan Izin</h4>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                Belum ada data pengajuan izin atau surat sakit yang tercatat di sistem.
+                {searchQuery || filterStatus !== "all" 
+                  ? "Tidak ada data perizinan yang sesuai dengan filter atau kata kunci pencarian Anda."
+                  : "Belum ada data pengajuan izin atau surat sakit yang tercatat di sistem."}
               </p>
             </div>
           ) : (
-            izinList.map(req => (
+            filteredIzinList.map(req => (
               <div key={req.id} className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-3 min-w-0">
@@ -414,25 +484,49 @@ export function IzinPengajuanModal({
                   )}
                 </div>
 
-                {/* Pamong Review Action */}
-                {isPamongOrKoord && req.status === "pending" && (
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => onApproveIzin(req.id, false)}
-                      className="px-3.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold rounded-xl active:scale-95 transition-all text-xs flex items-center gap-1"
-                    >
-                      <Ban className="w-3.5 h-3.5" /> Tolak
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onApproveIzin(req.id, true)}
-                      className="px-4 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 font-bold rounded-xl active:scale-95 transition-all text-xs flex items-center gap-1 shadow-xs"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Setujui Izin
-                    </button>
+                {/* Actions Footer */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <div className="text-[11px] text-slate-400">
+                    Diajukan: {req.createdAt}
                   </div>
-                )}
+
+                  <div className="flex items-center gap-2">
+                    {/* Pemohon Cancel Button if Pending */}
+                    {req.status === "pending" && onDeleteIzin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Batalkan pengajuan izin untuk ${req.musyrifName}?`)) {
+                            onDeleteIzin(req.id);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-semibold rounded-xl text-xs transition-colors"
+                      >
+                        Batalkan
+                      </button>
+                    )}
+
+                    {/* Pamong Review Action */}
+                    {isPamongOrKoord && req.status === "pending" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onApproveIzin(req.id, false)}
+                          className="px-3.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold rounded-xl active:scale-95 transition-all text-xs flex items-center gap-1"
+                        >
+                          <Ban className="w-3.5 h-3.5" /> Tolak
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onApproveIzin(req.id, true)}
+                          className="px-4 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 font-bold rounded-xl active:scale-95 transition-all text-xs flex items-center gap-1 shadow-xs"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Setujui
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             ))
           )}
