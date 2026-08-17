@@ -3726,6 +3726,7 @@ const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v2";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v2";
 const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v2";
+const SYNC_TABLE_AUTH_USERS = "AuthUsers";
 
 export default function App() {
   const [musyrifList, setMusyrifList] = useState<Musyrif[]>(() => {
@@ -4035,6 +4036,10 @@ export default function App() {
           if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
             setMusyrifList(cloudRecords);
           }
+        } else if (tbl === "authusers") {
+          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+            setAuthUsers(cloudRecords);
+          }
         } else if (tbl === "logbook") {
           const next: LogbookStorage = {};
           (cloudRecords || []).forEach((cr: any) => {
@@ -4108,6 +4113,16 @@ export default function App() {
         setMusyrifList(prev => {
           const map = new Map<string, Musyrif>();
           prev.forEach(m => map.set(m.id, m));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          return Array.from(map.values());
+        });
+      } else if (tbl === "authusers") {
+        setAuthUsers(prev => {
+          const map = new Map<string, AuthUser>();
+          prev.forEach(u => map.set(u.id, u));
           cloudRecords.forEach(cr => {
             if (cr.is_deleted) map.delete(cr.id);
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
@@ -4230,6 +4245,7 @@ export default function App() {
       asrama: newPamong.asrama,
     };
     setAuthUsers(prev => [created, ...prev]);
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, created, "upsert");
     showToast(`Pamong ${created.name} berhasil ditambahkan!`, "success");
   };
 
@@ -4239,12 +4255,14 @@ export default function App() {
         ? { ...u, name: updatedPamong.name, email: updatedPamong.email.trim().toLowerCase(), asrama: updatedPamong.asrama, role: "pamong" as Role }
         : u
     )));
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { ...updatedPamong, role: "pamong" as Role }, "upsert");
     showToast(`Data pamong ${updatedPamong.name} berhasil diperbarui!`, "success");
   };
 
   const handleDeletePamong = (id: string) => {
     const target = authUsers.find(u => u.id === id && u.role === "pamong");
     setAuthUsers(prev => prev.filter(u => u.id !== id));
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete");
     showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
   };
 
