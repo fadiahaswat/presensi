@@ -49,6 +49,7 @@ interface IzinPengajuanModalProps {
   musyrifList: Musyrif[];
   izinList: IzinRequest[];
   onSubmitIzin: (req: Omit<IzinRequest, "id" | "status" | "createdAt">) => void;
+  onUpdateIzin?: (req: IzinRequest) => void;
   onApproveIzin: (reqId: string, approved: boolean) => void;
   onDeleteIzin?: (reqId: string) => void;
   isPage?: boolean;
@@ -60,6 +61,7 @@ export function IzinPengajuanModal({
   musyrifList,
   izinList,
   onSubmitIzin,
+  onUpdateIzin,
   onApproveIzin,
   onDeleteIzin,
   isPage = false
@@ -71,6 +73,7 @@ export function IzinPengajuanModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [filterType, setFilterType] = useState<"all" | "izin" | "sakit">("all");
+  const [editingIzin, setEditingIzin] = useState<IzinRequest | null>(null);
 
   // Form State
   const defaultMusyrif = authUser?.musyrifId 
@@ -86,6 +89,31 @@ export function IzinPengajuanModal({
   const [reason, setReason] = useState<string>("");
   const [attachment, setAttachment] = useState<string | null>(null);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setSelectedMusyrifId(defaultMusyrif?.id || musyrifList[0]?.id || "");
+    setType("izin");
+    setCategory("Izin Pulang / Keluarga");
+    setStartDate(format(new Date(), "yyyy-MM-dd"));
+    setEndDate(format(new Date(), "yyyy-MM-dd"));
+    setPrayerSlot("all");
+    setReason("");
+    setAttachment(null);
+    setEditingIzin(null);
+  };
+
+  const handleStartEdit = (req: IzinRequest) => {
+    setEditingIzin(req);
+    setSelectedMusyrifId(req.musyrifId);
+    setType(req.type);
+    setCategory(req.category);
+    setStartDate(req.startDate);
+    setEndDate(req.endDate);
+    setPrayerSlot(req.prayerSlot);
+    setReason(req.reason);
+    setAttachment(req.attachmentUrl || null);
+    setActiveTab("ajukan");
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,22 +138,41 @@ export function IzinPengajuanModal({
     const currentMusyrif = musyrifList.find(m => m.id === selectedMusyrifId);
     if (!currentMusyrif) return;
 
-    onSubmitIzin({
-      musyrifId: currentMusyrif.id,
-      musyrifName: currentMusyrif.name,
-      asrama: currentMusyrif.asrama,
-      kamar: currentMusyrif.kamar,
-      type,
-      category,
-      startDate,
-      endDate,
-      prayerSlot,
-      reason,
-      attachmentUrl: attachment || undefined
-    });
+    if (editingIzin && onUpdateIzin) {
+      onUpdateIzin({
+        ...editingIzin,
+        musyrifId: currentMusyrif.id,
+        musyrifName: currentMusyrif.name,
+        asrama: currentMusyrif.asrama,
+        kamar: currentMusyrif.kamar,
+        type,
+        category,
+        startDate,
+        endDate,
+        prayerSlot,
+        reason: reason.trim(),
+        attachmentUrl: attachment || undefined
+      });
+      triggerHaptic("medium");
+      alert("Data perizinan berhasil diperbarui.");
+    } else {
+      onSubmitIzin({
+        musyrifId: currentMusyrif.id,
+        musyrifName: currentMusyrif.name,
+        asrama: currentMusyrif.asrama,
+        kamar: currentMusyrif.kamar,
+        type,
+        category,
+        startDate,
+        endDate,
+        prayerSlot,
+        reason: reason.trim(),
+        attachmentUrl: attachment || undefined
+      });
+      triggerHaptic("medium");
+    }
 
-    setReason("");
-    setAttachment(null);
+    resetForm();
     setActiveTab("daftar");
   };
 
@@ -209,9 +256,22 @@ export function IzinPengajuanModal({
       {/* Content Area */}
       {activeTab === "ajukan" ? (
         <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/70 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 text-slate-800">
-            <FileCheck2 className="w-4 h-4 text-emerald-600" />
-            <h3 className="font-bold text-sm">Formulir Pengajuan Izin Baru</h3>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 text-slate-800">
+            <div className="flex items-center gap-2">
+              <FileCheck2 className="w-4 h-4 text-emerald-600" />
+              <h3 className="font-bold text-sm">
+                {editingIzin ? `Edit Pengajuan Izin: ${editingIzin.musyrifName}` : "Formulir Pengajuan Izin Baru"}
+              </h3>
+            </div>
+            {editingIzin && (
+              <button
+                type="button"
+                onClick={() => { resetForm(); setActiveTab("daftar"); }}
+                className="text-xs text-slate-500 hover:text-slate-700 underline"
+              >
+                Batal Edit
+              </button>
+            )}
           </div>
 
           <div>
@@ -491,6 +551,15 @@ export function IzinPengajuanModal({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Edit Izin Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleStartEdit(req)}
+                      className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold rounded-xl text-xs transition-colors flex items-center gap-1"
+                    >
+                      <span>Edit</span>
+                    </button>
+
                     {/* Pemohon Cancel Button if Pending */}
                     {req.status === "pending" && onDeleteIzin && (
                       <button

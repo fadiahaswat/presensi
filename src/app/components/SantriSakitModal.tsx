@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { 
   X, Plus, HeartPulse, Bed, Stethoscope, Building2, Home, CheckCircle2, 
   Trash2, AlertCircle, Search, Filter, Share2, Calendar, User, Phone,
-  ChevronLeft, Sparkles, Send
+  ChevronLeft, Sparkles, Send, Edit3
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -61,6 +61,7 @@ export function SantriSakitModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCatatanText, setEditCatatanText] = useState<string>("");
+  const [editingRecord, setEditingRecord] = useState<SantriSakitRecord | null>(null);
 
   // Form State
   const defaultMusyrif = isMusyrif 
@@ -76,6 +77,32 @@ export function SantriSakitModal({
   const [formLokasi, setFormLokasi] = useState<"kamar" | "uks" | "rs_pku" | "pulang">("kamar");
   const [formCatatan, setFormCatatan] = useState("");
 
+  const resetForm = () => {
+    setFormMusyrifId(defaultMusyrif?.id || "");
+    setFormDate(format(new Date(), "yyyy-MM-dd"));
+    setFormNama("");
+    setFormKelas(defaultMusyrif?.kelas || "1 A");
+    setFormKamar(defaultMusyrif?.kamar || "101");
+    setFormKeluhan("");
+    setFormLokasi("kamar");
+    setFormCatatan("");
+    setEditingRecord(null);
+    setShowAddForm(false);
+  };
+
+  const handleStartEdit = (rec: SantriSakitRecord) => {
+    setEditingRecord(rec);
+    setFormMusyrifId(rec.musyrifId);
+    setFormDate(rec.date);
+    setFormNama(rec.namaSantri);
+    setFormKelas(rec.kelasSantri);
+    setFormKamar(rec.kamar);
+    setFormKeluhan(rec.keluhan);
+    setFormLokasi(rec.lokasiPerawatan);
+    setFormCatatan(rec.catatanTindakan || "");
+    setShowAddForm(true);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formNama.trim() || !formKeluhan.trim()) return;
@@ -88,8 +115,8 @@ export function SantriSakitModal({
 
     const selectedM = musyrifList.find(m => m.id === formMusyrifId) || defaultMusyrif;
 
-    const newRecord: SantriSakitRecord = {
-      id: `sakit-${Date.now()}`,
+    const recordToSave: SantriSakitRecord = {
+      id: editingRecord ? editingRecord.id : `sakit-${Date.now()}`,
       musyrifId: selectedM.id,
       musyrifName: selectedM.name,
       asrama: selectedM.asrama,
@@ -100,15 +127,14 @@ export function SantriSakitModal({
       keluhan: formKeluhan.trim(),
       lokasiPerawatan: formLokasi,
       catatanTindakan: formCatatan.trim(),
-      status: "dalam_perawatan",
-      createdAt: format(new Date(), "yyyy-MM-dd HH:mm")
+      status: editingRecord ? editingRecord.status : "dalam_perawatan",
+      createdAt: editingRecord ? editingRecord.createdAt : format(new Date(), "yyyy-MM-dd HH:mm")
     };
 
-    onSaveSantriSakit(newRecord);
-    setShowAddForm(false);
-    setFormNama("");
-    setFormKeluhan("");
-    setFormCatatan("");
+    onSaveSantriSakit(recordToSave);
+    triggerHaptic("medium");
+    alert(editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan.");
+    resetForm();
   };
 
   // Filtered List
@@ -218,12 +244,25 @@ export function SantriSakitModal({
         </div>
       </div>
 
-      {/* Add Form Card */}
+      {/* Add / Edit Form Card */}
       {showAddForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-4 sm:p-5 border border-rose-200/80 shadow-sm space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 text-slate-800">
-            <HeartPulse className="w-4 h-4 text-rose-600" />
-            <h3 className="font-bold text-sm">Formulir Pemeriksaan Santri Sakit</h3>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 text-slate-800">
+            <div className="flex items-center gap-2">
+              <HeartPulse className="w-4 h-4 text-rose-600" />
+              <h3 className="font-bold text-sm">
+                {editingRecord ? `Edit Data Santri Sakit: ${editingRecord.namaSantri}` : "Formulir Pemeriksaan Santri Sakit"}
+              </h3>
+            </div>
+            {editingRecord && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-xs text-slate-500 hover:text-slate-700 underline"
+              >
+                Batal Edit
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -461,6 +500,15 @@ export function SantriSakitModal({
                       <span>Kembalikan Dirawat</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(item)}
+                    title="Edit Data Santri Sakit"
+                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
 
                   <button
                     type="button"

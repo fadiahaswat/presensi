@@ -30,6 +30,7 @@ import { MutabaahYaumiyahModal, MutabaahStorage, MutabaahEntry } from "./compone
 import { SantriSakitModal, SantriSakitRecord } from "./components/SantriSakitModal";
 import { LeaderboardModal } from "./components/LeaderboardModal";
 import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
+import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { motion, AnimatePresence } from "motion/react";
 import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdropVariants, modalContentVariants } from "./utils/animations";
@@ -40,7 +41,7 @@ import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdrop
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
@@ -541,11 +542,13 @@ function PageDashboard({
   onOpenSantriSakit,
   onOpenLeaderboard,
   onOpenRaport,
+  onOpenMusyrifManager,
   onInstallPWA,
   onLogin,
   pendingIzinCount = 0,
   activeSantriSakitCount = 0,
   canInstallPWA = false,
+  musyrifList = MUSYRIF_LIST
 }: { 
   records: AttendanceRecord[]; 
   authUser: AuthUser|null; 
@@ -560,19 +563,22 @@ function PageDashboard({
   onOpenSantriSakit: () => void;
   onOpenLeaderboard: () => void;
   onOpenRaport: () => void;
+  onOpenMusyrifManager?: () => void;
   onInstallPWA?: () => void;
   onLogin?: () => void;
   pendingIzinCount?: number;
   activeSantriSakitCount?: number;
   canInstallPWA?: boolean;
+  musyrifList?: Musyrif[];
 }) {
+  const mList = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const today = todayStr();
   const todayRecs = records.filter(r => r.date === today);
-  const total = MUSYRIF_LIST.length;
+  const total = mList.length;
   const sh = todayRecs.filter(r => r.subuh   === "hadir").length;
   const mh = todayRecs.filter(r => r.maghrib === "hadir").length;
-  const belumS = MUSYRIF_LIST.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.subuh));
-  const belumM = MUSYRIF_LIST.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.maghrib));
+  const belumS = mList.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.subuh));
+  const belumM = mList.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.maghrib));
   const now = new Date();
 
   const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
@@ -600,7 +606,7 @@ function PageDashboard({
     };
   });
 
-  const streakTop = useMemo(() => MUSYRIF_LIST.map(m=>({...m,...computeStreak(m.id,records)})).sort((a,b)=>b.cur-a.cur).slice(0,3),[records]);
+  const streakTop = useMemo(() => mList.map(m=>({...m,...computeStreak(m.id,records)})).sort((a,b)=>b.cur-a.cur).slice(0,3),[mList,records]);
 
   const thisMK = format(now,"yyyy-MM");
   const lastMK = format(subMonths(now,1),"yyyy-MM");
@@ -609,7 +615,7 @@ function PageDashboard({
   const delta = lastH ? Math.round((thisH-lastH)/lastH*100) : 0;
 
   // Who needs attention (most alfa this month)
-  const alfaRank = MUSYRIF_LIST.map(m => {
+  const alfaRank = mList.map(m => {
     const rs = records.filter(r=>r.musyrifId===m.id&&r.date.startsWith(thisMK));
     return { ...m, alfa: rs.filter(r=>r.subuh==="alfa"||r.maghrib==="alfa").length };
   }).filter(m=>m.alfa>0).sort((a,b)=>b.alfa-a.alfa).slice(0,3);
@@ -617,7 +623,7 @@ function PageDashboard({
   // Overview donut data
   const allTodayPossible = total * 2;
   const todayHadir = sh + mh;
-  const todayBelum = MUSYRIF_LIST.filter(m=>!todayRecs.find(r=>r.musyrifId===m.id)).length * 2;
+  const todayBelum = mList.filter(m=>!todayRecs.find(r=>r.musyrifId===m.id)).length * 2;
   const todayLain = allTodayPossible - todayHadir - todayBelum;
   const donutData = [
     { name:"Hadir", value: todayHadir, color:"#059669" },
@@ -1217,6 +1223,26 @@ function PageDashboard({
                 <p className="text-[10px] text-slate-500 mt-0.5">Format resmi & evaluasi</p>
               </div>
             </button>
+
+            {/* 10. Master Data Musyrif (SCRUD) */}
+            <button
+              type="button"
+              onClick={() => onOpenMusyrifManager ? onOpenMusyrifManager() : onGoTo("musyrif-manager")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <Users className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-lg font-mono">
+                  SCRUD
+                </span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Master Musyrif</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Kelola & data musyrif</p>
+              </div>
+            </button>
           </div>
         )}
       </div>
@@ -1265,7 +1291,7 @@ function PageDashboard({
               if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
               return true;
             }).map(a => {
-              const ins = MUSYRIF_LIST.filter(m => m.asrama === a);
+              const ins = mList.filter(m => m.asrama === a);
               const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
               const sh2 = rs.filter(r => r.subuh === "hadir").length;
               const mh2 = rs.filter(r => r.maghrib === "hadir").length;
@@ -1502,18 +1528,22 @@ function PageInputPrayer({
   records,
   onMark,
   onMarkAll,
+  onResetMark,
   onLogin,
   onSwitchSlot,
-  showToast
+  showToast,
+  musyrifListAll
 }: {
   slot: PrayerSlot;
   authUser: AuthUser | null;
   records: AttendanceRecord[];
   onMark: MarkFn;
   onMarkAll: MarkAllFn;
+  onResetMark?: (mid: string, prayer: PrayerSlot, date: string) => void;
   onLogin: () => void;
   onSwitchSlot?: (slot: PrayerSlot) => void;
   showToast?: (msg: string, type?: "success" | "info" | "error") => void;
+  musyrifListAll?: Musyrif[];
 }) {
   const [selDate, setSelDate] = useState(todayStr());
   const [selAsrama, setSelAsrama] = useState(ASRAMAS[0]);
@@ -1551,7 +1581,8 @@ function PageInputPrayer({
 
   const fullAccess = hasFullAccess(authUser);
   const activeAsrama = fullAccess ? selAsrama : authUser.asrama!;
-  const musyrifList = MUSYRIF_LIST.filter(m => m.asrama === activeAsrama);
+  const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
+  const musyrifList = allM.filter(m => m.asrama === activeAsrama);
   const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
@@ -1824,9 +1855,25 @@ function PageInputPrayer({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>setNoteFor(null)}>
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
             <h3 className="font-bold text-slate-800 mb-1">Catatan Keterangan</h3>
-            <p className="text-xs text-slate-400 mb-4">{MUSYRIF_LIST.find(m=>m.id===noteFor.id)?.name} · Presensi {noteFor.prayer === "subuh" ? "Subuh" : "Maghrib"}</p>
+            <p className="text-xs text-slate-400 mb-4">{musyrifList.find(m=>m.id===noteFor.id)?.name || "Musyrif"} · Presensi {noteFor.prayer === "subuh" ? "Subuh" : "Maghrib"}</p>
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Contoh: Sakit demam, izin kepulangan, tugas luar, dll." rows={3} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"/>
             <div className="flex gap-2 mt-4">
+              {getRecord(noteFor.id)?.[noteFor.prayer] && onResetMark && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Hapus tanda kehadiran & catatan musyrif ini untuk waktu shalat terpilih?")) {
+                      onResetMark(noteFor.id, noteFor.prayer, selDate);
+                      showToast?.("Status presensi berhasil di-reset / dihapus", "info");
+                      setNoteFor(null);
+                      setNoteText("");
+                    }
+                  }}
+                  className="py-2.5 px-3 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-semibold transition-all"
+                >
+                  Hapus Absensi
+                </button>
+              )}
               <button onClick={()=>setNoteFor(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold">Batal</button>
               <button onClick={()=>{const r=getRecord(noteFor.id);if(r?.[noteFor.prayer])mark(noteFor.id,noteFor.prayer,r[noteFor.prayer]!,noteText);showToast?.("Catatan keterangan disimpan");setNoteFor(null);setNoteText("");}} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-all">Simpan</button>
             </div>
@@ -1857,7 +1904,20 @@ function PageInputPrayer({
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: REKAP
 // ─────────────────────────────────────────────────────────────────────────────
-function PageRekap({ records, authUser, onSelectMusyrif, onGoTo }: { records: AttendanceRecord[]; authUser?: AuthUser | null; onSelectMusyrif?: (id: string) => void; onGoTo?: (p: Page) => void }) {
+function PageRekap({ 
+  records, 
+  authUser, 
+  onSelectMusyrif, 
+  onGoTo,
+  musyrifListAll
+}: { 
+  records: AttendanceRecord[]; 
+  authUser?: AuthUser | null; 
+  onSelectMusyrif?: (id: string) => void; 
+  onGoTo?: (p: Page) => void;
+  musyrifListAll?: Musyrif[];
+}) {
+  const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
   const [viewMonth, setViewMonth] = useState(new Date());
   const [filterAsrama, setFilterAsrama] = useState("Semua");
   const [search, setSearch] = useState("");
@@ -1870,10 +1930,10 @@ function PageRekap({ records, authUser, onSelectMusyrif, onGoTo }: { records: At
     .filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d)),[viewMonth]);
   const mRecs = records.filter(r=>r.date.startsWith(mk));
   const fMusyrif = useMemo(()=>{
-    let l = filterAsrama==="Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m=>m.asrama===filterAsrama);
+    let l = filterAsrama==="Semua" ? allM : allM.filter(m=>m.asrama===filterAsrama);
     if(search) l=l.filter(m=>m.name.toLowerCase().includes(search.toLowerCase()));
     return l;
-  },[filterAsrama,search]);
+  },[allM,filterAsrama,search]);
 
   const rate = (p: PrayerSlot) => {
     if(!fMusyrif.length||!days.length) return 0;
@@ -2264,7 +2324,8 @@ function PageRiwayat({
   initialMusyrifId, 
   onSelectMusyrifId,
   onMark,
-  showToast
+  showToast,
+  musyrifListAll
 }: {
   records: AttendanceRecord[];
   authUser: AuthUser | null;
@@ -2273,9 +2334,11 @@ function PageRiwayat({
   onSelectMusyrifId?: (id: string) => void;
   onMark?: MarkFn;
   showToast?: (msg: string, type?: "success" | "info" | "error") => void;
+  musyrifListAll?: Musyrif[];
 }) {
+  const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
   const [viewMonth, setViewMonth] = useState(new Date());
-  const [selId, setSelId] = useState(initialMusyrifId || MUSYRIF_LIST[0].id);
+  const [selId, setSelId] = useState(initialMusyrifId || allM[0]?.id || "m1");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
   const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
   const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
@@ -2302,14 +2365,14 @@ function PageRiwayat({
   const isPamongOrKoord = authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung";
 
   const allowed = isPersonalMusyrif
-    ? MUSYRIF_LIST.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
+    ? allM.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
     : hasFullAccess(authUser)
-      ? MUSYRIF_LIST
-      : MUSYRIF_LIST.filter(m => m.asrama === authUser.asrama);
+      ? allM
+      : allM.filter(m => m.asrama === authUser.asrama);
 
   const musyrif = isPersonalMusyrif
-    ? (allowed[0] ?? MUSYRIF_LIST.find(m => m.id === authUser.musyrifId) ?? MUSYRIF_LIST[0])
-    : (allowed.find(m=>m.id===selId) ?? allowed[0] ?? MUSYRIF_LIST[0]);
+    ? (allowed[0] ?? allM.find(m => m.id === authUser.musyrifId) ?? allM[0])
+    : (allowed.find(m=>m.id===selId) ?? allowed[0] ?? allM[0]);
 
   const mk = format(viewMonth,"yyyy-MM");
   const mRecs = records.filter(r=>r.musyrifId===musyrif.id&&r.date.startsWith(mk));
@@ -3632,8 +3695,20 @@ const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v2";
 const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v2";
 const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v2";
+const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v2";
 
 export default function App() {
+  const [musyrifList, setMusyrifList] = useState<Musyrif[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_MUSYRIF);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return MUSYRIF_LIST;
+  });
+
   const [authUser, setAuthUser] = useState<AuthUser|null>(() => {
     try {
       const saved = localStorage.getItem("presensi_auth_user");
@@ -3645,7 +3720,7 @@ export default function App() {
       const validAuth = AUTH_USERS.find(u => u.email.toLowerCase() === cleanEmail);
       if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
 
-      const validMusyrif = MUSYRIF_LIST.find(m => m.email && m.email.toLowerCase() === cleanEmail);
+      const validMusyrif = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).find(m => m.email && m.email.toLowerCase() === cleanEmail);
       if (validMusyrif) {
         return {
           id: validMusyrif.id,
@@ -3778,6 +3853,7 @@ export default function App() {
   const [showSantriSakit, setShowSantriSakit] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
+  const [showMusyrifManager, setShowMusyrifManager] = useState(false);
 
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -3910,6 +3986,10 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(santriSakitList)); } catch {}
   }, [santriSakitList]);
 
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
+  }, [musyrifList]);
+
   useEffect(()=>{ const t=setInterval(()=>setNow(getTrustedDate()),30000); return()=>clearInterval(t); },[]);
 
   const handleLogin = (u: AuthUser) => {
@@ -3930,6 +4010,25 @@ export default function App() {
     setPage("dashboard");
   };
 
+  // Master Data Musyrif SCRUD Handlers
+  const handleAddMusyrif = (newM: Omit<Musyrif, "id">) => {
+    const newId = `m_${Date.now()}`;
+    const created: Musyrif = { ...newM, id: newId };
+    setMusyrifList(prev => [created, ...prev]);
+    showToast(`Musyrif ${created.name} berhasil ditambahkan!`, "success");
+  };
+
+  const handleUpdateMusyrif = (updated: Musyrif) => {
+    setMusyrifList(prev => prev.map(m => m.id === updated.id ? updated : m));
+    showToast(`Data musyrif ${updated.name} berhasil diperbarui!`, "success");
+  };
+
+  const handleDeleteMusyrif = (id: string) => {
+    const target = musyrifList.find(m => m.id === id);
+    setMusyrifList(prev => prev.filter(m => m.id !== id));
+    showToast(`Data musyrif ${target?.name || id} berhasil dihapus.`, "info");
+  };
+
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
     const nk = prayer==="subuh"?"subuhNote":"maghribNote";
     setRecords(prev=>{
@@ -3939,9 +4038,23 @@ export default function App() {
     });
   },[authUser]);
 
+  const handleResetMark = useCallback((mid: string, prayer: PrayerSlot, date: string) => {
+    const nk = prayer === "subuh" ? "subuhNote" : "maghribNote";
+    setRecords(prev => prev.map(r => {
+      if (r.musyrifId === mid && r.date === date) {
+        const copy = { ...r };
+        delete copy[prayer];
+        delete copy[nk];
+        return copy;
+      }
+      return r;
+    }));
+  }, []);
+
   const handleMarkAll = useCallback<MarkAllFn>((asrama, prayer, status, date) => {
-    MUSYRIF_LIST.filter(m=>m.asrama===asrama).forEach(m=>handleMark(m.id,prayer,status,date));
-  },[handleMark]);
+    const list = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
+    list.filter(m=>m.asrama===asrama).forEach(m=>handleMark(m.id,prayer,status,date));
+  },[handleMark, musyrifList]);
 
   // Submit Izin Request
   const handleSubmitIzin = (req: Omit<IzinRequest, "id" | "status" | "createdAt">) => {
@@ -3953,6 +4066,12 @@ export default function App() {
     };
     setIzinList(prev => [newIzin, ...prev]);
     showToast("Pengajuan izin berhasil dikirim ke Pamong.", "success");
+  };
+
+  // Update Izin Request
+  const handleUpdateIzin = (updated: IzinRequest) => {
+    setIzinList(prev => prev.map(i => i.id === updated.id ? updated : i));
+    showToast(`Data pengajuan izin ${updated.musyrifName} diperbarui!`, "success");
   };
 
   // Approve / Reject Izin
@@ -4029,6 +4148,20 @@ export default function App() {
     showToast("Jurnal logbook berhasil disimpan!", "success");
   };
 
+  // Reset Logbook for musyrif & date
+  const handleResetLogbook = (musyrifId: string, date: string) => {
+    setLogbookData(prev => {
+      const copy = { ...prev };
+      if (copy[musyrifId]) {
+        const userCopy = { ...copy[musyrifId] };
+        delete userCopy[date];
+        copy[musyrifId] = userCopy;
+      }
+      return copy;
+    });
+    showToast("Jurnal logbook hari ini berhasil di-reset.", "info");
+  };
+
   // Save Mutabaah
   const handleSaveMutabaah = (musyrifId: string, date: string, entry: MutabaahEntry) => {
     setMutabaahData(prev => ({
@@ -4041,10 +4174,32 @@ export default function App() {
     showToast("Mutaba'ah yaumiyah berhasil disimpan!", "success");
   };
 
+  // Reset Mutabaah for musyrif & date
+  const handleResetMutabaah = (musyrifId: string, date: string) => {
+    setMutabaahData(prev => {
+      const copy = { ...prev };
+      if (copy[musyrifId]) {
+        const userCopy = { ...copy[musyrifId] };
+        delete userCopy[date];
+        copy[musyrifId] = userCopy;
+      }
+      return copy;
+    });
+    showToast("Catatan mutaba'ah hari ini berhasil di-reset.", "info");
+  };
+
   // Handlers for Santri Sakit
   const handleSaveSantriSakit = (rec: SantriSakitRecord) => {
-    setSantriSakitList(prev => [rec, ...prev]);
-    showToast(`Data santri sakit (${rec.namaSantri}) berhasil dicatat!`, "success");
+    setSantriSakitList(prev => {
+      const idx = prev.findIndex(s => s.id === rec.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = rec;
+        return next;
+      }
+      return [rec, ...prev];
+    });
+    showToast(`Data santri sakit (${rec.namaSantri}) berhasil disimpan!`, "success");
   };
 
   const handleUpdateStatusSantriSakit = (id: string, newStatus: "dalam_perawatan" | "sembuh") => {
@@ -4070,8 +4225,8 @@ export default function App() {
 
   const pendingIzinCount = izinList.filter(i => i.status === "pending").length;
   const todayRecs = records.filter(r=>r.date===todayStr());
-  const pendingSubuh = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh; }).length;
-  const pendingMaghrib = MUSYRIF_LIST.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
+  const pendingSubuh = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh; }).length;
+  const pendingMaghrib = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
   const hijri = toHijri(now);
 
   // ─── PULL TO REFRESH LOGIC ───
@@ -4333,27 +4488,57 @@ export default function App() {
                 onOpenSantriSakit={() => setShowSantriSakit(true)}
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
                 onOpenRaport={() => setShowRaport(true)}
+                onOpenMusyrifManager={() => setShowMusyrifManager(true)}
                 onInstallPWA={handleInstallPWA}
                 onLogin={() => setShowLogin(true)}
                 pendingIzinCount={pendingIzinCount}
                 activeSantriSakitCount={activeSantriSakitCount}
                 canInstallPWA={!!deferredPrompt}
+                musyrifList={musyrifList}
               />
             </motion.div>
           )}
           {page==="subuh" && (
             <motion.div key="subuh" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageInputPrayer slot="subuh" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>
+              <PageInputPrayer 
+                slot="subuh" 
+                authUser={authUser} 
+                records={records} 
+                onMark={handleMark} 
+                onMarkAll={handleMarkAll} 
+                onResetMark={handleResetMark}
+                onLogin={()=>setShowLogin(true)} 
+                onSwitchSlot={(s)=>setPage(s)} 
+                showToast={showToast}
+                musyrifListAll={musyrifList}
+              />
             </motion.div>
           )}
           {page==="maghrib" && (
             <motion.div key="maghrib" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageInputPrayer slot="maghrib" authUser={authUser} records={records} onMark={handleMark} onMarkAll={handleMarkAll} onLogin={()=>setShowLogin(true)} onSwitchSlot={(s)=>setPage(s)} showToast={showToast}/>
+              <PageInputPrayer 
+                slot="maghrib" 
+                authUser={authUser} 
+                records={records} 
+                onMark={handleMark} 
+                onMarkAll={handleMarkAll} 
+                onResetMark={handleResetMark}
+                onLogin={()=>setShowLogin(true)} 
+                onSwitchSlot={(s)=>setPage(s)} 
+                showToast={showToast}
+                musyrifListAll={musyrifList}
+              />
             </motion.div>
           )}
           {page==="rekap" && (
             <motion.div key="rekap" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageRekap records={records} authUser={authUser} onSelectMusyrif={setSelectedMusyrifId} onGoTo={setPage}/>
+              <PageRekap 
+                records={records} 
+                authUser={authUser} 
+                onSelectMusyrif={setSelectedMusyrifId} 
+                onGoTo={setPage}
+                musyrifListAll={musyrifList}
+              />
             </motion.div>
           )}
           {page==="riwayat" && (
@@ -4366,6 +4551,7 @@ export default function App() {
                 onSelectMusyrifId={setSelectedMusyrifId}
                 onMark={handleMark}
                 showToast={showToast}
+                musyrifListAll={musyrifList}
               />
             </motion.div>
           )}
@@ -4380,9 +4566,10 @@ export default function App() {
                 isPage={true}
                 onClose={() => setPage("dashboard")}
                 authUser={authUser}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 logbookData={logbookData}
                 onSaveLogbook={handleSaveLogbook}
+                onResetLogbook={handleResetLogbook}
                 onOpenSantriSakit={() => setPage("santri-sakit")}
               />
             </motion.div>
@@ -4393,9 +4580,10 @@ export default function App() {
                 isPage={true}
                 onClose={() => setPage("dashboard")}
                 authUser={authUser}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 mutabaahData={mutabaahData}
                 onSaveMutabaah={handleSaveMutabaah}
+                onResetMutabaah={handleResetMutabaah}
               />
             </motion.div>
           )}
@@ -4405,7 +4593,7 @@ export default function App() {
                 isPage={true}
                 onClose={() => setPage("dashboard")}
                 authUser={authUser}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 santriSakitList={santriSakitList}
                 onSaveSantriSakit={handleSaveSantriSakit}
                 onUpdateStatus={handleUpdateStatusSantriSakit}
@@ -4419,9 +4607,10 @@ export default function App() {
                 isPage={true}
                 onClose={() => setPage("dashboard")}
                 authUser={authUser}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 izinList={izinList}
                 onSubmitIzin={handleSubmitIzin}
+                onUpdateIzin={handleUpdateIzin}
                 onApproveIzin={handleApproveIzin}
                 onDeleteIzin={handleDeleteIzin}
               />
@@ -4432,7 +4621,7 @@ export default function App() {
               <KegiatanAsramaModal
                 isPage={true}
                 onClose={() => setPage("dashboard")}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 asramaList={ASRAMAS}
                 kegiatanRecords={kegiatanRecords}
                 onSaveKegiatan={handleSaveKegiatan}
@@ -4446,7 +4635,7 @@ export default function App() {
               <LeaderboardModal
                 isPage={true}
                 onClose={() => setPage("dashboard")}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 records={recordsMap}
                 logbookData={logbookData}
                 kegiatanRecords={kegiatanRecords}
@@ -4467,11 +4656,24 @@ export default function App() {
               <RaportSertifikatModal
                 isPage={true}
                 onClose={() => setPage("dashboard")}
-                musyrifList={MUSYRIF_LIST}
+                musyrifList={musyrifList}
                 records={recordsMap}
                 logbookData={logbookData}
                 kegiatanRecords={kegiatanRecords}
                 mutabaahData={mutabaahData}
+              />
+            </motion.div>
+          )}
+          {page==="musyrif-manager" && (
+            <motion.div key="musyrif-manager" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <MusyrifManagerModal
+                isPage={true}
+                onClose={() => setPage("dashboard")}
+                musyrifList={musyrifList}
+                onAddMusyrif={handleAddMusyrif}
+                onUpdateMusyrif={handleUpdateMusyrif}
+                onDeleteMusyrif={handleDeleteMusyrif}
+                authUser={authUser}
               />
             </motion.div>
           )}
@@ -4534,7 +4736,7 @@ export default function App() {
         {showWA && (
           <WhatsAppShareModal
             onClose={() => setShowWA(false)}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             records={recordsMap}
             asramaList={ASRAMAS}
           />
@@ -4547,9 +4749,10 @@ export default function App() {
           <IzinPengajuanModal
             onClose={() => setShowIzin(false)}
             authUser={authUser}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             izinList={izinList}
             onSubmitIzin={handleSubmitIzin}
+            onUpdateIzin={handleUpdateIzin}
             onApproveIzin={handleApproveIzin}
             onDeleteIzin={handleDeleteIzin}
           />
@@ -4572,7 +4775,7 @@ export default function App() {
         {showKegiatan && (
           <KegiatanAsramaModal
             onClose={() => setShowKegiatan(false)}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             asramaList={ASRAMAS}
             kegiatanRecords={kegiatanRecords}
             onSaveKegiatan={handleSaveKegiatan}
@@ -4588,9 +4791,10 @@ export default function App() {
           <JurnalLogbookModal
             onClose={() => setShowLogbook(false)}
             authUser={authUser}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             logbookData={logbookData}
             onSaveLogbook={handleSaveLogbook}
+            onResetLogbook={handleResetLogbook}
             onOpenSantriSakit={() => {
               setShowLogbook(false);
               setShowSantriSakit(true);
@@ -4605,9 +4809,10 @@ export default function App() {
           <MutabaahYaumiyahModal
             onClose={() => setShowMutabaah(false)}
             authUser={authUser}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             mutabaahData={mutabaahData}
             onSaveMutabaah={handleSaveMutabaah}
+            onResetMutabaah={handleResetMutabaah}
           />
         )}
       </AnimatePresence>
@@ -4618,7 +4823,7 @@ export default function App() {
           <SantriSakitModal
             onClose={() => setShowSantriSakit(false)}
             authUser={authUser}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             santriSakitList={santriSakitList}
             onSaveSantriSakit={handleSaveSantriSakit}
             onUpdateStatus={handleUpdateStatusSantriSakit}
@@ -4632,7 +4837,7 @@ export default function App() {
         {showLeaderboard && (
           <LeaderboardModal
             onClose={() => setShowLeaderboard(false)}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             records={recordsMap}
             logbookData={logbookData}
             kegiatanRecords={kegiatanRecords}
@@ -4655,11 +4860,25 @@ export default function App() {
         {showRaport && (
           <RaportSertifikatModal
             onClose={() => setShowRaport(false)}
-            musyrifList={MUSYRIF_LIST}
+            musyrifList={musyrifList}
             records={recordsMap}
             logbookData={logbookData}
             kegiatanRecords={kegiatanRecords}
             mutabaahData={mutabaahData}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 10. Master Data Musyrif Modal (SCRUD) */}
+      <AnimatePresence>
+        {showMusyrifManager && (
+          <MusyrifManagerModal
+            onClose={() => setShowMusyrifManager(false)}
+            musyrifList={musyrifList}
+            onAddMusyrif={handleAddMusyrif}
+            onUpdateMusyrif={handleUpdateMusyrif}
+            onDeleteMusyrif={handleDeleteMusyrif}
+            authUser={authUser}
           />
         )}
       </AnimatePresence>

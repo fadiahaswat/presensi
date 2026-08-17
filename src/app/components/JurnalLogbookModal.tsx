@@ -49,6 +49,7 @@ interface JurnalLogbookModalProps {
   musyrifList: Musyrif[];
   logbookData: LogbookStorage;
   onSaveLogbook: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
+  onResetLogbook?: (musyrifId: string, date: string) => void;
   onOpenSantriSakit?: () => void;
   isPage?: boolean;
 }
@@ -282,7 +283,8 @@ export function JurnalLogbookModal({
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [filterCategory, setFilterCategory] = useState<"all" | "Pagi" | "Siang" | "Sore" | "Malam">("all");
+  const [filterCategory, setFilterCategory] = useState<"all" | "Pagi" | "Siang" | "Sore" | "Malam" | "patrol">("all");
+  const [searchTaskQuery, setSearchTaskQuery] = useState<string>("");
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
@@ -300,6 +302,20 @@ export function JurnalLogbookModal({
   const [formState, setFormState] = useState<JurnalLogbookEntry>(() => {
     return logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK;
   });
+
+  // Reset logbook entries for selected date
+  const handleResetLogbook = () => {
+    if (window.confirm(`Yakin ingin mengosongkan/reset catatan logbook tanggal ${selectedDate} untuk ${selectedMusyrif?.name}?`)) {
+      setFormState(EMPTY_LOGBOOK);
+      if (onResetLogbook) {
+        onResetLogbook(selectedMusyrifId, selectedDate);
+      } else {
+        onSaveLogbook(selectedMusyrifId, selectedDate, EMPTY_LOGBOOK);
+      }
+      triggerHaptic("medium");
+      alert("Catatan logbook berhasil di-reset.");
+    }
+  };
 
   // Keep form in sync when date or musyrif changes
   const handleDateOrMusyrifChange = (mId: string, date: string) => {
@@ -432,11 +448,22 @@ export function JurnalLogbookModal({
   const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
 
   const filteredTasks = LOGBOOK_TASKS.filter(t => {
+    // Search Filter
+    if (searchTaskQuery.trim()) {
+      const q = searchTaskQuery.toLowerCase();
+      const match = t.title.toLowerCase().includes(q) || t.shortDesc.toLowerCase().includes(q) || t.timeWindow.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+
     // Category Filter
-    if (filterCategory !== "all" && t.category !== filterCategory) return false;
+    if (filterCategory === "patrol") {
+      if (!t.isPatrol) return false;
+    } else if (filterCategory !== "all" && t.category !== filterCategory) {
+      return false;
+    }
 
     // Time status filtering when isToday and not explicitly showing all
-    if (isToday && !showAllScheduled && isMusyrifUser) {
+    if (isToday && !showAllScheduled && isMusyrifUser && !searchTaskQuery) {
       const taskData = formState[t.key] || { done: false };
       const timeInfo = getTaskTimeStatus(t);
       // Only show if active right now OR already marked done
@@ -512,7 +539,65 @@ export function JurnalLogbookModal({
               <p className="text-xs text-slate-500 mt-0.5"><strong>{completedTasks}</strong> dari <strong>{totalTasks}</strong> agenda terlaksana</p>
             </div>
           </div>
-          <div className="w-24 bg-slate-200 h-2.5 rounded-full overflow-hidden"><div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} /></div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetLogbook}
+              title="Reset Isian Logbook Tanggal Ini"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-200/80 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-[11px] font-semibold transition-colors active:scale-95"
+            >
+              Reset Logbook
+            </button>
+            <div className="w-20 bg-slate-200 h-2.5 rounded-full overflow-hidden hidden sm:block">
+              <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Task Search & Category Filter Pills */}
+        <div className="space-y-2 pt-1 border-t border-slate-100">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTaskQuery}
+              onChange={(e) => setSearchTaskQuery(e.target.value)}
+              placeholder="Cari agenda tugas logbook..."
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+            />
+            {searchTaskQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchTaskQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+            {[
+              { id: "all", label: "Semua Kategori" },
+              { id: "Pagi", label: "🌅 Pagi" },
+              { id: "Siang", label: "☀️ Siang" },
+              { id: "Sore", label: "🌇 Sore" },
+              { id: "Malam", label: "🌙 Malam" },
+              { id: "patrol", label: "🚶 Patroli Langkah" }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setFilterCategory(cat.id as any)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  filterCategory === cat.id
+                    ? "bg-emerald-600 text-white shadow-2xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -34,6 +34,7 @@ interface MutabaahYaumiyahModalProps {
   musyrifList: Musyrif[];
   mutabaahData: MutabaahStorage;
   onSaveMutabaah: (musyrifId: string, date: string, entry: MutabaahEntry) => void;
+  onResetMutabaah?: (musyrifId: string, date: string) => void;
   isPage?: boolean;
 }
 
@@ -111,6 +112,20 @@ export function MutabaahYaumiyahModal({
     });
   };
 
+  const handleResetToday = () => {
+    if (!isMusyrifUser && !isPamongOrKoord) return;
+    if (window.confirm(`Yakin ingin mengosongkan/reset catatan amalan mutaba'ah tanggal ${selectedDate}?`)) {
+      setEntry(DEFAULT_ENTRY);
+      if (onResetMutabaah) {
+        onResetMutabaah(selectedMusyrifId, selectedDate);
+      } else {
+        onSaveMutabaah(selectedMusyrifId, selectedDate, DEFAULT_ENTRY);
+      }
+      triggerHaptic("medium");
+      alert("Catatan amalan mutaba'ah berhasil di-reset.");
+    }
+  };
+
   const handleSave = () => {
     if (selectedDate > todayStr) {
       alert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.");
@@ -118,6 +133,7 @@ export function MutabaahYaumiyahModal({
     }
     onSaveMutabaah(selectedMusyrifId, selectedDate, entry);
     setSavedSuccess(true);
+    triggerHaptic("medium");
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 
@@ -259,10 +275,10 @@ export function MutabaahYaumiyahModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleMarkAll(false)}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-bold active:scale-95 transition-all"
+                  onClick={handleResetToday}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 rounded-xl text-[11px] font-bold active:scale-95 transition-all"
                 >
-                  Reset
+                  Reset Amalan
                 </button>
               </div>
             )}

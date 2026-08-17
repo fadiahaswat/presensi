@@ -71,6 +71,7 @@ export function KegiatanAsramaModal({
   const [selectedAsrama, setSelectedAsrama] = useState<string>(asramaList[0] || "1");
   const [notes, setNotes] = useState<string>("");
   const [search, setSearch] = useState<string>("");
+  const [editingKegiatan, setEditingKegiatan] = useState<KegiatanRecord | null>(null);
 
   // Riwayat Tab Filter & Search
   const [riwayatFilterType, setRiwayatFilterType] = useState<string>("all");
@@ -99,6 +100,25 @@ export function KegiatanAsramaModal({
     setAttendance(prev => ({ ...prev, ...updated }));
   };
 
+  const resetForm = () => {
+    setSelectedActivity("tahfidz");
+    setSelectedDate(format(new Date(), "yyyy-MM-dd"));
+    setSelectedAsrama(asramaList[0] || "1");
+    setNotes("");
+    setAttendance({});
+    setEditingKegiatan(null);
+  };
+
+  const handleStartEdit = (rec: KegiatanRecord) => {
+    setEditingKegiatan(rec);
+    setSelectedActivity(rec.activityType);
+    setSelectedDate(rec.date);
+    setSelectedAsrama(rec.asrama);
+    setNotes(rec.notes || "");
+    setAttendance(rec.attendees || {});
+    setActiveTab("input");
+  };
+
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const handleSave = () => {
@@ -107,7 +127,7 @@ export function KegiatanAsramaModal({
       return;
     }
     const actMeta = ACTIVITIES.find(a => a.id === selectedActivity);
-    const recId = `${selectedActivity}_${selectedAsrama}_${selectedDate}`;
+    const recId = editingKegiatan ? editingKegiatan.id : `${selectedActivity}_${selectedAsrama}_${selectedDate}`;
     
     // Fill default hadir if not set
     const finalAttendance = { ...attendance };
@@ -125,9 +145,12 @@ export function KegiatanAsramaModal({
       asrama: selectedAsrama,
       attendees: finalAttendance,
       notes: notes.trim() || undefined,
-      markedBy: authUser?.name || "Pamong"
+      markedBy: editingKegiatan ? editingKegiatan.markedBy : (authUser?.name || "Pamong")
     });
 
+    triggerHaptic("medium");
+    alert(editingKegiatan ? "Data kegiatan berhasil diperbarui." : "Presensi kegiatan berhasil disimpan.");
+    resetForm();
     setActiveTab("riwayat");
   };
 
@@ -163,14 +186,17 @@ export function KegiatanAsramaModal({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setActiveTab("input")}
+            onClick={() => {
+              if (activeTab === "input" && editingKegiatan) resetForm();
+              setActiveTab("input");
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "input" 
                 ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs") 
                 : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
             }`}
           >
-            Input Agenda
+            {editingKegiatan ? "Edit Agenda" : "Input Agenda"}
           </button>
           <button
             type="button"
@@ -189,6 +215,18 @@ export function KegiatanAsramaModal({
       {/* Content Area */}
       {activeTab === "input" ? (
         <div className="space-y-4">
+          {editingKegiatan && (
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl flex items-center justify-between text-xs text-amber-900">
+              <span>Sedang mengedit agenda: <strong>{editingKegiatan.activityTitle}</strong> ({editingKegiatan.date})</span>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-xs font-bold text-amber-700 hover:underline"
+              >
+                Batal Edit
+              </button>
+            </div>
+          )}
           {/* Activity Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {ACTIVITIES.map(act => (
@@ -475,6 +513,13 @@ export function KegiatanAsramaModal({
                           className="text-xs font-semibold text-emerald-700 hover:underline"
                         >
                           {isExpanded ? "Sembunyikan Rincian" : "Lihat Rincian Peserta"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(rec)}
+                          className="text-xs font-semibold text-amber-600 hover:underline"
+                        >
+                          Edit
                         </button>
                         {onDeleteKegiatan && (
                           <button
