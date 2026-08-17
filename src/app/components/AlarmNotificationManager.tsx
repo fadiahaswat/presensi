@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { X, Bell, BellRing, Volume2, VolumeX, Clock, Check, ShieldCheck, Sparkles } from "lucide-react";
+import { X, Bell, BellRing, Volume2, VolumeX, Clock, Check, ShieldCheck, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { motion } from "motion/react";
+import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 
 interface AlarmNotificationManagerProps {
   onClose: () => void;
@@ -42,7 +44,7 @@ export function AlarmNotificationManager({
       const perm = await Notification.requestPermission();
       setNotifPermission(perm);
       if (perm === "granted") {
-        new Notification("🔔 Notifikasi Presensi Aktif!", {
+        new Notification("Notifikasi Presensi Aktif", {
           body: "Pengingat waktu presensi shalat Musyrif Mu'allimin telah berhasil diaktifkan.",
           icon: "/muallimin-logo.png"
         });
@@ -58,61 +60,85 @@ export function AlarmNotificationManager({
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
       const ctx = new AudioContext();
+      
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-      notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(523.25, now); // C5
+      osc1.frequency.exponentialRampToValueAtTime(659.25, now + 0.3); // E5
 
-        gain.gain.setValueAtTime(0.001, ctx.currentTime + i * 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + i * 0.12 + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.4);
+      osc2.type = "triangle";
+      osc2.frequency.setValueAtTime(783.99, now + 0.1); // G5
+      osc2.frequency.exponentialRampToValueAtTime(1046.50, now + 0.4); // C6
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.3, now + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
 
-        osc.start(ctx.currentTime + i * 0.12);
-        osc.stop(ctx.currentTime + i * 0.12 + 0.45);
-      });
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now + 0.1);
+      osc1.stop(now + 1.2);
+      osc2.stop(now + 1.2);
     } catch (err) {
-      console.error("Audio play failed:", err);
+      console.error("Audio playback error:", err);
     }
   };
 
   const handleTestNotification = () => {
+    triggerHaptic("medium");
     if (soundEnabled) {
       playChime();
     }
+
     if (notifPermission === "granted") {
-      new Notification(`🔔 Pengingat Shalat ${nextPrayerName}`, {
-        body: `Waktu ${nextPrayerName} (${nextPrayerTime}) mendekat. Siapkan absensi santri & musyrif!`,
+      new Notification(`Pengingat: Waktu Shalat ${nextPrayerName} Telah Dekat`, {
+        body: `Waktu ${nextPrayerName} pukul ${nextPrayerTime} WIB. Siapkan presensi musyrif dan absensi santri.`,
         icon: "/muallimin-logo.png"
       });
     }
+
     setTested(true);
-    setTimeout(() => setTested(false), 2500);
+    setTimeout(() => setTested(false), 3000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-[28px] shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+    <motion.div 
+      className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4" 
+      variants={modalBackdropVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      onClick={() => { triggerHaptic("light"); onClose(); }}
+    >
+      <motion.div 
+        className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100/80" 
+        variants={modalContentVariants}
+        onClick={e=>e.stopPropagation()}
+      >
         
         {/* Header */}
-        <div className="px-5 py-4 bg-emerald-700 text-white flex items-center justify-between">
+        <div className="px-5 py-4 bg-emerald-800 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center">
               <BellRing className="w-5 h-5 text-emerald-100" />
             </div>
             <div>
               <h3 className="font-bold text-base leading-tight">Alarm & Pengingat Presensi</h3>
-              <p className="text-[11px] text-emerald-100/80">Otomatisasi pengingat waktu shalat & absensi</p>
+              <p className="text-xs text-emerald-100/80">Otomatisasi pengingat waktu shalat & absensi</p>
             </div>
           </div>
           <button 
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            type="button"
+            onClick={() => { triggerHaptic("light"); onClose(); }}
+            aria-label="Tutup"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors active:scale-90"
           >
             <X className="w-4 h-4" />
           </button>
@@ -122,87 +148,91 @@ export function AlarmNotificationManager({
         <div className="p-5 space-y-4">
           
           {/* Next Prayer Banner */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-3.5 flex items-center justify-between">
+          <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-2xl p-3.5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                 {nextPrayerName.slice(0, 3)}
               </div>
               <div>
                 <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Shalat Terdekat</p>
-                <h4 className="text-sm font-extrabold text-slate-800">{nextPrayerName} • {nextPrayerTime} WIB</h4>
+                <h4 className="text-sm font-extrabold text-slate-800">{nextPrayerName} · {nextPrayerTime} WIB</h4>
               </div>
             </div>
-            <span className="text-[10px] bg-white border border-emerald-200 px-2 py-1 rounded-full font-bold text-emerald-700">
-              Muhammadiyah
+            <span className="text-xs bg-white border border-emerald-200 px-2.5 py-1 rounded-full font-bold text-emerald-700">
+              Hisab KHGT
             </span>
           </div>
 
-          {/* Browser Notification Switch */}
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 font-bold text-xs text-slate-800">
-                <Bell className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Web Push Notification</span>
+          {/* Browser Notification Permission Card */}
+          <div className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-slate-800">Izin Web Push Notifikasi</h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Munculkan popup notifikasi di layar HP / Laptop saat waktu presensi tiba.
+                </p>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Status: {notifPermission === "granted" ? "🟢 Diizinkan" : notifPermission === "denied" ? "🔴 Diblokir Browser" : "🟡 Perlu Izin"}
-              </p>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${
+                notifPermission === "granted" ? "bg-emerald-100 text-emerald-800" :
+                notifPermission === "denied" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+              }`}>
+                {notifPermission === "granted" ? "Aktif" : notifPermission === "denied" ? "Diblokir" : "Belum Aktif"}
+              </span>
             </div>
 
-            {notifPermission !== "granted" ? (
+            {notifPermission !== "granted" && (
               <button
+                type="button"
                 onClick={requestPermission}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs"
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5"
               >
-                Aktifkan
+                <Bell className="w-3.5 h-3.5" /> Izinkan Notifikasi Browser
               </button>
-            ) : (
-              <span className="text-emerald-700 text-xs font-bold flex items-center gap-1 bg-emerald-100/70 px-2.5 py-1 rounded-lg">
-                <Check className="w-3.5 h-3.5" /> Aktif
-              </span>
             )}
           </div>
 
           {/* Audio Chime Switch */}
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5 font-bold text-xs text-slate-800">
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-600" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
-                <span>Suara Bell Lembut (Chime)</span>
+          <div className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center border border-slate-200/70 text-slate-600 shadow-2xs">
+                {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
               </div>
-              <p className="text-[11px] text-slate-500">Mainkan nada halus saat waktu presensi tiba</p>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800">Suara Chime Alarm</h4>
+                <p className="text-xs text-slate-500">Bunyikan nada lembut saat notifikasi muncul</p>
+              </div>
             </div>
-
             <button
+              type="button"
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${
+              className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer ${
                 soundEnabled ? "bg-emerald-600" : "bg-slate-300"
               }`}
             >
-              <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${
-                soundEnabled ? "translate-x-6" : ""
+              <div className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                soundEnabled ? "translate-x-5" : "translate-x-0"
               }`} />
             </button>
           </div>
 
-          {/* Offset Selection */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-emerald-600" /> Waktu Notifikasi Pengingat
+          {/* Offset Selector */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-emerald-600" /> Bunyikan Pengingat Sebelum Shalat:
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[5, 15, 30].map(mins => (
+            <div className="grid grid-cols-4 gap-2">
+              {[5, 10, 15, 20].map((mins) => (
                 <button
                   key={mins}
                   type="button"
                   onClick={() => setReminderOffset(mins)}
-                  className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 ${
                     reminderOffset === mins
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  {mins} Menit Sebelum
+                  {mins} Menit
                 </button>
               ))}
             </div>
@@ -210,18 +240,19 @@ export function AlarmNotificationManager({
 
           {/* Test Button */}
           <button
+            type="button"
             onClick={handleTestNotification}
-            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
+            className="w-full py-3 mt-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
           >
             {tested ? (
               <>
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-emerald-700">Notifikasi & Suara Telah Diuji!</span>
+                <Check className="w-4 h-4 text-emerald-400" />
+                <span>Pengingat & Suara Dites!</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-                <span>Uji Coba Pengingat & Suara Sekarang</span>
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Uji Coba Sekarang</span>
               </>
             )}
           </button>
@@ -230,14 +261,15 @@ export function AlarmNotificationManager({
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button
-            onClick={onClose}
+            type="button"
+            onClick={() => { triggerHaptic("light"); onClose(); }}
             className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition-all"
           >
             Selesai
           </button>
         </div>
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
