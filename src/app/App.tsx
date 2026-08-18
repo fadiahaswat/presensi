@@ -464,52 +464,6 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
   setTimeout(() => w.print(), 400);
 }
 
-function exportCSV(records: AttendanceRecord[], month: Date, asramaFilter: string) {
-  const mk = format(month, "yyyy-MM");
-  const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) })
-    .filter(d => !isBefore(new Date(), startOfDay(d)) || isToday(d));
-  const list = (asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter)).filter(isFieldMusyrif);
-
-  const headers = ["No", "Nama Musyrif", "Kelas", "Asrama", "Kamar", "Pamong", "No WA", "Subuh Hadir", "Subuh Sakit", "Subuh Izin", "Subuh Alpa", "Maghrib Hadir", "Maghrib Sakit", "Maghrib Izin", "Maghrib Alpa", "Persentase Kehadiran"];
-  
-  const rows = list.map((m, i) => {
-    const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
-    const sh = rs.filter(r => r.subuh === "hadir").length;
-    const ss = rs.filter(r => r.subuh === "sakit").length;
-    const si = rs.filter(r => r.subuh === "izin").length;
-    const sa = rs.filter(r => r.subuh === "alfa").length;
-    const mh = rs.filter(r => r.maghrib === "hadir").length;
-    const ms = rs.filter(r => r.maghrib === "sakit").length;
-    const mi = rs.filter(r => r.maghrib === "izin").length;
-    const ma = rs.filter(r => r.maghrib === "alfa").length;
-    const pct = days.length ? Math.round(((sh + mh) / (days.length * 2)) * 100) : 0;
-
-    return [
-      i + 1,
-      `"${m.name.replace(/"/g, '""')}"`,
-      `"${m.kelas}"`,
-      `"${m.asrama}"`,
-      `"${m.kamar}"`,
-      `"${(m.pamong || "-").replace(/"/g, '""')}"`,
-      `"${m.phone || "-"}"`,
-      sh, ss, si, sa,
-      mh, ms, mi, ma,
-      `${pct}%`
-    ].join(",");
-  });
-
-  const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Rekap_Presensi_${asramaFilter.replace(/\s+/g, "_")}_${format(month, "yyyy_MM")}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
@@ -767,34 +721,8 @@ function PageDashboard({
         onOpenFullCalendar={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
       />
 
-      {/* Action Cards based on Role / Public Mode */}
-      {!authUser ? (
-        <div className="p-5 bg-emerald-800 text-white rounded-3xl shadow-md border border-emerald-700 relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/15 text-emerald-100 px-2 py-0.5 rounded-full font-mono">
-                  Mode Publik
-                </span>
-                <span className="text-xs text-emerald-100/90">Monitoring Terbuka</span>
-              </div>
-              <p className="text-xs text-emerald-100/80 leading-relaxed max-w-md">
-                Menampilkan rekapitulasi kehadiran & statistik keasramaan santri serta musyrif secara transparan.
-              </p>
-            </div>
-            {onLogin && (
-              <button
-                type="button"
-                onClick={onLogin}
-                className="self-start sm:self-auto flex items-center gap-2 bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold px-4 py-2.5 rounded-2xl shadow-xs transition-all active:scale-95 shrink-0"
-              >
-                <LogIn className="w-3.5 h-3.5 text-emerald-800" />
-                <span>Masuk Petugas / Musyrif</span>
-              </button>
-            )}
-          </div>
-        </div>
-      ) : authUser.role === "musyrif" ? (
+      {/* Action Cards based on Role */}
+      {authUser?.role === "musyrif" ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <button
             type="button"
@@ -1375,7 +1303,7 @@ function PageDashboard({
                   <Award className="w-4 h-4" />
                 </div>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
-                  PDF & CSV
+                  Cetak / PDF
                 </span>
               </div>
               <div>
@@ -2280,18 +2208,8 @@ function PageRekap({
           <p className="text-xs text-slate-400 mt-0.5 truncate">Analisis & statistik kehadiran bulanan</p>
         </div>
 
-        {/* Unified Dual Export Capsule */}
-        <div className="flex items-center bg-white/95 backdrop-blur-md rounded-2xl p-1 shadow-xs border border-slate-200/80 ring-1 ring-slate-900/5">
-          <button 
-            type="button"
-            onClick={()=>exportCSV(records,viewMonth,filterAsrama)} 
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:text-emerald-700 hover:bg-slate-50 transition-all active:scale-95"
-            title="Download Spreadsheet Excel (.CSV)"
-          >
-            <Download className="w-3.5 h-3.5 text-emerald-600"/>
-            <span>CSV</span>
-          </button>
-          <div className="w-[1px] h-4 bg-slate-200/80" />
+        {/* PDF Export Button */}
+        <div className="flex items-center">
           <button 
             type="button"
             onClick={()=>exportPDF(records,viewMonth,filterAsrama)} 
@@ -5615,7 +5533,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 9. Raport & E-Sertifikat Modal (dengan Ekspor CSV 4 Pilar) */}
+      {/* 9. Raport & E-Sertifikat Modal */}
       <AnimatePresence>
         {showRaport && (
           <RaportSertifikatModal

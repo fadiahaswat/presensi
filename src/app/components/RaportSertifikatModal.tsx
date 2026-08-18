@@ -1,14 +1,13 @@
 import React, { useState } from "react";
 import { 
   X, Printer, Award, FileText, Download, CheckCircle, 
-  Crown, Star, ShieldCheck, Calendar, User, Building2, Table, FileSpreadsheet,
+  Crown, Star, ShieldCheck, Calendar, User, Building2, Table,
   ChevronLeft, GraduationCap, Sun, ClipboardList, Sparkles
 } from "lucide-react";
 import { motion } from "motion/react";
 import mualliminLogo from "../muallimin-logo.png";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { exportComprehensiveReportCSV } from "../utils/exportReport";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { LogbookStorage, LOGBOOK_TASKS } from "./JurnalLogbookModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
@@ -144,17 +143,6 @@ export function RaportSertifikatModal({
     window.print();
   };
 
-  const handleExportCSV = () => {
-    exportComprehensiveReportCSV({
-      musyrifList: musyrifList as any,
-      records,
-      logbookData,
-      kegiatanRecords,
-      mutabaahData,
-      asramaFilter: selectedAsramaFilter
-    });
-  };
-
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
       {/* Header Bar */}
@@ -185,14 +173,6 @@ export function RaportSertifikatModal({
         </div>
 
         <div className="flex items-center gap-1.5 no-print">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-semibold text-xs flex items-center gap-1.5 transition-all"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Ekspor CSV</span>
-          </button>
           <button
             type="button"
             onClick={handlePrint}
