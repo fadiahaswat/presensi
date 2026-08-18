@@ -4064,16 +4064,11 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
     }
   }
 
-  // 4. Merge any missing defaults from DEFAULT_ALL_PERSONNEL
-  const existingIds = new Set(deduped.map(p => p.id));
-  const missingDefaults = DEFAULT_ALL_PERSONNEL.filter(p => !existingIds.has(p.id));
-  const result = missingDefaults.length > 0 ? [...missingDefaults, ...deduped] : deduped;
-  
   try {
-    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(result));
+    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(deduped));
   } catch {}
   
-  return result;
+  return deduped;
 }
 
 export default function App() {
@@ -4393,13 +4388,9 @@ export default function App() {
         } else if (tbl === "santrisakit") {
           setSantriSakitList(Array.isArray(cloudRecords) ? cloudRecords : []);
         } else if (tbl === "musyrif") {
-          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-            setMusyrifList(sanitizeMusyrifList(cloudRecords));
-          }
+          setMusyrifList(sanitizeMusyrifList(Array.isArray(cloudRecords) ? cloudRecords : []));
         } else if (tbl === "authusers") {
-          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-            setAuthUsers(cloudRecords);
-          }
+          setAuthUsers(Array.isArray(cloudRecords) ? cloudRecords : []);
         } else if (tbl === "logbook") {
           const next: LogbookStorage = {};
           (cloudRecords || []).forEach((cr: any) => {
@@ -4537,7 +4528,13 @@ export default function App() {
     // 2. Perform initial full cloud pull — this is the Single Source of Truth
     // Always fetch from Sheet on startup; state will be replaced via isFullReplace flag
     if (googleSyncService.getGasUrl()) {
-      googleSyncService.fetchAllFromCloud();
+      (async () => {
+        const { pendingCount } = googleSyncService.getState();
+        if (pendingCount > 0) {
+          await googleSyncService.flushQueue();
+        }
+        await googleSyncService.fetchAllFromCloud();
+      })();
     }
 
     return unsubData;
@@ -4554,7 +4551,13 @@ export default function App() {
     showToast(`Selamat datang, Ustadz ${u.name.split(" ")[0]}!`);
     setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
     // Immediately sync all data from Sheet after login
-    googleSyncService.fetchAllFromCloud();
+    (async () => {
+      const { pendingCount } = googleSyncService.getState();
+      if (pendingCount > 0) {
+        await googleSyncService.flushQueue();
+      }
+      await googleSyncService.fetchAllFromCloud();
+    })();
   };
 
   const handleLogout = () => {
