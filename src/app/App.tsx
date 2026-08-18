@@ -762,7 +762,7 @@ function PageDashboard({
             </div>
           </button>
         </div>
-      ) : (
+      ) : authUser && (authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung") ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Subuh Action Card */}
           {(() => {
@@ -860,7 +860,7 @@ function PageDashboard({
             );
           })()}
         </div>
-      )}
+      ) : null}
 
       {/* ───────────────────────────────────────────────────────────────────── */}
       {/* PUSAT LAYANAN & FITUR INOVASI KEASRAMAAN */}
