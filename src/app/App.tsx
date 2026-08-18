@@ -4978,7 +4978,7 @@ export default function App() {
   }, [showToast]);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY === 0 && !isRefreshing) {
+    if (window.scrollY <= 0 && !isRefreshing) {
       touchStartY.current = e.touches[0].clientY;
       isDragging.current = true;
     }
@@ -4994,10 +4994,11 @@ export default function App() {
     const currentY = e.touches[0].clientY;
     const diff = currentY - touchStartY.current;
     if (diff > 0) {
-      // Apply rubber-band friction
-      const dist = Math.min(100, diff * 0.45);
+      // Apply rubber-band friction only when pulling down from the top
+      const dist = Math.min(80, diff * 0.4);
       setPullDistance(dist);
     } else {
+      isDragging.current = false;
       setPullDistance(0);
     }
   };
@@ -5014,7 +5015,7 @@ export default function App() {
 
   return (
     <div 
-      className="min-h-screen bg-background relative" 
+      className="min-h-screen bg-background relative flex flex-col justify-between overflow-x-hidden" 
       style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -5165,7 +5166,7 @@ export default function App() {
       </header>
 
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 py-5 pb-36">
+      <main className="max-w-2xl mx-auto px-4 py-5 pb-24 w-full flex-1">
         {/* Anti Time-Spoofing & Drift Alert Banner */}
         {timeSyncState?.status === "drift_detected" && (
           <div className="mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-md flex items-start gap-3 shadow-xs">

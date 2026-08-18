@@ -36,8 +36,23 @@
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <style>
-        html, body { height: 100%; margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        #root { height: 100%; }
+        html {
+          min-height: 100%;
+          overscroll-behavior-y: none;
+        }
+        body {
+          min-height: 100%;
+          margin: 0;
+          font-family: 'Plus Jakarta Sans', sans-serif;
+          overflow-x: hidden;
+          overscroll-behavior-y: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        #root {
+          min-height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
         .font-mono { font-family: 'JetBrains Mono', monospace !important; }
       </style>
       <script src="https://accounts.google.com/gsi/client" async defer></script>
