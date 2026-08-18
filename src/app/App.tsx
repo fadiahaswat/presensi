@@ -31,6 +31,7 @@ import { SantriSakitModal, SantriSakitRecord } from "./components/SantriSakitMod
 import { LeaderboardModal } from "./components/LeaderboardModal";
 import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
 import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
+import { PamongManagerModal, Pamong } from "./components/PamongManagerModal";
 import { PageKalenderHijriah } from "./components/PageKalenderHijriah";
 import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
@@ -48,7 +49,7 @@ import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdrop
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "kalender-hijriah" | "kalender-pendidikan";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
@@ -527,6 +528,7 @@ function PageDashboard({
   onOpenLeaderboard,
   onOpenRaport,
   onOpenMusyrifManager,
+  onOpenPamongManager,
   onOpenKalenderHijriah,
   onOpenKalenderPendidikan,
   onInstallPWA,
@@ -534,7 +536,8 @@ function PageDashboard({
   pendingIzinCount = 0,
   activeSantriSakitCount = 0,
   canInstallPWA = false,
-  musyrifList = MUSYRIF_LIST
+  musyrifList = MUSYRIF_LIST,
+  pamongList = []
 }: { 
   records: AttendanceRecord[]; 
   authUser: AuthUser|null; 
@@ -550,12 +553,14 @@ function PageDashboard({
   onOpenLeaderboard: () => void;
   onOpenRaport: () => void;
   onOpenMusyrifManager?: () => void;
+  onOpenPamongManager?: () => void;
   onOpenKalenderHijriah?: () => void;
   onOpenKalenderPendidikan?: () => void;
   onInstallPWA?: () => void;
   onLogin?: () => void;
   canInstallPWA?: boolean;
   musyrifList?: Musyrif[];
+  pamongList?: Pamong[];
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif);
@@ -1399,7 +1404,27 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 11. Kalender Hijriah KHGT */}
+            {/* 11. Master Data Pamong (SCRUD) */}
+            <button
+              type="button"
+              onClick={() => onOpenPamongManager ? onOpenPamongManager() : onGoTo("pamong-manager")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-fuchsia-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-fuchsia-50 text-fuchsia-700 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold text-fuchsia-800 bg-fuchsia-100 px-2 py-0.5 rounded-lg font-mono">
+                  SCRUD
+                </span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Master Pamong</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Kelola akun pamong</p>
+              </div>
+            </button>
+
+            {/* 12. Kalender Hijriah KHGT */}
             <button
               type="button"
               onClick={onOpenKalenderHijriah}
@@ -1419,7 +1444,7 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 12. Kalender Pendidikan & Perpulangan */}
+            {/* 13. Kalender Pendidikan & Perpulangan */}
             <button
               type="button"
               onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
@@ -3674,7 +3699,19 @@ function parseJwt(token: string): { email?: string; name?: string; picture?: str
 // ─────────────────────────────────────────────────────────────────────────────
 // LOGIN MODAL (Google Identity Services + Whitelist Protection)
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginModal({ onClose, onLogin, musyrifList }: { onClose: () => void; onLogin: (u: AuthUser) => void; musyrifList?: Musyrif[] }) {
+function LoginModal({ 
+  onClose, 
+  onLogin, 
+  authUsers = AUTH_USERS, 
+  musyrifList = MUSYRIF_LIST,
+  musyrifSource
+}: { 
+  onClose: () => void; 
+  onLogin: (u: AuthUser) => void; 
+  authUsers?: AuthUser[]; 
+  musyrifList?: Musyrif[];
+  musyrifSource?: Musyrif[];
+}) {
   const [errorMsg, setErrorMsg]     = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
@@ -3699,30 +3736,9 @@ function LoginModal({ onClose, onLogin, musyrifList }: { onClose: () => void; on
       return;
     }
 
-    // 1. Check in dynamic musyrifList (contains Musyrif, Pamong, Koordinator with assigned roles)
-    const currentList = (musyrifList && musyrifList.length > 0) ? musyrifList : MUSYRIF_LIST;
-    const foundInList = currentList.find(m => matchesEmail(m.email, clean));
-    if (foundInList) {
-      const assignedRole: Role = (foundInList.role as Role) || "musyrif";
-      const userToLogin: AuthUser = {
-        id: foundInList.id,
-        name: foundInList.name,
-        email: clean,
-        role: assignedRole,
-        asrama: foundInList.asrama,
-        musyrifId: foundInList.id,
-        picture: googlePicture,
-      };
-      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundInList.name} (${ROLE_LABELS[assignedRole] || "Pengelola"})...`);
-      setTimeout(() => {
-        onLogin(userToLogin);
-        onClose();
-      }, 500);
-      return;
-    }
-
-    // 2. Fallback to default AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
-    const foundAuth = AUTH_USERS.find(u => matchesEmail(u.email, clean));
+    // 1. Check in authUsers (Pamong, Koordinator Musyrif, Koordinator Asrama)
+    const activeAuthList = (authUsers && authUsers.length > 0) ? authUsers : AUTH_USERS;
+    const foundAuth = activeAuthList.find(u => matchesEmail(u.email, clean));
     if (foundAuth) {
       const userToLogin: AuthUser = {
         ...foundAuth,
@@ -3736,9 +3752,31 @@ function LoginModal({ onClose, onLogin, musyrifList }: { onClose: () => void; on
       return;
     }
 
+    // 2. Check in dynamic musyrifList (contains Musyrif, Pamong, Koordinator with assigned roles)
+    const currentList = musyrifSource || musyrifList || MUSYRIF_LIST;
+    const foundInList = currentList.find(m => matchesEmail(m.email, clean));
+    if (foundInList) {
+      const assignedRole: Role = (foundInList.role as Role) || "musyrif";
+      const userToLogin: AuthUser = {
+        id: foundInList.id,
+        name: foundInList.name,
+        email: clean,
+        role: assignedRole,
+        asrama: foundInList.asrama,
+        musyrifId: foundInList.id,
+        picture: googlePicture,
+      };
+      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundInList.name} (${ROLE_LABELS[assignedRole] || "Musyrif"})...`);
+      setTimeout(() => {
+        onLogin(userToLogin);
+        onClose();
+      }, 500);
+      return;
+    }
+
     // Rejected - Not in authorized Whitelist
     setErrorMsg(`Akses Ditolak: Akun Google "${inputEmail}" tidak terdaftar dalam database Musyrif maupun Pengelola.`);
-  }, [onLogin, onClose, musyrifList]);
+  }, [onLogin, onClose, authUsers, musyrifList, musyrifSource]);
 
   // Initialize official Google Identity Services
   useEffect(() => {
@@ -3925,6 +3963,8 @@ const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v2";
 const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v2";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v2";
+const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v2";
+const SYNC_TABLE_AUTH_USERS = "AuthUsers";
 
 const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
   // ─── KOORDINATOR MUSYRIF (SUPER ADMIN / PIMPINAN) ───
@@ -4136,6 +4176,17 @@ export default function App() {
     return DEFAULT_ALL_PERSONNEL;
   });
 
+  const [authUsers, setAuthUsers] = useState<AuthUser[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_AUTH_USERS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return AUTH_USERS;
+  });
+
   const [authUser, setAuthUser] = useState<AuthUser|null>(() => {
     try {
       const saved = localStorage.getItem("presensi_auth_user");
@@ -4144,6 +4195,20 @@ export default function App() {
       const cleanEmail = parsed?.email?.toLowerCase();
       if (!cleanEmail) return null;
       
+      const validAuth = ((): AuthUser | undefined => {
+        try {
+          const savedAuthUsers = localStorage.getItem(STORAGE_KEY_AUTH_USERS);
+          if (savedAuthUsers) {
+            const parsedAuth = JSON.parse(savedAuthUsers);
+            if (Array.isArray(parsedAuth)) {
+              return parsedAuth.find((u: AuthUser) => matchesEmail(u.email, cleanEmail));
+            }
+          }
+        } catch {}
+        return AUTH_USERS.find(u => matchesEmail(u.email, cleanEmail));
+      })();
+      if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
+
       const validMusyrif = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).find(m => matchesEmail(m.email, cleanEmail));
       if (validMusyrif) {
         const assignedRole: Role = (validMusyrif.role as Role) || "musyrif";
@@ -4157,9 +4222,6 @@ export default function App() {
           picture: parsed.picture,
         };
       }
-
-      const validAuth = AUTH_USERS.find(u => matchesEmail(u.email, cleanEmail));
-      if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
       return null;
     } catch {
       return null;
@@ -4247,6 +4309,8 @@ export default function App() {
   const [showSantriSakit, setShowSantriSakit] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
+  const [showMusyrifManager, setShowMusyrifManager] = useState(false);
+  const [showPamongManager, setShowPamongManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
 
   // PWA Install Prompt
@@ -4384,6 +4448,10 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
   }, [musyrifList]);
 
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(authUsers)); } catch {}
+  }, [authUsers]);
+
   // Sync initial personnel list to Google Sheets in background
   useEffect(() => {
     if (musyrifList && musyrifList.length > 0) {
@@ -4413,6 +4481,10 @@ export default function App() {
         } else if (tbl === "musyrif") {
           if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
             setMusyrifList(sanitizeMusyrifList(cloudRecords));
+          }
+        } else if (tbl === "authusers") {
+          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+            setAuthUsers(cloudRecords);
           }
         } else if (tbl === "logbook") {
           const next: LogbookStorage = {};
@@ -4492,6 +4564,16 @@ export default function App() {
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
           });
           return sanitizeMusyrifList(Array.from(map.values()));
+        });
+      } else if (tbl === "authusers") {
+        setAuthUsers(prev => {
+          const map = new Map<string, AuthUser>();
+          prev.forEach(u => map.set(u.id, u));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          return Array.from(map.values());
         });
       } else if (tbl === "logbook") {
         setLogbookData(prev => {
@@ -4591,6 +4673,43 @@ export default function App() {
     setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
     googleSyncService.enqueue("Musyrif", { id }, "delete");
     showToast(`Data personel ${target?.name || id} berhasil dihapus.`, "info");
+  };
+
+  const pamongList = useMemo<Pamong[]>(
+    () => authUsers
+      .filter(u => u.role === "pamong")
+      .map(u => ({ id: u.id, name: u.name, email: u.email, asrama: u.asrama })),
+    [authUsers]
+  );
+
+  const handleAddPamong = (newPamong: Omit<Pamong, "id">) => {
+    const created: AuthUser = {
+      id: `p_${Date.now()}`,
+      name: newPamong.name,
+      email: newPamong.email.trim().toLowerCase(),
+      role: "pamong",
+      asrama: newPamong.asrama,
+    };
+    setAuthUsers(prev => [created, ...prev]);
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, created, "upsert");
+    showToast(`Pamong ${created.name} berhasil ditambahkan!`, "success");
+  };
+
+  const handleUpdatePamong = (updatedPamong: Pamong) => {
+    setAuthUsers(prev => prev.map(u => (
+      u.id === updatedPamong.id
+        ? { ...u, name: updatedPamong.name, email: updatedPamong.email.trim().toLowerCase(), asrama: updatedPamong.asrama, role: "pamong" as Role }
+        : u
+    )));
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { ...updatedPamong, role: "pamong" as Role }, "upsert");
+    showToast(`Data pamong ${updatedPamong.name} berhasil diperbarui!`, "success");
+  };
+
+  const handleDeletePamong = (id: string) => {
+    const target = authUsers.find(u => u.id === id && u.role === "pamong");
+    setAuthUsers(prev => prev.filter(u => u.id !== id));
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete");
+    showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
@@ -5085,6 +5204,7 @@ export default function App() {
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
                 onOpenRaport={() => setShowRaport(true)}
                 onOpenMusyrifManager={() => setPage("musyrif-manager")}
+                onOpenPamongManager={() => setPage("pamong-manager")}
                 onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
                 onOpenKalenderPendidikan={() => setPage("kalender-pendidikan")}
                 onInstallPWA={handleInstallPWA}
@@ -5296,6 +5416,19 @@ export default function App() {
               />
             </motion.div>
           )}
+          {page==="pamong-manager" && (
+            <motion.div key="pamong-manager" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PamongManagerModal
+                isPage={true}
+                onClose={() => setPage("dashboard")}
+                pamongList={pamongList}
+                asramaList={ASRAMAS}
+                onAddPamong={handleAddPamong}
+                onUpdatePamong={handleUpdatePamong}
+                onDeletePamong={handleDeletePamong}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -5347,7 +5480,14 @@ export default function App() {
 
       {/* Login Modal */}
       <AnimatePresence>
-        {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onLogin={handleLogin} musyrifList={musyrifList}/>}
+        {showLogin && (
+          <LoginModal
+            onClose={()=>setShowLogin(false)}
+            onLogin={handleLogin}
+            authUsers={authUsers}
+            musyrifList={musyrifList}
+          />
+        )}
       </AnimatePresence>
 
       {/* 1. WhatsApp Generator Modal */}
@@ -5488,7 +5628,36 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 9. Google Sheets Cloud Sync Modal */}
+      {/* 10. Master Data Musyrif Modal (SCRUD) */}
+      <AnimatePresence>
+        {showMusyrifManager && (
+          <MusyrifManagerModal
+            onClose={() => setShowMusyrifManager(false)}
+            musyrifList={musyrifList}
+            asramaList={ASRAMAS}
+            onAddMusyrif={handleAddMusyrif}
+            onUpdateMusyrif={handleUpdateMusyrif}
+            onDeleteMusyrif={handleDeleteMusyrif}
+            authUser={authUser}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 11. Master Data Pamong Modal (SCRUD) */}
+      <AnimatePresence>
+        {showPamongManager && (
+          <PamongManagerModal
+            onClose={() => setShowPamongManager(false)}
+            pamongList={pamongList}
+            asramaList={ASRAMAS}
+            onAddPamong={handleAddPamong}
+            onUpdatePamong={handleUpdatePamong}
+            onDeletePamong={handleDeletePamong}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 12. Google Sheets Cloud Sync Modal */}
       <CloudSyncModal
         isOpen={showCloudSync}
         onClose={() => setShowCloudSync(false)}
@@ -5507,4 +5676,3 @@ export default function App() {
     </div>
   );
 }
-
