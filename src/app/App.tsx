@@ -31,9 +31,14 @@ import { SantriSakitModal, SantriSakitRecord } from "./components/SantriSakitMod
 import { LeaderboardModal } from "./components/LeaderboardModal";
 import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
 import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
+import { PageKalenderHijriah } from "./components/PageKalenderHijriah";
+import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
+import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
+import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
+import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
 import { motion, AnimatePresence } from "motion/react";
 import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdropVariants, modalContentVariants } from "./utils/animations";
 
@@ -43,7 +48,7 @@ import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdrop
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "kalender-hijriah" | "kalender-pendidikan";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
@@ -57,6 +62,7 @@ interface Musyrif {
   email?: string;
   phone?: string;
   photo?: string;
+  role?: Role;
 }
 interface AttendanceRecord {
   musyrifId: string; date: string;
@@ -117,49 +123,40 @@ function calcPrayerTimes(date: Date, lat: number, lon: number, tz = 7) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HIJRI CALENDAR
-// ─────────────────────────────────────────────────────────────────────────────
-const HIJRI_MONTHS = ["Muharram","Safar","Rabiul Awal","Rabiul Akhir","Jumadil Awal","Jumadil Akhir","Rajab","Sya'ban","Ramadan","Syawal","Dzulqa'dah","Dzulhijjah"];
-
-function toHijri(date: Date) {
-  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
-  const jd = Math.floor(365.25*(y+4716)) + Math.floor(30.6001*(m+1)) + d
-    + (m<=2 ? -Math.floor((y+1)/100)+Math.floor((y+1)/400)+1 : -Math.floor(y/100)+Math.floor(y/400)+1) - 1524.5;
-  let l = jd - 1948440 + 10632;
-  const n = Math.floor((l-1)/10631);
-  l -= 10631*n - 354;
-  const j = Math.floor((10985-l)/5316)*Math.floor(50*l/17719) + Math.floor(l/5670)*Math.floor(43*l/15238);
-  l -= Math.floor((30-j)/15)*Math.floor(17719*j/50) + Math.floor(j/16)*Math.floor(15238*j/43) - 29;
-  const hm = Math.floor(24*l/709);
-  const hd = Math.floor(l - Math.floor(709*hm/24));
-  const hy = 30*n + j - 30;
-  return { day: hd, month: hm, year: hy, monthName: HIJRI_MONTHS[hm-1] ?? "" };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUNNAH FASTING CALCULATOR
+// SUNNAH FASTING CALCULATOR (KHGT Muhammadiyah)
 // ─────────────────────────────────────────────────────────────────────────────
 function getSunnahFasts(date: Date): SunnahFast[] {
   const h = toHijri(date);
-  const dow = date.getDay(); // 0=Sun 1=Mon 4=Thu 5=Fri
   const fasts: SunnahFast[] = [];
+  const fastInfo = getFastInfo(date);
 
-  if (dow === 1) fasts.push({ id:"senin",  name:"Puasa Senin",  desc:"Hari amalan dicatat & hari kelahiran Nabi ﷺ", type:"weekly",  icon:"sun" });
-  if (dow === 4) fasts.push({ id:"kamis",  name:"Puasa Kamis",  desc:"Hari amalan diangkat kepada Allah", type:"weekly",  icon:"sparkles" });
+  if (fastInfo && fastInfo.type === "sunnah") {
+    let fastType: "weekly" | "monthly" | "annual" = "annual";
+    if (fastInfo.id === "senin" || fastInfo.id === "kamis") fastType = "weekly";
+    else if (fastInfo.id === "ayyamul") fastType = "monthly";
 
-  if ([13,14,15].includes(h.day))
-    fasts.push({ id:"ayyamul", name:"Ayyamul Bidh", desc:`${h.day} ${h.monthName} — 3 hari di pertengahan bulan`, type:"monthly", icon:"moon" });
+    fasts.push({
+      id: fastInfo.id,
+      name: fastInfo.name,
+      desc: fastInfo.desc,
+      type: fastType,
+      icon: fastInfo.icon === "ban" ? "sparkles" : fastInfo.icon,
+    });
+  }
 
-  if (h.month === 1 && h.day === 9)
-    fasts.push({ id:"tasua",  name:"Puasa Tasu'a",  desc:"9 Muharram — Sehari sebelum Asyura", type:"annual", icon:"moon" });
-  if (h.month === 1 && h.day === 10)
-    fasts.push({ id:"asyura", name:"Puasa Asyura",  desc:"10 Muharram — Menghapus dosa setahun lalu", type:"annual", icon:"star" });
-  if (h.month === 8)
-    fasts.push({ id:"syaban", name:"Puasa Sya'ban", desc:"Bulan persiapan Ramadan yang sering terlupakan", type:"annual", icon:"moon" });
-  if (h.month === 10 && h.day >= 2 && h.day <= 20)
-    fasts.push({ id:"syawal", name:"Puasa Syawal",  desc:"6 hari di bulan Syawal — setara puasa setahun", type:"annual", icon:"sparkles" });
-  if (h.month === 12 && h.day === 9)
-    fasts.push({ id:"arafah", name:"Puasa Arafah",  desc:"9 Dzulhijjah — Menghapus dosa 2 tahun", type:"annual", icon:"star" });
+  // Also check if Monday/Thursday and Ayyamul Bidh coincide
+  const dow = date.getDay();
+  if ((dow === 1 || dow === 4) && [13, 14, 15].includes(h.day)) {
+    if (!fasts.some(f => f.id === "ayyamul")) {
+      fasts.push({
+        id: "ayyamul",
+        name: `Ayyamul Bidh (${h.day} ${h.monthName})`,
+        desc: `${h.day} ${h.monthName} — 3 hari di pertengahan bulan Hijriah`,
+        type: "monthly",
+        icon: "moon",
+      });
+    }
+  }
 
   return fasts;
 }
@@ -230,101 +227,101 @@ const AUTH_USERS: AuthUser[] = [
   { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"aulia.abdan@muallimin.sch.id",     role:"pamong", asrama:"Asrama 8A" },
   { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"anang.fathur@muallimin.sch.id",    role:"pamong", asrama:"Asrama 8B" },
   { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggit.prabowo@muallimin.sch.id",  role:"pamong", asrama:"Asrama 10" },
-  { id:"p5a", name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com",              role:"pamong", asrama:"Asrama Sedayu Gedung A" },
-  { id:"p5b", name:"Rais Yudhistira, Lc.",              email:"cutisrais@gmail.com",              role:"pamong", asrama:"Asrama Sedayu Gedung A" },
+  { id:"p5",  name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com, cutisrais@gmail.com", role:"pamong", asrama:"Asrama Sedayu Gedung A" },
   { id:"p6",  name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaflubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B" },
   { id:"p7",  name:"M. Ismail Marzuq, S.Sos.",          email:"izmaelpoenya04@gmail.com",         role:"pamong", asrama:"Asrama Sedayu Gedung C" },
   { id:"p8",  name:"Ariel Amarta Dzikrillah, S.Sos.",   email:"arilamarta@gmail.com",             role:"pamong", asrama:"Asrama Sedayu Gedung D" },
-
-  // ─── KOORDINATOR ASRAMA / GEDUNG ───
-  { id:"g1", name:"Koordinator Asrama 1 & 10",         email:"koord.asrama1.10@muallimin.sch.id", role:"koordinator_gedung", asrama:"Asrama 1" },
-  { id:"g2", name:"Koordinator Asrama 8 (A, B, C)",    email:"koord.asrama8@muallimin.sch.id",    role:"koordinator_gedung", asrama:"Asrama 8A" },
-  { id:"g3", name:"Hafidz Nawaf Fauzil Adhim, S.Pd.",  email:"fauziladhim2001@gmail.com",         role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung A" },
-  { id:"g4", name:"Rayhan Bachtiar Dwi Bayu Baskara",  email:"rayhan.baskara68@gmail.com",        role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung B" },
-  { id:"g5", name:"Rifqi Adha Pradipa",                email:"rifqipradipa62@gmail.com",          role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung C" },
-  { id:"g6", name:"Wahyu Dermawan",                    email:"wahyudermawan1212@gmail.com",       role:"koordinator_gedung", asrama:"Asrama Sedayu Gedung D" },
 ];
 
 const MUSYRIF_LIST: Musyrif[] = [
   // ─── ASRAMA SEDAYU GEDUNG D (Pamong: Ariel Amarta Dzikrillah, S.Sos.) ───
-  { id:"m1",  name:"Wahyu Dermawan",               kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"wahyudermawan1212@gmail.com",     phone:"6282180998704" },
-  { id:"m2",  name:"Afif Nashrul",                 kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"afifnashrul06@gmail.com",         phone:"6281287066297" },
-  { id:"m3",  name:"Muhammad Farras Mamduh",       kelas:"1 B",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 B",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"farrasmdh@gmail.com",             phone:"6285117104411" },
-  { id:"m4",  name:"Leo Fernando Adnan Muzaki",    kelas:"1 C",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 C",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"leodrfernandofelix@gmail.com",    phone:"6285701209925" },
-  { id:"m5",  name:"Husein Nur Alwany",            kelas:"1 D",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 D",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"husennur085@gmail.com",           phone:"6285157379443" },
-  { id:"m6",  name:"Arif Rahman, S.s.",            kelas:"1 E",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"nitikan3321@gmail.com",           phone:"6285129334523" },
-  { id:"m7",  name:"M. Fajri",                     kelas:"1 F",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 F",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"",                                phone:"6285189076745" },
-  { id:"m8",  name:"Ajie Saptian Hardiyanto",      kelas:"1 G",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 G",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"saptianaji07@gmail.com",          phone:"6285198234739" },
-  { id:"m8b", name:"Naufal Muzakki",               kelas:"1 H",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 H",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"andiaqillah@muallimin.sch.id",    phone:"" },
-  { id:"m33", name:"Mukti Abdul Ghofur",           kelas:"4 A",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"muktighofur75@gmail.com",         phone:"6282322272355" },
-  { id:"m37", name:"Rasya Adhar Al Islam",         kelas:"4 E",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"rasyaadhar3012@gmail.com",        phone:"62895402680315" },
+  { id:"m1",  name:"Wahyu Dermawan",               role:"koordinator_gedung", kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"wahyudermawan1212@gmail.com",     phone:"6282180998704" },
+  { id:"m2",  name:"Afif Nashrul",                 role:"musyrif",            kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"afifnashrul06@gmail.com",         phone:"6281287066297" },
+  { id:"m3",  name:"Muhammad Farras Mamduh",       role:"musyrif",            kelas:"1 B",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 B",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"farrasmdh@gmail.com",             phone:"6285117104411" },
+  { id:"m4",  name:"Leo Fernando Adnan Muzaki",    role:"musyrif",            kelas:"1 C",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 C",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"leodrfernandofelix@gmail.com",    phone:"6285701209925" },
+  { id:"m5",  name:"Husein Nur Alwany",            role:"musyrif",            kelas:"1 D",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 D",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"husennur085@gmail.com",           phone:"6285157379443" },
+  { id:"m6",  name:"Arif Rahman, S.s.",            role:"musyrif",            kelas:"1 E",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"nitikan3321@gmail.com",           phone:"6285129334523" },
+  { id:"m7",  name:"M. Fajri",                     role:"musyrif",            kelas:"1 F",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 F",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"",                                phone:"6285189076745" },
+  { id:"m8",  name:"Ajie Saptian Hardiyanto",      role:"musyrif",            kelas:"1 G",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 G",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"saptianaji07@gmail.com",          phone:"6285198234739" },
+  { id:"m33", name:"Mukti Abdul Ghofur",           role:"musyrif",            kelas:"4 A",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"muktighofur75@gmail.com",         phone:"6282322272355" },
+  { id:"m37", name:"Rasya Adhar Al Islam",         role:"musyrif",            kelas:"4 E",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"rasyaadhar3012@gmail.com",        phone:"62895402680315" },
 
   // ─── ASRAMA SEDAYU GEDUNG A (Pamong: Rais Yudhistira, Lc.) ───
-  { id:"m9",  name:"Muhammad Maliq Hakeem",        kelas:"1 Lower A",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"muhammadmaliqhkm@gmail.com",      phone:"6282342754336" },
-  { id:"m10", name:"Bryan Mahir Muharram",         kelas:"1 Lower B",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"bryanmuharram06@gmail.com",       phone:"6282140095932" },
-  { id:"m11", name:"Auzia Difa Mubarok",           kelas:"1 Lower C",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"difaamubaarak@gmail.com",         phone:"6289526256385" },
-  { id:"m20", name:"Muhammad Adhwa Janitra Handoko",kelas:"2 Lower A",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"handokohowareyou@gmail.com",      phone:"6287786969082" },
-  { id:"m21", name:"Zaky Risky Kurniawan",         kelas:"2 Lower B",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"zakyrisky182@gmail.com",          phone:"6288983445038" },
-  { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",kelas:"2 Lower C",tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285217017024" },
-  { id:"m23", name:"Abdullah, S.Pd.",              kelas:"3 A",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 A",         pamong:"Rais Yudhistira, Lc.",                email:"abdullahmuallimin@muallimin.sch.id",phone:"62881025916368" },
-  { id:"m31", name:"Muhammad Akbar Adi Wijaya",    kelas:"3 Upper A",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"akbaradiwijaya@gmail.com",        phone:"6285923336740" },
-  { id:"m32", name:"Mouldy Mohammad Zayyed",       kelas:"3 Upper B",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"mouldymaz@gmail.com",             phone:"6285155347353" },
-  { id:"m39", name:"Ayyasy Kaizen Birruna",        kelas:"4 Upper A",   tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung A", kamar:"4 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"catatankaizen@gmail.com",         phone:"6285930404552" },
-  { id:"m40", name:"Hafidz Nawaf Fauzil Adhim, S.Pd.",kelas:"4 Upper B",tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung A", kamar:"4 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"fauziladhim2001@gmail.com",       phone:"6282241935414" },
+  { id:"m9",  name:"Muhammad Maliq Hakeem",        role:"musyrif",            kelas:"1 Lower A",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"muhammadmaliqhkm@gmail.com",      phone:"6282342754336" },
+  { id:"m10", name:"Bryan Mahir Muharram",         role:"musyrif",            kelas:"1 Lower B",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"bryanmuharram06@gmail.com",       phone:"6282140095932" },
+  { id:"m11", name:"Auzia Difa Mubarok",           role:"musyrif",            kelas:"1 Lower C",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"difaamubaarak@gmail.com",         phone:"6289526256385" },
+  { id:"m20", name:"Muhammad Adhwa Janitra Handoko",role:"musyrif",           kelas:"2 Lower A",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"handokohowareyou@gmail.com",      phone:"6287786969082" },
+  { id:"m21", name:"Zaky Risky Kurniawan",         role:"musyrif",            kelas:"2 Lower B",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"zakyrisky182@gmail.com",          phone:"6288983445038" },
+  { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",role:"musyrif",        kelas:"2 Lower C",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285217017024" },
+  { id:"m23", name:"Abdullah, S.Pd.",              role:"musyrif",            kelas:"3 A",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 A",         pamong:"Rais Yudhistira, Lc.",                email:"abdullahmuallimin@muallimin.sch.id",phone:"62881025916368" },
+  { id:"m31", name:"Muhammad Akbar Adi Wijaya",    role:"musyrif",            kelas:"3 Upper A",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"akbaradiwijaya@gmail.com",        phone:"6285923336740" },
+  { id:"m32", name:"Mouldy Mohammad Zayyed",       role:"musyrif",            kelas:"3 Upper B",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"mouldymaz@gmail.com",             phone:"6285155347353" },
+  { id:"m39", name:"Ayyasy Kaizen Birruna",        role:"musyrif",            kelas:"4 Upper A",   tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung A", kamar:"4 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"catatankaizen@gmail.com",         phone:"6285930404552" },
+  { id:"m40", name:"Hafidz Nawaf Fauzil Adhim, S.Pd.",role:"koordinator_gedung",kelas:"4 Upper B",tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung A", kamar:"4 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"fauziladhim2001@gmail.com",       phone:"6282241935414" },
 
   // ─── ASRAMA SEDAYU GEDUNG C (Pamong: M. Ismail Marzuq, S.Sos.) ───
-  { id:"m12", name:"Arhab Syamil Asy Syatori",     kelas:"2 A",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 A",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"arhab.syamil4@gmail.com",         phone:"6282145765850" },
-  { id:"m13", name:"Muhammad Dhaim Aruna",         kelas:"2 B",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 B",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"dhaimaruna@gmail.com",            phone:"628156554524" },
-  { id:"m14", name:"Ivan Nur Adrian Pratama",      kelas:"2 C",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 C",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"ivannur224@gmail.com",            phone:"6288983127506" },
-  { id:"m15", name:"Muhammad Atqonuddinillah",     kelas:"2 D",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 D",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"muhammadatqonuddinnilah@gmail.com",phone:"6281225054570" },
-  { id:"m16", name:"Nur Affan Muarif, S.Sos.",     kelas:"2 E",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 E",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"affanmuarif99@gmail.com",         phone:"6282216678182" },
-  { id:"m17", name:"Muhammad Rafi Umar Rais",      kelas:"2 F",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 F",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"rafiumar420@gmail.com",           phone:"6285854312222" },
-  { id:"m18", name:"Muhammad Arfa Burhanuddin Rafif",kelas:"2 G",       tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 G",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"arfaburhan2008@gmail.com",        phone:"6281233795288" },
-  { id:"m19", name:"Imam Tunisi",                  kelas:"2 H",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 H",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"mamtun17@gmail.com",              phone:"62895635128151" },
-  { id:"m35", name:"Zahdal Aisy Rahman Averusy",   kelas:"4 C",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung C", kamar:"4 C",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"zedzuhaid@gmail.com",             phone:"6282132910079" },
-  { id:"m36", name:"Rifqi Adha Pradipa",           kelas:"4 D",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung C", kamar:"4 D",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"rifqipradipa62@gmail.com",        phone:"6287769943357" },
-  { id:"m38", name:"Moh. Rival Aldiyansah",        kelas:"4 F",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung C", kamar:"4 F",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"rivalaldiyansyah@muallimin.sch.id",phone:"6285706095527" },
+  { id:"m12", name:"Arhab Syamil Asy Syatori",     role:"musyrif",            kelas:"2 A",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 A",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"arhab.syamil4@gmail.com",         phone:"6282145765850" },
+  { id:"m13", name:"Muhammad Dhaim Aruna",         role:"musyrif",            kelas:"2 B",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 B",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"dhaimaruna@gmail.com",            phone:"628156554524" },
+  { id:"m14", name:"Ivan Nur Adrian Pratama",      role:"musyrif",            kelas:"2 C",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 C",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"ivannur224@gmail.com",            phone:"6288983127506" },
+  { id:"m15", name:"Muhammad Atqonuddinillah",     role:"musyrif",            kelas:"2 D",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 D",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"muhammadatqonuddinnilah@gmail.com",phone:"6281225054570" },
+  { id:"m16", name:"Nur Affan Muarif, S.Sos.",     role:"musyrif",            kelas:"2 E",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 E",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"affanmuarif99@gmail.com",         phone:"6282216678182" },
+  { id:"m17", name:"Muhammad Rafi Umar Rais",      role:"musyrif",            kelas:"2 F",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 F",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"rafiumar420@gmail.com",           phone:"6285854312222" },
+  { id:"m18", name:"Muhammad Arfa Burhanuddin Rafif",role:"musyrif",          kelas:"2 G",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 G",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"arfaburhan2008@gmail.com",        phone:"6281233795288" },
+  { id:"m19", name:"Imam Tunisi",                  role:"musyrif",            kelas:"2 H",         tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung C", kamar:"2 H",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"mamtun17@gmail.com",              phone:"62895635128151" },
+  { id:"m35", name:"Zahdal Aisy Rahman Averusy",   role:"musyrif",            kelas:"4 C",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung C", kamar:"4 C",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"zedzuhaid@gmail.com",             phone:"6282132910079" },
+  { id:"m36", name:"Rifqi Adha Pradipa",           role:"koordinator_gedung", kelas:"4 D",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung C", kamar:"4 D",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"rifqipradipa62@gmail.com",        phone:"6287769943357" },
+  { id:"m38", name:"Moh. Rival Aldiyansah",        role:"musyrif",            kelas:"4 F",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung C", kamar:"4 F",         pamong:"M. Ismail Marzuq, S.Sos.",            email:"rivalaldiyansyah@muallimin.sch.id",phone:"6285706095527" },
 
   // ─── ASRAMA SEDAYU GEDUNG B (Pamong: Muh. Ahnaf Lubab, M.Pd.) ───
-  { id:"m24", name:"Mukti Abdul Ghofar",           kelas:"3 B",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 B",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muktighofar705@gmail.com",        phone:"6282241379820" },
-  { id:"m25", name:"Fadhl Maula Fawwas",           kelas:"3 C",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 C",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"maulafawas@gmail.com",            phone:"6281228679325" },
-  { id:"m26", name:"Fauzan Tasykurun Akmal",       kelas:"3 D",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 D",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"fauzanakmaal15@gmail.com",        phone:"6287833527289" },
-  { id:"m27", name:"Muhammad Syaqib Ridho Asy Syafiq",kelas:"3 E",      tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 E",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"idoosakippp@gmail.com",           phone:"628988158493" },
-  { id:"m28", name:"Muhammad Islam Al Ghozy",      kelas:"3 F",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 F",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muhammadislamalghozy2801@gmail.com",phone:"6281233421108" },
-  { id:"m29", name:"Ahmad Arif Kurniawan",         kelas:"3 G",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 G",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"ahmadarifkurniawan1809@gmail.com",phone:"6282233624304" },
-  { id:"m30", name:"Ananda Hasan Putra Rahman",    kelas:"3 H",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 H",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"",                                phone:"6289509904184" },
-  { id:"m34", name:"Rayhan Bachtiar Dwi Bayu Baskara",kelas:"4 B",      tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung B", kamar:"4 B",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"rayhan.baskara68@gmail.com",      phone:"6281225841078" },
+  { id:"m24", name:"Mukti Abdul Ghofar",           role:"musyrif",            kelas:"3 B",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 B",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muktighofar705@gmail.com",        phone:"6282241379820" },
+  { id:"m25", name:"Fadhl Maula Fawwas",           role:"musyrif",            kelas:"3 C",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 C",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"maulafawas@gmail.com",            phone:"6281228679325" },
+  { id:"m26", name:"Fauzan Tasykurun Akmal",       role:"musyrif",            kelas:"3 D",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 D",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"fauzanakmaal15@gmail.com",        phone:"6287833527289" },
+  { id:"m27", name:"Muhammad Syaqib Ridho Asy Syafiq",role:"musyrif",         kelas:"3 E",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 E",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"idoosakippp@gmail.com",           phone:"628988158493" },
+  { id:"m28", name:"Muhammad Islam Al Ghozy",      role:"musyrif",            kelas:"3 F",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 F",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muhammadislamalghozy2801@gmail.com",phone:"6281233421108" },
+  { id:"m29", name:"Ahmad Arif Kurniawan",         role:"musyrif",            kelas:"3 G",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 G",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"ahmadarifkurniawan1809@gmail.com",phone:"6282233624304" },
+  { id:"m30", name:"Ananda Hasan Putra Rahman",    role:"musyrif",            kelas:"3 H",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 H",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"",                                phone:"6289509904184" },
+  { id:"m34", name:"Rayhan Bachtiar Dwi Bayu Baskara",role:"koordinator_gedung",kelas:"4 B",      tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung B", kamar:"4 B",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"rayhan.baskara68@gmail.com",      phone:"6281225841078" },
 
   // ─── ASRAMA 8C & 8A KELAS 6 (Pamong: Aulia Abdan Idza Shalla, S.Th.I.) ───
-  { id:"m51", name:"Habib Fajar Rohman",           kelas:"6 A",         tingkat:"Kelas 6", asrama:"Asrama 8C",              kamar:"6 A",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"fajarrohman116@gmail.com",        phone:"6281246112790" },
-  { id:"m52", name:"Muhammad Rafif Said, S.Pd.",   kelas:"6 B",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 B",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"rafifsaid77@gmail.com",           phone:"62895413221010" },
-  { id:"m53", name:"Gilang Cahya Ghufroni",        kelas:"6 C",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 C",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"gilangcahya@muallimin.sch.id",    phone:"6285725379068" },
-  { id:"m54", name:"Hilmy Muwafaq 'Adman",         kelas:"6 D",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 D",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"hilmyadman97@gmail.com",          phone:"6281217904326" },
-  { id:"m55", name:"Aflah Naufal Nabiih",          kelas:"6 E",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 E",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"aflahnaufal07@gmail.com",         phone:"6281952116819" },
+  { id:"m51", name:"Habib Fajar Rohman",           role:"musyrif",            kelas:"6 A",         tingkat:"Kelas 6", asrama:"Asrama 8C",              kamar:"6 A",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"fajarrohman116@gmail.com",        phone:"6281246112790" },
+  { id:"m52", name:"Muhammad Rafif Said, S.Pd.",   role:"musyrif",            kelas:"6 B",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 B",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"rafifsaid77@gmail.com",           phone:"62895413221010" },
+  { id:"m53", name:"Gilang Cahya Ghufroni",        role:"musyrif",            kelas:"6 C",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 C",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"gilangcahya@muallimin.sch.id",    phone:"6285725379068" },
+  { id:"m54", name:"Hilmy Muwafaq 'Adman",         role:"musyrif",            kelas:"6 D",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 D",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"hilmyadman97@gmail.com",          phone:"6281217904326" },
+  { id:"m55", name:"Aflah Naufal Nabiih",          role:"musyrif",            kelas:"6 E",         tingkat:"Kelas 6", asrama:"Asrama 8A",              kamar:"6 E",         pamong:"Aulia Abdan Idza Shalla, S.Th.I.",    email:"aflahnaufal07@gmail.com",         phone:"6281952116819" },
 
   // ─── ASRAMA 8C & 8B KELAS 5 (Pamong: Anang Fathurrahman, Lc.) ───
-  { id:"m41", name:"Wildan Faalul Abror",          kelas:"5 A",         tingkat:"Kelas 5", asrama:"Asrama 8C",              kamar:"5 A",         pamong:"Anang Fathurrahman, Lc.",             email:"wildanabror00@gmail.com",         phone:"6281233318388" },
-  { id:"m42", name:"Rahmat Khoirul Anwar, S.Psi.", kelas:"5 B",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 B",         pamong:"Anang Fathurrahman, Lc.",             email:"rahmatkhoirulanwar23@gmail.com",  phone:"6285335241954" },
-  { id:"m43", name:"Muhammad Rafi Feriansyah",     kelas:"5 C",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 C",         pamong:"Anang Fathurrahman, Lc.",             email:"",                                phone:"62881025797090" },
-  { id:"m44", name:"Muhammad Syahrul Mubarok",     kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"62882003685998" },
+  { id:"m41", name:"Wildan Faalul Abror",          role:"musyrif",            kelas:"5 A",         tingkat:"Kelas 5", asrama:"Asrama 8C",              kamar:"5 A",         pamong:"Anang Fathurrahman, Lc.",             email:"wildanabror00@gmail.com",         phone:"6281233318388" },
+  { id:"m42", name:"Rahmat Khoirul Anwar, S.Psi.", role:"musyrif",            kelas:"5 B",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 B",         pamong:"Anang Fathurrahman, Lc.",             email:"rahmatkhoirulanwar23@gmail.com",  phone:"6285335241954" },
+  { id:"m43", name:"Muhammad Rafi Feriansyah",     role:"musyrif",            kelas:"5 C",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 C",         pamong:"Anang Fathurrahman, Lc.",             email:"",                                phone:"62881025797090" },
+  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"62882003685998" },
 
   // ─── ASRAMA 10 (Pamong: Inggit Prabowo, S.Pd.) ───
-  { id:"m45", name:"Dymas Naufal El Fawaz",        kelas:"5 E",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 E",         pamong:"Inggit Prabowo, S.Pd.",               email:"dymasn@muallimin.sch.id",         phone:"6285117732302" },
-  { id:"m46", name:"Layllan Dzikri Firmansyah",    kelas:"5 F",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 F",         pamong:"Inggit Prabowo, S.Pd.",               email:"dzikrilayllan@gmail.com",         phone:"6285728503309" },
-  { id:"m56", name:"Muhammad Ilman Khanafi",       kelas:"6 F",         tingkat:"Kelas 6", asrama:"Asrama 10",              kamar:"6 F",         pamong:"Inggit Prabowo, S.Pd.",               email:"ilmankhanafi@muallimin.sch.id",   phone:"62895706160907" },
-  { id:"m57", name:"Tajulqayyim Royyan",           kelas:"6 G",         tingkat:"Kelas 6", asrama:"Asrama 10",              kamar:"6 G",         pamong:"Inggit Prabowo, S.Pd.",               email:"tajulqayyim@muallimin.sch.id",    phone:"6281334991879" },
+  { id:"m45", name:"Dymas Naufal El Fawaz",        role:"musyrif",            kelas:"5 E",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 E",         pamong:"Inggit Prabowo, S.Pd.",               email:"dymasn@muallimin.sch.id",         phone:"6285117732302" },
+  { id:"m46", name:"Layllan Dzikri Firmansyah",    role:"musyrif",            kelas:"5 F",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 F",         pamong:"Inggit Prabowo, S.Pd.",               email:"dzikrilayllan@gmail.com",         phone:"6285728503309" },
+  { id:"m56", name:"Muhammad Ilman Khanafi",       role:"musyrif",            kelas:"6 F",         tingkat:"Kelas 6", asrama:"Asrama 10",              kamar:"6 F",         pamong:"Inggit Prabowo, S.Pd.",               email:"ilmankhanafi@muallimin.sch.id",   phone:"62895706160907" },
+  { id:"m57", name:"Tajulqayyim Royyan",           role:"musyrif",            kelas:"6 G",         tingkat:"Kelas 6", asrama:"Asrama 10",              kamar:"6 G",         pamong:"Inggit Prabowo, S.Pd.",               email:"tajulqayyim@muallimin.sch.id",    phone:"6281334991879" },
 
   // ─── ASRAMA 1 (Pamong: Galang Putra Muhammady, S.Pd.) ───
-  { id:"m47", name:"Muhammad Rafi",                kelas:"5 Upper A",   tingkat:"Kelas 5", asrama:"Asrama 1",               kamar:"5 Upper A",   pamong:"Galang Putra Muhammady, S.Pd.",       email:"muhammadrafi2246@gmail.com",      phone:"6287894970695" },
-  { id:"m48", name:"Ammar Ghozi Al Farisi",        kelas:"5 Upper B",   tingkat:"Kelas 5", asrama:"Asrama 1",               kamar:"5 Upper B",   pamong:"Galang Putra Muhammady, S.Pd.",       email:"ammarghozi12@gmail.com",          phone:"6285725915157" },
-  { id:"m49", name:"Ubaidillah Syafiq Atqiya",     kelas:"5 Upper C",   tingkat:"Kelas 5", asrama:"Asrama 1",               kamar:"5 Upper C",   pamong:"Galang Putra Muhammady, S.Pd.",       email:"ubay.syafiq03@gmail.com",         phone:"6281284985750" },
-  { id:"m50", name:"Ubaidillah Syafiq Atqiya",     kelas:"6 Internasional",tingkat:"Kelas 6", asrama:"Asrama 1",            kamar:"6 Int.",      pamong:"Galang Putra Muhammady, S.Pd.",       email:"ubay.syafiq03@gmail.com",         phone:"6281284985750" },
+  { id:"m47", name:"Muhammad Rafi",                role:"koordinator_gedung", kelas:"5 Upper A",   tingkat:"Kelas 5", asrama:"Asrama 1",               kamar:"5 Upper A",   pamong:"Galang Putra Muhammady, S.Pd.",       email:"muhammadrafi2246@gmail.com",      phone:"6287894970695" },
+  { id:"m48", name:"Ammar Ghozi Al Farisi",        role:"koordinator_gedung", kelas:"5 Upper B",   tingkat:"Kelas 5", asrama:"Asrama 1",               kamar:"5 Upper B",   pamong:"Galang Putra Muhammady, S.Pd.",       email:"ammarghozi12@gmail.com",          phone:"6285725915157" },
+  { id:"m49", name:"Ubaidillah Syafiq Atqiya",     role:"musyrif",            kelas:"5 Upper C & 6 Internasional", tingkat:"Kelas 5 & 6", asrama:"Asrama 1", kamar:"5 Upper C & 6 Int.", pamong:"Galang Putra Muhammady, S.Pd.", email:"ubay.syafiq03@gmail.com", phone:"6281284985750" },
 ];
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
+function isFieldMusyrif(m: { role?: Role | string }): boolean {
+  return m.role !== "pamong" && m.role !== "koordinator_musyrif";
+}
+
+function matchesEmail(emailField?: string, inputEmail?: string): boolean {
+  if (!emailField || !inputEmail) return false;
+  const target = inputEmail.trim().toLowerCase();
+  const list = emailField.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
+  return list.includes(target);
+}
+
 const todayStr = () => format(getTrustedDate(), "yyyy-MM-dd");
 
 const S = {
@@ -435,7 +432,7 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
   const mk = format(month,"yyyy-MM");
   const days = eachDayOfInterval({ start:startOfMonth(month), end:endOfMonth(month) })
     .filter(d => !isBefore(new Date(),startOfDay(d)) || isToday(d));
-  const list = asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter);
+  const list = (asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter)).filter(isFieldMusyrif);
 
   const rows = list.map((m,i) => {
     const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
@@ -470,7 +467,7 @@ function exportCSV(records: AttendanceRecord[], month: Date, asramaFilter: strin
   const mk = format(month, "yyyy-MM");
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) })
     .filter(d => !isBefore(new Date(), startOfDay(d)) || isToday(d));
-  const list = asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter);
+  const list = (asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter)).filter(isFieldMusyrif);
 
   const headers = ["No", "Nama Musyrif", "Kelas", "Asrama", "Kamar", "Pamong", "No WA", "Subuh Hadir", "Subuh Sakit", "Subuh Izin", "Subuh Alpa", "Maghrib Hadir", "Maghrib Sakit", "Maghrib Izin", "Maghrib Alpa", "Persentase Kehadiran"];
   
@@ -530,6 +527,8 @@ function PageDashboard({
   onOpenLeaderboard,
   onOpenRaport,
   onOpenMusyrifManager,
+  onOpenKalenderHijriah,
+  onOpenKalenderPendidikan,
   onInstallPWA,
   onLogin,
   pendingIzinCount = 0,
@@ -551,14 +550,15 @@ function PageDashboard({
   onOpenLeaderboard: () => void;
   onOpenRaport: () => void;
   onOpenMusyrifManager?: () => void;
+  onOpenKalenderHijriah?: () => void;
+  onOpenKalenderPendidikan?: () => void;
   onInstallPWA?: () => void;
   onLogin?: () => void;
-  pendingIzinCount?: number;
-  activeSantriSakitCount?: number;
   canInstallPWA?: boolean;
   musyrifList?: Musyrif[];
 }) {
-  const mList = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
+  const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
+  const mList = allRaw.filter(isFieldMusyrif);
   const today = todayStr();
   const todayRecs = records.filter(r => r.date === today);
   const total = mList.length;
@@ -572,15 +572,45 @@ function PageDashboard({
   const [asramaCampus, setAsramaCampus] = useState<"all" | "sparman" | "sedayu">("all");
   const [expandedAsrama, setExpandedAsrama] = useState<string | null>(null);
 
-  const prayerTimes = calcPrayerTimes(now, -7.807631, 110.350905, 7);
-  const hijri = toHijri(now);
-  const nowH = now.getHours() + now.getMinutes() / 60;
+  // Live 1-second interval for real-time MM:SS countdown
+  const [liveNow, setLiveNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setLiveNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const prayerTimes = calcPrayerTimes(liveNow, -7.807631, 110.350905, 7);
+  const hijri = toHijri(liveNow);
+  const nowH = liveNow.getHours() + liveNow.getMinutes() / 60 + liveNow.getSeconds() / 3600;
   const activeIdx = [...prayerTimes].reduce((best, p, i) => p.raw <= nowH ? i : best, -1);
   const nextPrayer = prayerTimes[(activeIdx + 1) % prayerTimes.length];
-  const minutesLeft = Math.round((nextPrayer.raw - nowH) * 60 + (nextPrayer.raw < nowH ? 1440 : 0));
-  const minsDisp = minutesLeft < 60 ? `${minutesLeft}m lagi` : `${Math.floor(minutesLeft/60)}j ${minutesLeft%60}m`;
 
-  const todayFasts = getSunnahFasts(now);
+  // Calculate exact target time for next prayer
+  const targetDate = useMemo(() => {
+    if (!nextPrayer) return null;
+    const [hStr, mStr] = nextPrayer.time.split(":");
+    const target = new Date(liveNow);
+    target.setHours(parseInt(hStr, 10), parseInt(mStr, 10), 0, 0);
+    if (target.getTime() <= liveNow.getTime()) {
+      target.setDate(target.getDate() + 1);
+    }
+    return target;
+  }, [nextPrayer, liveNow.toDateString()]);
+
+  const diffSec = targetDate ? Math.max(0, Math.floor((targetDate.getTime() - liveNow.getTime()) / 1000)) : 0;
+  const hoursLeft = Math.floor(diffSec / 3600);
+  const minsLeft = Math.floor((diffSec % 3600) / 60);
+  const secsLeft = diffSec % 60;
+  const totalMinsLeft = Math.floor(diffSec / 60);
+
+  // Format digital countdown string (MM:SS or JJ:MM:SS)
+  const countdownFormatted = hoursLeft > 0
+    ? `${String(hoursLeft).padStart(2, "0")}:${String(minsLeft).padStart(2, "0")}:${String(secsLeft).padStart(2, "0")}`
+    : `${String(minsLeft).padStart(2, "0")}:${String(secsLeft).padStart(2, "0")}`;
+
+  const minsDisp = hoursLeft > 0 ? `${hoursLeft}j ${minsLeft}m` : `${minsLeft}m lagi`;
+
+  const todayFasts = getSunnahFasts(liveNow);
 
   const weekData = Array.from({length:7},(_,i) => {
     const d = new Date(); d.setDate(d.getDate() - (6-i));
@@ -631,30 +661,76 @@ function PageDashboard({
         <div className="absolute inset-0 opacity-15">
           <svg width="100%" height="100%"><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="white"/></pattern><rect width="100%" height="100%" fill="url(#dots)"/></svg>
         </div>
-        <div className="relative p-5 sm:p-6">
-          <div className="flex items-start justify-between mb-5">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-300/20 mb-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"/>
-                <p className="text-emerald-100 text-[11px] font-mono tracking-tight">{hijri.day} {hijri.monthName} {hijri.year} H</p>
-              </div>
-              <h1 className="text-white text-2xl sm:text-3xl font-extrabold tracking-tight">{authUser ? `Ahlan, Ustadz ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}</h1>
-              <p className="text-emerald-200/90 text-xs sm:text-sm mt-0.5">{format(now,"EEEE, d MMMM yyyy",{locale:id})}</p>
-            </div>
-            <button onClick={()=>onGoTo("ibadah")} className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 text-right hover:bg-white/20 transition-all active:scale-95 border border-white/15 shadow-inner">
-              <p className="text-white font-bold text-xs sm:text-sm font-mono flex items-center justify-end gap-1"><Compass className="w-3.5 h-3.5"/>{nextPrayer.name}</p>
-              <p className="text-emerald-200 text-[11px] font-mono mt-0.5">{minsDisp}</p>
+        <div className="relative p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4">
+          {/* Top Row: Hijri Date (Left) & Prayer Countdown (Right) - Simplified & Non-wrapping */}
+          <div className="flex items-center justify-between gap-2 w-full">
+            <button
+              type="button"
+              onClick={onOpenKalenderHijriah}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/25 hover:bg-emerald-500/40 backdrop-blur-md border border-emerald-300/30 transition-all active:scale-95 text-left cursor-pointer group shadow-2xs shrink-0"
+              title={`Kalender Hijriah: ${hijri.day} ${hijri.monthName} ${hijri.year} H`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+              <span className="text-emerald-100 text-[11px] font-mono font-bold group-hover:underline">
+                {hijri.day} {hijri.monthName}
+              </span>
+              <Calendar className="w-3 h-3 text-emerald-200 opacity-80 group-hover:opacity-100" />
             </button>
+
+            {nextPrayer ? (
+              <button
+                type="button"
+                onClick={() => onGoTo("ibadah")}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer shadow-2xs group shrink-0"
+                title={`Jadwal Ibadah: ${nextPrayer.name} (${nextPrayer.time} WIB)`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${totalMinsLeft <= 30 ? "bg-amber-400" : "bg-emerald-300"}`} />
+                <span className="text-emerald-100 text-[11px] font-mono font-medium">
+                  {nextPrayer.name}
+                </span>
+                <span className="text-white text-[11px] font-mono font-black tracking-tight">
+                  -{countdownFormatted}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onGoTo("ibadah")}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              >
+                <span className="text-white text-[11px] font-mono font-bold">Jadwal Ibadah</span>
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+
+          {/* Middle: Full-width Greeting */}
+          <div>
+            <h1 className="text-white text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight">
+              {authUser ? `Ahlan, Ustadz ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}
+            </h1>
+            <p className="text-emerald-200/90 text-xs sm:text-sm font-medium mt-0.5">
+              {format(now, "EEEE, d MMMM yyyy", { locale: id })}
+            </p>
+          </div>
+
+          {/* Bottom: 3 Stat Tiles */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
             {[
-              {label:"Subuh",  val:`${sh}/${total}`, icon:<Sun className="w-3.5 h-3.5"/>},
-              {label:"Maghrib",val:`${mh}/${total}`, icon:<Moon className="w-3.5 h-3.5"/>},
-              {label:"vs bln lalu", val:`${delta>0?"+":""}${delta}%`, icon:<TrendingUp className="w-3.5 h-3.5"/>},
-            ].map(s=>(
-              <div key={s.label} className="bg-white/10 backdrop-blur-md rounded-2xl px-3.5 py-2.5 border border-white/10 shadow-xs">
-                <div className="flex items-center gap-1.5 text-emerald-200 mb-1">{s.icon}<span className="text-[10px] font-medium">{s.label}</span></div>
-                <p className="font-bold text-base sm:text-lg text-white font-mono tracking-tight">{s.val}</p>
+              { label: "Subuh", val: `${sh}/${total}`, icon: <Sun className="w-3.5 h-3.5" /> },
+              { label: "Maghrib", val: `${mh}/${total}`, icon: <Moon className="w-3.5 h-3.5" /> },
+              { label: "vs bln lalu", val: `${delta > 0 ? "+" : ""}${delta}%`, icon: <TrendingUp className="w-3.5 h-3.5" /> },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all"
+              >
+                <div className="flex items-center gap-1.5 text-emerald-200 mb-1">
+                  {s.icon}
+                  <span className="text-[10px] sm:text-[11px] font-semibold">{s.label}</span>
+                </div>
+                <p className="font-black text-base sm:text-xl text-white font-mono tracking-tight">
+                  {s.val}
+                </p>
               </div>
             ))}
           </div>
@@ -663,7 +739,7 @@ function PageDashboard({
 
       {/* Sunnah fast alert */}
       {todayFasts.length > 0 && (
-        <div className="flex items-start gap-3 bg-amber-50/90 border border-amber-200/80 rounded-3xl p-4 cursor-pointer hover:shadow-xs transition-all active:scale-[0.99]" onClick={()=>onGoTo("ibadah")}>
+        <div className="flex items-start gap-3 bg-amber-50/90 border border-amber-200/80 rounded-3xl p-4 cursor-pointer hover:shadow-xs transition-all active:scale-[0.99]" onClick={()=>onOpenKalenderHijriah ? onOpenKalenderHijriah() : onGoTo("kalender-hijriah")}>
           <div className="w-9 h-9 rounded-2xl bg-amber-100/90 flex items-center justify-center shrink-0">
             {renderFastIcon(todayFasts[0].icon, "w-5 h-5")}
           </div>
@@ -678,25 +754,13 @@ function PageDashboard({
         </div>
       )}
 
-      {/* PWA Install Banner */}
-      {onInstallPWA && (
-        <div className="px-4 py-2.5 bg-slate-900 text-white rounded-2xl border border-slate-800 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Smartphone className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-100 truncate">Pasang Aplikasi di Layar HP</p>
-              <p className="text-[10px] text-slate-400 truncate">Akses cepat & dapat dibuka secara offline</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onInstallPWA}
-            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all flex-shrink-0"
-          >
-            Pasang PWA
-          </button>
-        </div>
-      )}
+      {/* Countdown Perpulangan Santri TA 2026/2027 (Matching UI Hierarchy) */}
+      <CountdownPerpulanganCard
+        userEmail={authUser?.email}
+        userRole={authUser?.role}
+        variant="compact"
+        onOpenFullCalendar={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
+      />
 
       {/* Action Cards based on Role / Public Mode */}
       {!authUser ? (
@@ -768,68 +832,100 @@ function PageDashboard({
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Subuh Action Card */}
-          <button
-            type="button"
-            onClick={()=>onGoTo("subuh")}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 bg-amber-600 hover:bg-amber-700 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border border-amber-500/50"
-          >
-            <div className="flex items-center justify-between w-full mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-                <Sun className="w-5 h-5 text-white"/>
-              </div>
-              <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
-                {sh}/{total}
-              </span>
-            </div>
-            
-            <div>
-              <p className="font-extrabold text-base leading-tight tracking-tight">Presensi Subuh</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                  belumS.length > 0 ? "bg-amber-950/30 text-amber-100" : "bg-emerald-950/30 text-emerald-100"
-                }`}>
-                  {belumS.length > 0 ? `${belumS.length} belum terisi` : "Lengkap ✓"}
-                </span>
-              </div>
-            </div>
+          {(() => {
+            const subuhObj = prayerTimes.find(p => p.key === "subuh");
+            const subuhOpenTime = (subuhObj?.raw ?? 4.5) - 15 / 60;
+            const isSubuhLocked = nowH < subuhOpenTime;
 
-            {/* Progress bar inside card */}
-            <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
-              <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(sh/total)*100:0}%`}}/>
-            </div>
-          </button>
+            return (
+              <button
+                type="button"
+                onClick={() => onGoTo("subuh")}
+                className={`group relative flex flex-col justify-between p-4 sm:p-5 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border ${
+                  isSubuhLocked
+                    ? "bg-slate-800/95 border-amber-500/30 text-slate-300"
+                    : "bg-amber-600 hover:bg-amber-700 border-amber-500/50"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isSubuhLocked ? "bg-amber-500/20 text-amber-300" : "bg-white/20 text-white"}`}>
+                    {isSubuhLocked ? <Lock className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                  </div>
+                  <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
+                    {sh}/{total}
+                  </span>
+                </div>
+                
+                <div>
+                  <p className="font-extrabold text-base leading-tight tracking-tight">Presensi Subuh</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      isSubuhLocked
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        : belumS.length > 0
+                        ? "bg-amber-950/30 text-amber-100"
+                        : "bg-emerald-950/30 text-emerald-100"
+                    }`}>
+                      {isSubuhLocked ? `🔒 Buka ${subuhObj?.time || "04:30"} WIB` : belumS.length > 0 ? `${belumS.length} belum terisi` : "Lengkap ✓"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar inside card */}
+                <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
+                  <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(sh/total)*100:0}%`}}/>
+                </div>
+              </button>
+            );
+          })()}
 
           {/* Maghrib Action Card */}
-          <button
-            type="button"
-            onClick={()=>onGoTo("maghrib")}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border border-emerald-600/50"
-          >
-            <div className="flex items-center justify-between w-full mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-                <Moon className="w-5 h-5 text-white"/>
-              </div>
-              <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
-                {mh}/{total}
-              </span>
-            </div>
+          {(() => {
+            const maghribObj = prayerTimes.find(p => p.key === "maghrib");
+            const maghribOpenTime = (maghribObj?.raw ?? 17.75) - 15 / 60;
+            const isMaghribLocked = nowH < maghribOpenTime;
 
-            <div>
-              <p className="font-extrabold text-base leading-tight tracking-tight">Presensi Maghrib</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                  belumM.length > 0 ? "bg-teal-950/30 text-teal-100" : "bg-emerald-950/30 text-emerald-100"
-                }`}>
-                  {belumM.length > 0 ? `${belumM.length} belum terisi` : "Lengkap ✓"}
-                </span>
-              </div>
-            </div>
+            return (
+              <button
+                type="button"
+                onClick={() => onGoTo("maghrib")}
+                className={`group relative flex flex-col justify-between p-4 sm:p-5 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border ${
+                  isMaghribLocked
+                    ? "bg-slate-800/95 border-emerald-500/30 text-slate-300"
+                    : "bg-emerald-700 hover:bg-emerald-800 border-emerald-600/50"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isMaghribLocked ? "bg-emerald-500/20 text-emerald-300" : "bg-white/20 text-white"}`}>
+                    {isMaghribLocked ? <Lock className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </div>
+                  <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
+                    {mh}/{total}
+                  </span>
+                </div>
 
-            {/* Progress bar inside card */}
-            <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
-              <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(mh/total)*100:0}%`}}/>
-            </div>
-          </button>
+                <div>
+                  <p className="font-extrabold text-base leading-tight tracking-tight">Presensi Maghrib</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      isMaghribLocked
+                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        : belumM.length > 0
+                        ? "bg-teal-950/30 text-teal-100"
+                        : "bg-emerald-950/30 text-emerald-100"
+                    }`}>
+                      {isMaghribLocked ? `🔒 Buka ${maghribObj?.time || "17:45"} WIB` : belumM.length > 0 ? `${belumM.length} belum terisi` : "Lengkap ✓"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar inside card */}
+                <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
+                  <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(mh/total)*100:0}%`}}/>
+                </div>
+              </button>
+            );
+          })()}
         </div>
       )}
 
@@ -846,7 +942,7 @@ function PageDashboard({
 
         {!authUser ? (
           /* Public Mode Services Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
             {/* 1. Leaderboard */}
             <button
               type="button"
@@ -920,10 +1016,46 @@ function PageDashboard({
                 <p className="text-[10px] text-slate-500 mt-0.5">Statistik per asrama</p>
               </div>
             </button>
+
+            {/* 5. Kalender Hijriah KHGT */}
+            <button
+              type="button"
+              onClick={onOpenKalenderHijriah}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <Calendar className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">KHGT</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Hijriah</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Hisab & puasa sunnah</p>
+              </div>
+            </button>
+
+            {/* 6. Kalender Pendidikan & Perpulangan */}
+            <button
+              type="button"
+              onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <Calendar className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-lg font-mono">2026/27</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
+              </div>
+            </button>
           </div>
         ) : authUser.role === "musyrif" ? (
           /* Musyrif Role Services Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* 1. Pengajuan Izin */}
             <button
               type="button"
@@ -942,21 +1074,21 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 2. Jurnal Logbook */}
+            {/* 2. Jadwal Shalat & Arah Kiblat */}
             <button
               type="button"
-              onClick={() => onGoTo("logbook")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+              onClick={() => onGoTo("ibadah")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                  <ClipboardList className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <Compass className="w-4 h-4"/>
                 </div>
-                <span className="text-[10px] font-bold text-indigo-700 font-mono">11 Tugas</span>
+                <span className="text-[10px] font-bold text-amber-700 font-mono">Ibadah</span>
               </div>
               <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Jurnal Logbook</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Checklist batas waktu</p>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Jadwal & Kiblat</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Waktu shalat & kompas</p>
               </div>
             </button>
 
@@ -1033,6 +1165,42 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Papan Peringkat</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Musyrif teladan & badge</p>
+              </div>
+            </button>
+
+            {/* 7. Kalender Hijriah KHGT */}
+            <button
+              type="button"
+              onClick={onOpenKalenderHijriah}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <Calendar className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">KHGT</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Hijriah</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Hisab & puasa sunnah</p>
+              </div>
+            </button>
+
+            {/* 8. Kalender Pendidikan & Perpulangan */}
+            <button
+              type="button"
+              onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <Calendar className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-lg font-mono">2026/27</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
               </div>
             </button>
           </div>
@@ -1228,6 +1396,46 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Master Musyrif</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Kelola & data musyrif</p>
+              </div>
+            </button>
+
+            {/* 11. Kalender Hijriah KHGT */}
+            <button
+              type="button"
+              onClick={onOpenKalenderHijriah}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
+                  KHGT
+                </span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Hijriah</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Hisab & puasa sunnah</p>
+              </div>
+            </button>
+
+            {/* 12. Kalender Pendidikan & Perpulangan */}
+            <button
+              type="button"
+              onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-lg font-mono">
+                  2026/27
+                </span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
               </div>
             </button>
           </div>
@@ -1569,16 +1777,38 @@ function PageInputPrayer({
   const fullAccess = hasFullAccess(authUser);
   const activeAsrama = fullAccess ? selAsrama : authUser.asrama!;
   const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
-  const musyrifList = allM.filter(m => m.asrama === activeAsrama);
+  const musyrifList = allM.filter(m => m.asrama === activeAsrama && isFieldMusyrif(m));
   const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
   const doneCount = musyrifList.filter(m => Boolean(getRecord(m.id)?.[slot])).length;
+
+  const isSubuh = slot === "subuh";
+  const otherSlot: PrayerSlot = isSubuh ? "maghrib" : "subuh";
+
+  // Calculate prayer times for selected date & check locking
+  const prayerTimesForSelDate = calcPrayerTimes(parseISO(selDate), -7.807631, 110.350905, 7);
+  const targetPrayerObj = prayerTimesForSelDate.find(p => p.key === slot);
+  const prayerTimeStr = targetPrayerObj?.time || (isSubuh ? "04:30" : "17:45");
+  const prayerRaw = targetPrayerObj?.raw ?? (isSubuh ? 4.5 : 17.75);
+
+  const now = new Date();
+  const curDecimal = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const isTodayDate = selDate === todayStr();
   const isFuture = selDate > todayStr();
 
+  // Presensi dibuka 15 menit sebelum masuk waktu sholat
+  const openTimeRaw = prayerRaw - 15 / 60;
+  const isNotYetTime = isTodayDate && curDecimal < openTimeRaw;
+  const isLocked = isFuture || isNotYetTime;
+
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
-    if (selDate > todayStr()) {
+    if (isFuture) {
       showToast?.("Tidak dapat mengisi presensi untuk tanggal di masa depan.", "error");
+      return;
+    }
+    if (isNotYetTime) {
+      showToast?.(`Presensi ${p === "subuh" ? "Subuh" : "Maghrib"} belum dibuka (Waktu shalat: ${prayerTimeStr} WIB).`, "error");
       return;
     }
     triggerHaptic(s === "hadir" ? "light" : "medium");
@@ -1598,9 +1828,6 @@ function PageInputPrayer({
     setSelDate(format(d, "yyyy-MM-dd"));
   };
 
-  const isSubuh = slot === "subuh";
-  const otherSlot: PrayerSlot = isSubuh ? "maghrib" : "subuh";
-
   return (
     <div className="flex flex-col gap-3">
       {/* 1. Unified Master Header Card */}
@@ -1614,11 +1841,18 @@ function PageInputPrayer({
               {isSubuh ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
-                {isSubuh ? "Presensi Subuh" : "Presensi Maghrib"}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                  {isSubuh ? "Presensi Subuh" : "Presensi Maghrib"}
+                </h2>
+                {isNotYetTime && (
+                  <span className="text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-mono flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" /> Terkunci
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-slate-400 font-medium">
-                {isSubuh ? "Ibadah Shubuh Berjamaah" : "Ibadah Maghrib Berjamaah"}
+                {isSubuh ? "Ibadah Shubuh Berjamaah" : "Ibadah Maghrib Berjamaah"} · Waktu: <strong>{prayerTimeStr} WIB</strong>
               </p>
             </div>
           </div>
@@ -1713,6 +1947,27 @@ function PageInputPrayer({
         </div>
       )}
 
+      {isNotYetTime && (
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-4 sm:p-5 flex items-start gap-3 shadow-xs animate-in fade-in">
+          <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
+            <Lock className="w-5 h-5"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-sm text-rose-900 leading-tight">
+                Presensi {isSubuh ? "Subuh" : "Maghrib"} Belum Dibuka
+              </h4>
+              <span className="text-[10px] font-bold bg-rose-200 text-rose-800 px-2 py-0.5 rounded-full font-mono">
+                Terkunci
+              </span>
+            </div>
+            <p className="text-xs text-rose-700/90 mt-1 leading-relaxed">
+              Jadwal ibadah {isSubuh ? "Subuh" : "Maghrib"} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai 15 menit sebelum masuk waktu sholat.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 2. Compact Progress & Quick Action Bar */}
       {!isFuture && (
         <div className="bg-white rounded-2xl p-3 sm:p-3.5 shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 flex items-center justify-between gap-3">
@@ -1731,7 +1986,7 @@ function PageInputPrayer({
             </div>
           </div>
 
-          {doneCount < musyrifList.length && (
+          {doneCount < musyrifList.length && !isLocked && (
             <button
               onClick={()=>setConfirmAll(slot)}
               className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 ${
@@ -1742,6 +1997,12 @@ function PageInputPrayer({
             >
               <Zap className="w-3.5 h-3.5"/> Semua Hadir
             </button>
+          )}
+
+          {isNotYetTime && (
+            <span className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 flex items-center gap-1.5 cursor-not-allowed">
+              <Lock className="w-3.5 h-3.5"/> Terkunci
+            </span>
           )}
         </div>
       )}
@@ -1775,7 +2036,7 @@ function PageInputPrayer({
           const isDone = Boolean(cur);
 
           return (
-            <Card key={m.id} cls={isDone ? "ring-2 ring-emerald-200" : ""} ch={<div className="p-3.5 sm:p-4">
+            <Card key={m.id} cls={isDone ? "ring-2 ring-emerald-200" : isNotYetTime ? "opacity-75 bg-slate-50/40" : ""} ch={<div className="p-3.5 sm:p-4">
               <div className="flex items-center gap-3 mb-3">
                 <Av name={m.name} src={m.photo}/>
                 <div className="flex-1 min-w-0">
@@ -1795,6 +2056,10 @@ function PageInputPrayer({
                     {cur === "hadir" && <CheckCircle2 className="w-3.5 h-3.5"/>}
                     {S[cur].label}
                   </span>
+                ) : isNotYetTime ? (
+                  <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
+                    <Lock className="w-3 h-3"/> Belum Waktunya
+                  </span>
                 ) : (
                   <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 flex-shrink-0 font-medium">Belum Presensi</span>
                 )}
@@ -1804,7 +2069,9 @@ function PageInputPrayer({
               {note && (
                 <div className="mb-3 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
                   <span className="text-slate-500 italic truncate">"{note}"</span>
-                  <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText(note);}} className="text-emerald-600 font-semibold ml-2 flex-shrink-0 hover:underline">Edit</button>
+                  {!isLocked && (
+                    <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText(note);}} className="text-emerald-600 font-semibold ml-2 flex-shrink-0 hover:underline">Edit</button>
+                  )}
                 </div>
               )}
 
@@ -1813,14 +2080,28 @@ function PageInputPrayer({
                 {(["hadir","sakit","izin","alfa"] as AttendanceStatus[]).map(s=>(
                   <button
                     key={s}
-                    disabled={isFuture}
-                    onClick={()=>{if(cur===s&&onResetMark){onResetMark(m.id,slot,selDate);showToast?.("Presensi di-reset","info");}else{mark(m.id,slot,s);}}}
+                    disabled={isLocked}
+                    onClick={()=>{
+                      if (isLocked) {
+                        showToast?.(`Presensi ${isSubuh ? "Subuh" : "Maghrib"} belum dibuka (Waktu: ${prayerTimeStr} WIB).`, "error");
+                        return;
+                      }
+                      if(cur===s&&onResetMark){
+                        onResetMark(m.id,slot,selDate);
+                        showToast?.("Presensi di-reset","info");
+                      } else {
+                        mark(m.id,slot,s);
+                      }
+                    }}
                     className={`min-h-[44px] py-2.5 px-1 rounded-2xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${
                       cur===s
                         ? `${S[s].btn} shadow-xs ring-2 ring-emerald-500/20 scale-[1.02]`
+                        : isLocked
+                        ? "bg-slate-100/70 text-slate-400 border border-slate-200/50 cursor-not-allowed"
                         : "bg-slate-100/90 text-slate-700 hover:bg-slate-200 active:scale-95 border border-slate-200/50"
                     }`}
                   >
+                    {isLocked && cur !== s && <Lock className="w-3 h-3 text-slate-400 mr-0.5" />}
                     <span>{S[s].label}</span>
                   </button>
                 ))}
@@ -1932,7 +2213,7 @@ function PageRekap({
     .filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d)),[viewMonth]);
   const mRecs = records.filter(r=>r.date.startsWith(mk));
   const fMusyrif = useMemo(()=>{
-    let l = filterAsrama==="Semua" ? allM : allM.filter(m=>m.asrama===filterAsrama);
+    let l = (filterAsrama==="Semua" ? allM : allM.filter(m=>m.asrama===filterAsrama)).filter(isFieldMusyrif);
     if(search) l=l.filter(m=>m.name.toLowerCase().includes(search.toLowerCase()));
     return l;
   },[allM,filterAsrama,search]);
@@ -2338,7 +2619,10 @@ function PageRiwayat({
   showToast?: (msg: string, type?: "success" | "info" | "error") => void;
   musyrifListAll?: Musyrif[];
 }) {
-  const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
+  const allM = useMemo(() => {
+    const list = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
+    return list.filter(isFieldMusyrif);
+  }, [musyrifListAll]);
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selId, setSelId] = useState(initialMusyrifId || allM[0]?.id || "m1");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
@@ -2526,44 +2810,86 @@ function PageRiwayat({
         </div>
       </div>
 
-      {/* 3. Monthly Status Capsule Breakdown (Hadir, Sakit, Izin, Alfa) */}
-      <div className="grid grid-cols-4 gap-2">
-        <div className="bg-white border border-emerald-200/80 rounded-2xl p-2.5 sm:p-3 text-center shadow-2xs">
-          <p className="text-xs font-bold text-emerald-700">Hadir</p>
-          <p className="text-base sm:text-lg font-black text-emerald-800 font-mono mt-0.5">{totalHadir}</p>
+      {/* 3. Harmonious Monthly Status Breakdown & Streak Cards */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <ClipboardList className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Rekap Presensi Bulan Ini</h4>
+              <p className="text-[11px] text-slate-400 font-medium">Bulan {format(viewMonth, "MMMM yyyy", { locale: id })}</p>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl font-mono">
+            {pct}% Kehadiran
+          </span>
         </div>
-        <div className="bg-white border border-amber-200/80 rounded-2xl p-2.5 sm:p-3 text-center shadow-2xs">
-          <p className="text-xs font-bold text-amber-700">Sakit</p>
-          <p className="text-base sm:text-lg font-black text-amber-800 font-mono mt-0.5">{totalSakit}</p>
-        </div>
-        <div className="bg-white border border-sky-200/80 rounded-2xl p-2.5 sm:p-3 text-center shadow-2xs">
-          <p className="text-xs font-bold text-sky-700">Izin</p>
-          <p className="text-base sm:text-lg font-black text-sky-800 font-mono mt-0.5">{totalIzin}</p>
-        </div>
-        <div className="bg-white border border-rose-200/80 rounded-2xl p-2.5 sm:p-3 text-center shadow-2xs">
-          <p className="text-xs font-bold text-rose-700">Alfa</p>
-          <p className="text-base sm:text-lg font-black text-rose-800 font-mono mt-0.5">{totalAlfa}</p>
-        </div>
-      </div>
 
-      {/* 4. Streak Stats */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-        <div className="bg-amber-50/90 border border-amber-200/70 rounded-3xl p-3.5 flex items-center gap-3 shadow-2xs">
-          <div className="w-10 h-10 rounded-2xl bg-amber-100/90 text-amber-600 flex items-center justify-center flex-shrink-0 shadow-inner">
-            <Flame className="w-5 h-5"/>
+        {/* 4 Clean Metric Pills */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+            <div className="flex items-center justify-center gap-1 text-emerald-700 mb-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-bold">Hadir</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalHadir}</p>
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">waktu</span>
           </div>
-          <div>
-            <p className="text-lg sm:text-xl font-bold text-amber-900 font-mono leading-none">{streak.cur} <span className="text-xs font-normal">hari</span></p>
-            <p className="text-[10px] text-amber-700 mt-1 font-medium">Streak saat ini</p>
+
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+            <div className="flex items-center justify-center gap-1 text-amber-700 mb-1">
+              <HeartPulse className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-bold">Sakit</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalSakit}</p>
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+          </div>
+
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+            <div className="flex items-center justify-center gap-1 text-sky-700 mb-1">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-bold">Izin</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalIzin}</p>
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+          </div>
+
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+            <div className="flex items-center justify-center gap-1 text-rose-700 mb-1">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-bold">Alpa</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalAlfa}</p>
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">waktu</span>
           </div>
         </div>
-        <div className="bg-purple-50/90 border border-purple-200/70 rounded-3xl p-3.5 flex items-center gap-3 shadow-2xs">
-          <div className="w-10 h-10 rounded-2xl bg-purple-100/90 text-purple-600 flex items-center justify-center flex-shrink-0 shadow-inner">
-            <Award className="w-5 h-5"/>
+
+        {/* 2 Clean Streak Cards */}
+        <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-slate-100">
+          <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Flame className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base sm:text-lg font-black text-amber-950 font-mono leading-none">
+                {streak.cur} <span className="text-xs font-normal font-sans text-amber-800">hari</span>
+              </p>
+              <p className="text-[11px] text-amber-700/90 font-medium mt-1">Streak saat ini</p>
+            </div>
           </div>
-          <div>
-            <p className="text-lg sm:text-xl font-bold text-purple-900 font-mono leading-none">{streak.best} <span className="text-xs font-normal">hari</span></p>
-            <p className="text-[10px] text-purple-700 mt-1 font-medium">Streak terbaik</p>
+
+          <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Award className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-none">
+                {streak.best} <span className="text-xs font-normal font-sans text-emerald-800">hari</span>
+              </p>
+              <p className="text-[11px] text-emerald-700/90 font-medium mt-1">Streak terbaik</p>
+            </div>
           </div>
         </div>
       </div>
@@ -3085,21 +3411,21 @@ function PageRiwayat({
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: IBADAH (Prayer + Qibla + Sunnah Fasting)
 // ─────────────────────────────────────────────────────────────────────────────
-function PageIbadah({ onBack }: { onBack?: () => void }) {
+function PageIbadah({ 
+  onBack, 
+  onOpenKalenderHijriah,
+  onOpenKalenderPendidikan 
+}: { 
+  onBack?: () => void; 
+  onOpenKalenderHijriah?: () => void;
+  onOpenKalenderPendidikan?: () => void;
+}) {
   const [loc, setLoc]         = useState<{lat:number;lon:number;name:string}>({lat:-7.807631,lon:110.350905,name:"Mu'allimin Yogyakarta"});
   const [locLoading, setLocLoading] = useState(false);
   const [heading, setHeading] = useState<number|null>(null);
   const [demoH, setDemoH]     = useState(0);
   const [permDenied, setPermDenied] = useState(false);
-  const [markedFasts, setMarkedFasts] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("presensi_sunnah_fasts");
-      if (saved) return new Set(JSON.parse(saved));
-    } catch {}
-    return new Set();
-  });
-  const [tab, setTab]         = useState<"jadwal"|"kiblat"|"puasa">("jadwal");
-  const [puasaDetail, setPuasaDetail] = useState<{ icon: string; name: string; desc: string; dalil?: string } | null>(null);
+  const [tab, setTab]         = useState<"jadwal"|"kiblat">("jadwal");
 
   const now = new Date();
   const hijri = toHijri(now);
@@ -3108,8 +3434,6 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
   const activeIdx = [...prayers].reduce((best, p, i) => p.raw <= nowH ? i : best, -1);
   const qibla = getQiblaAngle(loc.lat, loc.lon);
   const dist = getMeccaDist(loc.lat, loc.lon);
-  const todayFasts = getSunnahFasts(now);
-  const upcoming = useMemo(()=>getUpcomingSunnahFasts(14),[]);
 
   // Countdown to next prayer
   const nextPrayer = prayers[(activeIdx + 1) % prayers.length];
@@ -3146,22 +3470,6 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
   const dotX = C + RING * Math.cos(qRad);
   const dotY = C + RING * Math.sin(qRad);
 
-  const toggleFast = (id: string) => {
-    setMarkedFasts(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      const arr = [...next];
-      try {
-        localStorage.setItem("presensi_sunnah_fasts", JSON.stringify(arr));
-      } catch {}
-      // Sync to Sheet: store as a single record per user keyed by authUser id
-      const userId = (window as any).__presensiAuthUserId__ || "guest";
-      googleSyncService.enqueue("SunnahFasts", { id: `sunnah_${userId}`, userId, fasts: JSON.stringify(arr) }, "upsert");
-      return next;
-    });
-  };
-
   const pIcons: Record<string,React.ReactNode> = {
     subuh:<Sunrise className="w-4 h-4"/>, terbit:<Sun className="w-4 h-4 opacity-50"/>,
     dhuhr:<Sun className="w-4 h-4"/>, asr:<Sun className="w-4 h-4 opacity-70"/>,
@@ -3170,25 +3478,50 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        {onBack && (
-          <button 
-            onClick={onBack} 
-            className="w-10 h-10 rounded-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs flex-shrink-0"
-            title="Kembali ke Dasbor"
-          >
-            <ChevronLeft className="w-5 h-5"/>
-          </button>
-        )}
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Jadwal Ibadah</h2>
-          <p className="text-sm text-slate-400 mt-0.5">{hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button 
+              onClick={onBack} 
+              className="w-10 h-10 rounded-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs flex-shrink-0"
+              title="Kembali ke Dasbor"
+            >
+              <ChevronLeft className="w-5 h-5"/>
+            </button>
+          )}
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Jadwal Ibadah</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {onOpenKalenderHijriah && (
+            <button
+              type="button"
+              onClick={onOpenKalenderHijriah}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-bold transition-all active:scale-95 shadow-xs shrink-0"
+            >
+              <Calendar className="w-4 h-4 text-emerald-700" />
+              <span className="hidden sm:inline">Kalender Hijriah</span>
+            </button>
+          )}
+          {onOpenKalenderPendidikan && (
+            <button
+              type="button"
+              onClick={onOpenKalenderPendidikan}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-2xl text-xs font-bold transition-all active:scale-95 shadow-xs shrink-0"
+            >
+              <Calendar className="w-4 h-4 text-teal-700" />
+              <span className="hidden sm:inline">Kalender Pendidikan</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex p-1 bg-slate-100 rounded-2xl gap-1">
-        {([["jadwal","Jadwal Sholat"],["kiblat","Arah Kiblat"],["puasa","Puasa Sunnah"]] as const).map(([t,l])=>(
+        {([["jadwal","Jadwal Sholat"],["kiblat","Arah Kiblat"]] as const).map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${tab===t?"bg-white text-emerald-600 shadow-sm":"text-slate-500 hover:text-slate-700"}`}>{l}</button>
         ))}
       </div>
@@ -3213,7 +3546,10 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
 
         {/* Full schedule */}
         <Card ch={<div>
-          <div className="px-5 py-4 border-b border-slate-100"><p className="font-bold text-slate-800">Jadwal Sholat — {format(now,"d MMMM yyyy",{locale:id})}</p></div>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <p className="font-bold text-slate-800">Jadwal Sholat — {format(now,"d MMMM yyyy",{locale:id})}</p>
+            <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">{hijri.day} {hijri.monthName} {hijri.year} H</span>
+          </div>
           <div className="divide-y divide-slate-50">
             {prayers.map((p,i)=>{
               const isActive = i === activeIdx;
@@ -3309,122 +3645,6 @@ function PageIbadah({ onBack }: { onBack?: () => void }) {
           {permDenied&&<div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-4 py-2.5 mx-4 text-center"><AlertCircle className="w-4 h-4 flex-shrink-0"/>Izinkan akses kompas di pengaturan browser/perangkat.</div>}
         </div>}/>
       </>}
-
-      {/* ── TAB: PUASA SUNNAH ── */}
-      {tab==="puasa"&&<>
-        {/* Today */}
-        <div>
-          <Label ch="Puasa Sunnah Hari Ini"/>
-          {todayFasts.length === 0
-            ? <Card ch={<div className="px-5 py-5 flex items-center gap-3 text-slate-400"><Info className="w-5 h-5 flex-shrink-0"/><p className="text-sm">Tidak ada puasa sunnah khusus hari ini.</p></div>}/>
-            : <div className="flex flex-col gap-2">
-                {todayFasts.map(f=>(
-                  <button key={f.id} onClick={()=>toggleFast(f.id)} className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-all ring-2 ${markedFasts.has(f.id)?"bg-emerald-600 text-white ring-emerald-500 shadow-lg shadow-emerald-500/25":"bg-white ring-emerald-100 hover:ring-emerald-200"}`}>
-                    <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                      {renderFastIcon(f.icon, "w-5 h-5")}
-                    </div>
-                    <div className="flex-1">
-                      <p className={`font-bold text-sm ${markedFasts.has(f.id)?"text-white":"text-slate-800"}`}>{f.name}</p>
-                      <p className={`text-xs mt-0.5 ${markedFasts.has(f.id)?"text-emerald-200":"text-slate-400"}`}>{f.desc}</p>
-                    </div>
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${markedFasts.has(f.id)?"bg-white/20":"bg-slate-100"}`}>
-                      {markedFasts.has(f.id)?<CheckCircle2 className="w-4 h-4 text-white"/>:<div className="w-4 h-4 rounded-full border-2 border-slate-300"/>}
-                    </div>
-                  </button>
-                ))}
-              </div>
-          }
-        </div>
-
-        {/* Info cards - Clickable */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            {icon:"sun", label:"Senin", sub:"Mingguan", desc:"Amalan dibuka setiap hari Senin dan Kamis. Hari Rasulullah ﷺ dilahirkan dan menerima wahyu pertama.", dalil:"HR. Muslim no. 1162"},
-            {icon:"sparkles", label:"Kamis", sub:"Mingguan", desc:"Hari diangkatnya amalan-amalan hamba kepada Allah Ta'ala.", dalil:"HR. Tirmidzi no. 747"},
-            {icon:"moon", label:"Ayyamul Bidh", sub:"13-15 Hijri", desc:"Puasa pada hari ke-13, 14, dan 15 tiap bulan Hijriyah (saat bulan purnama), setara puasa sepanjang tahun.", dalil:"HR. Bukhari no. 1981"},
-          ].map(f=>(
-            <button key={f.label} onClick={()=>setPuasaDetail({icon:f.icon, name:`Puasa ${f.label}`, desc:f.desc, dalil:f.dalil})} className="bg-white ring-1 ring-slate-100 rounded-2xl p-3 text-center hover:ring-emerald-300 hover:shadow-xs transition-all active:scale-[0.97]">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 mx-auto flex items-center justify-center mb-1.5">
-                {renderFastIcon(f.icon, "w-4 h-4")}
-              </div>
-              <p className="text-xs font-bold text-slate-700">{f.label}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{f.sub}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Upcoming */}
-        <div>
-          <Label ch="Puasa Sunnah Ke Depan (14 hari)"/>
-          {upcoming.length===0
-            ? <Card ch={<div className="px-5 py-4 text-sm text-slate-400">Tidak ada jadwal puasa sunnah dalam 14 hari ke depan.</div>}/>
-            : <Card ch={<div className="divide-y divide-slate-50">
-                {upcoming.map(({date,fasts})=>(
-                  <div key={date.toISOString()} className="flex items-start gap-3 px-4 py-3.5">
-                    <div className="flex flex-col items-center w-9 flex-shrink-0">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">{format(date,"EEE",{locale:id}).slice(0,3)}</span>
-                      <span className="text-lg font-bold text-slate-700 font-mono leading-none">{format(date,"d")}</span>
-                      <span className="text-[9px] text-slate-300">{format(date,"MMM",{locale:id})}</span>
-                    </div>
-                    <div className="flex-1">
-                      {fasts.map(f=>(
-                        <button key={f.id} onClick={()=>setPuasaDetail({icon:f.icon, name:f.name, desc:f.desc, dalil:"Sunnah Mu'akkadah"})} className="w-full text-left flex items-center gap-2 mb-1 hover:bg-slate-50 p-1.5 rounded-xl transition-colors">
-                          <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                            {renderFastIcon(f.icon, "w-3.5 h-3.5")}
-                          </div>
-                          <div><p className="text-xs font-semibold text-slate-700">{f.name}</p><p className="text-[10px] text-slate-400">{f.type==="weekly"?"Mingguan":f.type==="monthly"?"Bulanan":"Tahunan"}</p></div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>}/>
-          }
-        </div>
-
-        {/* Keutamaan summary - Clickable */}
-        <Card ch={<div className="p-5">
-          <Label ch="Puasa Sunnah Utama (Klik untuk Penjelasan)"/>
-          <div className="flex flex-col gap-2">
-            {[
-              {icon:"star",name:"Asyura (10 Muharram)",    reward:"Menghapus dosa setahun lalu", desc:"Puasa pada hari ke-10 Muharram untuk mengenang diselamatkannya Nabi Musa AS dari Fir'aun.", dalil:"HR. Muslim no. 1162"},
-              {icon:"star",name:"Arafah (9 Dzulhijjah)",   reward:"Menghapus dosa 2 tahun", desc:"Puasa bagi yang tidak menunaikan ibadah haji pada hari Arafah, menghapus dosa setahun lalu dan setahun yang akan datang.", dalil:"HR. Muslim no. 1162"},
-              {icon:"sparkles",name:"6 Hari Syawal",            reward:"Seperti puasa sepanjang tahun", desc:"Barangsiapa berpuasa Ramadan kemudian melanjutkannya dengan 6 hari di bulan Syawal, pahalanya seperti puasa setahun penuh.", dalil:"HR. Muslim no. 1164"},
-              {icon:"moon",name:"Ayyamul Bidh (13-15)",    reward:"Seperti puasa sebulan penuh", desc:"Puasa tiga hari di pertengahan bulan Hijriah saat bulan purnama sempurna.", dalil:"HR. Tirmidzi no. 761"},
-              {icon:"sun",name:"Senin & Kamis",            reward:"Hari amalan diangkat kepada Allah", desc:"Rasulullah ﷺ menyukai agar ketika amalannya diangkat, beliau dalam keadaan berpuasa.", dalil:"HR. An-Nasa'i no. 2358"},
-            ].map(f=>(
-              <button key={f.name} onClick={()=>setPuasaDetail({icon:f.icon, name:f.name, desc:f.desc, dalil:f.dalil})} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  {renderFastIcon(f.icon, "w-4 h-4")}
-                </div>
-                <div className="flex-1"><p className="text-sm font-semibold text-slate-700">{f.name}</p><p className="text-xs text-slate-400">{f.reward}</p></div>
-                <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0"/>
-              </button>
-            ))}
-          </div>
-        </div>}/>
-
-        {/* Puasa Detail Modal */}
-        {puasaDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>setPuasaDetail(null)}>
-            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
-                {renderFastIcon(puasaDetail.icon, "w-6 h-6")}
-              </div>
-              <h3 className="font-bold text-slate-800 text-base">{puasaDetail.name}</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">{puasaDetail.desc}</p>
-              {puasaDetail.dalil && (
-                <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-500 font-mono">
-                  Dalil: {puasaDetail.dalil}
-                </div>
-              )}
-              <button onClick={()=>setPuasaDetail(null)} className="w-full mt-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all">
-                Mengerti
-              </button>
-            </div>
-          </div>
-        )}
-      </>}
     </div>
   );
 }
@@ -3454,7 +3674,7 @@ function parseJwt(token: string): { email?: string; name?: string; picture?: str
 // ─────────────────────────────────────────────────────────────────────────────
 // LOGIN MODAL (Google Identity Services + Whitelist Protection)
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: AuthUser) => void }) {
+function LoginModal({ onClose, onLogin, musyrifList }: { onClose: () => void; onLogin: (u: AuthUser) => void; musyrifList?: Musyrif[] }) {
   const [errorMsg, setErrorMsg]     = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
@@ -3465,6 +3685,7 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
     koordinator_musyrif: "Koord. Musyrif",
     pamong: "Pamong Asrama",
     koordinator_gedung: "Koord. Asrama",
+    musyrif: "Musyrif Asrama",
   };
 
   // Whitelist verification handler strictly from Google OAuth JWT
@@ -3478,8 +3699,30 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
       return;
     }
 
-    // 1. Check in AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
-    const foundAuth = AUTH_USERS.find(u => u.email.trim().toLowerCase() === clean);
+    // 1. Check in dynamic musyrifList (contains Musyrif, Pamong, Koordinator with assigned roles)
+    const currentList = (musyrifList && musyrifList.length > 0) ? musyrifList : MUSYRIF_LIST;
+    const foundInList = currentList.find(m => matchesEmail(m.email, clean));
+    if (foundInList) {
+      const assignedRole: Role = (foundInList.role as Role) || "musyrif";
+      const userToLogin: AuthUser = {
+        id: foundInList.id,
+        name: foundInList.name,
+        email: clean,
+        role: assignedRole,
+        asrama: foundInList.asrama,
+        musyrifId: foundInList.id,
+        picture: googlePicture,
+      };
+      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundInList.name} (${ROLE_LABELS[assignedRole] || "Pengelola"})...`);
+      setTimeout(() => {
+        onLogin(userToLogin);
+        onClose();
+      }, 500);
+      return;
+    }
+
+    // 2. Fallback to default AUTH_USERS (Pamong, Koordinator Musyrif, Koordinator Asrama)
+    const foundAuth = AUTH_USERS.find(u => matchesEmail(u.email, clean));
     if (foundAuth) {
       const userToLogin: AuthUser = {
         ...foundAuth,
@@ -3493,29 +3736,9 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (u: Au
       return;
     }
 
-    // 2. Check in MUSYRIF_LIST (Musyrif Biasa)
-    const foundMusyrif = MUSYRIF_LIST.find(m => m.email && m.email.trim().toLowerCase() === clean);
-    if (foundMusyrif) {
-      const musyrifUser: AuthUser = {
-        id: foundMusyrif.id,
-        name: foundMusyrif.name,
-        email: foundMusyrif.email!,
-        role: "musyrif",
-        asrama: foundMusyrif.asrama,
-        musyrifId: foundMusyrif.id,
-        picture: googlePicture,
-      };
-      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai Musyrif: ${foundMusyrif.name}...`);
-      setTimeout(() => {
-        onLogin(musyrifUser);
-        onClose();
-      }, 500);
-      return;
-    }
-
     // Rejected - Not in authorized Whitelist
     setErrorMsg(`Akses Ditolak: Akun Google "${inputEmail}" tidak terdaftar dalam database Musyrif maupun Pengelola.`);
-  }, [onLogin, onClose]);
+  }, [onLogin, onClose, musyrifList]);
 
   // Initialize official Google Identity Services
   useEffect(() => {
@@ -3703,16 +3926,214 @@ const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v2";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v2";
 
+const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
+  // ─── KOORDINATOR MUSYRIF (SUPER ADMIN / PIMPINAN) ───
+  { 
+    id: "k1", 
+    name: "Andi Aqillah Fadia Haswat, S.A.P.", 
+    role: "koordinator_musyrif", 
+    asrama: "Semua Asrama", 
+    kamar: "Kantor Koordinator", 
+    kelas: "Seluruh Tingkat", 
+    tingkat: "Semua Tingkat", 
+    pamong: "Pimpinan Asrama", 
+    email: "andiaqillahfadiahaswat@gmail.com", 
+    phone: "6282180998704" 
+  },
+  { 
+    id: "k2", 
+    name: "Akmal Wildan Syifauddin, S.Pd.", 
+    role: "koordinator_musyrif", 
+    asrama: "Semua Asrama", 
+    kamar: "Kantor Koordinator", 
+    kelas: "Seluruh Tingkat", 
+    tingkat: "Semua Tingkat", 
+    pamong: "Pimpinan Asrama", 
+    email: "akmalws@muallimin.sch.id", 
+    phone: "6285729112233" 
+  },
+
+  // ─── PAMONG ASRAMA ───
+  { 
+    id: "p1",  
+    name: "Galang Putra Muhammady, S.Pd.",     
+    role: "pamong", 
+    asrama: "Asrama 1", 
+    kamar: "Ruang Pamong 1", 
+    kelas: "Kelas 5 & 6", 
+    tingkat: "Kelas 5", 
+    pamong: "Pimpinan Asrama", 
+    email: "galang@muallimin.sch.id",          
+    phone: "6281284985750" 
+  },
+  { 
+    id: "p2",  
+    name: "Aulia Abdan Idza Shalla, S.Th.I.",  
+    role: "pamong", 
+    asrama: "Asrama 8A", 
+    kamar: "Ruang Pamong 8A", 
+    kelas: "Kelas 5 & 6", 
+    tingkat: "Kelas 5", 
+    pamong: "Pimpinan Asrama", 
+    email: "aulia.abdan@muallimin.sch.id",     
+    phone: "6285729112234" 
+  },
+  { 
+    id: "p3",  
+    name: "Anang Fathurrahman, Lc.",           
+    role: "pamong", 
+    asrama: "Asrama 8B", 
+    kamar: "Ruang Pamong 8B", 
+    kelas: "Kelas 5 & 6", 
+    tingkat: "Kelas 5", 
+    pamong: "Pimpinan Asrama", 
+    email: "anang.fathur@muallimin.sch.id",    
+    phone: "6285729112235" 
+  },
+  { 
+    id: "p4",  
+    name: "Inggit Prabowo, S.Pd.",             
+    role: "pamong", 
+    asrama: "Asrama 10", 
+    kamar: "Ruang Pamong 10", 
+    kelas: "Kelas 5 & 6", 
+    tingkat: "Kelas 5", 
+    pamong: "Pimpinan Asrama", 
+    email: "inggit.prabowo@muallimin.sch.id",  
+    phone: "6285729112236" 
+  },
+  { 
+    id: "p5", 
+    name: "Rais Yudhistira, Lc.",              
+    role: "pamong", 
+    asrama: "Asrama Sedayu Gedung A", 
+    kamar: "Ruang Pamong Gedung A", 
+    kelas: "Kelas 1 - 4", 
+    tingkat: "Kelas 1", 
+    pamong: "Pimpinan Asrama", 
+    email: "raiscutis@gmail.com, cutisrais@gmail.com",              
+    phone: "6282342754336" 
+  },
+  { 
+    id: "p6",  
+    name: "Muh. Ahnaf Lubab, M.Pd.",           
+    role: "pamong", 
+    asrama: "Asrama Sedayu Gedung B", 
+    kamar: "Ruang Pamong Gedung B", 
+    kelas: "Kelas 1 - 4", 
+    tingkat: "Kelas 1", 
+    pamong: "Pimpinan Asrama", 
+    email: "ahnaflubab@muallimin.sch.id",      
+    phone: "6285729112238" 
+  },
+  { 
+    id: "p7",  
+    name: "M. Ismail Marzuq, S.Sos.",          
+    role: "pamong", 
+    asrama: "Asrama Sedayu Gedung C", 
+    kamar: "Ruang Pamong Gedung C", 
+    kelas: "Kelas 1 - 4", 
+    tingkat: "Kelas 2", 
+    pamong: "Pimpinan Asrama", 
+    email: "izmaelpoenya04@gmail.com",         
+    phone: "6282145765850" 
+  },
+  { 
+    id: "p8",  
+    name: "Ariel Amarta Dzikrillah, S.Sos.",   
+    role: "pamong", 
+    asrama: "Asrama Sedayu Gedung D", 
+    kamar: "Ruang Pamong Gedung D", 
+    kelas: "Kelas 1 - 4", 
+    tingkat: "Kelas 1", 
+    pamong: "Pimpinan Asrama", 
+    email: "arilamarta@gmail.com",             
+    phone: "6285701209925" 
+  },
+
+  // ─── DAFTAR MUSYRIF (Termasuk Koordinator Gedung yang juga Musyrif) ───
+  ...MUSYRIF_LIST
+];
+
+const DEPRECATED_PERSONNEL_IDS = new Set(["m8b", "m50", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6"]);
+
+function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
+  if (!Array.isArray(rawList) || rawList.length === 0) return DEFAULT_ALL_PERSONNEL;
+
+  // 1. Filter out deprecated IDs and auto-delete from Google Sheets queue if found
+  const filtered = rawList.filter(p => {
+    if (!p || !p.id) return false;
+    if (DEPRECATED_PERSONNEL_IDS.has(p.id) || (p.name && p.name.toLowerCase().includes("naufal muzakki"))) {
+      try {
+        googleSyncService.enqueue("Musyrif", { id: p.id }, "delete");
+      } catch {}
+      return false;
+    }
+    // Also filter out any ghost item with id starting with "g" or kelas "Gedung A/B/C/D"
+    if (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role)) {
+      try {
+        googleSyncService.enqueue("Musyrif", { id: p.id }, "delete");
+      } catch {}
+      return false;
+    }
+    return true;
+  });
+
+  // 2. Normalization & role adjustments
+  const normalized = filtered.map(p => {
+    if (p.id === "m49") {
+      return { ...p, kelas: "5 Upper C & 6 Internasional", kamar: "5 Upper C & 6 Int.", tingkat: "Kelas 5 & 6" };
+    }
+    if (p.id === "p5") {
+      return { ...p, email: "raiscutis@gmail.com, cutisrais@gmail.com" };
+    }
+    if (["m1", "m34", "m36", "m40", "m47", "m48"].includes(p.id)) {
+      return { ...p, role: "koordinator_gedung" as Role };
+    }
+    return p;
+  });
+
+  // 3. Deduplicate by Name + Asrama (in case ID differed between gX and mX)
+  const seenIds = new Set<string>();
+  const seenNameAsrama = new Set<string>();
+  const deduped: Musyrif[] = [];
+
+  for (const item of normalized) {
+    const cleanName = (item.name || "").trim().toLowerCase();
+    const cleanAsrama = (item.asrama || "").trim().toLowerCase();
+    const nameAsramaKey = `${cleanName}_${cleanAsrama}`;
+
+    if (!seenIds.has(item.id) && (!cleanName || !seenNameAsrama.has(nameAsramaKey))) {
+      seenIds.add(item.id);
+      if (cleanName) seenNameAsrama.add(nameAsramaKey);
+      deduped.push(item);
+    }
+  }
+
+  // 4. Merge any missing defaults from DEFAULT_ALL_PERSONNEL
+  const existingIds = new Set(deduped.map(p => p.id));
+  const missingDefaults = DEFAULT_ALL_PERSONNEL.filter(p => !existingIds.has(p.id));
+  const result = missingDefaults.length > 0 ? [...missingDefaults, ...deduped] : deduped;
+  
+  try {
+    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(result));
+  } catch {}
+  
+  return result;
+}
+
 export default function App() {
   const [musyrifList, setMusyrifList] = useState<Musyrif[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MUSYRIF);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        const parsed: Musyrif[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return sanitizeMusyrifList(parsed);
+        }
       }
     } catch {}
-    return MUSYRIF_LIST;
+    return DEFAULT_ALL_PERSONNEL;
   });
 
   const [authUser, setAuthUser] = useState<AuthUser|null>(() => {
@@ -3723,21 +4144,22 @@ export default function App() {
       const cleanEmail = parsed?.email?.toLowerCase();
       if (!cleanEmail) return null;
       
-      const validAuth = AUTH_USERS.find(u => u.email.toLowerCase() === cleanEmail);
-      if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
-
-      const validMusyrif = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).find(m => m.email && m.email.toLowerCase() === cleanEmail);
+      const validMusyrif = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).find(m => matchesEmail(m.email, cleanEmail));
       if (validMusyrif) {
+        const assignedRole: Role = (validMusyrif.role as Role) || "musyrif";
         return {
           id: validMusyrif.id,
           name: validMusyrif.name,
-          email: validMusyrif.email!,
-          role: "musyrif",
+          email: cleanEmail,
+          role: assignedRole,
           asrama: validMusyrif.asrama,
           musyrifId: validMusyrif.id,
           picture: parsed.picture,
         };
       }
+
+      const validAuth = AUTH_USERS.find(u => matchesEmail(u.email, cleanEmail));
+      if (validAuth) return { ...validAuth, picture: parsed.picture || validAuth.picture };
       return null;
     } catch {
       return null;
@@ -3825,7 +4247,6 @@ export default function App() {
   const [showSantriSakit, setShowSantriSakit] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
-  const [showMusyrifManager, setShowMusyrifManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
 
   // PWA Install Prompt
@@ -3963,6 +4384,15 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
   }, [musyrifList]);
 
+  // Sync initial personnel list to Google Sheets in background
+  useEffect(() => {
+    if (musyrifList && musyrifList.length > 0) {
+      musyrifList.forEach(p => {
+        googleSyncService.enqueue("Musyrif", p, "upsert");
+      });
+    }
+  }, []);
+
   // Initial Cloud Hydration & Realtime Delta Subscription
   useEffect(() => {
     // 1. Subscribe to incoming delta updates from Google Sheets
@@ -3982,7 +4412,7 @@ export default function App() {
           setSantriSakitList(Array.isArray(cloudRecords) ? cloudRecords : []);
         } else if (tbl === "musyrif") {
           if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-            setMusyrifList(cloudRecords);
+            setMusyrifList(sanitizeMusyrifList(cloudRecords));
           }
         } else if (tbl === "logbook") {
           const next: LogbookStorage = {};
@@ -4061,7 +4491,7 @@ export default function App() {
             if (cr.is_deleted) map.delete(cr.id);
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
           });
-          return Array.from(map.values());
+          return sanitizeMusyrifList(Array.from(map.values()));
         });
       } else if (tbl === "logbook") {
         setLogbookData(prev => {
@@ -4145,22 +4575,22 @@ export default function App() {
   const handleAddMusyrif = (newM: Omit<Musyrif, "id">) => {
     const newId = `m_${Date.now()}`;
     const created: Musyrif = { ...newM, id: newId };
-    setMusyrifList(prev => [created, ...prev]);
+    setMusyrifList(prev => sanitizeMusyrifList([created, ...prev]));
     googleSyncService.enqueue("Musyrif", created, "upsert");
-    showToast(`Musyrif ${created.name} berhasil ditambahkan!`, "success");
+    showToast(`Personel ${created.name} berhasil ditambahkan!`, "success");
   };
 
   const handleUpdateMusyrif = (updated: Musyrif) => {
-    setMusyrifList(prev => prev.map(m => m.id === updated.id ? updated : m));
+    setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => m.id === updated.id ? updated : m)));
     googleSyncService.enqueue("Musyrif", updated, "upsert");
-    showToast(`Data musyrif ${updated.name} berhasil diperbarui!`, "success");
+    showToast(`Data personel ${updated.name} berhasil diperbarui!`, "success");
   };
 
   const handleDeleteMusyrif = (id: string) => {
     const target = musyrifList.find(m => m.id === id);
-    setMusyrifList(prev => prev.filter(m => m.id !== id));
+    setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
     googleSyncService.enqueue("Musyrif", { id }, "delete");
-    showToast(`Data musyrif ${target?.name || id} berhasil dihapus.`, "info");
+    showToast(`Data personel ${target?.name || id} berhasil dihapus.`, "info");
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
@@ -4394,8 +4824,9 @@ export default function App() {
 
   const pendingIzinCount = izinList.filter(i => i.status === "pending").length;
   const todayRecs = records.filter(r=>r.date===todayStr());
-  const pendingSubuh = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh; }).length;
-  const pendingMaghrib = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
+  const allFieldM = (musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST).filter(isFieldMusyrif);
+  const pendingSubuh = allFieldM.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.subuh; }).length;
+  const pendingMaghrib = allFieldM.filter(m=>{ const r=todayRecs.find(x=>x.musyrifId===m.id); return !r?.maghrib; }).length;
   const hijri = toHijri(now);
 
   // ─── PULL TO REFRESH LOGIC ───
@@ -4653,7 +5084,9 @@ export default function App() {
                 onOpenSantriSakit={() => setShowSantriSakit(true)}
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
                 onOpenRaport={() => setShowRaport(true)}
-                onOpenMusyrifManager={() => setShowMusyrifManager(true)}
+                onOpenMusyrifManager={() => setPage("musyrif-manager")}
+                onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
+                onOpenKalenderPendidikan={() => setPage("kalender-pendidikan")}
                 onInstallPWA={handleInstallPWA}
                 onLogin={() => setShowLogin(true)}
                 pendingIzinCount={pendingIzinCount}
@@ -4722,7 +5155,10 @@ export default function App() {
           )}
           {page==="ibadah" && (
             <motion.div key="ibadah" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageIbadah onBack={()=>setPage("dashboard")}/>
+              <PageIbadah 
+                onBack={()=>setPage("dashboard")} 
+                onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
+              />
             </motion.div>
           )}
           {page==="logbook" && (
@@ -4843,6 +5279,23 @@ export default function App() {
               />
             </motion.div>
           )}
+          {page==="kalender-hijriah" && (
+            <motion.div key="kalender-hijriah" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PageKalenderHijriah 
+                onBack={()=>setPage("dashboard")} 
+                initialDate={now}
+              />
+            </motion.div>
+          )}
+          {page==="kalender-pendidikan" && (
+            <motion.div key="kalender-pendidikan" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PageKalenderPendidikan 
+                onBack={()=>setPage("dashboard")} 
+                userEmail={authUser?.email}
+                userRole={authUser?.role}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -4894,7 +5347,7 @@ export default function App() {
 
       {/* Login Modal */}
       <AnimatePresence>
-        {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onLogin={handleLogin}/>}
+        {showLogin && <LoginModal onClose={()=>setShowLogin(false)} onLogin={handleLogin} musyrifList={musyrifList}/>}
       </AnimatePresence>
 
       {/* 1. WhatsApp Generator Modal */}
@@ -5035,22 +5488,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 10. Master Data Musyrif Modal (SCRUD) */}
-      <AnimatePresence>
-        {showMusyrifManager && (
-          <MusyrifManagerModal
-            onClose={() => setShowMusyrifManager(false)}
-            musyrifList={musyrifList}
-            asramaList={ASRAMAS}
-            onAddMusyrif={handleAddMusyrif}
-            onUpdateMusyrif={handleUpdateMusyrif}
-            onDeleteMusyrif={handleDeleteMusyrif}
-            authUser={authUser}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* 11. Google Sheets Cloud Sync Modal */}
+      {/* 9. Google Sheets Cloud Sync Modal */}
       <CloudSyncModal
         isOpen={showCloudSync}
         onClose={() => setShowCloudSync(false)}

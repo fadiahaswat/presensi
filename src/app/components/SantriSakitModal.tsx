@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Plus, HeartPulse, Bed, Stethoscope, Building2, Home, CheckCircle2, 
   Trash2, AlertCircle, Search, Filter, Share2, Calendar, User, Phone,
@@ -63,16 +63,20 @@ export function SantriSakitModal({
   const [editCatatanText, setEditCatatanText] = useState<string>("");
   const [editingRecord, setEditingRecord] = useState<SantriSakitRecord | null>(null);
 
+  const activeMusyrifList = useMemo(() => {
+    return musyrifList.filter(m => !m.role || m.role === "musyrif");
+  }, [musyrifList]);
+
   // Form State
   const defaultMusyrif = isMusyrif 
-    ? musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id)) || musyrifList[0]
-    : musyrifList[0];
+    ? (musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id)) || activeMusyrifList[0] || musyrifList[0])
+    : (activeMusyrifList[0] || musyrifList[0]);
 
   const [formMusyrifId, setFormMusyrifId] = useState(defaultMusyrif?.id || "");
   const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formNama, setFormNama] = useState("");
-  const [formKelas, setFormKelas] = useState(defaultMusyrif?.kelas || "1 A");
-  const [formKamar, setFormKamar] = useState(defaultMusyrif?.kamar || "101");
+  const [formKelas, setFormKelas] = useState(defaultMusyrif?.kelas || "");
+  const [formKamar, setFormKamar] = useState(defaultMusyrif?.kamar || "");
   const [formKeluhan, setFormKeluhan] = useState("");
   const [formLokasi, setFormLokasi] = useState<"kamar" | "uks" | "rs_pku" | "pulang">("kamar");
   const [formCatatan, setFormCatatan] = useState("");
@@ -322,8 +326,8 @@ export function SantriSakitModal({
                 disabled={isMusyrif}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
               >
-                {musyrifList.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.asrama})</option>
+                {activeMusyrifList.map(m => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.asrama}{m.kamar ? ` - Kmr ${m.kamar}` : ""})</option>
                 ))}
               </select>
             </div>

@@ -1,16 +1,19 @@
-const CACHE_NAME = 'presensi-muallimin-v1';
+const CACHE_NAME = 'presensi-muallimin-v3';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/muallimin-logo.png'
+  '/presensi/',
+  '/presensi/index.html',
+  '/presensi/manifest.webmanifest',
+  '/presensi/icon.webp',
+  '/presensi/app-icon.png'
 ];
 
 // Install event: cache core assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
+        console.warn('Cache addAll warning:', err);
+      });
     }).then(() => self.skipWaiting())
   );
 });
@@ -37,7 +40,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // If response is valid, clone and put into cache
         if (response && response.status === 200) {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -47,13 +49,12 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Fallback to cache if network fails
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
           if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
+            return caches.match('/presensi/index.html') || caches.match('/index.html');
           }
         });
       })

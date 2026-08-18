@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { 
-  X, Footprints, Flame, CheckCircle2, ShieldCheck, 
-  Sparkles, RotateCcw, Play, Pause, AlertCircle, Compass, Zap, Smartphone
+  X, Footprints, CheckCircle2, ShieldCheck, 
+  RotateCcw, Play, Pause, AlertTriangle, Compass,
+  MapPin, Timer, Navigation, Activity, Zap, Radio,
+  TrendingUp, Award
 } from "lucide-react";
-import { motion } from "motion/react";
-import { pedometerInstance } from "../utils/pedometer";
+import { motion, AnimatePresence } from "motion/react";
+import { pedometerInstance, PedometerTelemetry, PedometerService } from "../utils/pedometer";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 
 interface PatroliStepsModalProps {
   onClose: () => void;
   taskTitle: string;
   taskIcon: string;
-  targetSteps: number;
+  targetSteps?: number;
   initialSteps?: number;
   onConfirmSteps: (steps: number) => void;
 }
@@ -20,14 +22,28 @@ export function PatroliStepsModal({
   onClose,
   taskTitle,
   taskIcon,
-  targetSteps = 60,
+  targetSteps = 100,
   initialSteps = 0,
   onConfirmSteps
 }: PatroliStepsModalProps) {
+  const effectiveTargetSteps = Math.max(100, targetSteps);
+
   const [hasStarted, setHasStarted] = useState(initialSteps > 0);
-  const [steps, setSteps] = useState(initialSteps);
   const [isActive, setIsActive] = useState(false);
-  const [magnitude, setMagnitude] = useState(9.8);
+  const [telemetry, setTelemetry] = useState<PedometerTelemetry>({
+    steps: initialSteps,
+    magnitude: 9.8,
+    cadence: 0,
+    speedKmh: 0,
+    isMoving: false,
+    gpsActive: false,
+    gpsAccuracy: 0,
+    displacementMeters: 0,
+    totalDistanceMeters: 0,
+    elapsedSeconds: 0,
+    isDisplacementValid: false,
+    routePoints: [{ x: 50, y: 50, timestamp: Date.now() }]
+  });
 
   useEffect(() => {
     pedometerInstance.reset(initialSteps);
@@ -39,11 +55,10 @@ export function PatroliStepsModal({
   const handleStartPatrol = async () => {
     triggerHaptic("medium");
     await pedometerInstance.requestPermission();
-    pedometerInstance.reset(steps);
-    pedometerInstance.start(
-      (newSteps) => setSteps(newSteps),
-      (mag) => setMagnitude(mag)
-    );
+    pedometerInstance.reset(telemetry.steps);
+    pedometerInstance.start(telemetry.steps, (data) => {
+      setTelemetry(data);
+    });
     setHasStarted(true);
     setIsActive(true);
   };
@@ -55,38 +70,69 @@ export function PatroliStepsModal({
       setIsActive(false);
     } else {
       await pedometerInstance.requestPermission();
-      pedometerInstance.start(
-        (newSteps) => setSteps(newSteps),
-        (mag) => setMagnitude(mag)
-      );
+      pedometerInstance.start(telemetry.steps, (data) => {
+        setTelemetry(data);
+      });
       setIsActive(true);
     }
-  };
-
-  const handleSimulateStep = () => {
-    if (!hasStarted) {
-      setHasStarted(true);
-      setIsActive(true);
-    }
-    triggerHaptic("light");
-    pedometerInstance.simulateStep();
   };
 
   const handleReset = () => {
     triggerHaptic("light");
     pedometerInstance.reset(0);
-    setSteps(0);
     setIsActive(false);
     setHasStarted(false);
+    setTelemetry({
+      steps: 0,
+      magnitude: 9.8,
+      cadence: 0,
+      speedKmh: 0,
+      isMoving: false,
+      gpsActive: false,
+      gpsAccuracy: 0,
+      displacementMeters: 0,
+      totalDistanceMeters: 0,
+      elapsedSeconds: 0,
+      isDisplacementValid: false,
+      routePoints: [{ x: 50, y: 50, timestamp: Date.now() }]
+    });
   };
 
-  const isTargetReached = steps >= targetSteps;
-  const progressPct = Math.min(100, Math.round((steps / targetSteps) * 100));
-  const isMoving = magnitude > 10.5;
+  const steps = telemetry.steps;
+  const isTargetReached = steps >= effectiveTargetSteps;
+  const progressPct = Math.min(100, Math.round((steps / effectiveTargetSteps) * 100));
+  
+  // Anti-Room-Spinning: Must leave the bedroom (>= 15m radius displacement)
+  const isDisplacementValid = telemetry.isDisplacementValid || telemetry.displacementMeters >= PedometerService.MIN_DISPLACEMENT_METERS;
+  const isPatrolFullyValid = isTargetReached && (isDisplacementValid || steps >= effectiveTargetSteps + 20);
+
+  // Format Elapsed Time MM:SS or HH:MM:SS
+  const formatTime = (totalSec: number) => {
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Convert distance to km or m
+  const distanceDisplay = telemetry.totalDistanceMeters >= 1000 
+    ? `${(telemetry.totalDistanceMeters / 1000).toFixed(2)} km`
+    : `${telemetry.totalDistanceMeters} m`;
+
+  // Generate SVG path for live Strava mini-map
+  const generateRouteSvgPath = () => {
+    if (!telemetry.routePoints || telemetry.routePoints.length === 0) return "M 50 50";
+    return telemetry.routePoints.reduce((acc, pt, idx) => {
+      return `${acc} ${idx === 0 ? "M" : "L"} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+    }, "");
+  };
 
   return (
     <motion.div 
-      className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4" 
+      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" 
       variants={modalBackdropVariants}
       initial="initial"
       animate="animate"
@@ -94,221 +140,309 @@ export function PatroliStepsModal({
       onClick={() => { triggerHaptic("light"); onClose(); }}
     >
       <motion.div 
-        className="bg-white rounded-3xl shadow-2xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100/80" 
+        className="bg-slate-950 text-white rounded-3xl shadow-2xl max-w-sm sm:max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-800 my-auto" 
         variants={modalContentVariants}
-        onClick={e=>e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         
-        {/* Header */}
-        <div className="px-5 py-4 bg-emerald-800 text-white flex items-center justify-between">
+        {/* Strava Dark Top Bar */}
+        <div className="px-5 py-3.5 bg-slate-900 border-b border-slate-800/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-              <Footprints className="w-4 h-4 text-emerald-100" />
+            {/* Strava Orange Activity Icon */}
+            <div className="w-8 h-8 rounded-xl bg-[#FC4C02] flex items-center justify-center shadow-lg shadow-[#FC4C02]/20">
+              <Footprints className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-sm leading-tight">{taskTitle}</h3>
-              <p className="text-[11px] text-emerald-100/80">Validasi Sensor Langkah Kaki Pedometer</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#FC4C02] font-mono">
+                  PATROLI MUSYRIF
+                </span>
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                  MIN 100 LKG
+                </span>
+              </div>
+              <h3 className="font-extrabold text-sm text-slate-100 leading-tight truncate max-w-[200px]">
+                {taskTitle}
+              </h3>
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={() => { triggerHaptic("light"); onClose(); }}
-            aria-label="Tutup"
-            className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors active:scale-90"
-          >
-            <X className="w-4 h-4" />
-          </button>
+
+          {/* GPS Quality Pill & Close */}
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              telemetry.gpsActive 
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
+                : "bg-slate-800 text-slate-400 border border-slate-700"
+            }`}>
+              <Radio className={`w-3 h-3 ${telemetry.gpsActive ? "animate-pulse text-emerald-400" : ""}`} />
+              <span>{telemetry.gpsActive ? "GPS LIVE" : "GPS"}</span>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => { triggerHaptic("light"); onClose(); }}
+              aria-label="Tutup"
+              className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-90 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Content Tracker */}
-        <div className="p-6 flex flex-col items-center justify-center text-center space-y-4">
+        {/* Strava Main Body */}
+        <div className="p-5 flex flex-col space-y-4 overflow-y-auto max-h-[calc(92vh-140px)]">
           
-          {/* Status Badge */}
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold font-mono ${
-              !hasStarted
-                ? "bg-amber-50 text-amber-800 border border-amber-200"
-                : isActive 
-                ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
-                : "bg-slate-100 text-slate-600 border border-slate-200"
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${!hasStarted ? "bg-amber-500" : isActive ? "bg-emerald-500 animate-ping" : "bg-slate-400"}`} />
-              {!hasStarted ? (
-                <span className="flex items-center gap-1">
-                  <Play className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Siap Mulai Patroli</span>
-                </span>
-              ) : isActive ? (
-                isMoving ? (
-                  <span className="flex items-center gap-1">
-                    <Footprints className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Mendeteksi Langkah Kaki...</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <Smartphone className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Bawa Perangkat & Mulai Berjalan</span>
-                  </span>
-                )
-              ) : (
-                <span className="flex items-center gap-1">
-                  <Pause className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Sensor Dijeda</span>
-                </span>
-              )}
+          {/* Main Hero: Elapsed Duration (Strava Large Digital Clock) */}
+          <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 text-center relative overflow-hidden">
+            {/* Background subtle grid pattern */}
+            <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
+            
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 font-mono block">
+              DURASI PATROLI
             </span>
-          </div>
-
-          {/* Large Circular Progress & Step Counter */}
-          <div className="relative w-44 h-44 flex items-center justify-center">
-            {/* SVG Ring */}
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                className="text-slate-100"
-                strokeWidth="8"
-                stroke="currentColor"
-                fill="transparent"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                className={`transition-all duration-300 ${
-                  isTargetReached ? "text-emerald-500" : "text-teal-600"
-                }`}
-                strokeWidth="8"
-                strokeDasharray={264}
-                strokeDashoffset={264 - (264 * progressPct) / 100}
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="transparent"
-              />
-            </svg>
-
-            {/* Inner Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-0.5">
-              <Footprints className={`w-7 h-7 mb-1 transition-transform ${
-                isMoving ? "scale-125 text-emerald-600 animate-bounce" : "text-slate-400"
+            <div className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white mt-0.5 leading-none">
+              {formatTime(telemetry.elapsedSeconds)}
+            </div>
+            
+            {/* Activity Status Subtitle */}
+            <div className="mt-2 flex items-center justify-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                !hasStarted ? "bg-amber-400" : isActive ? "bg-emerald-400 animate-ping" : "bg-slate-500"
               }`} />
-              <div className="text-4xl font-black text-slate-900 font-mono tracking-tight">
-                {steps}
+              <span className="text-xs font-semibold text-slate-300">
+                {!hasStarted ? "Siap Memulai Aktivitas" : isActive ? (telemetry.isMoving ? "Mendeteksi Langkah..." : "Bawa Perangkat & Berjalan") : "Aktivitas Dijeda"}
+              </span>
+            </div>
+          </div>
+
+          {/* Strava 2x2 Metric Splits Grid (Big Bold Athletic Typography) */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* Split 1: STEPS (Hero Metric) */}
+            <div className="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800/90 relative overflow-hidden">
+              <div className="flex items-center justify-between text-slate-400 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider font-mono">LANGKAH</span>
+                <Footprints className="w-3.5 h-3.5 text-[#FC4C02]" />
               </div>
-              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                Target: {targetSteps} Langkah
+              <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white leading-none">
+                {steps}
+                <span className="text-xs text-slate-400 font-bold ml-1">/ {effectiveTargetSteps}</span>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-[#FC4C02] to-amber-500 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Split 2: DISTANCE */}
+            <div className="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800/90 relative overflow-hidden">
+              <div className="flex items-center justify-between text-slate-400 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider font-mono">JARAK TEMPUH</span>
+                <Navigation className="w-3.5 h-3.5 text-teal-400" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white leading-none">
+                {distanceDisplay}
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium mt-2">
+                Kumulatif GPS & Gerak
               </p>
-              <div className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full font-mono mt-1">
-                {progressPct}% Terpenuhi
+            </div>
+
+            {/* Split 3: RADIUS JELAJAH (Anti Muter Kamar) */}
+            <div className={`rounded-2xl p-3.5 border transition-all ${
+              isDisplacementValid 
+                ? "bg-emerald-950/40 border-emerald-500/40" 
+                : steps > 30 
+                ? "bg-amber-950/40 border-amber-500/40" 
+                : "bg-slate-900/90 border-slate-800"
+            }`}>
+              <div className="flex items-center justify-between text-slate-400 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider font-mono">RADIUS JELAJAH</span>
+                <MapPin className={`w-3.5 h-3.5 ${isDisplacementValid ? "text-emerald-400" : "text-amber-400"}`} />
+              </div>
+              <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white leading-none">
+                {telemetry.displacementMeters} <span className="text-xs text-slate-400 font-bold">m</span>
+              </div>
+              <div className="mt-2 flex items-center gap-1 text-[10px] font-bold">
+                {isDisplacementValid ? (
+                  <span className="text-emerald-400 flex items-center gap-1">✓ Keluar Kamar</span>
+                ) : (
+                  <span className="text-amber-400">Min. 15 meter</span>
+                )}
+              </div>
+            </div>
+
+            {/* Split 4: SPEED & CADENCE */}
+            <div className="bg-slate-900/90 rounded-2xl p-3.5 border border-slate-800/90 relative overflow-hidden">
+              <div className="flex items-center justify-between text-slate-400 mb-1">
+                <span className="text-[10px] font-black uppercase tracking-wider font-mono">RITME / KECEPATAN</span>
+                <Activity className="w-3.5 h-3.5 text-indigo-400" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white leading-none">
+                {telemetry.speedKmh} <span className="text-xs text-slate-400 font-bold">km/h</span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-mono mt-2">
+                {telemetry.cadence} langkah/menit
+              </p>
+            </div>
+          </div>
+
+          {/* Strava Live GPS Route Mini-Map Visualizer */}
+          <div className="bg-slate-900/80 rounded-2xl p-3 border border-slate-800 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-mono flex items-center gap-1.5">
+                <Compass className="w-3.5 h-3.5 text-[#FC4C02]" /> LIVE GPS ROUTE MAP
+              </span>
+              <span className="text-[10px] font-mono text-slate-400">
+                Akurasi: ±{telemetry.gpsAccuracy || 5}m
+              </span>
+            </div>
+
+            {/* SVG Canvas for Strava Orange Breadcrumb Path */}
+            <div className="w-full h-28 bg-slate-950 rounded-xl relative overflow-hidden border border-slate-800/80 flex items-center justify-center">
+              {/* Radar circular rings */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                <div className="w-20 h-20 rounded-full border border-slate-600 animate-ping" style={{ animationDuration: '4s' }} />
+                <div className="w-12 h-12 rounded-full border border-slate-500 absolute" />
+              </div>
+
+              <svg className="w-full h-full p-2" viewBox="0 0 100 100">
+                {/* Route Path Polyline (Strava Orange) */}
+                <path
+                  d={generateRouteSvgPath()}
+                  fill="none"
+                  stroke="#FC4C02"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {/* Starting Point (Green Pin) */}
+                <circle cx="50" cy="50" r="4" fill="#10B981" stroke="#FFFFFF" strokeWidth="1.5" />
+
+                {/* Current Location (Pulsing Orange Dot) */}
+                {telemetry.routePoints.length > 0 && (
+                  <circle
+                    cx={telemetry.routePoints[telemetry.routePoints.length - 1].x}
+                    cy={telemetry.routePoints[telemetry.routePoints.length - 1].y}
+                    r="4.5"
+                    fill="#FC4C02"
+                    stroke="#FFFFFF"
+                    strokeWidth="2"
+                  />
+                )}
+              </svg>
+
+              {/* Start & Current Marker Badges */}
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-[9px] font-mono text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Start
+              </div>
+              <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-[9px] font-mono text-[#FC4C02] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FC4C02] animate-ping" /> Posisi Musyrif
               </div>
             </div>
           </div>
 
-          {/* Main Action if Not Started */}
+          {/* Anti-Room-Spinning Verification Banner */}
           {!hasStarted ? (
-            <div className="w-full space-y-2">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Pencet tombol <strong>Mulai Patroli</strong> di bawah, lalu bawa HP Anda saat berkeliling menyisir asrama/kamar santri.
+            <div className="p-3.5 bg-gradient-to-r from-orange-950/40 to-slate-900 border border-[#FC4C02]/30 rounded-2xl text-left space-y-1.5">
+              <div className="flex items-center gap-2 text-[#FC4C02] font-black text-xs uppercase tracking-wider font-mono">
+                <ShieldCheck className="w-4 h-4" /> ATURAN PATROLI STRAVA
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                1. Target minimal <strong>100 Langkah</strong> patroli.<br/>
+                2. <strong>Wajib keluar kamar</strong> menyisir lorong / gedung asrama (radius jelajah $\ge$ 15 meter).
               </p>
-              <button
-                type="button"
-                onClick={handleStartPatrol}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-md shadow-emerald-600/25 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Play className="w-4 h-4 fill-white" />
-                <span>Mulai Patroli Langkah</span>
-              </button>
             </div>
+          ) : isPatrolFullyValid ? (
+            <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-2xl flex items-center gap-2.5 text-left">
+              <Award className="w-6 h-6 text-emerald-400 shrink-0" />
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-300 font-mono tracking-wider">
+                  PATROLI TERVERIFIKASI
+                </p>
+                <p className="text-[10px] text-emerald-200/90">
+                  Target 100+ langkah tercapai & terbukti menyisir luar kamar (Radius: {telemetry.displacementMeters}m).
+                </p>
+              </div>
+            </div>
+          ) : isTargetReached && !isDisplacementValid ? (
+            <div className="p-3 bg-amber-950/60 border border-amber-500/50 rounded-2xl flex items-start gap-2.5 text-left">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-black uppercase text-amber-300 font-mono tracking-wider">
+                  RADIUS MASIH DALAM KAMAR
+                </p>
+                <p className="text-[10px] text-amber-200/90">
+                  Langkah tercapai ({steps} lkg), namun radius jelajah masih &lt; 15 meter. Silakan berjalan menyusuri lorong asrama.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+        </div>
+
+        {/* Strava Iconic Action Controls (Big Round Buttons) */}
+        <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3">
+          
+          {!hasStarted ? (
+            <button
+              type="button"
+              onClick={handleStartPatrol}
+              className="w-full py-3.5 bg-[#FC4C02] hover:bg-[#e04300] text-white rounded-2xl font-black text-sm uppercase tracking-wider font-mono shadow-lg shadow-[#FC4C02]/30 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Play className="w-5 h-5 fill-white" />
+              <span>MULAI PATROLI</span>
+            </button>
           ) : (
             <>
-              {/* Verification Status Banner */}
-              {isTargetReached ? (
-                <div className="w-full p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-emerald-900 text-left">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold leading-tight">Target Patroli Berhasil Tervalidasi!</p>
-                    <p className="text-[11px] text-emerald-800/80 mt-0.5">Musyrif terbukti aktif bergerak menyisir kamar santri.</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-xs flex items-center justify-center gap-1.5">
-                  <Compass className="w-4 h-4 text-emerald-600 animate-spin" style={{ animationDuration: '6s' }} />
-                  <span>Bawa perangkat menyisir asrama ({targetSteps - steps} langkah lagi)</span>
-                </div>
-              )}
+              {/* Reset Button */}
+              <button
+                type="button"
+                onClick={handleReset}
+                className="w-12 h-12 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-all cursor-pointer shrink-0"
+                title="Reset Patroli"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
 
-              {/* Live Sensor Indicator */}
-              <div className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" /> Sensor Gerak
-                </span>
-                <span className="font-mono font-bold text-slate-700">
-                  {magnitude.toFixed(1)} m/s² {isActive ? "(Aktif)" : "(Jeda)"}
-                </span>
-              </div>
+              {/* Pause / Resume Button (Strava Iconic Center Button) */}
+              <button
+                type="button"
+                onClick={handleToggleTracking}
+                className={`flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-wider font-mono flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer ${
+                  isActive 
+                    ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700" 
+                    : "bg-[#FC4C02] hover:bg-[#e04300] text-white shadow-lg shadow-[#FC4C02]/25"
+                }`}
+              >
+                {isActive ? <Pause className="w-4 h-4 text-slate-300" /> : <Play className="w-4 h-4 fill-white" />}
+                <span>{isActive ? "JEDA" : "LANJUT"}</span>
+              </button>
 
-              {/* Controls */}
-              <div className="w-full flex items-center justify-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleSimulateStep}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-bold text-emerald-700 active:scale-95 transition-all flex items-center gap-1"
-                >
-                  <Zap className="w-3 h-3 text-emerald-600" />
-                  <span>+1 Langkah</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleToggleTracking}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 active:scale-95 transition-all flex items-center gap-1"
-                >
-                  {isActive ? <Pause className="w-3 h-3 text-slate-600"/> : <Play className="w-3 h-3 text-emerald-600"/>}
-                  <span>{isActive ? "Jeda" : "Lanjut"}</span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-bold text-slate-700 active:scale-95 transition-all flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3 h-3 text-slate-500" />
-                  <span>Reset</span>
-                </button>
-              </div>
+              {/* Finish & Validate Button (Disabled until fully valid) */}
+              <button
+                type="button"
+                disabled={!isPatrolFullyValid}
+                onClick={() => {
+                  triggerHaptic("success");
+                  onConfirmSteps(steps);
+                  onClose();
+                }}
+                className={`py-3 px-4 rounded-2xl font-black text-xs uppercase tracking-wider font-mono flex items-center justify-center gap-1.5 transition-all shrink-0 ${
+                  isPatrolFullyValid
+                    ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 active:scale-95 cursor-pointer"
+                    : "bg-slate-800/80 text-slate-600 border border-slate-800 cursor-not-allowed"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>SELESAI ({steps})</span>
+              </button>
             </>
           )}
 
-        </div>
-
-        {/* Footer Actions */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => { triggerHaptic("light"); onClose(); }}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
-          >
-            Batal
-          </button>
-
-          <button
-            type="button"
-            disabled={!isTargetReached}
-            onClick={() => {
-              triggerHaptic("success");
-              onConfirmSteps(steps);
-              onClose();
-            }}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 transition-all active:scale-95 ${
-              isTargetReached
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25 cursor-pointer"
-                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Selesai & Validasi ({steps} Langkah)</span>
-          </button>
         </div>
 
       </motion.div>

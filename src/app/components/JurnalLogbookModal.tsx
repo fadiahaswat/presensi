@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Check, Clock, Calendar, CheckCircle2, 
   AlertCircle, ChevronRight, FileText, Sparkles, Building2, User, Eye, ShieldCheck,
-  MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft,
+  MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft, Lock,
   Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award
 } from "lucide-react";
 import { format } from "date-fns";
@@ -84,7 +84,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "moon",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 60
+    targetSteps: 100
   },
   {
     key: "bakdaSubuh",
@@ -113,7 +113,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "stethoscope",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 30
+    targetSteps: 100
   },
   {
     key: "sisirSekolah",
@@ -128,7 +128,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "door",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 80
+    targetSteps: 120
   },
   {
     key: "jagaGerbang",
@@ -143,7 +143,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "shield",
     category: "Siang",
     isPatrol: true,
-    targetSteps: 40
+    targetSteps: 100
   },
   {
     key: "oprakAshar",
@@ -158,7 +158,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "sun",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 60
+    targetSteps: 100
   },
   {
     key: "oprakMandi",
@@ -173,7 +173,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "sparkles",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 50
+    targetSteps: 100
   },
   {
     key: "sisirMaghrib",
@@ -188,7 +188,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "moon",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 70
+    targetSteps: 120
   },
   {
     key: "bakdaMaghrib",
@@ -217,7 +217,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "graduation",
     category: "Malam",
     isPatrol: true,
-    targetSteps: 50
+    targetSteps: 100
   },
   {
     key: "cekTidur",
@@ -232,7 +232,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "bed",
     category: "Malam",
     isPatrol: true,
-    targetSteps: 60
+    targetSteps: 100
   }
 ];
 
@@ -271,15 +271,20 @@ export function JurnalLogbookModal({
   musyrifList,
   logbookData,
   onSaveLogbook,
+  onResetLogbook,
   onOpenSantriSakit,
   isPage = false
 }: JurnalLogbookModalProps) {
   const isMusyrifUser = authUser?.role === "musyrif";
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
 
+  const activeMusyrifList = useMemo(() => {
+    return musyrifList.filter(m => !m.role || m.role === "musyrif");
+  }, [musyrifList]);
+
   const defaultMusyrifId = isMusyrifUser 
-    ? (authUser?.musyrifId || authUser?.id || musyrifList[0]?.id || "") 
-    : (musyrifList[0]?.id || "");
+    ? (authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "") 
+    : (activeMusyrifList[0]?.id || musyrifList[0]?.id || "");
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -346,11 +351,12 @@ export function JurnalLogbookModal({
   const toggleTask = (taskDef: TaskDefinition) => {
     if (!isMusyrifUser && !isPamongOrKoord) return;
 
-    const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const isToday = selectedDate === todayStr;
     
     // 1. Must be today (for musyrif)
     if (!isToday && !isPamongOrKoord) {
-      alert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini).");
+      alert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini). Tanggal selain hari ini telah terkunci.");
       return;
     }
 
@@ -360,13 +366,23 @@ export function JurnalLogbookModal({
       return;
     }
 
-    // 3. Must be in or after task start time (not upcoming before scheduled time)
     const timeInfo = getTaskTimeStatus(taskDef);
     const cur = formState[taskDef.key] || { done: false };
 
-    if (!cur.done && timeInfo.status === "upcoming" && !isPamongOrKoord) {
-      alert(`Tugas "${taskDef.title}" belum masuk waktu pelaksanaan.\nJadwal tugas: ${taskDef.timeWindow}.\n\nSilakan centang saat waktu pelaksanaan tugas telah tiba.`);
-      return;
+    // 3. Strict Locking for Musyrif:
+    if (!isPamongOrKoord) {
+      if (cur.done) {
+        alert(`Tugas "${taskDef.title}" telah diverifikasi selesai pada ${cur.completedAt || "-"} WIB.`);
+        return;
+      }
+      if (timeInfo.status === "upcoming") {
+        alert(`Tugas "${taskDef.title}" belum masuk waktu pelaksanaan.\nJadwal tugas: ${taskDef.timeWindow}.\n\nSilakan isi saat waktu tugas aktif tiba.`);
+        return;
+      }
+      if (timeInfo.status === "passed") {
+        alert(`Jadwal tugas "${taskDef.title}" (${taskDef.timeWindow}) telah BERAKHIR dan TERKUNCI secara otomatis oleh sistem.\n\nTugas yang tidak dilaksanakan pada jamnya tidak dapat dicentang susulan.`);
+        return;
+      }
     }
 
     const nextDone = !cur.done;
@@ -420,7 +436,7 @@ export function JurnalLogbookModal({
   const totalTasks = LOGBOOK_TASKS.length;
   const scorePct = Math.round((completedTasks / totalTasks) * 100);
 
-  // Time Window Helpers
+  // Time Window Helpers & Strict Status
   const getTaskTimeStatus = (task: TaskDefinition) => {
     const now = new Date();
     const curH = now.getHours();
@@ -429,21 +445,54 @@ export function JurnalLogbookModal({
     const startTotal = task.startHour * 60 + task.startMinute;
     const endTotal = task.endHour * 60 + task.endMinute;
 
-    const isToday = selectedDate === format(now, "yyyy-MM-dd");
-    if (!isToday) return { status: "normal", label: "Tersimpan", badgeClass: "bg-slate-100 text-slate-700" };
+    const todayStr = format(now, "yyyy-MM-dd");
+    const isToday = selectedDate === todayStr;
+    const isPastDate = selectedDate < todayStr;
+    const isFutureDate = selectedDate > todayStr;
+
+    if (isPastDate) {
+      return { 
+        status: "past_date" as const, 
+        isLocked: true,
+        label: "Tanggal Lewat", 
+        badgeClass: "bg-slate-100 text-slate-500 border border-slate-200" 
+      };
+    }
+    if (isFutureDate) {
+      return { 
+        status: "future_date" as const, 
+        isLocked: true,
+        label: "Belum Tiba", 
+        badgeClass: "bg-slate-100 text-slate-400 border border-slate-200" 
+      };
+    }
 
     if (curTotal >= startTotal && curTotal <= endTotal) {
-      return { status: "active", label: "Waktu Tugas", badgeClass: "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse font-bold" };
+      return { 
+        status: "active" as const, 
+        isLocked: false,
+        label: "🟢 Waktu Tugas (Aktif)", 
+        badgeClass: "bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold animate-pulse" 
+      };
     } else if (curTotal > endTotal) {
-      return { status: "passed", label: "Waktu Lewat", badgeClass: "bg-slate-100 text-slate-500" };
+      return { 
+        status: "passed" as const, 
+        isLocked: true,
+        label: "🔒 Jadwal Terlewat (Terkunci)", 
+        badgeClass: "bg-rose-50 text-rose-700 border border-rose-200 font-semibold" 
+      };
     } else {
-      return { status: "upcoming", label: "Belum Waktunya", badgeClass: "bg-rose-50 text-rose-700 border border-rose-200" };
+      return { 
+        status: "upcoming" as const, 
+        isLocked: true,
+        label: "⏳ Belum Waktunya", 
+        badgeClass: "bg-amber-50 text-amber-800 border border-amber-200 font-semibold" 
+      };
     }
   };
 
   // Filtered Tasks:
-  // User requested: "yang waktu lewat dan belum masuk jangan dimunculkan kartunya"
-  // For today: Only show active tasks OR completed tasks. (Pamong can toggle to view all)
+  // For today: by default show active tasks OR completed tasks. User can toggle showAllScheduled to see the full list with locked indicators.
   const [showAllScheduled, setShowAllScheduled] = useState(false);
   const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
 
@@ -477,80 +526,90 @@ export function JurnalLogbookModal({
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
-      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${isPage ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"}`}>
+      {/* Header Bar */}
+      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${isPage ? "bg-white rounded-3xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60" : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"}`}>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={onClose} className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${isPage ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"}`}>
+          <button type="button" onClick={onClose} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-2xs ${isPage ? "bg-slate-50 border border-slate-200/80 hover:bg-slate-100 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"}`}>
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>Jurnal 11 Tugas Musyrif</h2>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${isMusyrifUser ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>Jurnal 11 Tugas Musyrif</h2>
+              <span className={`text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${isMusyrifUser ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-amber-50 text-amber-800 border border-amber-200"}`}>
                 {isMusyrifUser ? "Mandiri" : "Pamong"}
               </span>
             </div>
-            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-slate-300"}`}>Monitoring kedisiplinan dan checklist tugas harian asrama</p>
+            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>Monitoring kedisiplinan dan checklist tugas harian asrama</p>
           </div>
         </div>
         {isMusyrifUser && isGpsVerified && (
-          <button type="button" onClick={handleSave} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all">
+          <button type="button" onClick={handleSave} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all">
             <Check className="w-4 h-4" /> <span>Simpan Jurnal</span>
           </button>
         )}
       </div>
 
-      <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${isGpsVerified ? "bg-emerald-50 text-emerald-900 border-emerald-200" : "bg-rose-50 text-rose-900 border-rose-200"}`}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <MapPin className={`w-5 h-5 shrink-0 ${isGpsVerified ? "text-emerald-600" : "text-rose-600"}`} />
+      {/* GPS Status Banner */}
+      <div className={`p-3.5 sm:p-4 rounded-3xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+            <MapPin className="w-4 h-4" />
+          </div>
           <div className="min-w-0">
             <p className="font-bold text-xs leading-tight truncate">
               {isCheckingGps ? "Memeriksa koordinat GPS asrama..." : !gpsResult ? `GPS Belum Diperiksa (${asramaTarget})` : isGpsVerified ? `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)` : `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters === 99999 ? "GPS Tidak Terdeteksi / Ditolak" : `${gpsResult.distanceMeters}m dari radius`})`}
             </p>
-            <p className="text-[11px] opacity-80 truncate mt-0.5">{isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}</p>
+            <p className="text-[11px] opacity-75 truncate mt-0.5">{isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}</p>
           </div>
         </div>
-        <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-600 text-white hover:bg-rose-700"}`}>
+        <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-600 text-white hover:bg-rose-700"}`}>
           <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Mengecek..." : isGpsVerified ? "Perbarui GPS" : "Cek GPS Sekarang"}</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-3">
+      {/* Form & Progress Card */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">
+        {/* Date & Account */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-emerald-600" /> Tanggal Tugas</label>
-            <input type="date" value={selectedDate} onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800" />
+            <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-emerald-600" /> Tanggal Tugas</label>
+            <input type="date" value={selectedDate} onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-700 mb-1 block">{isMusyrifUser ? "Akun Musyrif (Mandiri)" : "Pilih Musyrif Dipantau"}</label>
+            <label className="text-xs font-bold text-slate-700 mb-1.5 block">{isMusyrifUser ? "Akun Musyrif (Mandiri)" : "Pilih Musyrif Dipantau"}</label>
             {isMusyrifUser ? (
-              <div className="w-full text-xs bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl px-3 py-2 font-bold truncate flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> {authUser?.name}</div>
+              <div className="w-full text-xs bg-emerald-50/80 border border-emerald-200 text-emerald-900 rounded-2xl px-3.5 py-2.5 font-bold truncate flex items-center gap-1.5 shadow-2xs"><User className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> {authUser?.name}</div>
             ) : (
-              <select value={selectedMusyrifId} onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)} className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 outline-none cursor-pointer">
-                {musyrifList.map(m => <option key={m.id} value={m.id}>{m.name} ({m.asrama})</option>)}
+              <select value={selectedMusyrifId} onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 outline-none cursor-pointer shadow-2xs">
+                {activeMusyrifList.map(m => <option key={m.id} value={m.id}>{m.name} ({m.asrama}{m.kamar ? ` - Kmr ${m.kamar}` : ""})</option>)}
               </select>
             )}
           </div>
         </div>
-        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center font-bold font-mono ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-800"}`}><span className="text-xs">{scorePct}%</span></div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Selesai" : "Sedang Berjalan"}</h4>
-              <p className="text-xs text-slate-500 mt-0.5"><strong>{completedTasks}</strong> dari <strong>{totalTasks}</strong> agenda terlaksana</p>
+
+        {/* Progress Box */}
+        <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200/60 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-2xl flex flex-col items-center justify-center font-black font-mono shadow-2xs ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200/80"}`}><span className="text-xs">{scorePct}%</span></div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Selesai ✓" : "Sedang Berjalan"}</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5"><strong>{completedTasks}</strong> dari <strong>{totalTasks}</strong> agenda terlaksana</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleResetLogbook}
               title="Reset Isian Logbook Tanggal Ini"
-              className="px-2.5 py-1.5 rounded-xl bg-slate-200/80 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-[11px] font-semibold transition-colors active:scale-95"
+              className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-bold transition-all shadow-2xs active:scale-95"
             >
               Reset Logbook
             </button>
-            <div className="w-20 bg-slate-200 h-2.5 rounded-full overflow-hidden hidden sm:block">
-              <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} />
-            </div>
+          </div>
+
+          {/* Full-width clean progress bar */}
+          <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
+            <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} />
           </div>
         </div>
 
@@ -562,13 +621,13 @@ export function JurnalLogbookModal({
               value={searchTaskQuery}
               onChange={(e) => setSearchTaskQuery(e.target.value)}
               placeholder="Cari agenda tugas logbook..."
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl pl-3.5 pr-8 py-2.5 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none shadow-2xs"
             />
             {searchTaskQuery && (
               <button
                 type="button"
                 onClick={() => setSearchTaskQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -588,10 +647,10 @@ export function JurnalLogbookModal({
                 key={cat.id}
                 type="button"
                 onClick={() => setFilterCategory(cat.id as any)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-2xs ${
                   filterCategory === cat.id
-                    ? "bg-emerald-600 text-white shadow-2xs"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80"
                 }`}
               >
                 {cat.label}
@@ -631,44 +690,183 @@ export function JurnalLogbookModal({
               const taskData = formState[t.key] || { done: false };
               const isDone = taskData.done;
               const timeInfo = getTaskTimeStatus(t);
+              const isLocked = !isDone && timeInfo.isLocked && !isPamongOrKoord;
+              const isPassed = timeInfo.status === "passed" && !isDone;
+              const isUpcoming = timeInfo.status === "upcoming" && !isDone;
               const isExpanded = expandedTask === t.key;
+
               return (
-                <div key={t.key} className={`bg-white rounded-3xl border transition-all overflow-hidden ${isDone ? "border-emerald-300 ring-1 ring-emerald-100" : timeInfo.status === "active" ? "border-amber-300 ring-1 ring-amber-100 shadow-xs" : "border-slate-200/70 opacity-80"}`}>
-                  <div className="p-4 flex items-start justify-between gap-3">
+                <div
+                  key={t.key}
+                  className={`bg-white rounded-3xl border transition-all overflow-hidden shadow-2xs ${
+                    isDone
+                      ? "border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/15"
+                      : timeInfo.status === "active"
+                      ? "border-emerald-500 ring-2 ring-emerald-300/40 bg-white shadow-xs"
+                      : isPassed
+                      ? "border-slate-200 bg-slate-50/70 opacity-60"
+                      : "border-slate-200/70 bg-slate-50/40 opacity-70"
+                  }`}
+                >
+                  <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <button type="button" disabled={!isMusyrifUser && !isPamongOrKoord} onClick={() => { if (t.isPatrol && isMusyrifUser && !isDone) { setActivePatrolTask(t); } else { toggleTask(t); } }} className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 transition-all ${isDone ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50 text-transparent"}`}>
-                        <Check className="w-4 h-4" />
+                      {/* Checkbox button */}
+                      <button
+                        type="button"
+                        disabled={isLocked || (!isMusyrifUser && !isPamongOrKoord) || isDone}
+                        onClick={() => {
+                          if (t.isPatrol && isMusyrifUser && !isDone) {
+                            if (isLocked) {
+                              alert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`);
+                              return;
+                            }
+                            setActivePatrolTask(t);
+                          } else {
+                            toggleTask(t);
+                          }
+                        }}
+                        className={`w-9 h-9 rounded-2xl border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+                          isDone
+                            ? "bg-emerald-600 border-emerald-600 text-white shadow-xs cursor-default"
+                            : isPassed
+                            ? "border-rose-200 bg-rose-50/80 text-rose-400 cursor-not-allowed"
+                            : isUpcoming
+                            ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : "border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 text-transparent active:scale-95 cursor-pointer shadow-2xs"
+                        }`}
+                        title={
+                          isDone
+                            ? "Tugas Selesai"
+                            : isPassed
+                            ? "Jadwal Terlewat (Terkunci)"
+                            : isUpcoming
+                            ? "Belum Masuk Waktu"
+                            : "Klik untuk Selesaikan Tugas"
+                        }
+                      >
+                        {isDone ? (
+                          <Check className="w-4 h-4" />
+                        ) : isPassed ? (
+                          <Lock className="w-3.5 h-3.5 text-rose-400" />
+                        ) : isUpcoming ? (
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
                       </button>
+
                       <div className="min-w-0 flex-1">
-                        <span className="text-xs font-bold text-slate-900 leading-tight">{t.number}. {t.title}</span>
-                        <p className="text-xs text-slate-500 mt-0.5 leading-snug">{t.shortDesc}</p>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
-                          <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60"><Clock className="w-3.5 h-3.5 text-slate-500" /> {t.timeWindow}</span>
-                          <span className={`font-semibold px-2.5 py-0.5 rounded-lg font-mono ${timeInfo.badgeClass}`}>{timeInfo.label}</span>
-                          {isDone && taskData.completedAt && <span className="font-semibold font-mono text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-lg">✓ Selesai {taskData.completedAt} WIB</span>}
-                          {taskData.stepsCount && <span className="font-semibold font-mono text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-lg flex items-center gap-1"><Footprints className="w-3.5 h-3.5" /> {taskData.stepsCount} Langkah</span>}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-xs sm:text-sm font-bold leading-tight ${
+                              isDone ? "text-emerald-950" : isPassed ? "text-slate-500 line-through" : "text-slate-900"
+                            }`}
+                          >
+                            {t.number}. {t.title}
+                          </span>
+                          {isPassed && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-100/90 border border-rose-200 px-2 py-0.5 rounded-full font-mono">
+                              <Lock className="w-2.5 h-2.5" /> Terkunci
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t.shortDesc}</p>
+                        
+                        {/* Badges row */}
+                        <div className="flex items-center gap-2 mt-2.5 flex-wrap text-xs">
+                          <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/80">
+                            <Clock className="w-3.5 h-3.5 text-slate-500" /> {t.timeWindow}
+                          </span>
+                          <span className={`font-semibold px-2.5 py-1 rounded-xl font-mono ${timeInfo.badgeClass}`}>
+                            {timeInfo.label}
+                          </span>
+                          {isDone && taskData.completedAt && (
+                            <span className="font-semibold font-mono text-emerald-800 bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-xl">
+                              ✓ Selesai {taskData.completedAt} WIB
+                            </span>
+                          )}
+                          {taskData.stepsCount && (
+                            <span className="font-semibold font-mono text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-xl flex items-center gap-1">
+                              <Footprints className="w-3.5 h-3.5" /> {taskData.stepsCount} Langkah
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+
+                    {/* Action buttons on the right */}
+                    <div className="flex items-center gap-2 self-start sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto justify-end">
                       {t.isPatrol && isMusyrifUser && !isDone && (
-                        <button type="button" onClick={() => { if (!isToday && !isPamongOrKoord) { alert("Patroli hanya dapat dilakukan pada tanggal hari ini."); return; } setActivePatrolTask(t); }} className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-xs active:scale-95 transition-all">
-                          <Footprints className="w-3.5 h-3.5" /> <span>Mulai Patroli ({t.targetSteps || 50} Langkah)</span>
+                        timeInfo.status === "active" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!isToday && !isPamongOrKoord) {
+                                alert("Patroli hanya dapat dilakukan pada tanggal hari ini.");
+                                return;
+                              }
+                              setActivePatrolTask(t);
+                            }}
+                            className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                          >
+                            <Footprints className="w-3.5 h-3.5" /> <span>Mulai Patroli ({t.targetSteps || 100} Langkah)</span>
+                          </button>
+                        ) : isPassed ? (
+                          <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
+                            <Lock className="w-3 h-3" /> <span>Jadwal Terlewat</span>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
+                            <Clock className="w-3 h-3" /> <span>Menunggu Jam</span>
+                          </span>
+                        )
+                      )}
+
+                      {t.key === "cekSakit" && onOpenSantriSakit && (
+                        <button
+                          type="button"
+                          onClick={onOpenSantriSakit}
+                          className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-xl flex items-center gap-1 transition-colors shadow-2xs"
+                        >
+                          <Stethoscope className="w-3.5 h-3.5" /> <span>Data Sakit</span>
                         </button>
                       )}
-                      {t.key === "cekSakit" && onOpenSantriSakit && (
-                        <button type="button" onClick={onOpenSantriSakit} className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors"><Stethoscope className="w-3.5 h-3.5" /> <span>Data Sakit</span></button>
-                      )}
-                      <button type="button" onClick={() => setExpandedTask(isExpanded ? null : t.key)} className="text-xs font-semibold text-slate-500 hover:text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 flex items-center gap-1 transition-colors"><FileText className="w-3.5 h-3.5" /> <span>{taskData.notes ? "Catatan ✓" : "+ Catatan"}</span></button>
+
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTask(isExpanded ? null : t.key)}
+                        className={`text-xs font-bold px-3 py-2 rounded-xl border flex items-center gap-1 transition-all shadow-2xs ${
+                          taskData.notes
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50"
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" /> <span>{taskData.notes ? "Catatan ✓" : "+ Catatan"}</span>
+                      </button>
                     </div>
                   </div>
+
                   {isExpanded && (
-                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 bg-slate-50/70">
-                      <label className="text-xs font-bold text-slate-600 block mb-1">Catatan Pelaksanaan {t.title}:</label>
-                      {isMusyrifUser ? (
-                        <input type="text" value={taskData.notes || ""} onChange={(e) => updateTaskNotes(t.key, e.target.value)} placeholder="Catatan tugas..." className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800" />
+                    <div className="px-4 sm:px-5 pb-4 pt-3 border-t border-slate-100 bg-slate-50/70 space-y-2">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        Catatan Pelaksanaan {t.title}:
+                      </label>
+                      {isMusyrifUser && !isLocked ? (
+                        <input
+                          type="text"
+                          value={taskData.notes || ""}
+                          onChange={(e) => updateTaskNotes(t.key, e.target.value)}
+                          placeholder="Tuliskan catatan pelaksanaan tugas..."
+                          className="w-full text-xs bg-white border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs"
+                        />
                       ) : (
-                        <p className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium">{taskData.notes || <em className="text-slate-400">Tidak ada catatan dari musyrif.</em>}</p>
+                        <p className="text-xs bg-white border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-slate-700 font-medium">
+                          {taskData.notes || (
+                            <em className="text-slate-400">
+                              {isLocked ? "Terkunci (tidak dapat menambahkan catatan pada jadwal terlewat)" : "Tidak ada catatan dari musyrif."}
+                            </em>
+                          )}
+                        </p>
                       )}
                     </div>
                   )}
@@ -676,12 +874,14 @@ export function JurnalLogbookModal({
               );
             })
           )}
-          <div className="bg-white rounded-3xl p-4 border border-slate-200/70 shadow-xs space-y-2">
+
+          {/* Catatan Tambahan Hari Ini */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-2.5">
             <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-600" /> Catatan Tambahan Hari Ini</label>
             {isMusyrifUser ? (
-              <textarea rows={2} value={formState.generalNotes || ""} onChange={(e) => setFormState(prev => ({ ...prev, generalNotes: e.target.value }))} className="w-full text-xs bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-800" />
+              <textarea rows={2} value={formState.generalNotes || ""} onChange={(e) => setFormState(prev => ({ ...prev, generalNotes: e.target.value }))} placeholder="Tuliskan catatan tambahan mengenai kondisi asrama hari ini..." className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs resize-none" />
             ) : (
-              <div className="w-full text-xs bg-slate-50 border border-slate-200 rounded-2xl p-3 text-slate-700 font-medium">{formState.generalNotes || <em className="text-slate-400">Tidak ada catatan tambahan.</em>}</div>
+              <div className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-700 font-medium">{formState.generalNotes || <em className="text-slate-400">Tidak ada catatan tambahan.</em>}</div>
             )}
           </div>
         </div>
@@ -691,7 +891,7 @@ export function JurnalLogbookModal({
           onClose={() => setActivePatrolTask(null)}
           taskTitle={activePatrolTask.title}
           taskIcon={activePatrolTask.icon}
-          targetSteps={activePatrolTask.targetSteps || 60}
+          targetSteps={activePatrolTask.targetSteps || 100}
           initialSteps={formState[activePatrolTask.key]?.stepsCount || 0}
           onConfirmSteps={(steps) => { handlePatrolSuccess(activePatrolTask.key, steps); setActivePatrolTask(null); }}
         />

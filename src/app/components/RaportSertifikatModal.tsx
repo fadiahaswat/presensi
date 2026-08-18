@@ -21,6 +21,7 @@ interface Musyrif {
   tingkat: string;
   asrama: string;
   kamar: string;
+  role?: string;
   pamong?: string;
   email?: string;
   phone?: string;
@@ -52,21 +53,22 @@ export function RaportSertifikatModal({
   mutabaahData = {},
   isPage = false
 }: RaportSertifikatModalProps) {
+  const activeMusyrifList = musyrifList.filter(m => m.role !== "pamong" && m.role !== "koordinator_musyrif");
   const [activeTab, setActiveTab] = useState<"raport" | "sertifikat">("raport");
   const [selectedAsramaFilter, setSelectedAsramaFilter] = useState<string>("all");
-  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(musyrifList[0]?.id || "");
+  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(activeMusyrifList[0]?.id || musyrifList[0]?.id || "");
   const [periodName, setPeriodName] = useState<string>(`Bulan ${format(new Date(), "MMMM yyyy", { locale: id })}`);
 
   // Filter musyrif list by selected asrama
-  const filteredMusyrifList = musyrifList.filter(m => 
+  const filteredMusyrifList = activeMusyrifList.filter(m => 
     selectedAsramaFilter === "all" ? true : m.asrama === selectedAsramaFilter
   );
 
   // Auto-adjust selected musyrif if filtered out
-  const musyrif = filteredMusyrifList.find(m => m.id === selectedMusyrifId) || filteredMusyrifList[0] || musyrifList[0];
+  const musyrif = filteredMusyrifList.find(m => m.id === selectedMusyrifId) || filteredMusyrifList[0] || activeMusyrifList[0] || musyrifList[0];
 
   // Extract unique asrama list
-  const asramaOptions = Array.from(new Set(musyrifList.map(m => m.asrama)));
+  const asramaOptions = Array.from(new Set(activeMusyrifList.map(m => m.asrama)));
 
   // 1. Shalat Fardhu Statistics
   let totalSubuhHadir = 0, totalSubuhIzin = 0, totalSubuhSakit = 0, totalSubuhAlfa = 0;

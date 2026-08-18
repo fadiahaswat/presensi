@@ -17,6 +17,7 @@ interface Musyrif {
   tingkat: string;
   asrama: string;
   kamar: string;
+  role?: string;
   photo?: string;
 }
 
@@ -53,7 +54,8 @@ export function LeaderboardModal({
   const [selectedDetailMusyrif, setSelectedDetailMusyrif] = useState<any | null>(null);
 
   // Calculate scores across the 4 Pillars for each musyrif
-  const leaderboardData = musyrifList.map(m => {
+  const activeMusyrifList = musyrifList.filter(m => m.role !== "pamong" && m.role !== "koordinator_musyrif");
+  const leaderboardData = activeMusyrifList.map(m => {
     // 1. Shalat Fardhu Score (Subuh & Maghrib)
     let hadirCount = 0;
     let izinCount = 0;
