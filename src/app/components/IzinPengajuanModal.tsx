@@ -66,6 +66,7 @@ export function IzinPengajuanModal({
   onDeleteIzin,
   isPage = false
 }: IzinPengajuanModalProps) {
+  const isKoordinator = authUser?.role === "koordinator_musyrif";
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
   const [activeTab, setActiveTab] = useState<"ajukan" | "daftar">(isPamongOrKoord ? "daftar" : "ajukan");
 
@@ -75,12 +76,21 @@ export function IzinPengajuanModal({
   const [filterType, setFilterType] = useState<"all" | "izin" | "sakit">("all");
   const [editingIzin, setEditingIzin] = useState<IzinRequest | null>(null);
 
+  // Scoped Musyrif List for Form
+  const availableMusyrifList = React.useMemo(() => {
+    if (isKoordinator) return musyrifList;
+    if (authUser?.role === "pamong" || authUser?.role === "koordinator_gedung") {
+      return musyrifList.filter(m => m.asrama === authUser.asrama);
+    }
+    return musyrifList.filter(m => m.id === authUser?.musyrifId || m.id === authUser?.id);
+  }, [musyrifList, authUser, isKoordinator]);
+
   // Form State
   const defaultMusyrif = authUser?.musyrifId 
     ? musyrifList.find(m => m.id === authUser.musyrifId) 
-    : musyrifList[0];
+    : availableMusyrifList[0] || musyrifList[0];
 
-  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrif?.id || musyrifList[0]?.id || "");
+  const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrif?.id || availableMusyrifList[0]?.id || musyrifList[0]?.id || "");
   const [type, setType] = useState<"sakit" | "izin">("izin");
   const [category, setCategory] = useState<IzinRequest["category"]>("Izin Pulang / Keluarga");
   const [startDate, setStartDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -91,7 +101,7 @@ export function IzinPengajuanModal({
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
   const resetForm = () => {
-    setSelectedMusyrifId(defaultMusyrif?.id || musyrifList[0]?.id || "");
+    setSelectedMusyrifId(defaultMusyrif?.id || availableMusyrifList[0]?.id || musyrifList[0]?.id || "");
     setType("izin");
     setCategory("Izin Pulang / Keluarga");
     setStartDate(format(new Date(), "yyyy-MM-dd"));
@@ -176,8 +186,18 @@ export function IzinPengajuanModal({
     setActiveTab("daftar");
   };
 
+  // Base Izin List Scoped to User Role & Asrama
+  const roleScopedIzinList = React.useMemo(() => {
+    if (isKoordinator) return izinList;
+    if (authUser?.role === "pamong" || authUser?.role === "koordinator_gedung") {
+      return izinList.filter(item => item.asrama === authUser.asrama);
+    }
+    // Regular musyrif: only see self
+    return izinList.filter(item => item.musyrifId === authUser?.musyrifId || item.musyrifId === authUser?.id);
+  }, [izinList, authUser, isKoordinator]);
+
   // Filtered Izin List
-  const filteredIzinList = izinList.filter(item => {
+  const filteredIzinList = roleScopedIzinList.filter(item => {
     const matchStatus = filterStatus === "all" || item.status === filterStatus;
     const matchType = filterType === "all" || item.type === filterType;
     const q = searchQuery.toLowerCase();
@@ -189,7 +209,7 @@ export function IzinPengajuanModal({
     return matchStatus && matchType && matchSearch;
   });
 
-  const pendingCount = izinList.filter(i => i.status === "pending").length;
+  const pendingCount = roleScopedIzinList.filter(i => i.status === "pending").length;
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
@@ -287,7 +307,7 @@ export function IzinPengajuanModal({
                 onChange={(e) => setSelectedMusyrifId(e.target.value)}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
               >
-                {musyrifList.map(m => (
+                {availableMusyrifList.map(m => (
                   <option key={m.id} value={m.id}>{m.name} - {m.asrama} ({m.kamar})</option>
                 ))}
               </select>
@@ -576,7 +596,7 @@ export function IzinPengajuanModal({
                     )}
 
                     {/* Pamong Review Action */}
-                    {isPamongOrKoord && req.status === "pending" && (
+                    {isPamongOrKoord && (isKoordinator || req.asrama === authUser?.asrama) && req.status === "pending" && (
                       <>
                         <button
                           type="button"

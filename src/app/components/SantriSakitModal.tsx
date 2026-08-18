@@ -55,8 +55,10 @@ export function SantriSakitModal({
   isPage = false
 }: SantriSakitModalProps) {
   const isMusyrif = authUser?.role === "musyrif";
+  const isScopedRole = isMusyrif || authUser?.role === "pamong" || authUser?.role === "koordinator_gedung";
+  const userAsramaSakit = authUser?.asrama || "all";
   const [showAddForm, setShowAddForm] = useState(false);
-  const [filterAsrama, setFilterAsrama] = useState<string>(isMusyrif && authUser?.asrama ? authUser.asrama : "all");
+  const [filterAsrama, setFilterAsrama] = useState<string>(isScopedRole && authUser?.asrama ? authUser.asrama : "all");
   const [filterStatus, setFilterStatus] = useState<"all" | "dalam_perawatan" | "sembuh">("dalam_perawatan");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -392,9 +394,10 @@ export function SantriSakitModal({
             <select
               value={filterAsrama}
               onChange={(e) => setFilterAsrama(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 cursor-pointer outline-none"
+              disabled={isScopedRole}
+              className={`text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 outline-none ${isScopedRole ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
             >
-              <option value="all">Semua Asrama</option>
+              {!isScopedRole && <option value="all">Semua Asrama</option>}
               <option value="Asrama 1">Asrama 1</option>
               <option value="Asrama 8A">Asrama 8A</option>
               <option value="Asrama 8B">Asrama 8B</option>
@@ -505,23 +508,32 @@ export function SantriSakitModal({
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleStartEdit(item)}
-                    title="Edit Data Santri Sakit"
-                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
+                  {(() => {
+                    const canEditDelete = !isMusyrif || 
+                      item.musyrifId === authUser?.id || 
+                      item.musyrifId === authUser?.musyrifId;
+                    return canEditDelete ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(item)}
+                          title="Edit Data Santri Sakit"
+                          className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
 
-                  <button
-                    type="button"
-                    onClick={() => onDeleteSantriSakit(item.id)}
-                    aria-label="Hapus Catatan Medis"
-                    className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSantriSakit(item.id)}
+                          aria-label="Hapus Catatan Medis"
+                          className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 

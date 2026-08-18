@@ -29,6 +29,7 @@ interface PamongManagerModalProps {
   onAddPamong: (pamong: Omit<Pamong, "id">) => void;
   onUpdatePamong: (pamong: Pamong) => void;
   onDeletePamong: (id: string) => void;
+  authUser?: { role?: string; name?: string; email?: string } | null;
   isPage?: boolean;
 }
 
@@ -39,8 +40,10 @@ export function PamongManagerModal({
   onAddPamong,
   onUpdatePamong,
   onDeletePamong,
+  authUser,
   isPage = false
 }: PamongManagerModalProps) {
+  const isKoordinator = authUser?.role === "koordinator_musyrif";
   const activeAsramaList = (asramaList && asramaList.length > 0) ? asramaList : DEFAULT_ASRAMAS;
   const [activeTab, setActiveTab] = useState<"daftar" | "tambah">("daftar");
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,6 +52,53 @@ export function PamongManagerModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [asrama, setAsrama] = useState(activeAsramaList[0] || "Asrama 1");
+
+  if (!isKoordinator) {
+    const deniedContent = (
+      <div className={`p-6 flex flex-col items-center justify-center text-center gap-4 ${isPage ? "max-w-md mx-auto py-16" : ""}`}>
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+          <ShieldCheck className="w-7 h-7" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-800">Akses Terbatas: Koordinator Musyrif</h3>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Pengelolaan akun Master Pamong hanya dapat diakses oleh Koordinator Musyrif (Super Admin).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold active:scale-95 transition-all"
+        >
+          Kembali ke Dasbor
+        </button>
+      </div>
+    );
+
+    if (isPage) return deniedContent;
+
+    return (
+      <motion.div
+        variants={modalBackdropVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+        onClick={onClose}
+      >
+        <motion.div
+          variants={modalContentVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-slate-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {deniedContent}
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   const resetForm = () => {
     setName("");

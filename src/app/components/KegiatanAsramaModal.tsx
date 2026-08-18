@@ -65,10 +65,13 @@ export function KegiatanAsramaModal({
   authUser,
   isPage = false
 }: KegiatanAsramaModalProps) {
+  const isSuperAdmin = authUser?.role === "koordinator_musyrif";
+  const userAsrama = authUser?.asrama || asramaList[0] || "1";
+
   const [activeTab, setActiveTab] = useState<"input" | "riwayat">("input");
   const [selectedActivity, setSelectedActivity] = useState<string>("tahfidz");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [selectedAsrama, setSelectedAsrama] = useState<string>(asramaList[0] || "1");
+  const [selectedAsrama, setSelectedAsrama] = useState<string>(isSuperAdmin ? (asramaList[0] || "1") : userAsrama);
   const [notes, setNotes] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [editingKegiatan, setEditingKegiatan] = useState<KegiatanRecord | null>(null);
@@ -103,7 +106,7 @@ export function KegiatanAsramaModal({
   const resetForm = () => {
     setSelectedActivity("tahfidz");
     setSelectedDate(format(new Date(), "yyyy-MM-dd"));
-    setSelectedAsrama(asramaList[0] || "1");
+    setSelectedAsrama(isSuperAdmin ? (asramaList[0] || "1") : userAsrama);
     setNotes("");
     setAttendance({});
     setEditingKegiatan(null);
@@ -276,7 +279,8 @@ export function KegiatanAsramaModal({
                 <select
                   value={selectedAsrama}
                   onChange={(e) => setSelectedAsrama(e.target.value)}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
+                  disabled={!isSuperAdmin}
+                  className={`w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none ${!isSuperAdmin ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                 >
                   {asramaList.map(a => (
                     <option key={a} value={a}>Asrama {a}</option>
@@ -419,6 +423,8 @@ export function KegiatanAsramaModal({
 
           {kegiatanRecords
             .filter(rec => {
+              // Scope asrama: non-superadmin can only see their own asrama
+              if (!isSuperAdmin && rec.asrama !== userAsrama) return false;
               const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
               const q = riwayatSearch.toLowerCase();
               const matchSearch = !riwayatSearch ||
@@ -442,6 +448,8 @@ export function KegiatanAsramaModal({
           ) : (
             kegiatanRecords
               .filter(rec => {
+                // Scope asrama: non-superadmin can only see their own asrama
+                if (!isSuperAdmin && rec.asrama !== userAsrama) return false;
                 const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
                 const q = riwayatSearch.toLowerCase();
                 const matchSearch = !riwayatSearch ||

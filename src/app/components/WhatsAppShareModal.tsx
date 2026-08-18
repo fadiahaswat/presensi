@@ -31,11 +31,15 @@ interface WhatsAppShareModalProps {
   musyrifList: Musyrif[];
   records: Record<string, AttendanceRecord>;
   asramaList: string[];
+  authUser?: any;
 }
 
-export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList }: WhatsAppShareModalProps) {
+export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, authUser }: WhatsAppShareModalProps) {
+  const isScopedRole = authUser?.role === "pamong" || authUser?.role === "koordinator_gedung";
+  const userAsramaWa = authUser?.asrama || "all";
+
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [selectedAsrama, setSelectedAsrama] = useState<string>("all");
+  const [selectedAsrama, setSelectedAsrama] = useState<string>(isScopedRole && authUser?.asrama ? authUser.asrama : "all");
   const [selectedPrayer, setSelectedPrayer] = useState<"all" | "subuh" | "maghrib">("all");
   const [reportType, setReportType] = useState<"lengkap" | "alfa_only" | "ringkas">("lengkap");
   const [copied, setCopied] = useState<boolean>(false);
@@ -233,9 +237,10 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList }
               <select
                 value={selectedAsrama}
                 onChange={(e) => setSelectedAsrama(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                disabled={isScopedRole}
+                className={`w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${isScopedRole ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
               >
-                <option value="all">Semua Asrama ({asramaList.length})</option>
+                {!isScopedRole && <option value="all">Semua Asrama ({asramaList.length})</option>}
                 {asramaList.map(a => (
                   <option key={a} value={a}>Asrama {a}</option>
                 ))}
