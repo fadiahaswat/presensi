@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Check, Flame, Award, BookOpen, 
   Sparkles, Calendar, TrendingUp, Sun, Moon, Heart, ChevronRight, User, ShieldCheck, Eye, CheckCircle2,
@@ -59,15 +59,16 @@ export function MutabaahYaumiyahModal({
   isPage = false
 }: MutabaahYaumiyahModalProps) {
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
-  const isMusyrifUser = authUser?.role === "musyrif";
+  const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
   
   const activeMusyrifList = useMemo(() => {
-    return musyrifList.filter(m => !m.role || m.role === "musyrif");
-  }, [musyrifList]);
+    if (authUser?.role === "koordinator_gedung") {
+      return musyrifList.filter(m => m.asrama === authUser.asrama);
+    }
+    return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+  }, [musyrifList, authUser]);
 
-  const defaultMusyrifId = isMusyrifUser 
-    ? (authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "") 
-    : (activeMusyrifList[0]?.id || musyrifList[0]?.id || "");
+  const defaultMusyrifId = authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
   
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -77,6 +78,12 @@ export function MutabaahYaumiyahModal({
   const [entry, setEntry] = useState<MutabaahEntry>(() => {
     return mutabaahData[selectedMusyrifId]?.[selectedDate] || DEFAULT_ENTRY;
   });
+
+  // Keep form in sync when props/cloud data, musyrif, or date changes
+  useEffect(() => {
+    const existing = mutabaahData[selectedMusyrifId]?.[selectedDate] || DEFAULT_ENTRY;
+    setEntry(existing);
+  }, [mutabaahData, selectedMusyrifId, selectedDate]);
 
   const handleDateOrMusyrifChange = (mId: string, date: string) => {
     setSelectedMusyrifId(mId);
@@ -156,8 +163,12 @@ export function MutabaahYaumiyahModal({
   const totalFields = 8;
   const scorePct = Math.round((completedCount / totalFields) * 100);
 
-  // Monthly summary for selected Musyrif
-  const mRecords = Object.values(mutabaahData[selectedMusyrifId] || {});
+  // Monthly summary for selected Musyrif (filtered by current selected month)
+  const selectedMonthPrefix = selectedDate ? selectedDate.substring(0, 7) : format(new Date(), "yyyy-MM");
+  const mEntries = mutabaahData[selectedMusyrifId] || {};
+  const mRecords = Object.entries(mEntries)
+    .filter(([dt]) => dt.startsWith(selectedMonthPrefix))
+    .map(([_, r]) => r);
   const monthlyTahajjud = mRecords.filter(r => r.tahajjud).length;
   const monthlyDhuha = mRecords.filter(r => r.dhuha).length;
   const monthlyPuasa = mRecords.filter(r => r.puasaSunnah).length;

@@ -37,6 +37,7 @@ import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
 import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
+import { AppSkeleton } from "./components/AppSkeleton";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
@@ -77,11 +78,11 @@ type MarkFn    = (mid: string, prayer: PrayerSlot, status: AttendanceStatus, dat
 type MarkAllFn = (asrama: string, prayer: PrayerSlot, status: AttendanceStatus, date: string) => void;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRAYER TIME CALCULATOR (Muhammadiyah / KHGT)
+// PRAYER TIME CALCULATOR (Muhammadiyah / KHGT Standard)
 // ─────────────────────────────────────────────────────────────────────────────
-function calcPrayerTimes(date: Date, lat: number, lon: number, tz = 7) {
-  const toR = (d: number) => d * Math.PI / 180;
-  const toD = (r: number) => r * 180 / Math.PI;
+export function calcPrayerTimes(date: Date, lat = -7.807631, lon = 110.350905, tz = 7) {
+  const toR = (d: number) => (d * Math.PI) / 180;
+  const toD = (r: number) => (r * 180) / Math.PI;
   const fix = (h: number) => ((h % 24) + 24) % 24;
 
   const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
@@ -101,10 +102,13 @@ function calcPrayerTimes(date: Date, lat: number, lon: number, tz = 7) {
   const latR = toR(lat);
 
   function ha(angle: number) {
-    const c = (-Math.sin(toR(angle)) - Math.sin(latR) * Math.sin(dec)) / (Math.cos(latR) * Math.cos(dec));
-    return Math.abs(c) > 1 ? NaN : toD(Math.acos(c)) / 15;
+    const c = (Math.sin(toR(angle)) - Math.sin(latR) * Math.sin(dec)) / (Math.cos(latR) * Math.cos(dec));
+    if (c < -1 || c > 1) return NaN;
+    return toD(Math.acos(c)) / 15;
   }
-  const asrShadow = -toD(Math.atan(1 / (1 + Math.tan(Math.abs(latR - dec)))));
+
+  // Ashar: bayang-bayang 1 kali panjang benda + bayang-bayang zawal
+  const asrAlt = toD(Math.atan(1 / (1 + Math.tan(Math.abs(latR - dec)))));
 
   const fmt = (h: number) => {
     if (isNaN(h)) return "--:--";
@@ -113,13 +117,20 @@ function calcPrayerTimes(date: Date, lat: number, lon: number, tz = 7) {
     return `${String(hh).padStart(2,"0")}:${String(mm % 60).padStart(2,"0")}`;
   };
 
+  const subuhRaw = transit - ha(-18) + 2 / 60; // Muhammadiyah -18° + 2m ihtiyat
+  const terbitRaw = transit - ha(-0.8333);
+  const dhuhrRaw = transit + 2 / 60;
+  const asrRaw = transit + ha(asrAlt) + 2 / 60;
+  const maghribRaw = transit + ha(-1) + 2 / 60;
+  const ishaRaw = transit + ha(-18) + 2 / 60;
+
   return [
-    { key:"subuh",   name:"Subuh",   time: fmt(transit - ha(-20)),            raw: transit - ha(-20) },
-    { key:"terbit",  name:"Terbit",  time: fmt(transit - ha(-0.8333)),         raw: transit - ha(-0.8333) },
-    { key:"dhuhr",   name:"Dzuhur",  time: fmt(transit + 2/60),               raw: transit + 2/60 },
-    { key:"asr",     name:"Ashar",   time: fmt(transit + ha(asrShadow)),       raw: transit + ha(asrShadow) },
-    { key:"maghrib", name:"Maghrib", time: fmt(transit + ha(-1) + 2/60),      raw: transit + ha(-1) + 2/60 },
-    { key:"isha",    name:"Isya",    time: fmt(transit + ha(-18)),             raw: transit + ha(-18) },
+    { key:"subuh",   name:"Subuh",   time: fmt(subuhRaw),   raw: subuhRaw },
+    { key:"terbit",  name:"Terbit",  time: fmt(terbitRaw),  raw: terbitRaw },
+    { key:"dhuhr",   name:"Dzuhur",  time: fmt(dhuhrRaw),   raw: dhuhrRaw },
+    { key:"asr",     name:"Ashar",   time: fmt(asrRaw),     raw: asrRaw },
+    { key:"maghrib", name:"Maghrib", time: fmt(maghribRaw), raw: maghribRaw },
+    { key:"isha",    name:"Isya",    time: fmt(ishaRaw),    raw: ishaRaw },
   ];
 }
 
@@ -221,13 +232,12 @@ const ASRAMAS = [
 const AUTH_USERS: AuthUser[] = [
   // ─── KOORDINATOR MUSYRIF ───
   { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com", role:"koordinator_musyrif" },
-  { id:"k2", name:"Akmal Wildan Syifauddin, S.Pd.",    email:"akmalws@muallimin.sch.id",          role:"koordinator_musyrif" },
 
   // ─── PAMONG ASRAMA ───
-  { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galang@muallimin.sch.id",          role:"pamong", asrama:"Asrama 1" },
-  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"aulia.abdan@muallimin.sch.id",     role:"pamong", asrama:"Asrama 8A" },
-  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"anang.fathur@muallimin.sch.id",    role:"pamong", asrama:"Asrama 8B" },
-  { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggit.prabowo@muallimin.sch.id",  role:"pamong", asrama:"Asrama 10" },
+  { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galangmuhammady@muallimin.sch.id", role:"pamong", asrama:"Asrama 1" },
+  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"auliaabdan@muallimin.sch.id",      role:"pamong", asrama:"Asrama 8A" },
+  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"abukaysan86@gmail.com",            role:"pamong", asrama:"Asrama 8B" },
+  { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggitprabowo13@gmail.com",        role:"pamong", asrama:"Asrama 10" },
   { id:"p5",  name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com, cutisrais@gmail.com", role:"pamong", asrama:"Asrama Sedayu Gedung A" },
   { id:"p6",  name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaflubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B" },
   { id:"p7",  name:"M. Ismail Marzuq, S.Sos.",          email:"izmaelpoenya04@gmail.com",         role:"pamong", asrama:"Asrama Sedayu Gedung C" },
@@ -242,7 +252,7 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m4",  name:"Leo Fernando Adnan Muzaki",    role:"musyrif",            kelas:"1 C",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 C",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"leodrfernandofelix@gmail.com",    phone:"6285701209925" },
   { id:"m5",  name:"Husein Nur Alwany",            role:"musyrif",            kelas:"1 D",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 D",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"husennur085@gmail.com",           phone:"6285157379443" },
   { id:"m6",  name:"Arif Rahman, S.s.",            role:"musyrif",            kelas:"1 E",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"nitikan3321@gmail.com",           phone:"6285129334523" },
-  { id:"m7",  name:"M. Fajri",                     role:"musyrif",            kelas:"1 F",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 F",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"",                                phone:"6285189076745" },
+  { id:"m7",  name:"M. Fajri",                     role:"musyrif",            kelas:"1 F",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 F",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"fajrhyiee@gmail.com",             phone:"6285189076745" },
   { id:"m8",  name:"Ajie Saptian Hardiyanto",      role:"musyrif",            kelas:"1 G",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 G",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"saptianaji07@gmail.com",          phone:"6285198234739" },
   { id:"m33", name:"Mukti Abdul Ghofur",           role:"musyrif",            kelas:"4 A",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"muktighofur75@gmail.com",         phone:"6282322272355" },
   { id:"m37", name:"Rasya Adhar Al Islam",         role:"musyrif",            kelas:"4 E",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"rasyaadhar3012@gmail.com",        phone:"62895402680315" },
@@ -253,9 +263,9 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m11", name:"Auzia Difa Mubarok",           role:"musyrif",            kelas:"1 Lower C",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"difaamubaarak@gmail.com",         phone:"6289526256385" },
   { id:"m20", name:"Muhammad Adhwa Janitra Handoko",role:"musyrif",           kelas:"2 Lower A",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"handokohowareyou@gmail.com",      phone:"6287786969082" },
   { id:"m21", name:"Zaky Risky Kurniawan",         role:"musyrif",            kelas:"2 Lower B",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"zakyrisky182@gmail.com",          phone:"6288983445038" },
-  { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",role:"musyrif",        kelas:"2 Lower C",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285217017024" },
+  { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",role:"musyrif",        kelas:"2 Lower C",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285227702845" },
   { id:"m23", name:"Abdullah, S.Pd.",              role:"musyrif",            kelas:"3 A",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 A",         pamong:"Rais Yudhistira, Lc.",                email:"abdullahmuallimin@muallimin.sch.id",phone:"62881025916368" },
-  { id:"m31", name:"Muhammad Akbar Adi Wijaya",    role:"musyrif",            kelas:"3 Upper A",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"akbaradiwijaya@gmail.com",        phone:"6285923336740" },
+  { id:"m31", name:"Muhammad Akbar Adi Wijaya",    role:"musyrif",            kelas:"3 Upper A",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"muhammadakbaarr123@gmail.com",    phone:"6285923336740" },
   { id:"m32", name:"Mouldy Mohammad Zayyed",       role:"musyrif",            kelas:"3 Upper B",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"mouldymaz@gmail.com",             phone:"6285155347353" },
   { id:"m39", name:"Ayyasy Kaizen Birruna",        role:"musyrif",            kelas:"4 Upper A",   tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung A", kamar:"4 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"catatankaizen@gmail.com",         phone:"6285930404552" },
   { id:"m40", name:"Hafidz Nawaf Fauzil Adhim, S.Pd.",role:"koordinator_gedung",kelas:"4 Upper B",tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung A", kamar:"4 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"fauziladhim2001@gmail.com",       phone:"6282241935414" },
@@ -280,7 +290,7 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m27", name:"Muhammad Syaqib Ridho Asy Syafiq",role:"musyrif",         kelas:"3 E",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 E",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"idoosakippp@gmail.com",           phone:"628988158493" },
   { id:"m28", name:"Muhammad Islam Al Ghozy",      role:"musyrif",            kelas:"3 F",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 F",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muhammadislamalghozy2801@gmail.com",phone:"6281233421108" },
   { id:"m29", name:"Ahmad Arif Kurniawan",         role:"musyrif",            kelas:"3 G",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 G",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"ahmadarifkurniawan1809@gmail.com",phone:"6282233624304" },
-  { id:"m30", name:"Ananda Hasan Putra Rahman",    role:"musyrif",            kelas:"3 H",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 H",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"",                                phone:"6289509904184" },
+  { id:"m30", name:"Ananda Hasan Putra Rahman",    role:"musyrif",            kelas:"3 H",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 H",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"primechild597@gmail.com",         phone:"6289509904184" },
   { id:"m34", name:"Rayhan Bachtiar Dwi Bayu Baskara",role:"koordinator_gedung",kelas:"4 B",      tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung B", kamar:"4 B",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"rayhan.baskara68@gmail.com",      phone:"6281225841078" },
 
   // ─── ASRAMA 8C & 8A KELAS 6 (Pamong: Aulia Abdan Idza Shalla, S.Th.I.) ───
@@ -294,7 +304,7 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m41", name:"Wildan Faalul Abror",          role:"musyrif",            kelas:"5 A",         tingkat:"Kelas 5", asrama:"Asrama 8C",              kamar:"5 A",         pamong:"Anang Fathurrahman, Lc.",             email:"wildanabror00@gmail.com",         phone:"6281233318388" },
   { id:"m42", name:"Rahmat Khoirul Anwar, S.Psi.", role:"musyrif",            kelas:"5 B",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 B",         pamong:"Anang Fathurrahman, Lc.",             email:"rahmatkhoirulanwar23@gmail.com",  phone:"6285335241954" },
   { id:"m43", name:"Muhammad Rafi Feriansyah",     role:"musyrif",            kelas:"5 C",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 C",         pamong:"Anang Fathurrahman, Lc.",             email:"",                                phone:"62881025797090" },
-  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"62882003685998" },
+  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"6285876258079" },
 
   // ─── ASRAMA 10 (Pamong: Inggit Prabowo, S.Pd.) ───
   { id:"m45", name:"Dymas Naufal El Fawaz",        role:"musyrif",            kelas:"5 E",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 E",         pamong:"Inggit Prabowo, S.Pd.",               email:"dymasn@muallimin.sch.id",         phone:"6285117732302" },
@@ -416,12 +426,21 @@ function isDbAdmin(u: AuthUser | null): boolean { return !!u && u.email === ADMI
 
 function computeStreak(mid: string, records: AttendanceRecord[]) {
   let cur = 0, best = 0, tmp = 0;
+  let streakBroken = false;
   const base = new Date(); base.setDate(base.getDate() - 1);
   for (let i = 0; i < 90; i++) {
     const d = new Date(base); d.setDate(d.getDate() - i);
     const r = records.find(x => x.musyrifId === mid && x.date === format(d,"yyyy-MM-dd"));
-    if (r?.subuh === "hadir" && r?.maghrib === "hadir") { tmp++; if (i === 0) cur = tmp; }
-    else { best = Math.max(best, tmp); tmp = 0; if (i === 0) cur = 0; }
+    if (r?.subuh === "hadir" && r?.maghrib === "hadir") { 
+      tmp++; 
+      if (!streakBroken) {
+        cur = tmp;
+      }
+    } else { 
+      streakBroken = true;
+      best = Math.max(best, tmp); 
+      tmp = 0; 
+    }
   }
   return { cur, best: Math.max(best, tmp, cur) };
 }
@@ -429,11 +448,12 @@ function computeStreak(mid: string, records: AttendanceRecord[]) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF EXPORT
 // ─────────────────────────────────────────────────────────────────────────────
-function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: string) {
+function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: string, musyrifListAll?: Musyrif[]) {
   const mk = format(month,"yyyy-MM");
   const days = eachDayOfInterval({ start:startOfMonth(month), end:endOfMonth(month) })
     .filter(d => !isBefore(new Date(),startOfDay(d)) || isToday(d));
-  const list = (asramaFilter === "Semua" ? MUSYRIF_LIST : MUSYRIF_LIST.filter(m => m.asrama === asramaFilter)).filter(isFieldMusyrif);
+  const sourceList = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
+  const list = (asramaFilter === "Semua" ? sourceList : sourceList.filter(m => m.asrama === asramaFilter)).filter(isFieldMusyrif);
 
   const rows = list.map((m,i) => {
     const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
@@ -766,8 +786,7 @@ function PageDashboard({
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Subuh Action Card */}
           {(() => {
-            const subuhObj = prayerTimes.find(p => p.key === "subuh");
-            const subuhOpenTime = (subuhObj?.raw ?? 4.5) - 15 / 60;
+            const subuhOpenTime = 4.0; // Buka jam 04:00 WIB
             const isSubuhLocked = nowH < subuhOpenTime;
 
             return (
@@ -799,7 +818,7 @@ function PageDashboard({
                         ? "bg-amber-950/30 text-amber-100"
                         : "bg-emerald-950/30 text-emerald-100"
                     }`}>
-                      {isSubuhLocked ? `🔒 Buka ${subuhObj?.time || "04:30"} WIB` : belumS.length > 0 ? `${belumS.length} belum terisi` : "Lengkap ✓"}
+                      {isSubuhLocked ? "🔒 Buka 04:00 WIB" : belumS.length > 0 ? `${belumS.length} belum terisi` : "Lengkap ✓"}
                     </span>
                   </div>
                 </div>
@@ -814,8 +833,7 @@ function PageDashboard({
 
           {/* Maghrib Action Card */}
           {(() => {
-            const maghribObj = prayerTimes.find(p => p.key === "maghrib");
-            const maghribOpenTime = (maghribObj?.raw ?? 17.75) - 15 / 60;
+            const maghribOpenTime = 17.0; // Buka jam 17:00 WIB (5 sore)
             const isMaghribLocked = nowH < maghribOpenTime;
 
             return (
@@ -847,7 +865,7 @@ function PageDashboard({
                         ? "bg-teal-950/30 text-teal-100"
                         : "bg-emerald-950/30 text-emerald-100"
                     }`}>
-                      {isMaghribLocked ? `🔒 Buka ${maghribObj?.time || "17:45"} WIB` : belumM.length > 0 ? `${belumM.length} belum terisi` : "Lengkap ✓"}
+                      {isMaghribLocked ? "🔒 Buka 17:00 WIB" : belumM.length > 0 ? `${belumM.length} belum terisi` : "Lengkap ✓"}
                     </span>
                   </div>
                 </div>
@@ -1312,7 +1330,7 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 10. Master Data Musyrif (SCRUD) */}
+            {/* 10. Master Data Personel & Musyrif (SCRUD) */}
             <button
               type="button"
               onClick={() => onOpenMusyrifManager ? onOpenMusyrifManager() : onGoTo("musyrif-manager")}
@@ -1328,7 +1346,7 @@ function PageDashboard({
               </div>
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Master Musyrif</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Kelola & data musyrif</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Kelola seluruh musyrif & koord</p>
               </div>
             </button>
 
@@ -1701,39 +1719,65 @@ function PageInputPrayer({
   const [noteFor, setNoteFor] = useState<{ id: string; prayer: PrayerSlot } | null>(null);
   const [noteText, setNoteText] = useState("");
   const [confirmAll, setConfirmAll] = useState<PrayerSlot | null>(null);
+  const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
+  const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
 
-  if (!authUser || authUser.role === "musyrif") return (
+  if (!authUser) return (
     <div className="flex flex-col items-center justify-center gap-6 py-20 text-center px-4">
       <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center shadow-xs">
         <Lock className="w-8 h-8 text-amber-600"/>
       </div>
       <div>
         <h2 className="text-xl font-bold text-slate-800">
-          {authUser?.role === "musyrif" ? "Akses Khusus Pamong & Koordinator" : "Akses Terbatas"}
+          Akses Terbatas
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-sm mx-auto leading-relaxed">
-          {authUser?.role === "musyrif"
-            ? "Akun Musyrif hanya memiliki hak akses untuk melihat Riwayat Presensi pribadi. Pengisian presensi ibadah dilakukan oleh Pamong Asrama dan Koordinator."
-            : "Silakan masuk dengan akun Google Pamong atau Koordinator untuk mengisi presensi."}
+          Silakan masuk dengan akun Google Musyrif, Pamong, atau Koordinator untuk mengakses presensi ibadah.
         </p>
       </div>
-      {authUser?.role === "musyrif" ? (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-medium max-w-xs">
-          💡 Silakan buka tab <b>Riwayat</b> pada navigasi di bawah untuk melihat kalender dan status kehadiran Anda.
-        </div>
-      ) : (
-        <button onClick={onLogin} className="flex items-center gap-2 bg-emerald-600 text-white font-semibold px-6 py-3 rounded-2xl shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all text-xs">
-          <LogIn className="w-4 h-4"/> Masuk Akun Google
-        </button>
-      )}
+      <button onClick={onLogin} className="flex items-center gap-2 bg-emerald-600 text-white font-semibold px-6 py-3 rounded-2xl shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all text-xs">
+        <LogIn className="w-4 h-4"/> Masuk Akun Google
+      </button>
     </div>
   );
 
+  const isMusyrifOnly = authUser.role === "musyrif";
   const fullAccess = hasFullAccess(authUser);
-  const activeAsrama = fullAccess ? selAsrama : authUser.asrama!;
+  const isSedayuPamong = authUser.role === "pamong" && (authUser.asrama || "").toLowerCase().includes("sedayu");
+
+  // Determine allowed asramas for this user
+  const allowedAsramaList = useMemo(() => {
+    if (fullAccess) return ASRAMAS;
+    if (isSedayuPamong) return ASRAMAS.filter(a => a.toLowerCase().includes("sedayu"));
+    return authUser.asrama ? [authUser.asrama] : [ASRAMAS[0]];
+  }, [fullAccess, isSedayuPamong, authUser.asrama]);
+
+  // If currently selected asrama is not in allowed list, reset to first allowed
+  const activeAsrama = allowedAsramaList.includes(selAsrama) 
+    ? selAsrama 
+    : (allowedAsramaList[0] || authUser.asrama || ASRAMAS[0]);
+
   const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
+  
+  // Musyrif only sees his own record in his dormitory or full building list where only he can edit himself
   const musyrifList = allM.filter(m => m.asrama === activeAsrama && isFieldMusyrif(m));
   const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
+
+  // Find logged in musyrif ID
+  const myMusyrifId = authUser.musyrifId || authUser.id;
+
+  // Run GPS Check for Musyrif
+  useEffect(() => {
+    if (isMusyrifOnly && activeAsrama) {
+      setIsCheckingGps(true);
+      checkAsramaGeofenceBrowser(activeAsrama).then(res => {
+        setGpsResult(res);
+        setIsCheckingGps(false);
+      }).catch(() => {
+        setIsCheckingGps(false);
+      });
+    }
+  }, [isMusyrifOnly, activeAsrama]);
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
   const doneCount = musyrifList.filter(m => Boolean(getRecord(m.id)?.[slot])).length;
@@ -1752,10 +1796,16 @@ function PageInputPrayer({
   const isTodayDate = selDate === todayStr();
   const isFuture = selDate > todayStr();
 
-  // Presensi dibuka 15 menit sebelum masuk waktu sholat
-  const openTimeRaw = prayerRaw - 15 / 60;
+  // Presensi Subuh buka jam 04:00 WIB dan Maghrib jam 17:00 WIB
+  const openTimeRaw = isSubuh ? 4.0 : 17.0;
+  const openTimeDisplayStr = isSubuh ? "04:00" : "17:00";
+  // Waktu tutup presensi mandiri musyrif: Subuh 06:00 WIB, Maghrib 19:30 WIB
+  const closeTimeRaw = isSubuh ? 6.0 : 19.5;
+  const closeTimeDisplayStr = isSubuh ? "06:00" : "19:30";
+
   const isNotYetTime = isTodayDate && curDecimal < openTimeRaw;
-  const isLocked = isFuture || isNotYetTime;
+  const isPastTimeMusyrif = isMusyrifOnly && isTodayDate && curDecimal > closeTimeRaw;
+  const isLocked = isFuture || isNotYetTime || (isMusyrifOnly && (!isTodayDate || isPastTimeMusyrif));
 
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
     if (isFuture) {
@@ -1763,8 +1813,26 @@ function PageInputPrayer({
       return;
     }
     if (isNotYetTime) {
-      showToast?.(`Presensi ${p === "subuh" ? "Subuh" : "Maghrib"} belum dibuka (Waktu shalat: ${prayerTimeStr} WIB).`, "error");
+      showToast?.(`Presensi ${p === "subuh" ? "Subuh" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
       return;
+    }
+    if (isMusyrifOnly) {
+      if (!isTodayDate) {
+        showToast?.("Presensi mandiri musyrif hanya dapat diisi pada hari berjalan (hari ini).", "error");
+        return;
+      }
+      if (curDecimal > closeTimeRaw) {
+        showToast?.(`Waktu presensi mandiri ${p === "subuh" ? "Subuh" : "Maghrib"} telah ditutup pada pukul ${closeTimeDisplayStr} WIB.`, "error");
+        return;
+      }
+      if (mid !== myMusyrifId && !matchesEmail(authUser.email, musyrifList.find(m => m.id === mid)?.email || "")) {
+        showToast?.("Anda hanya memiliki wewenang untuk mengisi presensi mandiri atas nama Anda sendiri.", "error");
+        return;
+      }
+      if (gpsResult && !gpsResult.isInRange) {
+        showToast?.(`Lokasi Anda di luar radius ${activeAsrama} (${gpsResult.distanceMeters}m). Harap presensi di lingkungan asrama/masjid.`, "error");
+        return;
+      }
     }
     triggerHaptic(s === "hadir" ? "light" : "medium");
     onMark(mid, p, s, selDate, note);
@@ -1875,15 +1943,15 @@ function PageInputPrayer({
           </div>
         </div>
 
-        {/* Asrama Filter Pills */}
-        {fullAccess && (
+        {/* Asrama Filter Pills (Available for Koordinator and Sedayu Pamongs) */}
+        {allowedAsramaList.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none pt-0.5">
-            {ASRAMAS.map(a => (
+            {allowedAsramaList.map(a => (
               <button
                 key={a}
                 onClick={() => setSelAsrama(a)}
                 className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-                  selAsrama === a
+                  activeAsrama === a
                     ? (isSubuh ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25" : "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25")
                     : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                 }`}
@@ -1894,6 +1962,43 @@ function PageInputPrayer({
           </div>
         )}
       </div>
+
+      {/* Geofence Alert Banner for Musyrif User */}
+      {isMusyrifOnly && (
+        <div className={`rounded-2xl p-3.5 border flex items-center justify-between gap-3 text-xs ${
+          isCheckingGps ? "bg-slate-50 border-slate-200 text-slate-600" :
+          gpsResult?.isInRange ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
+          "bg-rose-50 border-rose-200 text-rose-800"
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              gpsResult?.isInRange ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+            }`}>
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold">
+                {isCheckingGps ? "Memeriksa Lokasi GPS..." : gpsResult?.isInRange ? "Lokasi Valid (Di Lingkungan Asrama / Masjid)" : "Di Luar Jangkauan Asrama"}
+              </p>
+              <p className="text-[11px] opacity-80">
+                {gpsResult?.matchedBuilding ? `Terdeteksi di area: ${gpsResult.matchedBuilding}` : `Radius valid ${activeAsrama}. Jarak Anda: ${gpsResult?.distanceMeters ?? "?"}m`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setIsCheckingGps(true);
+              checkAsramaGeofenceBrowser(activeAsrama).then(res => {
+                setGpsResult(res);
+                setIsCheckingGps(false);
+              }).catch(() => setIsCheckingGps(false));
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 text-[11px] shrink-0"
+          >
+            Refresh GPS
+          </button>
+        </div>
+      )}
 
       {isFuture && (
         <div className="bg-amber-50 border border-amber-200/80 rounded-2xl px-4 py-2.5 text-xs text-amber-700 flex items-center gap-2">
@@ -1917,7 +2022,7 @@ function PageInputPrayer({
               </span>
             </div>
             <p className="text-xs text-rose-700/90 mt-1 leading-relaxed">
-              Jadwal ibadah {isSubuh ? "Subuh" : "Maghrib"} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai 15 menit sebelum masuk waktu sholat.
+              Jadwal ibadah {isSubuh ? "Subuh" : "Maghrib"} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> ({isSubuh ? "jam 4 pagi" : "jam 5 sore"}).
             </p>
           </div>
         </div>
@@ -1928,20 +2033,26 @@ function PageInputPrayer({
         <div className="bg-white rounded-2xl p-3 sm:p-3.5 shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-bold text-slate-700 truncate">Progress {activeAsrama}</span>
-              <span className={`text-xs font-bold font-mono ${isSubuh ? "text-amber-600" : "text-emerald-600"}`}>
-                {doneCount}/{musyrifList.length} <span className="text-[10px] text-slate-400 font-normal">({musyrifList.length ? Math.round((doneCount/musyrifList.length)*100) : 0}%)</span>
+              <span className="text-xs font-semibold text-slate-500">
+                {isMusyrifOnly ? "Status Presensi Mandiri Anda" : "Progress Presensi"}
+              </span>
+              <span className="text-xs font-bold text-slate-700 font-mono">
+                {doneCount} / {musyrifList.length} Musyrif
               </span>
             </div>
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${isSubuh ? "bg-amber-500" : "bg-emerald-500"}`}
-                style={{width:`${musyrifList.length?(doneCount/musyrifList.length)*100:0}%`}}
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-300 ${
+                  isSubuh 
+                    ? "bg-gradient-to-r from-amber-400 to-amber-500" 
+                    : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                }`}
+                style={{ width: `${musyrifList.length > 0 ? (doneCount / musyrifList.length) * 100 : 0}%` }}
               />
             </div>
           </div>
 
-          {doneCount < musyrifList.length && !isLocked && (
+          {!isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
             <button
               onClick={()=>setConfirmAll(slot)}
               className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 ${
@@ -1954,7 +2065,7 @@ function PageInputPrayer({
             </button>
           )}
 
-          {isNotYetTime && (
+          {isNotYetTime && !isMusyrifOnly && (
             <span className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 flex items-center gap-1.5 cursor-not-allowed">
               <Lock className="w-3.5 h-3.5"/> Terkunci
             </span>
@@ -1963,24 +2074,26 @@ function PageInputPrayer({
       )}
 
       {/* 3. Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-        <input 
-          value={search} 
-          onChange={e=>setSearch(e.target.value)} 
-          placeholder="Cari nama musyrif..." 
-          className="w-full pl-10 pr-9 py-2 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
-        />
-        {search && (
-          <button 
-            onClick={()=>setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all"
-            title="Hapus pencarian"
-          >
-            <X className="w-3 h-3"/>
-          </button>
-        )}
-      </div>
+      {!isMusyrifOnly && (
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+          <input 
+            value={search} 
+            onChange={e=>setSearch(e.target.value)} 
+            placeholder="Cari nama musyrif..." 
+            className="w-full pl-10 pr-9 py-2 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
+          />
+          {search && (
+            <button 
+              onClick={()=>setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all"
+              title="Hapus pencarian"
+            >
+              <X className="w-3 h-3"/>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Cards: Single prayer focused view */}
       <div className="flex flex-col gap-3">
@@ -1989,15 +2102,22 @@ function PageInputPrayer({
           const cur = rec?.[slot];
           const note = slot === "subuh" ? rec?.subuhNote : rec?.maghribNote;
           const isDone = Boolean(cur);
+          const isMe = m.id === myMusyrifId || matchesEmail(authUser.email, m.email || "");
+          const isCardDisabled = isLocked || (isMusyrifOnly && !isMe);
 
           return (
-            <Card key={m.id} cls={isDone ? "ring-2 ring-emerald-200" : isNotYetTime ? "opacity-75 bg-slate-50/40" : ""} ch={<div className="p-3.5 sm:p-4">
+            <Card key={m.id} cls={`${isDone ? "ring-2 ring-emerald-200" : isNotYetTime ? "opacity-75 bg-slate-50/40" : ""} ${isMusyrifOnly && isMe ? "ring-2 ring-amber-400/80 bg-amber-50/10" : ""}`} ch={<div className="p-3.5 sm:p-4">
               <div className="flex items-center gap-3 mb-3">
                 <Av name={m.name} src={m.photo}/>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="font-bold text-sm text-slate-800 truncate">{m.name}</p>
                     <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold font-mono">{m.kelas}</span>
+                    {isMusyrifOnly && isMe && (
+                      <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 font-bold px-1.5 py-0.5 rounded-full">
+                        Akun Anda
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-400 truncate mt-0.5">Pamong: {m.pamong || "-"}</p>
                 </div>
@@ -2014,6 +2134,10 @@ function PageInputPrayer({
                 ) : isNotYetTime ? (
                   <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
                     <Lock className="w-3 h-3"/> Belum Waktunya
+                  </span>
+                ) : isPastTimeMusyrif ? (
+                  <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
+                    <Lock className="w-3 h-3"/> Waktu Habis
                   </span>
                 ) : (
                   <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 flex-shrink-0 font-medium">Belum Presensi</span>
@@ -2035,10 +2159,18 @@ function PageInputPrayer({
                 {(["hadir","sakit","izin","alfa"] as AttendanceStatus[]).map(s=>(
                   <button
                     key={s}
-                    disabled={isLocked}
+                    disabled={isCardDisabled}
                     onClick={()=>{
-                      if (isLocked) {
-                        showToast?.(`Presensi ${isSubuh ? "Subuh" : "Maghrib"} belum dibuka (Waktu: ${prayerTimeStr} WIB).`, "error");
+                      if (isCardDisabled) {
+                        if (isMusyrifOnly && !isMe) {
+                          showToast?.("Anda hanya dapat mengisi presensi mandiri atas nama Anda sendiri.", "error");
+                        } else if (isNotYetTime) {
+                          showToast?.(`Presensi ${isSubuh ? "Subuh" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
+                        } else if (isPastTimeMusyrif) {
+                          showToast?.(`Waktu presensi mandiri ${isSubuh ? "Subuh" : "Maghrib"} telah ditutup (${closeTimeDisplayStr} WIB).`, "error");
+                        } else if (gpsResult && !gpsResult.isInRange) {
+                          showToast?.(`Lokasi Anda di luar jangkauan (${gpsResult.distanceMeters}m). Harap presensi di masjid/asrama.`, "error");
+                        }
                         return;
                       }
                       if(cur===s&&onResetMark){
@@ -2051,12 +2183,12 @@ function PageInputPrayer({
                     className={`min-h-[44px] py-2.5 px-1 rounded-2xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${
                       cur===s
                         ? `${S[s].btn} shadow-xs ring-2 ring-emerald-500/20 scale-[1.02]`
-                        : isLocked
+                        : isCardDisabled
                         ? "bg-slate-100/70 text-slate-400 border border-slate-200/50 cursor-not-allowed"
                         : "bg-slate-100/90 text-slate-700 hover:bg-slate-200 active:scale-95 border border-slate-200/50"
                     }`}
                   >
-                    {isLocked && cur !== s && <Lock className="w-3 h-3 text-slate-400 mr-0.5" />}
+                    {isCardDisabled && cur !== s && <Lock className="w-3 h-3 text-slate-400 mr-0.5" />}
                     <span>{S[s].label}</span>
                   </button>
                 ))}
@@ -2219,7 +2351,7 @@ function PageRekap({
           </div>
           <button
             type="button"
-            onClick={()=>exportPDF(records,viewMonth,filterAsrama)}
+            onClick={()=>exportPDF(records,viewMonth,filterAsrama,musyrifListAll)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-white/15 hover:bg-white/25 text-white border border-white/20 transition-all active:scale-95 flex-shrink-0 backdrop-blur-sm"
           >
             <Printer className="w-3.5 h-3.5"/>
@@ -2588,12 +2720,15 @@ function PageRiwayat({
 
   const isPersonalMusyrif = authUser.role === "musyrif";
   const isPamongOrKoord = authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung";
+  const isSedayuPamong = authUser.role === "pamong" && (authUser.asrama || "").toLowerCase().includes("sedayu");
 
   const allowed = isPersonalMusyrif
     ? allM.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
     : hasFullAccess(authUser)
       ? allM
-      : allM.filter(m => m.asrama === authUser.asrama);
+      : isSedayuPamong
+        ? allM.filter(m => (m.asrama || "").toLowerCase().includes("sedayu"))
+        : allM.filter(m => m.asrama === authUser.asrama);
 
   const musyrif = isPersonalMusyrif
     ? (allowed[0] ?? allM.find(m => m.id === authUser.musyrifId) ?? allM[0])
@@ -3870,14 +4005,14 @@ function LoginModal({
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOT APP
 // ─────────────────────────────────────────────────────────────────────────────
-const STORAGE_KEY_RECORDS = "presensi_attendance_records_v2";
-const STORAGE_KEY_IZIN = "presensi_izin_requests_v2";
-const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v2";
-const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v2";
-const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v2";
-const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v2";
-const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v2";
-const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v2";
+const STORAGE_KEY_RECORDS = "presensi_attendance_records_v5";
+const STORAGE_KEY_IZIN = "presensi_izin_requests_v5";
+const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v5";
+const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v5";
+const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v5";
+const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v5";
+const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v5";
+const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v5";
 const SYNC_TABLE_AUTH_USERS = "AuthUsers";
 
 const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
@@ -3892,19 +4027,7 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     tingkat: "Semua Tingkat", 
     pamong: "Pimpinan Asrama", 
     email: "andiaqillahfadiahaswat@gmail.com", 
-    phone: "6282180998704" 
-  },
-  { 
-    id: "k2", 
-    name: "Akmal Wildan Syifauddin, S.Pd.", 
-    role: "koordinator_musyrif", 
-    asrama: "Semua Asrama", 
-    kamar: "Kantor Koordinator", 
-    kelas: "Seluruh Tingkat", 
-    tingkat: "Semua Tingkat", 
-    pamong: "Pimpinan Asrama", 
-    email: "akmalws@muallimin.sch.id", 
-    phone: "6285729112233" 
+    phone: "6285339213109" 
   },
 
   // ─── PAMONG ASRAMA ───
@@ -3917,8 +4040,8 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     kelas: "Kelas 5 & 6", 
     tingkat: "Kelas 5", 
     pamong: "Pimpinan Asrama", 
-    email: "galang@muallimin.sch.id",          
-    phone: "6281284985750" 
+    email: "galangmuhammady@muallimin.sch.id",          
+    phone: "6287711559827" 
   },
   { 
     id: "p2",  
@@ -3929,8 +4052,8 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     kelas: "Kelas 5 & 6", 
     tingkat: "Kelas 5", 
     pamong: "Pimpinan Asrama", 
-    email: "aulia.abdan@muallimin.sch.id",     
-    phone: "6285729112234" 
+    email: "auliaabdan@muallimin.sch.id",     
+    phone: "6285725891945" 
   },
   { 
     id: "p3",  
@@ -3941,8 +4064,8 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     kelas: "Kelas 5 & 6", 
     tingkat: "Kelas 5", 
     pamong: "Pimpinan Asrama", 
-    email: "anang.fathur@muallimin.sch.id",    
-    phone: "6285729112235" 
+    email: "abukaysan86@gmail.com",    
+    phone: "6281804181182" 
   },
   { 
     id: "p4",  
@@ -3953,8 +4076,8 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     kelas: "Kelas 5 & 6", 
     tingkat: "Kelas 5", 
     pamong: "Pimpinan Asrama", 
-    email: "inggit.prabowo@muallimin.sch.id",  
-    phone: "6285729112236" 
+    email: "inggitprabowo13@gmail.com",  
+    phone: "6285377407742" 
   },
   { 
     id: "p5", 
@@ -3966,7 +4089,7 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     tingkat: "Kelas 1", 
     pamong: "Pimpinan Asrama", 
     email: "raiscutis@gmail.com, cutisrais@gmail.com",              
-    phone: "6282342754336" 
+    phone: "6281399548580" 
   },
   { 
     id: "p6",  
@@ -3978,7 +4101,7 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     tingkat: "Kelas 1", 
     pamong: "Pimpinan Asrama", 
     email: "ahnaflubab@muallimin.sch.id",      
-    phone: "6285729112238" 
+    phone: "6285779006160" 
   },
   { 
     id: "p7",  
@@ -3990,7 +4113,7 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     tingkat: "Kelas 2", 
     pamong: "Pimpinan Asrama", 
     email: "izmaelpoenya04@gmail.com",         
-    phone: "6282145765850" 
+    phone: "6285326693918" 
   },
   { 
     id: "p8",  
@@ -4002,32 +4125,36 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     tingkat: "Kelas 1", 
     pamong: "Pimpinan Asrama", 
     email: "arilamarta@gmail.com",             
-    phone: "6285701209925" 
+    phone: "6285848589328" 
   },
 
   // ─── DAFTAR MUSYRIF (Termasuk Koordinator Gedung yang juga Musyrif) ───
   ...MUSYRIF_LIST
 ];
 
-const DEPRECATED_PERSONNEL_IDS = new Set(["m8b", "m50", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6"]);
+const DEPRECATED_PERSONNEL_IDS = new Set(["m8b", "m50", "k2", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6"]);
 
 function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return DEFAULT_ALL_PERSONNEL;
 
-  // 1. Filter out deprecated IDs and auto-delete from Google Sheets queue if found
+  // 1. Filter out deprecated IDs, test records, and auto-delete from Google Sheets queue if found
   const filtered = rawList.filter(p => {
     if (!p || !p.id) return false;
-    if (DEPRECATED_PERSONNEL_IDS.has(p.id) || (p.name && p.name.toLowerCase().includes("naufal muzakki"))) {
-      try {
-        googleSyncService.enqueue("Musyrif", { id: p.id }, "delete");
-      } catch {}
+    const nameLow = (p.name || "").toLowerCase();
+    const emailLow = (p.email || "").toLowerCase();
+    const isTestItem = nameLow.includes("testing") || nameLow.includes("test ") || emailLow.includes("testing");
+
+    // Filter out obsolete/ghost IDs from old tests
+    if (
+      DEPRECATED_PERSONNEL_IDS.has(p.id) ||
+      nameLow.includes("naufal muzakki") ||
+      isTestItem ||
+      (p.id.startsWith("m_") && (!p.name || p.name.trim() === "" || p.role === "pamong"))
+    ) {
       return false;
     }
     // Also filter out any ghost item with id starting with "g" or kelas "Gedung A/B/C/D"
     if (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role)) {
-      try {
-        googleSyncService.enqueue("Musyrif", { id: p.id }, "delete");
-      } catch {}
       return false;
     }
     return true;
@@ -4035,48 +4162,32 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
 
   // 2. Normalization & role adjustments
   const normalized = filtered.map(p => {
-    if (p.id === "m49") {
+    if (p.id === "m49" && (!p.kelas || p.kelas === "5 Upper C")) {
       return { ...p, kelas: "5 Upper C & 6 Internasional", kamar: "5 Upper C & 6 Int.", tingkat: "Kelas 5 & 6" };
-    }
-    if (p.id === "p5") {
-      return { ...p, email: "raiscutis@gmail.com, cutisrais@gmail.com" };
-    }
-    if (["m1", "m34", "m36", "m40", "m47", "m48"].includes(p.id)) {
-      return { ...p, role: "koordinator_gedung" as Role };
     }
     return p;
   });
 
-  // 3. Deduplicate by Name + Asrama (in case ID differed between gX and mX)
+  // 3. Deduplicate by ID
   const seenIds = new Set<string>();
-  const seenNameAsrama = new Set<string>();
   const deduped: Musyrif[] = [];
 
   for (const item of normalized) {
-    const cleanName = (item.name || "").trim().toLowerCase();
-    const cleanAsrama = (item.asrama || "").trim().toLowerCase();
-    const nameAsramaKey = `${cleanName}_${cleanAsrama}`;
-
-    if (!seenIds.has(item.id) && (!cleanName || !seenNameAsrama.has(nameAsramaKey))) {
+    if (!seenIds.has(item.id)) {
       seenIds.add(item.id);
-      if (cleanName) seenNameAsrama.add(nameAsramaKey);
       deduped.push(item);
     }
   }
 
-  // 4. Merge any missing defaults from DEFAULT_ALL_PERSONNEL
-  const existingIds = new Set(deduped.map(p => p.id));
-  const missingDefaults = DEFAULT_ALL_PERSONNEL.filter(p => !existingIds.has(p.id));
-  const result = missingDefaults.length > 0 ? [...missingDefaults, ...deduped] : deduped;
-  
   try {
-    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(result));
+    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(deduped));
   } catch {}
   
-  return result;
+  return deduped;
 }
 
 export default function App() {
+  const [isInitialSyncing, setIsInitialSyncing] = useState<boolean>(true);
   const [musyrifList, setMusyrifList] = useState<Musyrif[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MUSYRIF);
@@ -4272,6 +4383,12 @@ export default function App() {
   const [timeSyncState, setTimeSyncState] = useState<TimeSyncState | null>(null);
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
 
+  // Prayer Calculation for Alarm and Global Widgets
+  const rootPrayerTimes = useMemo(() => calcPrayerTimes(now, -7.807631, 110.350905, 7), [now]);
+  const rootNowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const rootActiveIdx = [...rootPrayerTimes].reduce((best, p, i) => p.raw <= rootNowH ? i : best, -1);
+  const nextPrayer = rootPrayerTimes[(rootActiveIdx + 1) % rootPrayerTimes.length];
+
   // Dynamic Navigation Items based on Role / Public Mode
   const navItems = useMemo(() => {
     if (!authUser) {
@@ -4301,12 +4418,17 @@ export default function App() {
   // Route Fallback when in public mode or role restrictions
   useEffect(() => {
     if (!authUser) {
-      if (page === "subuh" || page === "maghrib" || page === "riwayat") {
+      if (page === "subuh" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager") {
         setPage("dashboard");
       }
-    } else if (authUser.role === "musyrif") {
-      if (page === "subuh" || page === "maghrib") {
+    } else if (authUser.role !== "koordinator_musyrif") {
+      if (page === "musyrif-manager" || page === "pamong-manager") {
         setPage("dashboard");
+        showToast("Akses ditolak: Menu Master Data hanya untuk Koordinator Musyrif.", "error");
+      } else if (authUser.role === "musyrif") {
+        if (page === "subuh" || page === "maghrib") {
+          setPage("dashboard");
+        }
       }
     }
   }, [authUser, page]);
@@ -4366,15 +4488,6 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(authUsers)); } catch {}
   }, [authUsers]);
 
-  // Sync initial personnel list to Google Sheets in background
-  useEffect(() => {
-    if (musyrifList && musyrifList.length > 0) {
-      musyrifList.forEach(p => {
-        googleSyncService.enqueue("Musyrif", p, "upsert");
-      });
-    }
-  }, []);
-
   // Initial Cloud Hydration & Realtime Delta Subscription
   useEffect(() => {
     // 1. Subscribe to incoming delta updates from Google Sheets
@@ -4384,34 +4497,30 @@ export default function App() {
       // Full replace: always set state directly from Sheet (even if empty [])
       // This wipes stale localStorage cache when Sheet is empty
       if (isFullReplace) {
-        if (tbl === "records") {
-          setRecords(Array.isArray(cloudRecords) ? cloudRecords : []);
-        } else if (tbl === "izin") {
-          setIzinList(Array.isArray(cloudRecords) ? cloudRecords : []);
-        } else if (tbl === "kegiatan") {
-          setKegiatanRecords(Array.isArray(cloudRecords) ? cloudRecords : []);
-        } else if (tbl === "santrisakit") {
-          setSantriSakitList(Array.isArray(cloudRecords) ? cloudRecords : []);
-        } else if (tbl === "musyrif") {
-          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-            setMusyrifList(sanitizeMusyrifList(cloudRecords));
-          }
-        } else if (tbl === "authusers") {
-          if (Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-            setAuthUsers(cloudRecords);
-          }
-        } else if (tbl === "logbook") {
+        if (tbl === "records" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setRecords(cloudRecords);
+        } else if (tbl === "izin" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setIzinList(cloudRecords);
+        } else if (tbl === "kegiatan" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setKegiatanRecords(cloudRecords);
+        } else if (tbl === "santrisakit" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setSantriSakitList(cloudRecords);
+        } else if (tbl === "musyrif" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setMusyrifList(sanitizeMusyrifList(cloudRecords));
+        } else if (tbl === "authusers" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setAuthUsers(cloudRecords);
+        } else if (tbl === "logbook" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           const next: LogbookStorage = {};
-          (cloudRecords || []).forEach((cr: any) => {
+          cloudRecords.forEach((cr: any) => {
             if (cr.musyrifId && cr.date) {
               if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
               next[cr.musyrifId][cr.date] = cr;
             }
           });
           setLogbookData(next);
-        } else if (tbl === "mutabaah") {
+        } else if (tbl === "mutabaah" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           const next: MutabaahStorage = {};
-          (cloudRecords || []).forEach((cr: any) => {
+          cloudRecords.forEach((cr: any) => {
             if (cr.musyrifId && cr.date) {
               if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
               next[cr.musyrifId][cr.date] = cr;
@@ -4536,9 +4645,19 @@ export default function App() {
 
     // 2. Perform initial full cloud pull — this is the Single Source of Truth
     // Always fetch from Sheet on startup; state will be replaced via isFullReplace flag
-    if (googleSyncService.getGasUrl()) {
-      googleSyncService.fetchAllFromCloud();
-    }
+    const initSync = async () => {
+      if (googleSyncService.getGasUrl() && navigator.onLine) {
+        try {
+          const syncPromise = googleSyncService.fetchAllFromCloud();
+          // Timeout race: maximum 3.5s loading time to prevent hanging on bad/slow connections
+          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3500));
+          await Promise.race([syncPromise, timeoutPromise]);
+        } catch (_) {}
+      }
+      setIsInitialSyncing(false);
+    };
+
+    initSync();
 
     return unsubData;
   }, []);
@@ -4567,8 +4686,12 @@ export default function App() {
     setPage("dashboard");
   };
 
-  // Master Data Musyrif SCRUD Handlers (Synchronized to Google Sheet)
+  // Master Data Musyrif SCRUD Handlers (Strictly Restricted to Koordinator Musyrif: Andi Aqillah)
   const handleAddMusyrif = (newM: Omit<Musyrif, "id">) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang menambah data personel.", "error");
+      return;
+    }
     const newId = `m_${Date.now()}`;
     const created: Musyrif = { ...newM, id: newId };
     setMusyrifList(prev => sanitizeMusyrifList([created, ...prev]));
@@ -4577,12 +4700,20 @@ export default function App() {
   };
 
   const handleUpdateMusyrif = (updated: Musyrif) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang mengubah data personel.", "error");
+      return;
+    }
     setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => m.id === updated.id ? updated : m)));
     googleSyncService.enqueue("Musyrif", updated, "upsert");
     showToast(`Data personel ${updated.name} berhasil diperbarui!`, "success");
   };
 
   const handleDeleteMusyrif = (id: string) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang menghapus data personel.", "error");
+      return;
+    }
     const target = musyrifList.find(m => m.id === id);
     setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
     googleSyncService.enqueue("Musyrif", { id }, "delete");
@@ -4597,32 +4728,94 @@ export default function App() {
   );
 
   const handleAddPamong = (newPamong: Omit<Pamong, "id">) => {
-    const created: AuthUser = {
-      id: `p_${Date.now()}`,
-      name: newPamong.name,
-      email: newPamong.email.trim().toLowerCase(),
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang menambah data pamong.", "error");
+      return;
+    }
+    const pId = `p_${Date.now()}`;
+    const cleanEmail = newPamong.email.trim().toLowerCase();
+    const createdAuth: AuthUser = {
+      id: pId,
+      name: newPamong.name.trim(),
+      email: cleanEmail,
       role: "pamong",
       asrama: newPamong.asrama,
     };
-    setAuthUsers(prev => [created, ...prev]);
-    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, created, "upsert");
-    showToast(`Pamong ${created.name} berhasil ditambahkan!`, "success");
+    const createdMusyrif: Musyrif = {
+      id: pId,
+      name: newPamong.name.trim(),
+      role: "pamong",
+      asrama: newPamong.asrama,
+      kamar: `Ruang Pamong ${newPamong.asrama.replace("Asrama ", "")}`,
+      kelas: "Multi Tingkat",
+      tingkat: "Semua Tingkat",
+      pamong: "Pimpinan Asrama",
+      email: cleanEmail,
+    };
+
+    setAuthUsers(prev => [createdAuth, ...prev]);
+    setMusyrifList(prev => sanitizeMusyrifList([createdMusyrif, ...prev]));
+
+    // Auto update pamong field in musyrifs of that asrama
+    setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => m.asrama === newPamong.asrama && m.role !== "pamong" && m.role !== "koordinator_musyrif" ? { ...m, pamong: newPamong.name.trim() } : m)));
+
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, createdAuth, "upsert");
+    googleSyncService.enqueue("Musyrif", createdMusyrif, "upsert");
+    showToast(`Pamong ${createdAuth.name} berhasil ditambahkan!`, "success");
   };
 
   const handleUpdatePamong = (updatedPamong: Pamong) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang mengubah data pamong.", "error");
+      return;
+    }
+    const cleanEmail = updatedPamong.email.trim().toLowerCase();
+    const cleanName = updatedPamong.name.trim();
+
     setAuthUsers(prev => prev.map(u => (
       u.id === updatedPamong.id
-        ? { ...u, name: updatedPamong.name, email: updatedPamong.email.trim().toLowerCase(), asrama: updatedPamong.asrama, role: "pamong" as Role }
+        ? { ...u, name: cleanName, email: cleanEmail, asrama: updatedPamong.asrama, role: "pamong" as Role }
         : u
     )));
-    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { ...updatedPamong, role: "pamong" as Role }, "upsert");
-    showToast(`Data pamong ${updatedPamong.name} berhasil diperbarui!`, "success");
+
+    setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => {
+      if (m.id === updatedPamong.id) {
+        return { ...m, name: cleanName, email: cleanEmail, asrama: updatedPamong.asrama, role: "pamong" };
+      }
+      if (m.asrama === updatedPamong.asrama && m.role !== "pamong" && m.role !== "koordinator_musyrif") {
+        return { ...m, pamong: cleanName };
+      }
+      return m;
+    })));
+
+    const authPayload = { id: updatedPamong.id, name: cleanName, email: cleanEmail, asrama: updatedPamong.asrama, role: "pamong" as Role };
+    const musyrifPayload: Musyrif = {
+      id: updatedPamong.id,
+      name: cleanName,
+      role: "pamong",
+      asrama: updatedPamong.asrama,
+      kamar: `Ruang Pamong ${updatedPamong.asrama.replace("Asrama ", "")}`,
+      kelas: "Multi Tingkat",
+      tingkat: "Semua Tingkat",
+      pamong: "Pimpinan Asrama",
+      email: cleanEmail,
+    };
+
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, authPayload, "upsert");
+    googleSyncService.enqueue("Musyrif", musyrifPayload, "upsert");
+    showToast(`Data pamong ${cleanName} berhasil diperbarui!`, "success");
   };
 
   const handleDeletePamong = (id: string) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang menghapus data pamong.", "error");
+      return;
+    }
     const target = authUsers.find(u => u.id === id && u.role === "pamong");
     setAuthUsers(prev => prev.filter(u => u.id !== id));
+    setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
     googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete");
+    googleSyncService.enqueue("Musyrif", { id }, "delete");
     showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
   };
 
@@ -4698,10 +4891,22 @@ export default function App() {
     googleSyncService.enqueue("Izin", updatedIzin, "upsert");
 
     if (approved) {
-      const dates = [target.startDate];
-      if (target.endDate !== target.startDate) {
-        dates.push(target.endDate);
+      let dates: string[] = [];
+      try {
+        const startD = parseISO(target.startDate);
+        const endD = parseISO(target.endDate);
+        if (startD <= endD) {
+          dates = eachDayOfInterval({ start: startD, end: endD }).map(d => format(d, "yyyy-MM-dd"));
+        } else {
+          dates = [target.startDate];
+        }
+      } catch {
+        dates = [target.startDate];
+        if (target.endDate && target.endDate !== target.startDate) {
+          dates.push(target.endDate);
+        }
       }
+
       dates.forEach(d => {
         if (target.prayerSlot === "all" || target.prayerSlot === "subuh") {
           handleMark(target.musyrifId, "subuh", target.type, d, target.reason);
@@ -4710,7 +4915,7 @@ export default function App() {
           handleMark(target.musyrifId, "maghrib", target.type, d, target.reason);
         }
       });
-      showToast(`Izin ${target.musyrifName} disetujui & presensi otomatis diperbarui!`, "success");
+      showToast(`Izin ${target.musyrifName} disetujui & presensi otomatis diperbarui (${dates.length} hari)!`, "success");
     } else {
       showToast(`Pengajuan izin ${target.musyrifName} ditolak.`, "info");
     }
@@ -4926,6 +5131,10 @@ export default function App() {
       setPullDistance(0);
     }
   };
+
+  if (isInitialSyncing) {
+    return <AppSkeleton />;
+  }
 
   return (
     <div 
@@ -5440,8 +5649,8 @@ export default function App() {
         {showAlarm && (
           <AlarmNotificationManager
             onClose={() => setShowAlarm(false)}
-            nextPrayerName={new Date().getHours() < 12 ? "Subuh" : "Maghrib"}
-            nextPrayerTime={new Date().getHours() < 12 ? "04:35" : "17:48"}
+            nextPrayerName={nextPrayer?.name || "Subuh"}
+            nextPrayerTime={nextPrayer?.time || "04:38"}
           />
         )}
       </AnimatePresence>

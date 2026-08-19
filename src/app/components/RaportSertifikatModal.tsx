@@ -73,19 +73,21 @@ export function RaportSertifikatModal({
   let totalSubuhHadir = 0, totalSubuhIzin = 0, totalSubuhSakit = 0, totalSubuhAlfa = 0;
   let totalMaghribHadir = 0, totalMaghribIzin = 0, totalMaghribSakit = 0, totalMaghribAlfa = 0;
 
-  Object.values(records).forEach(rec => {
-    if (rec.musyrifId === musyrif.id) {
-      if (rec.subuh === "hadir") totalSubuhHadir++;
-      else if (rec.subuh === "izin") totalSubuhIzin++;
-      else if (rec.subuh === "sakit") totalSubuhSakit++;
-      else if (rec.subuh === "alfa") totalSubuhAlfa++;
+  if (musyrif) {
+    Object.values(records).forEach(rec => {
+      if (rec.musyrifId === musyrif.id) {
+        if (rec.subuh === "hadir") totalSubuhHadir++;
+        else if (rec.subuh === "izin") totalSubuhIzin++;
+        else if (rec.subuh === "sakit") totalSubuhSakit++;
+        else if (rec.subuh === "alfa") totalSubuhAlfa++;
 
-      if (rec.maghrib === "hadir") totalMaghribHadir++;
-      else if (rec.maghrib === "izin") totalMaghribIzin++;
-      else if (rec.maghrib === "sakit") totalMaghribSakit++;
-      else if (rec.maghrib === "alfa") totalMaghribAlfa++;
-    }
-  });
+        if (rec.maghrib === "hadir") totalMaghribHadir++;
+        else if (rec.maghrib === "izin") totalMaghribIzin++;
+        else if (rec.maghrib === "sakit") totalMaghribSakit++;
+        else if (rec.maghrib === "alfa") totalMaghribAlfa++;
+      }
+    });
+  }
 
   const totalSlots = (totalSubuhHadir + totalSubuhIzin + totalSubuhSakit + totalSubuhAlfa) +
                      (totalMaghribHadir + totalMaghribIzin + totalMaghribSakit + totalMaghribAlfa);
@@ -94,7 +96,7 @@ export function RaportSertifikatModal({
 
   // 2. Logbook 11 Tasks Statistics
   let totalLogbookDone = 0;
-  const mLogbook = logbookData[musyrif.id] || {};
+  const mLogbook = musyrif ? (logbookData[musyrif.id] || {}) : {};
   Object.values(mLogbook).forEach(entry => {
     LOGBOOK_TASKS.forEach(t => {
       if (entry[t.key]?.done) totalLogbookDone++;
@@ -103,13 +105,15 @@ export function RaportSertifikatModal({
 
   // 3. Agenda Khusus Asrama Statistics
   let totalKegiatanHadir = 0;
-  kegiatanRecords.forEach(k => {
-    if (k.attendees?.[musyrif.id] === "hadir") totalKegiatanHadir++;
-  });
+  if (musyrif) {
+    kegiatanRecords.forEach(k => {
+      if (k.attendees?.[musyrif.id] === "hadir") totalKegiatanHadir++;
+    });
+  }
 
   // 4. Mutaba'ah Sunnah Statistics
   let totalMutabaahDone = 0;
-  const mMutabaah = mutabaahData[musyrif.id] || {};
+  const mMutabaah = musyrif ? (mutabaahData[musyrif.id] || {}) : {};
   Object.values(mMutabaah).forEach(entry => {
     if (entry.tahajjud) totalMutabaahDone++;
     if (entry.dhuha) totalMutabaahDone++;
@@ -253,7 +257,13 @@ export function RaportSertifikatModal({
 
       {/* Main Preview Container */}
       <div className="pb-8">
-        {activeTab === "raport" ? (
+        {!musyrif ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm">
+            <User className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="font-bold text-slate-700 text-sm">Tidak Ada Musyrif Terpilih</h3>
+            <p className="text-xs text-slate-400 mt-1">Silakan sesuaikan filter asrama atau tambahkan musyrif pada sistem.</p>
+          </div>
+        ) : activeTab === "raport" ? (
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
             {/* Header Raport Resmi */}
             <div className="flex items-center justify-between pb-5 border-b border-slate-200">

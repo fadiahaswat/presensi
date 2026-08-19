@@ -188,7 +188,7 @@ export function IzinPengajuanModal({
 
   // Base Izin List Scoped to User Role & Asrama
   const roleScopedIzinList = React.useMemo(() => {
-    if (isKoordinator) return izinList;
+    if (!authUser || isKoordinator) return izinList;
     if (authUser?.role === "pamong" || authUser?.role === "koordinator_gedung") {
       return izinList.filter(item => item.asrama === authUser.asrama);
     }

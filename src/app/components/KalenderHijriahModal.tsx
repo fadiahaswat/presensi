@@ -37,48 +37,14 @@ interface KalenderHijriahModalProps {
 
 const DAY_NAMES = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
-// Simple calculation for prayer times on any date at specific coordinates (Yogyakarta / default)
+import { calcPrayerTimes } from "../App";
+
 function getPrayerTimesForDate(date: Date) {
-  const d = date.getDate(), m = date.getMonth() + 1, y = date.getFullYear();
-  const a = Math.floor((14 - m) / 12);
-  const y2 = y + 4800 - a;
-  const m2 = m + 12 * a - 3;
-  const jd = d + Math.floor((153 * m2 + 2) / 5) + 365 * y2 + Math.floor(y2 / 4) - Math.floor(y2 / 100) + Math.floor(y2 / 400) - 32045;
-  const d2 = jd - 2451545.0;
-  const g = (357.529 + 0.98560028 * d2) % 360;
-  const q = (280.459 + 0.98564736 * d2) % 360;
-  const L = (q + 1.915 * Math.sin(g * Math.PI / 180) + 0.02 * Math.sin(2 * g * Math.PI / 180)) % 360;
-  const e = 23.439 - 0.00000036 * d2;
-  const ra = Math.atan2(Math.cos(e * Math.PI / 180) * Math.sin(L * Math.PI / 180), Math.cos(L * Math.PI / 180)) * 180 / Math.PI / 15;
-  const eq = q / 15 - ((ra + 24) % 24);
-  const dec = Math.asin(Math.sin(e * Math.PI / 180) * Math.sin(L * Math.PI / 180)) * 180 / Math.PI;
-
-  const lat = -7.807631;
-  const lon = 110.350905;
-  const tz = 7;
-  const transit = 12 + tz - lon / 15 - eq;
-  const ha = (alt: number) => {
-    const cosHA = (Math.sin(alt * Math.PI / 180) - Math.sin(lat * Math.PI / 180) * Math.sin(dec * Math.PI / 180)) /
-      (Math.cos(lat * Math.PI / 180) * Math.cos(dec * Math.PI / 180));
-    if (cosHA < -1 || cosHA > 1) return 0;
-    return Math.acos(cosHA) * 180 / Math.PI / 15;
-  };
-
-  const fmt = (t: number) => {
-    const hours = Math.floor(((t % 24) + 24) % 24);
-    const mins = Math.floor((((t % 24) + 24) % 24 - hours) * 60);
-    return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-  };
-
-  const asrAlt = Math.atan(1 + Math.tan(Math.abs(lat - dec) * Math.PI / 180)) * 180 / Math.PI;
-
-  return [
-    { name: "Subuh", time: fmt(transit - ha(-18) + 2 / 60) },
-    { name: "Dzuhur", time: fmt(transit + 2 / 60) },
-    { name: "Ashar", time: fmt(transit + ha(asrAlt) + 2 / 60) },
-    { name: "Maghrib", time: fmt(transit + ha(-1) + 2 / 60) },
-    { name: "Isya", time: fmt(transit + ha(-18) + 2 / 60) },
-  ];
+  const prayers = calcPrayerTimes(date, -7.807631, 110.350905, 7);
+  return prayers.filter(p => p.key !== "terbit").map(p => ({
+    name: p.name,
+    time: p.time
+  }));
 }
 
 export const KalenderHijriahModal: React.FC<KalenderHijriahModalProps> = ({

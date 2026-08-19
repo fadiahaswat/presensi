@@ -84,7 +84,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "moon",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   },
   {
     key: "bakdaSubuh",
@@ -113,7 +113,7 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "stethoscope",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   },
   {
     key: "sisirSekolah",
@@ -128,37 +128,37 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "door",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 120
+    targetSteps: 150
   },
   {
     key: "jagaGerbang",
     number: 5,
     title: "Menjaga Gerbang Asrama",
     shortDesc: "Menjaga ketertiban keluar-masuk santri dan tamu asrama",
-    timeWindow: "07:00 – 07:30 & 14:00 – 15:00 WIB",
+    timeWindow: "07:00 – 07:30 WIB",
     startHour: 7,
     startMinute: 0,
-    endHour: 15,
-    endMinute: 0,
+    endHour: 7,
+    endMinute: 30,
     icon: "shield",
-    category: "Siang",
+    category: "Pagi",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   },
   {
     key: "oprakAshar",
     number: 6,
     title: "Menyisir Kamar untuk Shalat Ashar",
-    shortDesc: "Mengoprak-oprak santri di kamar untuk shalat Ashar berjamaah di masjid",
-    timeWindow: "15:00 – 15:30 WIB",
-    startHour: 15,
-    startMinute: 0,
+    shortDesc: "Mengoprak-oprak santri di kamar untuk shalat Ashar (H-30 s/d H+15 adzan)",
+    timeWindow: "14:45 – 15:45 WIB",
+    startHour: 14,
+    startMinute: 45,
     endHour: 15,
-    endMinute: 30,
+    endMinute: 45,
     icon: "sun",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   },
   {
     key: "oprakMandi",
@@ -173,33 +173,33 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "sparkles",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   },
   {
     key: "sisirMaghrib",
     number: 8,
     title: "Menyisir Kamar Menjelang Maghrib",
-    shortDesc: "Memastikan tidak ada santri tertinggal di kamar saat adzan Maghrib berkumandang",
-    timeWindow: "17:30 – 18:00 WIB",
+    shortDesc: "Menyisir kamar santri jelang shalat Maghrib (H-30 s/d H+15 adzan)",
+    timeWindow: "17:25 – 18:15 WIB",
     startHour: 17,
-    startMinute: 30,
+    startMinute: 25,
     endHour: 18,
-    endMinute: 0,
+    endMinute: 15,
     icon: "moon",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 120
+    targetSteps: 150
   },
   {
     key: "bakdaMaghrib",
     number: 9,
     title: "Mendampingi Pembelajaran Ba'da Maghrib",
-    shortDesc: "Mendampingi tahsin, tilawah Qur'an, dan kultum malam santri",
-    timeWindow: "18:20 – 19:15 WIB",
+    shortDesc: "Mendampingi tahsin, tilawah Qur'an, dan pembelajaran malam santri",
+    timeWindow: "18:00 – 19:00 WIB",
     startHour: 18,
-    startMinute: 20,
+    startMinute: 0,
     endHour: 19,
-    endMinute: 15,
+    endMinute: 0,
     icon: "book",
     category: "Malam",
     isPatrol: false
@@ -209,30 +209,30 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     number: 10,
     title: "Mendampingi Belajar Malam Mandiri",
     shortDesc: "Mendampingi jam belajar malam santri dan kedisiplinan asrama",
-    timeWindow: "20:00 – 21:30 WIB",
-    startHour: 20,
+    timeWindow: "19:00 – 20:30 WIB",
+    startHour: 19,
     startMinute: 0,
-    endHour: 21,
+    endHour: 20,
     endMinute: 30,
     icon: "graduation",
     category: "Malam",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   },
   {
     key: "cekTidur",
     number: 11,
-    title: "Menyisir Kamar & Memastikan Santri Tidur",
+    title: "Menyisir Kamar untuk Tidur",
     shortDesc: "Memastikan lampu kamar dimatikan, pintu terkunci, dan santri tidur tertib",
-    timeWindow: "22:00 – 22:30 WIB",
-    startHour: 22,
-    startMinute: 0,
+    timeWindow: "20:30 – 22:00 WIB",
+    startHour: 20,
+    startMinute: 30,
     endHour: 22,
-    endMinute: 30,
+    endMinute: 0,
     icon: "bed",
     category: "Malam",
     isPatrol: true,
-    targetSteps: 100
+    targetSteps: 150
   }
 ];
 
@@ -275,16 +275,17 @@ export function JurnalLogbookModal({
   onOpenSantriSakit,
   isPage = false
 }: JurnalLogbookModalProps) {
-  const isMusyrifUser = authUser?.role === "musyrif";
+  const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
 
   const activeMusyrifList = useMemo(() => {
-    return musyrifList.filter(m => !m.role || m.role === "musyrif");
-  }, [musyrifList]);
+    if (authUser?.role === "koordinator_gedung") {
+      return musyrifList.filter(m => m.asrama === authUser.asrama);
+    }
+    return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+  }, [musyrifList, authUser]);
 
-  const defaultMusyrifId = isMusyrifUser 
-    ? (authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "") 
-    : (activeMusyrifList[0]?.id || musyrifList[0]?.id || "");
+  const defaultMusyrifId = authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -891,7 +892,7 @@ export function JurnalLogbookModal({
           onClose={() => setActivePatrolTask(null)}
           taskTitle={activePatrolTask.title}
           taskIcon={activePatrolTask.icon}
-          targetSteps={activePatrolTask.targetSteps || 100}
+          targetSteps={activePatrolTask.targetSteps || 150}
           initialSteps={formState[activePatrolTask.key]?.stepsCount || 0}
           onConfirmSteps={(steps) => { handlePatrolSuccess(activePatrolTask.key, steps); setActivePatrolTask(null); }}
         />

@@ -13,6 +13,7 @@ import {
   getSavedKetentuanPerpulangan,
   canUserScrudKalender,
 } from "../data/kalenderPendidikanData";
+import { getTrustedDate } from "../utils/trustedTime";
 
 interface CountdownPerpulanganCardProps {
   userEmail?: string | null;
@@ -34,7 +35,7 @@ interface TimeRemaining {
 }
 
 function calculateTimeRemaining(targetDate: Date): TimeRemaining {
-  const now = new Date();
+  const now = getTrustedDate();
   const diffMs = targetDate.getTime() - now.getTime();
 
   if (diffMs <= 0) {
@@ -62,13 +63,13 @@ export const CountdownPerpulanganCard: React.FC<CountdownPerpulanganCardProps> =
   const activeFilter = propFilterKelas ?? internalFilter;
 
   const [jadwalList, setJadwalList] = useState<JadwalPerpulangan[]>(getSavedJadwalPerpulangan);
-  const [now, setNow] = useState<Date>(new Date());
+  const [now, setNow] = useState<Date>(getTrustedDate);
 
   const canScrud = canUserScrudKalender(userEmail, userRole);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setNow(new Date());
+      setNow(getTrustedDate());
     }, 1000);
     return () => clearInterval(timer);
   }, []);

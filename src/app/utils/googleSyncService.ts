@@ -28,8 +28,8 @@ type DataUpdateListener = (table: string, records: any[], isFullReplace?: boolea
 
 const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzulnnHPTuqMZ6FwkLb1_3ZKgH5HzYvm1zgG1MaxYeXKKoT0BL6W89q8hDmChB5S94aHQ/exec";
 const GAS_URL_KEY = "presensi_gas_url";
-const LAST_SYNC_KEY = "presensi_last_sync_timestamp";
-const QUEUE_KEY = "presensi_sync_outbox_queue";
+const LAST_SYNC_KEY = "presensi_last_sync_timestamp_v5";
+const QUEUE_KEY = "presensi_sync_outbox_queue_v5";
 
 class GoogleSyncService {
   private gasUrl: string = DEFAULT_GAS_URL;
@@ -61,7 +61,16 @@ class GoogleSyncService {
       this.lastSyncedAt = localStorage.getItem(LAST_SYNC_KEY) || null;
       const savedQueue = localStorage.getItem(QUEUE_KEY);
       if (savedQueue) {
-        this.queue = JSON.parse(savedQueue);
+        const parsed: SyncQueueItem[] = JSON.parse(savedQueue);
+        const forbiddenIds = new Set(["k2", "m8b", "m50", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6"]);
+        this.queue = Array.isArray(parsed) ? parsed.filter(q => {
+          if (!q || !q.id) return false;
+          if (forbiddenIds.has(q.id)) return false;
+          const recName = (q.record?.name || "").toLowerCase();
+          if (recName.includes("testing") || recName.includes("test ")) return false;
+          if (q.id.startsWith("m_178705") || q.id.startsWith("m_178710") || q.id.startsWith("m_178703")) return false;
+          return true;
+        }) : [];
       }
     } catch (_) {}
 

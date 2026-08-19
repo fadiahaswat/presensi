@@ -8,7 +8,7 @@ export interface GpsLocation {
 }
 
 export interface RoutePoint {
-  x: number; // Normalized coordinate for mini-map rendering
+  x: number; // Normalized coordinate for mini-map rendering (10..90)
   y: number;
   timestamp: number;
 }
@@ -32,16 +32,27 @@ export class PedometerService {
   private steps = 0;
   private isActive = false;
   private lastStepTime = 0;
-  private lastMagnitude = 9.8;
   private startTime = 0;
   private elapsedSeconds = 0;
   private timerInterval?: any;
 
-  // Step detection constants (realistic human walking)
-  private readonly STEP_MIN_THRESHOLD = 11.5; // Peak threshold for step
-  private readonly STEP_MAX_THRESHOLD = 26.0; // Max threshold to prevent aggressive phone shaking
-  private readonly STEP_MIN_INTERVAL = 340; // Minimum ms between human footsteps (~2.9 steps/sec max)
-  private readonly STEP_MAX_INTERVAL = 2500; // Reset cadence if pause > 2.5s
+  // Digital Signal Processing (DSP) & Step Detection Filters
+  private gravity = { x: 0, y: 0, z: 9.8 };
+  private alpha = 0.82; // Faster gravity tracking
+  private filteredMagnitude = 0;
+  private prevMagnitude = 0;
+  private prevSlope = 0;
+  
+  // Rolling Window Adaptive Peak-Valley Thresholding
+  private magHistory: number[] = [];
+  private readonly MAG_HISTORY_LEN = 20; // ~0.4s window
+  private dynamicThreshold = 0.85; // Lower dynamic floor for gentle walking
+  private minPeakThreshold = 0.68; // High sensitivity for slow indoor footsteps
+  private maxPeakThreshold = 14.0; // Broad tolerance
+
+  // Step Timing Constraints (Natural walking 0.45Hz - 3.5Hz)
+  private readonly STEP_MIN_INTERVAL = 280; // ~3.5 steps/sec max
+  private readonly STEP_MAX_INTERVAL = 2500; // 2.5s inactivity reset
   private recentStepTimes: number[] = [];
 
   // GPS & Anti-Room-Spinning
@@ -95,6 +106,8 @@ export class PedometerService {
     this.isActive = true;
     this.startTime = Date.now() - this.elapsedSeconds * 1000;
     this.recentStepTimes = [];
+    this.magHistory = [];
+    this.gravity = { x: 0, y: 0, z: 9.8 };
 
     // Start motion sensor
     window.addEventListener("devicemotion", this.handleMotion, true);
@@ -141,55 +154,114 @@ export class PedometerService {
     this.maxDisplacementMeters = 0;
     this.totalGpsDistanceMeters = 0;
     this.rawCoordinates = [];
+    this.magHistory = [];
     this.routePoints = [{ x: 50, y: 50, timestamp: Date.now() }];
     this.emitTelemetry();
   }
 
   public simulateStep() {
     this.steps += 1;
-    this.recentStepTimes.push(Date.now());
+    const now = Date.now();
+    this.lastStepTime = now;
+    this.recentStepTimes.push(now);
+    if (this.recentStepTimes.length > 15) this.recentStepTimes.shift();
+
+    // Stride length ~0.75m
     this.totalGpsDistanceMeters += 0.75;
-    if (this.maxDisplacementMeters < this.totalGpsDistanceMeters * 0.4) {
-      this.maxDisplacementMeters = Math.round(this.totalGpsDistanceMeters * 0.4);
+    if (this.maxDisplacementMeters < this.totalGpsDistanceMeters * 0.45) {
+      this.maxDisplacementMeters = Math.round(this.totalGpsDistanceMeters * 0.45);
     }
     
-    // Add simulated route point wandering
+    // Add realistic wandering GPS trail
     const lastPt = this.routePoints[this.routePoints.length - 1] || { x: 50, y: 50 };
-    const angle = (this.steps * 25 * Math.PI) / 180;
-    const nextX = Math.max(10, Math.min(90, lastPt.x + Math.cos(angle) * 3.5));
-    const nextY = Math.max(10, Math.min(90, lastPt.y + Math.sin(angle) * 3.5));
-    this.routePoints.push({ x: nextX, y: nextY, timestamp: Date.now() });
+    const angle = (this.steps * 18 * Math.PI) / 180 + Math.sin(this.steps * 0.3) * 0.5;
+    const stepDist = 2.2 + (Math.sin(this.steps) * 0.8);
+    const nextX = Math.max(10, Math.min(90, lastPt.x + Math.cos(angle) * stepDist));
+    const nextY = Math.max(10, Math.min(90, lastPt.y + Math.sin(angle) * stepDist));
+    this.routePoints.push({ x: nextX, y: nextY, timestamp: now });
 
     this.triggerHaptic();
     this.emitTelemetry();
   }
 
+  /**
+   * Ultra-Sensitive High-Precision Signal Processing:
+   * 1. Gravity Isolate (Low-pass filter on 3D vectors)
+   * 2. User Linear Dynamic Acceleration = Vector - Gravity
+   * 3. Sensitive Adaptive Threshold Peak Detection (registers soft footsteps, pocket placement, etc.)
+   */
   private handleMotion(event: DeviceMotionEvent) {
-    const acc = event.accelerationIncludingGravity || event.acceleration;
-    if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+    const rawAcc = event.accelerationIncludingGravity || event.acceleration;
+    if (!rawAcc || rawAcc.x === null || rawAcc.y === null || rawAcc.z === null) return;
 
-    const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+    const rx = rawAcc.x || 0;
+    const ry = rawAcc.y || 0;
+    const rz = rawAcc.z || 0;
+
+    // 1. Isolate gravity using low-pass IIR filter
+    this.gravity.x = this.alpha * this.gravity.x + (1 - this.alpha) * rx;
+    this.gravity.y = this.alpha * this.gravity.y + (1 - this.alpha) * ry;
+    this.gravity.z = this.alpha * this.gravity.z + (1 - this.alpha) * rz;
+
+    // 2. High-pass filter linear body acceleration (remove static tilt/gravity)
+    const linX = rx - this.gravity.x;
+    const linY = ry - this.gravity.y;
+    const linZ = rz - this.gravity.z;
+
+    // Calculate dynamic body acceleration magnitude
+    const dynMagnitude = Math.sqrt(linX * linX + linY * linY + linZ * linZ);
+
+    // 3. Smooth with exponential moving average (fast responsive filter)
+    this.filteredMagnitude = 0.55 * this.filteredMagnitude + 0.45 * dynMagnitude;
+
+    // Rolling history for adaptive statistical thresholding
+    this.magHistory.push(this.filteredMagnitude);
+    if (this.magHistory.length > this.MAG_HISTORY_LEN) {
+      this.magHistory.shift();
+    }
+
+    if (this.magHistory.length >= 6) {
+      const sum = this.magHistory.reduce((a, b) => a + b, 0);
+      const mean = sum / this.magHistory.length;
+      // Variance calculation
+      const variance = this.magHistory.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / this.magHistory.length;
+      const stdDev = Math.sqrt(variance);
+
+      // Sensitive threshold: mean + 0.65 * stdDev (detects gentle walking easily)
+      this.dynamicThreshold = Math.max(this.minPeakThreshold, Math.min(this.maxPeakThreshold, mean + stdDev * 0.65));
+    }
+
+    // 4. Peak Detection with zero-crossing slope analysis
+    const currentSlope = this.filteredMagnitude - this.prevMagnitude;
     const now = Date.now();
 
+    // Check for local peak: slope changed from positive to negative above adaptive threshold
     if (
-      magnitude >= this.STEP_MIN_THRESHOLD &&
-      magnitude <= this.STEP_MAX_THRESHOLD &&
-      this.lastMagnitude < this.STEP_MIN_THRESHOLD
+      this.prevSlope > 0 && 
+      currentSlope <= 0 && 
+      this.prevMagnitude >= this.dynamicThreshold &&
+      this.prevMagnitude <= this.maxPeakThreshold
     ) {
       const timeSinceLast = now - this.lastStepTime;
+
+      // Realistic human patrol step cadence constraint (~280ms to 2500ms)
       if (timeSinceLast >= this.STEP_MIN_INTERVAL) {
         this.steps += 1;
         this.lastStepTime = now;
         this.recentStepTimes.push(now);
 
-        if (this.recentStepTimes.length > 10) {
+        if (this.recentStepTimes.length > 15) {
           this.recentStepTimes.shift();
         }
 
+        // Indoor Fallback: If GPS is unavailable/weak, estimate displacement from step count
         if (!this.gpsActive || this.gpsAccuracy > 35) {
-          this.totalGpsDistanceMeters += 0.75;
-          if (this.steps >= 25 && this.maxDisplacementMeters < 18) {
-            this.maxDisplacementMeters = Math.min(25, Math.round(this.steps * 0.2));
+          this.totalGpsDistanceMeters += 0.72; // Avg human stride length ~72cm
+          if (this.steps >= 15) {
+            this.maxDisplacementMeters = Math.max(
+              this.maxDisplacementMeters,
+              Math.min(35, Math.round(this.steps * 0.3))
+            );
           }
         }
 
@@ -197,7 +269,8 @@ export class PedometerService {
       }
     }
 
-    this.lastMagnitude = magnitude;
+    this.prevSlope = currentSlope;
+    this.prevMagnitude = this.filteredMagnitude;
     this.emitTelemetry();
   }
 
@@ -332,7 +405,7 @@ export class PedometerService {
     if (!this.onTelemetryCallback) return;
 
     const cadence = this.calculateCadence();
-    const isMoving = this.lastMagnitude > 10.5 || cadence > 30;
+    const isMoving = this.filteredMagnitude > 0.8 || cadence > 25;
     // Speed km/h estimation: cadence / 100 * 4.5 km/h
     const speedKmh = cadence > 0 ? Number(((cadence / 110) * 4.2).toFixed(1)) : 0;
 
@@ -342,7 +415,7 @@ export class PedometerService {
 
     this.onTelemetryCallback({
       steps: this.steps,
-      magnitude: Number(this.lastMagnitude.toFixed(1)),
+      magnitude: Number(this.filteredMagnitude.toFixed(1)),
       cadence,
       speedKmh,
       isMoving,
