@@ -263,7 +263,7 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m11", name:"Auzia Difa Mubarok",           role:"musyrif",            kelas:"1 Lower C",   tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung A", kamar:"1 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"difaamubaarak@gmail.com",         phone:"6289526256385" },
   { id:"m20", name:"Muhammad Adhwa Janitra Handoko",role:"musyrif",           kelas:"2 Lower A",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower A",   pamong:"Rais Yudhistira, Lc.",                email:"handokohowareyou@gmail.com",      phone:"6287786969082" },
   { id:"m21", name:"Zaky Risky Kurniawan",         role:"musyrif",            kelas:"2 Lower B",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower B",   pamong:"Rais Yudhistira, Lc.",                email:"zakyrisky182@gmail.com",          phone:"6288983445038" },
-  { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",role:"musyrif",        kelas:"2 Lower C",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285227702845" },
+  { id:"m22", name:"Farrel Izham Prayitno, Lc., S.Pd.",role:"musyrif",        kelas:"2 Lower C",   tingkat:"Kelas 2", asrama:"Asrama Sedayu Gedung A", kamar:"2 Lower C",   pamong:"Rais Yudhistira, Lc.",                email:"itsmefarrelizhamp@gmail.com",     phone:"6285217017024" },
   { id:"m23", name:"Abdullah, S.Pd.",              role:"musyrif",            kelas:"3 A",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 A",         pamong:"Rais Yudhistira, Lc.",                email:"abdullahmuallimin@muallimin.sch.id",phone:"62881025916368" },
   { id:"m31", name:"Muhammad Akbar Adi Wijaya",    role:"musyrif",            kelas:"3 Upper A",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper A",   pamong:"Rais Yudhistira, Lc.",                email:"muhammadakbaarr123@gmail.com",    phone:"6285923336740" },
   { id:"m32", name:"Mouldy Mohammad Zayyed",       role:"musyrif",            kelas:"3 Upper B",   tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung A", kamar:"3 Upper B",   pamong:"Rais Yudhistira, Lc.",                email:"mouldymaz@gmail.com",             phone:"6285155347353" },
@@ -304,7 +304,7 @@ const MUSYRIF_LIST: Musyrif[] = [
   { id:"m41", name:"Wildan Faalul Abror",          role:"musyrif",            kelas:"5 A",         tingkat:"Kelas 5", asrama:"Asrama 8C",              kamar:"5 A",         pamong:"Anang Fathurrahman, Lc.",             email:"wildanabror00@gmail.com",         phone:"6281233318388" },
   { id:"m42", name:"Rahmat Khoirul Anwar, S.Psi.", role:"musyrif",            kelas:"5 B",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 B",         pamong:"Anang Fathurrahman, Lc.",             email:"rahmatkhoirulanwar23@gmail.com",  phone:"6285335241954" },
   { id:"m43", name:"Muhammad Rafi Feriansyah",     role:"musyrif",            kelas:"5 C",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 C",         pamong:"Anang Fathurrahman, Lc.",             email:"",                                phone:"62881025797090" },
-  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"6285876258079" },
+  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"62882003685998" },
 
   // ─── ASRAMA 10 (Pamong: Inggit Prabowo, S.Pd.) ───
   { id:"m45", name:"Dymas Naufal El Fawaz",        role:"musyrif",            kelas:"5 E",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 E",         pamong:"Inggit Prabowo, S.Pd.",               email:"dymasn@muallimin.sch.id",         phone:"6285117732302" },
@@ -4975,14 +4975,13 @@ const DEPRECATED_PERSONNEL_IDS = new Set([
 function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return DEFAULT_ALL_PERSONNEL;
 
-  // 1. Filter out deprecated IDs, test records, and auto-delete from Google Sheets queue if found
+  // 1. Filter out deprecated IDs and test records
   const filtered = rawList.filter(p => {
     if (!p || !p.id) return false;
     const nameLow = (p.name || "").toLowerCase();
     const emailLow = (p.email || "").toLowerCase();
     const isTestItem = nameLow.includes("testing") || nameLow.includes("test ") || emailLow.includes("testing");
 
-    // Filter out obsolete/ghost IDs from old tests and trigger cloud delete
     if (
       DEPRECATED_PERSONNEL_IDS.has(p.id) ||
       nameLow.includes("naufal muzakki") ||
@@ -4990,16 +4989,29 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
       (p.id.startsWith("m_") && (p.role === "pamong" || p.role === "koordinator_musyrif" || !p.name || p.name.trim() === "" || isTestItem)) ||
       (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role))
     ) {
-      setTimeout(() => {
-        googleSyncService.enqueue("Musyrif", { id: p.id }, "delete");
-      }, 0);
       return false;
     }
     return true;
   });
 
-  // 2. Normalization & role adjustments
+  // 2. Normalization & user SCRUD precedence with safe baseline fallback
   const normalized = filtered.map(p => {
+    const canonical = DEFAULT_ALL_PERSONNEL.find(def => def.id === p.id);
+    if (canonical) {
+      return {
+        ...canonical,
+        ...p,
+        email: p.email !== undefined && p.email !== "" ? p.email : canonical.email,
+        phone: p.phone !== undefined && p.phone !== "" ? p.phone : canonical.phone,
+        name: p.name || canonical.name,
+        asrama: p.asrama || canonical.asrama,
+        role: p.role || canonical.role,
+        kelas: p.kelas || canonical.kelas,
+        kamar: p.kamar || canonical.kamar,
+        tingkat: p.tingkat || canonical.tingkat,
+        pamong: p.pamong || canonical.pamong
+      };
+    }
     if (p.id === "m49" && (!p.kelas || p.kelas === "5 Upper C")) {
       return { ...p, kelas: "5 Upper C & 6 Internasional", kamar: "5 Upper C & 6 Int.", tingkat: "Kelas 5 & 6" };
     }
@@ -5681,6 +5693,28 @@ export default function App() {
     googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete", true);
     googleSyncService.enqueue("Musyrif", { id }, "delete", true);
     showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
+  };
+
+  const handleSyncAllOfficialData = () => {
+    if (authUser?.role !== "koordinator_musyrif") return;
+    if (window.confirm("Sinkronkan seluruh 56 data Musyrif dan 9 Pamong resmi ke Google Sheets sekarang? Ini akan memperbarui seluruh email & nomor WA di Google Sheets.")) {
+      DEFAULT_ALL_PERSONNEL.forEach(p => {
+        googleSyncService.enqueue("Musyrif", p, "upsert");
+      });
+      const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong").map(p => ({
+        id: p.id,
+        name: p.name,
+        email: p.email,
+        role: "pamong" as Role,
+        asrama: p.asrama
+      }));
+      pamongAuths.forEach(pa => {
+        googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, pa, "upsert");
+      });
+      googleSyncService.flushQueue();
+      setMusyrifList(DEFAULT_ALL_PERSONNEL);
+      showToast("Data master resmi (56 Musyrif & 9 Pamong) berhasil dikirim dan disinkronkan ke Google Sheets!", "success");
+    }
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
@@ -6388,6 +6422,7 @@ export default function App() {
                 onAddMusyrif={handleAddMusyrif}
                 onUpdateMusyrif={handleUpdateMusyrif}
                 onDeleteMusyrif={handleDeleteMusyrif}
+                onSyncAllOfficialData={handleSyncAllOfficialData}
                 authUser={authUser}
               />
             </motion.div>
@@ -6634,6 +6669,7 @@ export default function App() {
             onAddMusyrif={handleAddMusyrif}
             onUpdateMusyrif={handleUpdateMusyrif}
             onDeleteMusyrif={handleDeleteMusyrif}
+            onSyncAllOfficialData={handleSyncAllOfficialData}
             authUser={authUser}
           />
         )}

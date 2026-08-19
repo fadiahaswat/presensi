@@ -71,6 +71,7 @@ interface MusyrifManagerModalProps {
   onAddMusyrif: (musyrif: Omit<Musyrif, "id">) => void;
   onUpdateMusyrif: (musyrif: Musyrif) => void;
   onDeleteMusyrif: (id: string) => void;
+  onSyncAllOfficialData?: () => void;
   authUser?: any;
   isPage?: boolean;
 }
@@ -83,6 +84,7 @@ export function MusyrifManagerModal({
   onAddMusyrif,
   onUpdateMusyrif,
   onDeleteMusyrif,
+  onSyncAllOfficialData,
   authUser,
   isPage = false
 }: MusyrifManagerModalProps) {
@@ -242,7 +244,18 @@ export function MusyrifManagerModal({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {isKoordinator && onSyncAllOfficialData && (
+            <button
+              type="button"
+              onClick={onSyncAllOfficialData}
+              title="Perbarui seluruh 56 Musyrif & 9 Pamong ke Google Sheets"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-500/50 shadow-xs flex items-center gap-1 active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Update Data Resmi ke Sheet</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

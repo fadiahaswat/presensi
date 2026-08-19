@@ -206,11 +206,11 @@ class GoogleSyncService {
       if (this.flushTimer) clearTimeout(this.flushTimer);
       this.flushQueue();
     } else {
-      // Fast debounce flush (300ms instead of 1500ms)
+      // Ultra-fast debounce flush (150ms)
       if (this.flushTimer) clearTimeout(this.flushTimer);
       this.flushTimer = setTimeout(() => {
         this.flushQueue();
-      }, 300);
+      }, 150);
     }
   }
 
