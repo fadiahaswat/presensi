@@ -37,6 +37,7 @@ import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
 import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
 import { DataSantriModal } from "./components/DataSantriModal";
+import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
 import { AppSkeleton } from "./components/AppSkeleton";
 import { googleSyncService } from "./utils/googleSyncService";
@@ -999,24 +1000,6 @@ function PageDashboard({
                 <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
               </div>
             </button>
-
-            {/* 7. Database Induk Santri */}
-            <button
-              type="button"
-              onClick={() => onGoTo("data-santri")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <GraduationCap className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">1.499</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
-              </div>
-            </button>
           </div>
         ) : authUser.role === "musyrif" ? (
           /* Musyrif Role Services Grid */
@@ -1166,24 +1149,6 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
-              </div>
-            </button>
-
-            {/* 9. Database Induk Santri */}
-            <button
-              type="button"
-              onClick={() => onGoTo("data-santri")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <GraduationCap className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">1.499</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
               </div>
             </button>
           </div>
@@ -1462,25 +1427,27 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 14. Database Induk Santri (1.499 Santri) */}
-            <button
-              type="button"
-              onClick={() => onGoTo("data-santri")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <GraduationCap className="w-4 h-4" />
+            {/* 14. Database Induk Santri (Hanya Koordinator Musyrif) */}
+            {authUser?.role === "koordinator_musyrif" && (
+              <button
+                type="button"
+                onClick={() => onGoTo("data-santri")}
+                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
+                    1.499
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
-                  1.499
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
-              </div>
-            </button>
+                <div>
+                  <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
+                </div>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -4901,6 +4868,7 @@ const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v5";
 const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v5";
 const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v5";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v5";
+const STORAGE_KEY_SANTRI = "presensi_santri_master_v5";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v5";
 const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v5";
 const SYNC_TABLE_AUTH_USERS = "AuthUsers";
@@ -5052,24 +5020,8 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
     return true;
   });
 
-  // 2. Normalization & user SCRUD precedence with safe baseline fallback
+  // 2. Normalization (Cloud & User SCRUD is 100% SSOT)
   const normalized = filtered.map(p => {
-    const canonical = DEFAULT_ALL_PERSONNEL.find(def => def.id === p.id);
-    if (canonical) {
-      return {
-        ...canonical,
-        ...p,
-        email: p.email !== undefined && p.email !== "" ? p.email : canonical.email,
-        phone: p.phone !== undefined && p.phone !== "" ? p.phone : canonical.phone,
-        name: p.name || canonical.name,
-        asrama: p.asrama || canonical.asrama,
-        role: p.role || canonical.role,
-        kelas: p.kelas || canonical.kelas,
-        kamar: p.kamar || canonical.kamar,
-        tingkat: p.tingkat || canonical.tingkat,
-        pamong: p.pamong || canonical.pamong
-      };
-    }
     if (p.id === "m49" && (!p.kelas || p.kelas === "5 Upper C")) {
       return { ...p, kelas: "5 Upper C & 6 Internasional", kamar: "5 Upper C & 6 Int.", tingkat: "Kelas 5 & 6" };
     }
@@ -5230,6 +5182,18 @@ export default function App() {
       }
     } catch {}
     return [];
+  });
+
+  // Master Database Santri (SCRUD by Koordinator Musyrif)
+  const [santriList, setSantriList] = useState<SantriData[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SANTRI);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return ALL_SANTRI_DATA;
   });
 
   // Modals Visibility
@@ -5751,6 +5715,41 @@ export default function App() {
     googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete", true);
     googleSyncService.enqueue("Musyrif", { id }, "delete", true);
     showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
+  };
+
+  // ─── MASTER DATA SANTRI SCRUD (Strictly Restricted to Koordinator Musyrif) ───
+  const handleSaveSantri = (santri: SantriData) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang mengubah data santri.", "error");
+      return;
+    }
+    setSantriList(prev => {
+      const exists = prev.some(s => s.id === santri.id);
+      const next = exists ? prev.map(s => s.id === santri.id ? santri : s) : [santri, ...prev];
+      try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    showToast(`Data santri ${santri.nama} (${santri.kelasLengkap}) berhasil disimpan!`, "success");
+  };
+
+  const handleDeleteSantri = (id: string) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator Musyrif yang berwenang menghapus data santri.", "error");
+      return;
+    }
+    setSantriList(prev => {
+      const next = prev.filter(s => s.id !== id);
+      try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    showToast("Data santri berhasil dihapus dari database.", "info");
+  };
+
+  const handleResetSantri = () => {
+    if (authUser?.role !== "koordinator_musyrif") return;
+    setSantriList(ALL_SANTRI_DATA);
+    try { localStorage.removeItem(STORAGE_KEY_SANTRI); } catch {}
+    showToast("Database santri berhasil dipulihkan ke data master Excel (1.499 santri).", "success");
   };
 
   const handleSyncAllOfficialData = () => {
@@ -6516,13 +6515,17 @@ export default function App() {
               />
             </motion.div>
           )}
-          {page==="data-santri" && (
+          {page==="data-santri" && authUser?.role === "koordinator_musyrif" && (
             <motion.div key="data-santri" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <DataSantriModal
                 onClose={() => setPage("dashboard")}
                 isPage={true}
                 authUser={authUser}
                 musyrifList={musyrifList}
+                santriList={santriList}
+                onSaveSantri={handleSaveSantri}
+                onDeleteSantri={handleDeleteSantri}
+                onResetSantri={handleResetSantri}
                 onSelectSantriForIzin={() => setPage("izin")}
                 onSelectSantriForSakit={() => setPage("santri-sakit")}
               />
@@ -6765,6 +6768,8 @@ export default function App() {
         isOpen={showCloudSync}
         onClose={() => setShowCloudSync(false)}
         onResetAll={handleResetAll}
+        onInjectMaster={handleSyncAllOfficialData}
+        isKoordinator={authUser?.role === "koordinator_musyrif"}
         stats={{
           records: records.length,
           izin: izinList.length,

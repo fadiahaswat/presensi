@@ -48,6 +48,8 @@ export interface SantriData {
   telpWali: string;
   waliKelas: string;
   nbmWaliKelas: string;
+  statusSantri?: "aktif" | "keluar" | "pindah" | "lulus";
+  catatanStatus?: string;
 }
 
 export const LIST_ALL_KELAS_GROUPED: { tingkat: string; label: string; kelas: string[] }[] = [
@@ -67622,3 +67624,46 @@ export function getSantriStats() {
     byKelas
   };
 }
+
+export function getClassMetadata(kelasName: string): { tingkat: string; tingkatRomawi: string; jenjang: string; paralel: string } {
+  const norm = normalizeClassName(kelasName);
+  let tingkat = "Kelas 1";
+  let tingkatRomawi = "Kelas VII";
+  let jenjang = "MTs";
+  let paralel = "A";
+
+  if (norm.startsWith("1")) {
+    tingkat = "Kelas 1";
+    tingkatRomawi = "Kelas VII";
+    jenjang = "MTs";
+    paralel = norm.replace(/^1\s*/, "");
+  } else if (norm.startsWith("2")) {
+    tingkat = "Kelas 2";
+    tingkatRomawi = "Kelas VIII";
+    jenjang = "MTs";
+    paralel = norm.replace(/^2\s*/, "");
+  } else if (norm.startsWith("3")) {
+    tingkat = "Kelas 3";
+    tingkatRomawi = "Kelas IX";
+    jenjang = "MTs";
+    paralel = norm.replace(/^3\s*/, "");
+  } else if (norm.startsWith("4")) {
+    tingkat = "Kelas 4";
+    tingkatRomawi = "Kelas X";
+    jenjang = "MA";
+    paralel = norm.replace(/^4\s*/, "");
+  } else if (norm.startsWith("5")) {
+    tingkat = "Kelas 5";
+    tingkatRomawi = "Kelas XI";
+    jenjang = "MA";
+    paralel = norm.replace(/^5\s*/, "");
+  } else if (norm.startsWith("6")) {
+    tingkat = "Kelas 6";
+    tingkatRomawi = "Kelas XII";
+    jenjang = "MA";
+    paralel = norm.replace(/^6\s*/, "");
+  }
+
+  return { tingkat, tingkatRomawi, jenjang, paralel };
+}
+

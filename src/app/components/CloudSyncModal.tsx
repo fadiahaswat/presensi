@@ -75,6 +75,8 @@ export const CloudSyncModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onResetAll?: () => Promise<void>;
+  onInjectMaster?: () => Promise<void> | void;
+  isKoordinator?: boolean;
   stats: {
     records: number;
     izin: number;
@@ -84,9 +86,10 @@ export const CloudSyncModal: React.FC<{
     santriSakit: number;
     musyrif: number;
   };
-}> = ({ isOpen, onClose, onResetAll, stats }) => {
+}> = ({ isOpen, onClose, onResetAll, onInjectMaster, isKoordinator, stats }) => {
   const [syncState, setSyncState] = useState<SyncState>(googleSyncService.getState());
   const [isResetting, setIsResetting] = useState(false);
+  const [isInjecting, setIsInjecting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
@@ -106,6 +109,17 @@ export const CloudSyncModal: React.FC<{
       onClose();
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleExecuteInject = async () => {
+    if (!onInjectMaster) return;
+    setIsInjecting(true);
+    try {
+      await onInjectMaster();
+      onClose();
+    } finally {
+      setIsInjecting(false);
     }
   };
 
@@ -226,19 +240,31 @@ export const CloudSyncModal: React.FC<{
               </div>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmReset(true)}
-                className="py-2.5 px-3 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition-colors"
-              >
-                Reset Bersih Data
-              </button>
-              <button
-                onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold text-xs transition-colors"
-              >
-                Tutup
-              </button>
+            <div className="space-y-2">
+              {isKoordinator && onInjectMaster && (
+                <button
+                  onClick={handleExecuteInject}
+                  disabled={isInjecting}
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isInjecting ? "Menginjeksi Data Master..." : "Inject / Pulihkan Master Musyrif & Pamong Resmi"}</span>
+                </button>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmReset(true)}
+                  className="py-2.5 px-3 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition-colors"
+                >
+                  Reset Bersih Data
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold text-xs transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           )}
         </div>

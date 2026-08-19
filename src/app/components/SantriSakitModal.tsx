@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Plus, HeartPulse, Bed, Stethoscope, Building2, Home, CheckCircle2, 
   Trash2, AlertCircle, Search, Filter, Share2, Calendar, User, Phone,
-  ChevronLeft, Sparkles, Send, Edit3
+  ChevronLeft, Sparkles, Send, Edit3, UserCheck
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
