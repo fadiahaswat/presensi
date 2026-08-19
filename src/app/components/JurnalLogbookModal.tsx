@@ -309,6 +309,12 @@ export function JurnalLogbookModal({
     return logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK;
   });
 
+  // Keep form in sync when props/cloud data, musyrif, or date changes
+  useEffect(() => {
+    const existing = logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK;
+    setFormState(existing);
+  }, [logbookData, selectedMusyrifId, selectedDate]);
+
   // Reset logbook entries for selected date
   const handleResetLogbook = () => {
     if (window.confirm(`Yakin ingin mengosongkan/reset catatan logbook tanggal ${selectedDate} untuk ${selectedMusyrif?.name}?`)) {
