@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { searchSantri, getSantriForMusyrif, SantriData } from "../data/santriData";
 
 export interface SantriSakitRecord {
   id: string;
@@ -31,6 +32,7 @@ interface Musyrif {
   asrama: string;
   kamar: string;
   kelas: string;
+  tingkat?: string;
 }
 
 interface SantriSakitModalProps {
@@ -77,11 +79,30 @@ export function SantriSakitModal({
   const [formMusyrifId, setFormMusyrifId] = useState(defaultMusyrif?.id || "");
   const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formNama, setFormNama] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [formKelas, setFormKelas] = useState(defaultMusyrif?.kelas || "");
   const [formKamar, setFormKamar] = useState(defaultMusyrif?.kamar || "");
   const [formKeluhan, setFormKeluhan] = useState("");
   const [formLokasi, setFormLokasi] = useState<"kamar" | "uks" | "rs_pku" | "pulang">("kamar");
   const [formCatatan, setFormCatatan] = useState("");
+
+  const currentMusyrifObj = useMemo(() => {
+    return musyrifList.find(m => m.id === formMusyrifId) || defaultMusyrif;
+  }, [musyrifList, formMusyrifId, defaultMusyrif]);
+
+  // Scoped students of this musyrif's class
+  const classStudents = useMemo(() => {
+    if (!currentMusyrifObj) return [];
+    return getSantriForMusyrif(currentMusyrifObj.kelas, currentMusyrifObj.tingkat);
+  }, [currentMusyrifObj]);
+
+  const santriSuggestions = useMemo(() => {
+    if (!formNama.trim() || formNama.trim().length < 2) return [];
+    // Prioritize students from musyrif's class, then fallback to search
+    const results = searchSantri(formNama, 10);
+    return results;
+  }, [formNama]);
 
   const resetForm = () => {
     setFormMusyrifId(defaultMusyrif?.id || "");
@@ -271,17 +292,88 @@ export function SantriSakitModal({
             )}
           </div>
 
+          {/* Quick Select Santri Dropdown for Musyrif's Class */}
+          {classStudents.length > 0 && (
+            <div className="p-3 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Pilih Santri Binaan ({currentMusyrifObj?.kelas || ""} • {classStudents.length} Santri)</span>
+                </label>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-100 dark:bg-emerald-900 px-2 py-0.5 rounded-full">
+                  1-Klik Otomatis
+                </span>
+              </div>
+              <select
+                value={selectedStudentId}
+                onChange={(e) => {
+                  const sid = e.target.value;
+                  setSelectedStudentId(sid);
+                  const found = classStudents.find(s => s.id === sid);
+                  if (found) {
+                    setFormNama(found.nama);
+                    setFormKelas(found.kelasLengkap);
+                    if (currentMusyrifObj?.kamar) {
+                      setFormKamar(currentMusyrifObj.kamar);
+                    }
+                  }
+                }}
+                className="w-full text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl px-3 py-2.5 font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-xs"
+              >
+                <option value="">-- Klik untuk Pilih Santri ({classStudents.length} Orang) --</option>
+                {classStudents.map((s, idx) => (
+                  <option key={s.id} value={s.id}>
+                    {idx + 1}. {s.nama} (NIS: {s.nis || "-"} • Kelas {s.kelasLengkap})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Nama Lengkap Santri</label>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 mb-0 block">Nama Lengkap Santri</label>
+                {classStudents.length > 0 && (
+                  <span className="text-[10px] text-slate-400">atau ketik manual / cari</span>
+                )}
+              </div>
               <input
                 type="text"
                 required
-                placeholder="Contoh: Muhammad Farhan"
+                placeholder="Ketik nama atau NIS santri..."
                 value={formNama}
-                onChange={(e) => setFormNama(e.target.value)}
+                onChange={(e) => {
+                  setFormNama(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
               />
+              {showSuggestions && santriSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                  {santriSuggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setFormNama(s.nama);
+                        setFormKelas(s.kelasLengkap);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 flex items-center justify-between transition-colors"
+                    >
+                      <div>
+                        <p className="font-bold text-slate-800">{s.nama}</p>
+                        <p className="text-[10px] text-slate-400">NIS: {s.nis || "-"} • {s.kabupaten || s.provinsi}</p>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                        {s.kelasLengkap}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-700 mb-1 block">Kelas / Tingkat</label>

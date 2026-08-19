@@ -36,6 +36,7 @@ import { PageKalenderHijriah } from "./components/PageKalenderHijriah";
 import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
 import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
+import { DataSantriModal } from "./components/DataSantriModal";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
 import { AppSkeleton } from "./components/AppSkeleton";
 import { googleSyncService } from "./utils/googleSyncService";
@@ -43,6 +44,7 @@ import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from
 import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
 import { motion, AnimatePresence } from "motion/react";
 import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdropVariants, modalContentVariants } from "./utils/animations";
+import { checkAsramaGeofenceBrowser, GeofenceResult } from "./utils/geoUtils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -50,7 +52,7 @@ import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdrop
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
@@ -997,6 +999,24 @@ function PageDashboard({
                 <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
               </div>
             </button>
+
+            {/* 7. Database Induk Santri */}
+            <button
+              type="button"
+              onClick={() => onGoTo("data-santri")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <GraduationCap className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">1.499</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
+              </div>
+            </button>
           </div>
         ) : authUser.role === "musyrif" ? (
           /* Musyrif Role Services Grid */
@@ -1146,6 +1166,24 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
+              </div>
+            </button>
+
+            {/* 9. Database Induk Santri */}
+            <button
+              type="button"
+              onClick={() => onGoTo("data-santri")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <GraduationCap className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">1.499</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
               </div>
             </button>
           </div>
@@ -1421,6 +1459,26 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
+              </div>
+            </button>
+
+            {/* 14. Database Induk Santri (1.499 Santri) */}
+            <button
+              type="button"
+              onClick={() => onGoTo("data-santri")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
+                  1.499
+                </span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
               </div>
             </button>
           </div>
@@ -6455,6 +6513,18 @@ export default function App() {
                 onUpdatePamong={handleUpdatePamong}
                 onDeletePamong={handleDeletePamong}
                 authUser={authUser}
+              />
+            </motion.div>
+          )}
+          {page==="data-santri" && (
+            <motion.div key="data-santri" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <DataSantriModal
+                onClose={() => setPage("dashboard")}
+                isPage={true}
+                authUser={authUser}
+                musyrifList={musyrifList}
+                onSelectSantriForIzin={() => setPage("izin")}
+                onSelectSantriForSakit={() => setPage("santri-sakit")}
               />
             </motion.div>
           )}
