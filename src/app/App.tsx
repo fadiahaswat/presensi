@@ -1304,6 +1304,24 @@ function PageDashboard({
               </div>
             </button>
 
+            {/* 8b. Riwayat Terpadu Musyrif */}
+            <button
+              type="button"
+              onClick={() => onGoTo("riwayat")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-lg font-mono">5 Tab</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Riwayat Musyrif</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Shalat, logbook, amalan, izin</p>
+              </div>
+            </button>
+
             {/* 9. Raport & E-Sertifikat */}
             <button
               type="button"
@@ -2667,6 +2685,10 @@ function PageRekap({
 // ─────────────────────────────────────────────────────────────────────────────
 function PageRiwayat({ 
   records, 
+  logbookData = {},
+  mutabaahData = {},
+  izinList = [],
+  kegiatanRecords = [],
   authUser, 
   onLogin, 
   initialMusyrifId, 
@@ -2676,6 +2698,10 @@ function PageRiwayat({
   musyrifListAll
 }: {
   records: AttendanceRecord[];
+  logbookData?: LogbookStorage;
+  mutabaahData?: MutabaahStorage;
+  izinList?: IzinRequest[];
+  kegiatanRecords?: KegiatanRecord[];
   authUser: AuthUser | null;
   onLogin: () => void;
   initialMusyrifId?: string | null;
@@ -2690,6 +2716,7 @@ function PageRiwayat({
   }, [musyrifListAll]);
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selId, setSelId] = useState(initialMusyrifId || allM[0]?.id || "m1");
+  const [activeTab, setActiveTab] = useState<"sholat" | "logbook" | "mutabaah" | "izin" | "kegiatan">("sholat");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
   const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
   const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
@@ -2697,6 +2724,7 @@ function PageRiwayat({
   const [pickerSearch, setPickerSearch] = useState("");
   const [editingSlot, setEditingSlot] = useState<"subuh" | "maghrib" | null>(null);
   const [editNoteText, setEditNoteText] = useState("");
+  const [expandedLogbookDate, setExpandedLogbookDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialMusyrifId) {
@@ -2756,6 +2784,106 @@ function PageRiwayat({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [mRecs]);
 
+  // Logbook data for current musyrif
+  const musyrifLogbooks = useMemo(() => {
+    return logbookData[musyrif.id] || {};
+  }, [logbookData, musyrif.id]);
+
+  const logbookDatesThisMonth = useMemo(() => {
+    return Object.keys(musyrifLogbooks).filter(d => d.startsWith(mk)).sort((a, b) => b.localeCompare(a));
+  }, [musyrifLogbooks, mk]);
+
+  const logbookMonthStats = useMemo(() => {
+    let totalTasksDone = 0;
+    let totalSteps = 0;
+    let totalGpsVerified = 0;
+    const taskKeys = ["tahajjud","bakdaSubuh","cekSakit","sisirSekolah","jagaGerbang","oprakAshar","oprakMandi","sisirMaghrib","bakdaMaghrib","belajarMalam","cekTidur"] as const;
+
+    logbookDatesThisMonth.forEach(d => {
+      const dayEntry = musyrifLogbooks[d];
+      if (dayEntry) {
+        taskKeys.forEach(k => {
+          const t = dayEntry[k];
+          if (t && t.done) {
+            totalTasksDone++;
+            if (t.gpsVerified) totalGpsVerified++;
+            if (t.stepsCount) totalSteps += t.stepsCount;
+          }
+        });
+      }
+    });
+
+    const daysFilled = logbookDatesThisMonth.length;
+    const avgPerDay = daysFilled > 0 ? (totalTasksDone / daysFilled).toFixed(1) : "0";
+
+    return { totalTasksDone, totalSteps, totalGpsVerified, daysFilled, avgPerDay };
+  }, [musyrifLogbooks, logbookDatesThisMonth]);
+
+  // Mutabaah data for current musyrif
+  const musyrifMutabaah = useMemo(() => {
+    return mutabaahData[musyrif.id] || {};
+  }, [mutabaahData, musyrif.id]);
+
+  const mutabaahDatesThisMonth = useMemo(() => {
+    return Object.keys(musyrifMutabaah).filter(d => d.startsWith(mk)).sort((a, b) => b.localeCompare(a));
+  }, [musyrifMutabaah, mk]);
+
+  const mutabaahMonthStats = useMemo(() => {
+    let totalPoints = 0;
+    let totalTilawah = 0;
+    let totalTahajjud = 0;
+    let totalPuasa = 0;
+
+    mutabaahDatesThisMonth.forEach(d => {
+      const m = musyrifMutabaah[d];
+      if (m) {
+        if (m.tahajjud) { totalPoints += 5; totalTahajjud++; }
+        if (m.dhuha) totalPoints += 3;
+        if (m.rawatib) totalPoints += 3;
+        if (m.tilawahPages > 0) { totalTilawah += m.tilawahPages; totalPoints += Math.min(m.tilawahPages, 10); }
+        if (m.dzikirPagi) totalPoints += 2;
+        if (m.dzikirPetang) totalPoints += 2;
+        if (m.puasaSunnah) { totalPoints += 10; totalPuasa++; }
+        if (m.muthalaah) totalPoints += 5;
+      }
+    });
+
+    return { totalPoints, totalTilawah, totalTahajjud, totalPuasa, daysFilled: mutabaahDatesThisMonth.length };
+  }, [musyrifMutabaah, mutabaahDatesThisMonth]);
+
+  // Izin data for current musyrif
+  const musyrifIzinList = useMemo(() => {
+    return (izinList || [])
+      .filter(i => i.musyrifId === musyrif.id || (i.musyrifName && i.musyrifName.toLowerCase() === musyrif.name.toLowerCase()))
+      .sort((a, b) => (b.createdAt || b.startDate).localeCompare(a.createdAt || a.startDate));
+  }, [izinList, musyrif]);
+
+  const izinStats = useMemo(() => {
+    const approved = musyrifIzinList.filter(i => i.status === "approved").length;
+    const pending = musyrifIzinList.filter(i => i.status === "pending").length;
+    const rejected = musyrifIzinList.filter(i => i.status === "rejected").length;
+    return { total: musyrifIzinList.length, approved, pending, rejected };
+  }, [musyrifIzinList]);
+
+  // Kegiatan / Rapat data for current musyrif
+  const musyrifKegiatanList = useMemo(() => {
+    return (kegiatanRecords || [])
+      .filter(k => (k.attendees && musyrif.id in k.attendees) || k.asrama === musyrif.asrama)
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [kegiatanRecords, musyrif]);
+
+  const kegiatanStats = useMemo(() => {
+    let hadir = 0, izin = 0, sakit = 0, alfa = 0;
+    musyrifKegiatanList.forEach(k => {
+      const st = k.attendees?.[musyrif.id];
+      if (st === "hadir") hadir++;
+      else if (st === "izin") izin++;
+      else if (st === "sakit") sakit++;
+      else if (st === "alfa") alfa++;
+    });
+    return { total: musyrifKegiatanList.length, hadir, izin, sakit, alfa };
+  }, [musyrifKegiatanList, musyrif.id]);
+
   // Handle direct quick status update for Pamong
   const handleQuickMark = (prayer: PrayerSlot, status: AttendanceStatus) => {
     if (!selectedDay || !onMark) return;
@@ -2777,6 +2905,20 @@ function PageRiwayat({
     showToast?.(`Presensi ${prayer === "subuh" ? "Subuh" : "Maghrib"} (${musyrif.name}) diubah ke ${S[status].label}`, "success");
   };
 
+  const LOGBOOK_TASK_DEFS = [
+    { key: "tahajjud", title: "Bangunkan Santri Tahajjud", window: "03:30 - 04:30" },
+    { key: "bakdaSubuh", title: "Dampingi Santri Bakda Subuh", window: "05:00 - 06:00" },
+    { key: "cekSakit", title: "Pengecekan Santri Sakit", window: "06:00 - 06:45" },
+    { key: "sisirSekolah", title: "Menyisir Santri ke Sekolah", window: "06:30 - 07:15" },
+    { key: "jagaGerbang", title: "Piket Penjagaan Gerbang", window: "07:00 - 09:00" },
+    { key: "oprakAshar", title: "Oprak-oprak Shalat Ashar", window: "15:00 - 15:45" },
+    { key: "oprakMandi", title: "Oprak-oprak Mandi & Persiapan", window: "16:30 - 17:30" },
+    { key: "sisirMaghrib", title: "Menyisir Santri ke Masjid", window: "17:30 - 18:15" },
+    { key: "bakdaMaghrib", title: "Mendampingi Bakda Maghrib", window: "18:15 - 19:15" },
+    { key: "belajarMalam", title: "Mendampingi Belajar Malam", window: "20:00 - 21:30" },
+    { key: "cekTidur", title: "Pengecekan Santri Tidur", window: "21:45 - 22:30" },
+  ] as const;
+
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       {/* 1. Balanced Header with Compact Switcher */}
@@ -2784,14 +2926,14 @@ function PageRiwayat({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-[10px] font-bold text-teal-700 bg-teal-100/70 border border-teal-200/50 px-2 py-0.5 rounded-lg font-mono tracking-wide uppercase">
-              Kalender
+              Riwayat & Rekapitulasi
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-tight whitespace-nowrap">
-            {isPersonalMusyrif ? "Riwayat Saya" : "Riwayat Presensi"}
+            {isPersonalMusyrif ? "Riwayat Saya" : "Riwayat Musyrif"}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 truncate">
-            {isPersonalMusyrif ? "Rekapan kehadiran ibadah pribadi Anda" : "Detail presensi & kalender per musyrif"}
+            {isPersonalMusyrif ? "Rekapan lengkap sholat, logbook, amalan yaumiyah, izin & agenda" : "Detail presensi, logbook, amalan, izin & agenda per musyrif"}
           </p>
         </div>
 
@@ -2813,8 +2955,8 @@ function PageRiwayat({
         <div className="flex items-center gap-3 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl px-4 py-3 text-emerald-800 shadow-2xs">
           <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0"/>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold leading-tight">Riwayat Presensi Pribadi Anda</p>
-            <p className="text-[11px] text-emerald-600 mt-0.5 truncate">Menampilkan data presensi ibadah khusus akun Anda</p>
+            <p className="text-xs font-bold leading-tight">Riwayat Terpadu Akun Anda</p>
+            <p className="text-[11px] text-emerald-600 mt-0.5 truncate">Menampilkan seluruh arsip presensi, tugas harian, mutaba'ah, izin, dan rapat</p>
           </div>
         </div>
       ) : null}
@@ -2849,7 +2991,7 @@ function PageRiwayat({
             <span className="text-xl sm:text-2xl font-extrabold text-slate-900 font-mono tracking-tight leading-none">
               {pct}<span className="text-xs font-semibold text-slate-400">%</span>
             </span>
-            <span className="text-[9px] text-slate-500 font-medium mt-0.5 leading-none">Bulan Ini</span>
+            <span className="text-[9px] text-slate-500 font-medium mt-0.5 leading-none">Presensi Shalat</span>
           </div>
         </div>
 
@@ -2878,317 +3020,324 @@ function PageRiwayat({
         </div>
       </div>
 
-      {/* 3. Harmonious Monthly Status Breakdown & Streak Cards */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <ClipboardList className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Rekap Presensi Bulan Ini</h4>
-              <p className="text-[11px] text-slate-400 font-medium">Bulan {format(viewMonth, "MMMM yyyy", { locale: id })}</p>
-            </div>
-          </div>
-          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl font-mono">
-            {pct}% Kehadiran
+      {/* 3. Multi-Category Horizontal Tab Selector */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/70">
+        <button
+          onClick={() => setActiveTab("sholat")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "sholat"
+              ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+          }`}
+        >
+          <Sun className={`w-3.5 h-3.5 ${activeTab === "sholat" ? "text-emerald-600" : "text-slate-400"}`} />
+          <span>Shalat & Presensi</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
+            {pct}%
           </span>
-        </div>
+        </button>
 
-        {/* 4 Clean Metric Pills */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
-            <div className="flex items-center justify-center gap-1 text-emerald-700 mb-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Hadir</span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalHadir}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">waktu</span>
-          </div>
+        <button
+          onClick={() => setActiveTab("logbook")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "logbook"
+              ? "bg-white text-indigo-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+          }`}
+        >
+          <ClipboardList className={`w-3.5 h-3.5 ${activeTab === "logbook" ? "text-indigo-600" : "text-slate-400"}`} />
+          <span>Jurnal Logbook</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-mono">
+            {logbookMonthStats.totalTasksDone} Tugas
+          </span>
+        </button>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
-            <div className="flex items-center justify-center gap-1 text-amber-700 mb-1">
-              <HeartPulse className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Sakit</span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalSakit}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
-          </div>
+        <button
+          onClick={() => setActiveTab("mutabaah")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "mutabaah"
+              ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+          }`}
+        >
+          <Sparkles className={`w-3.5 h-3.5 ${activeTab === "mutabaah" ? "text-emerald-600" : "text-slate-400"}`} />
+          <span>Mutaba'ah Yaumiyah</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
+            {mutabaahMonthStats.totalPoints} Poin
+          </span>
+        </button>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
-            <div className="flex items-center justify-center gap-1 text-sky-700 mb-1">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Izin</span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalIzin}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
-          </div>
+        <button
+          onClick={() => setActiveTab("izin")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "izin"
+              ? "bg-white text-blue-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+          }`}
+        >
+          <FileCheck2 className={`w-3.5 h-3.5 ${activeTab === "izin" ? "text-blue-600" : "text-slate-400"}`} />
+          <span>Pengajuan Izin</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 font-mono">
+            {izinStats.total}
+          </span>
+        </button>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
-            <div className="flex items-center justify-center gap-1 text-rose-700 mb-1">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Alpa</span>
-            </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalAlfa}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">waktu</span>
-          </div>
-        </div>
-
-        {/* 2 Clean Streak Cards */}
-        <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-slate-100">
-          <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
-              <Flame className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-base sm:text-lg font-black text-amber-950 font-mono leading-none">
-                {streak.cur} <span className="text-xs font-normal font-sans text-amber-800">hari</span>
-              </p>
-              <p className="text-[11px] text-amber-700/90 font-medium mt-1">Streak saat ini</p>
-            </div>
-          </div>
-
-          <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
-              <Award className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-none">
-                {streak.best} <span className="text-xs font-normal font-sans text-emerald-800">hari</span>
-              </p>
-              <p className="text-[11px] text-emerald-700/90 font-medium mt-1">Streak terbaik</p>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setActiveTab("kegiatan")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            activeTab === "kegiatan"
+              ? "bg-white text-teal-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+          }`}
+        >
+          <Building2 className={`w-3.5 h-3.5 ${activeTab === "kegiatan" ? "text-teal-600" : "text-slate-400"}`} />
+          <span>Rapat & Agenda</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 font-mono">
+            {kegiatanStats.hadir} Hadir
+          </span>
+        </button>
       </div>
 
-      {/* 5. 3-month trend */}
-      <Card ch={<div className="p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren 3 Bulan Terakhir</span>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-600"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={110}>
-          <BarChart data={trendData} barGap={4} barCategoryGap="30%">
-            <XAxis dataKey="month" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
-            <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`} width={28}/>
-            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
-            <Bar dataKey="subuh"   name="subuh"   fill="#f59e0b" radius={[4,4,0,0]}/>
-            <Bar dataKey="maghrib" name="maghrib"  fill="#059669" radius={[4,4,0,0]}/>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>}/>
-
-      {/* 6. Unified All-in-One Calendar & Attendance Hub */}
-      <Card ch={<div>
-        {/* Top Bar: Month Nav + Quick Jump */}
-        <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/50">
-          <div className="flex items-center gap-1.5">
-            <button 
-              onClick={()=>setViewMonth(subMonths(viewMonth,1))} 
-              className="w-7 h-7 rounded-xl bg-white border border-slate-200/80 hover:bg-slate-50 active:scale-95 text-slate-600 flex items-center justify-center transition-all shadow-2xs"
-            >
-              <ChevronLeft className="w-3.5 h-3.5"/>
-            </button>
-            <span className="font-extrabold text-xs sm:text-sm text-slate-800 font-mono px-1">
-              {format(viewMonth,"MMMM yyyy",{locale:id})}
-            </span>
-            <button 
-              onClick={()=>setViewMonth(addMonths(viewMonth,1))} 
-              className="w-7 h-7 rounded-xl bg-white border border-slate-200/80 hover:bg-slate-50 active:scale-95 text-slate-600 flex items-center justify-center transition-all shadow-2xs"
-            >
-              <ChevronRight className="w-3.5 h-3.5"/>
-            </button>
-          </div>
-
-          {format(viewMonth,"yyyy-MM") !== format(new Date(),"yyyy-MM") && (
-            <button 
-              onClick={()=>setViewMonth(new Date())}
-              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-xl transition-all"
-            >
-              Bulan Ini
-            </button>
-          )}
-        </div>
-
-        {/* Compact 2-in-1 Slot Selector Ribbon */}
-        <div className="p-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 gap-2">
-          {/* Subuh Tab */}
-          <button
-            onClick={()=>setCalendarSlotFilter(f=>f==="subuh"?"all":"subuh")}
-            className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
-              calendarSlotFilter==="subuh" 
-                ? "bg-amber-500 text-white border-amber-600 shadow-xs" 
-                : "bg-white text-slate-700 border-slate-200/80 hover:border-amber-300"
-            }`}
-          >
-            <div className="flex items-center gap-1.5 min-w-0">
-              <Sun className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-500"}`}/>
-              <div className="min-w-0 leading-tight">
-                <p className="text-[11px] font-bold truncate">Subuh</p>
-                <p className={`text-[9px] font-mono ${calendarSlotFilter==="subuh" ? "text-amber-100" : "text-slate-400"}`}>
-                  {mRecs.filter(r=>r.subuh==="hadir").length}/{pastDays.length} Hadir
-                </p>
-              </div>
-            </div>
-            <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-700"}`}>
-              {pastDays.length ? Math.round(mRecs.filter(r=>r.subuh==="hadir").length/pastDays.length*100) : 0}%
-            </span>
-          </button>
-
-          {/* Maghrib Tab */}
-          <button
-            onClick={()=>setCalendarSlotFilter(f=>f==="maghrib"?"all":"maghrib")}
-            className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
-              calendarSlotFilter==="maghrib" 
-                ? "bg-teal-600 text-white border-teal-700 shadow-xs" 
-                : "bg-white text-slate-700 border-slate-200/80 hover:border-teal-300"
-            }`}
-          >
-            <div className="flex items-center gap-1.5 min-w-0">
-              <Moon className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="maghrib" ? "text-white" : "text-teal-600"}`}/>
-              <div className="min-w-0 leading-tight">
-                <p className="text-[11px] font-bold truncate">Maghrib</p>
-                <p className={`text-[9px] font-mono ${calendarSlotFilter==="maghrib" ? "text-teal-100" : "text-slate-400"}`}>
-                  {mRecs.filter(r=>r.maghrib==="hadir").length}/{pastDays.length} Hadir
-                </p>
-              </div>
-            </div>
-            <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="maghrib" ? "text-white" : "text-teal-700"}`}>
-              {pastDays.length ? Math.round(mRecs.filter(r=>r.maghrib==="hadir").length/pastDays.length*100) : 0}%
-            </span>
-          </button>
-        </div>
-
-        {/* Days Header */}
-        <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
-          {["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=>(
-            <div key={d} className="text-center text-[10px] font-extrabold text-slate-400 py-2 font-mono">{d}</div>
-          ))}
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7">
-          {Array.from({length:adj}).map((_,i)=><div key={`b${i}`} className="border-b border-r border-slate-50 min-h-[44px] bg-slate-50/20"/>)}
-          {days.map((day,i)=>{
-            const r=getR(day);
-            const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);
-            const last=(adj+i+1)%7===0;
-            const perfect=r?.subuh==="hadir"&&r?.maghrib==="hadir";
-
-            return (
-              <div 
-                key={day.toISOString()} 
-                onClick={() => !future && setSelectedDay({ date: day, record: r })}
-                className={`min-h-[44px] border-b border-r border-slate-100/70 p-1 flex flex-col justify-between transition-all select-none ${
-                  isToday(day) ? "bg-emerald-50/80 ring-1 ring-emerald-400 inset-0 z-10" : perfect&&!future ? "bg-emerald-50/30" : "bg-white"
-                } ${future ? "opacity-25 cursor-default bg-slate-50/30" : "cursor-pointer hover:bg-emerald-50/60 active:scale-95"} ${last ? "border-r-0" : ""}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={`text-[10px] font-bold font-mono px-1 rounded-full ${
-                    isToday(day) ? "bg-emerald-600 text-white px-1.5 shadow-2xs" : "text-slate-600"
-                  }`}>
-                    {format(day,"d")}
-                  </span>
-                  {isToday(day) && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping mr-0.5"/>}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 1: SHALAT & PRESENSI */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "sholat" && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          {/* Harmonious Monthly Status Breakdown & Streak Cards */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <ClipboardList className="w-4 h-4" />
                 </div>
-
-                {!future && (
-                  <div className="flex flex-col gap-1 my-0.5 px-0.5">
-                    {calendarSlotFilter !== "maghrib" && (
-                      <div 
-                        className={`h-1.5 rounded-full transition-all ${
-                          r?.subuh ? S[r.subuh].dot : "bg-slate-200"
-                        }`} 
-                        title={`Subuh: ${r?.subuh ?? "Belum"}`}
-                      />
-                    )}
-                    {calendarSlotFilter !== "subuh" && (
-                      <div 
-                        className={`h-1.5 rounded-full transition-all ${
-                          r?.maghrib ? S[r.maghrib].dot : "bg-slate-200"
-                        }`} 
-                        title={`Maghrib: ${r?.maghrib ?? "Belum"}`}
-                      />
-                    )}
-                  </div>
-                )}
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Rekap Presensi Bulan Ini</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">Bulan {format(viewMonth, "MMMM yyyy", { locale: id })}</p>
+                </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Compact Legend */}
-        <div className="px-3.5 py-2 border-t border-slate-100 flex gap-2.5 flex-wrap bg-slate-50/60 items-center justify-between text-[10px]">
-          <div className="flex items-center gap-2 flex-wrap">
-            {[{c:"bg-emerald-500",l:"Hadir"},{c:"bg-amber-500",l:"Sakit"},{c:"bg-sky-500",l:"Izin"},{c:"bg-rose-600",l:"Alfa"}].map(x=>(
-              <div key={x.l} className="flex items-center gap-1">
-                <div className={`w-2 h-2 rounded-full ${x.c}`}/>
-                <span className="text-slate-500">{x.l}</span>
-              </div>
-            ))}
-          </div>
-          <span className="text-emerald-700 font-semibold italic">👆 Klik tgl untuk detail</span>
-        </div>
-      </div>}/>
-
-      {/* 7. Riwayat Sakit, Izin & Alfa Bulan Ini */}
-      <div>
-        <Label ch="Catatan Sakit, Izin & Alfa Bulan Ini"/>
-        <Card ch={
-          nonHadirRecs.length === 0 ? (
-            <div className="p-5 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5"/>
-              </div>
-              <p className="text-xs font-bold text-slate-800">Alhamdulillah, Kehadiran Penuh</p>
-              <p className="text-[11px] text-slate-400">Tidak ada catatan sakit, izin, maupun alfa pada bulan {format(viewMonth,"MMMM yyyy",{locale:id})}.</p>
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl font-mono">
+                {pct}% Kehadiran
+              </span>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {nonHadirRecs.map((rec) => {
-                const dayDate = parseISO(rec.date);
-                const hasSubuhNonHadir = rec.subuh && rec.subuh !== "hadir";
-                const hasMaghribNonHadir = rec.maghrib && rec.maghrib !== "hadir";
+
+            {/* 4 Clean Metric Pills */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
+              <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+                <div className="flex items-center justify-center gap-1 text-emerald-700 mb-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold">Hadir</span>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalHadir}</p>
+                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">waktu</span>
+              </div>
+
+              <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+                <div className="flex items-center justify-center gap-1 text-amber-700 mb-1">
+                  <HeartPulse className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold">Sakit</span>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalSakit}</p>
+                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+              </div>
+
+              <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+                <div className="flex items-center justify-center gap-1 text-sky-700 mb-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold">Izin</span>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalIzin}</p>
+                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+              </div>
+
+              <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all">
+                <div className="flex items-center justify-center gap-1 text-rose-700 mb-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold">Alpa</span>
+                </div>
+                <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{totalAlfa}</p>
+                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">waktu</span>
+              </div>
+            </div>
+
+            {/* 2 Clean Streak Cards */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-slate-100">
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <Flame className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base sm:text-lg font-black text-amber-950 font-mono leading-none">
+                    {streak.cur} <span className="text-xs font-normal font-sans text-amber-800">hari</span>
+                  </p>
+                  <p className="text-[11px] text-amber-700/90 font-medium mt-1">Streak saat ini</p>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-none">
+                    {streak.best} <span className="text-xs font-normal font-sans text-emerald-800">hari</span>
+                  </p>
+                  <p className="text-[11px] text-emerald-700/90 font-medium mt-1">Streak terbaik</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3-month trend */}
+          <Card ch={<div className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren 3 Bulan Terakhir</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-600"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={110}>
+              <BarChart data={trendData} barGap={4} barCategoryGap="30%">
+                <XAxis dataKey="month" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`} width={28}/>
+                <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
+                <Bar dataKey="subuh"   name="subuh"   fill="#f59e0b" radius={[4,4,0,0]}/>
+                <Bar dataKey="maghrib" name="maghrib"  fill="#059669" radius={[4,4,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>}/>
+
+          {/* Unified All-in-One Calendar & Attendance Hub */}
+          <Card ch={<div>
+            {/* Top Bar: Month Nav + Quick Jump */}
+            <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/50">
+              <div className="flex items-center gap-1.5">
+                <button 
+                  onClick={()=>setViewMonth(subMonths(viewMonth,1))} 
+                  className="w-7 h-7 rounded-xl bg-white border border-slate-200/80 hover:bg-slate-50 active:scale-95 text-slate-600 flex items-center justify-center transition-all shadow-2xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5"/>
+                </button>
+                <span className="font-extrabold text-xs sm:text-sm text-slate-800 font-mono px-1">
+                  {format(viewMonth,"MMMM yyyy",{locale:id})}
+                </span>
+                <button 
+                  onClick={()=>setViewMonth(addMonths(viewMonth,1))} 
+                  className="w-7 h-7 rounded-xl bg-white border border-slate-200/80 hover:bg-slate-50 active:scale-95 text-slate-600 flex items-center justify-center transition-all shadow-2xs"
+                >
+                  <ChevronRight className="w-3.5 h-3.5"/>
+                </button>
+              </div>
+
+              {format(viewMonth,"yyyy-MM") !== format(new Date(),"yyyy-MM") && (
+                <button 
+                  onClick={()=>setViewMonth(new Date())}
+                  className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-xl transition-all"
+                >
+                  Bulan Ini
+                </button>
+              )}
+            </div>
+
+            {/* Compact 2-in-1 Slot Selector Ribbon */}
+            <div className="p-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 gap-2">
+              {/* Subuh Tab */}
+              <button
+                onClick={()=>setCalendarSlotFilter(f=>f==="subuh"?"all":"subuh")}
+                className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
+                  calendarSlotFilter==="subuh" 
+                    ? "bg-amber-500 text-white border-amber-600 shadow-xs" 
+                    : "bg-white text-slate-700 border-slate-200/80 hover:border-amber-300"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Sun className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-500"}`}/>
+                  <div className="min-w-0 leading-tight">
+                    <p className="text-[11px] font-bold truncate">Subuh</p>
+                    <p className={`text-[9px] font-mono ${calendarSlotFilter==="subuh" ? "text-amber-100" : "text-slate-400"}`}>
+                      {mRecs.filter(r=>r.subuh==="hadir").length}/{pastDays.length} Hadir
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-700"}`}>
+                  {pastDays.length ? Math.round(mRecs.filter(r=>r.subuh==="hadir").length/pastDays.length*100) : 0}%
+                </span>
+              </button>
+
+              {/* Maghrib Tab */}
+              <button
+                onClick={()=>setCalendarSlotFilter(f=>f==="maghrib"?"all":"maghrib")}
+                className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
+                  calendarSlotFilter==="maghrib" 
+                    ? "bg-teal-600 text-white border-teal-700 shadow-xs" 
+                    : "bg-white text-slate-700 border-slate-200/80 hover:border-teal-300"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Moon className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="maghrib" ? "text-white" : "text-teal-600"}`}/>
+                  <div className="min-w-0 leading-tight">
+                    <p className="text-[11px] font-bold truncate">Maghrib</p>
+                    <p className={`text-[9px] font-mono ${calendarSlotFilter==="maghrib" ? "text-teal-100" : "text-slate-400"}`}>
+                      {mRecs.filter(r=>r.maghrib==="hadir").length}/{pastDays.length} Hadir
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="maghrib" ? "text-white" : "text-teal-700"}`}>
+                  {pastDays.length ? Math.round(mRecs.filter(r=>r.maghrib==="hadir").length/pastDays.length*100) : 0}%
+                </span>
+              </button>
+            </div>
+
+            {/* Days Header */}
+            <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-100">
+              {["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(d=>(
+                <div key={d} className="text-center text-[10px] font-extrabold text-slate-400 py-2 font-mono">{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7">
+              {Array.from({length:adj}).map((_,i)=><div key={`b${i}`} className="border-b border-r border-slate-50 min-h-[44px] bg-slate-50/20"/>)}
+              {days.map((day,i)=>{
+                const r=getR(day);
+                const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);
+                const last=(adj+i+1)%7===0;
+                const perfect=r?.subuh==="hadir"&&r?.maghrib==="hadir";
 
                 return (
-                  <div key={rec.date} className="p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs font-bold text-slate-800 font-mono">
-                          {format(dayDate, "EEEE, d MMM yyyy", { locale: id })}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {hasSubuhNonHadir && rec.subuh && (
-                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
-                            rec.subuh === "sakit" ? "bg-amber-100 text-amber-800" :
-                            rec.subuh === "izin"  ? "bg-sky-100 text-sky-800" : "bg-rose-100 text-rose-800"
-                          }`}>
-                            Subuh: {S[rec.subuh]?.label || rec.subuh}
-                          </span>
-                        )}
-                        {hasMaghribNonHadir && rec.maghrib && (
-                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
-                            rec.maghrib === "sakit" ? "bg-amber-100 text-amber-800" :
-                            rec.maghrib === "izin"  ? "bg-sky-100 text-sky-800" : "bg-rose-100 text-rose-800"
-                          }`}>
-                            Maghrib: {S[rec.maghrib]?.label || rec.maghrib}
-                          </span>
-                        )}
-                      </div>
+                  <div 
+                    key={day.toISOString()} 
+                    onClick={() => !future && setSelectedDay({ date: day, record: r })}
+                    className={`min-h-[44px] border-b border-r border-slate-100/70 p-1 flex flex-col justify-between transition-all select-none ${
+                      isToday(day) ? "bg-emerald-50/80 ring-1 ring-emerald-400 inset-0 z-10" : perfect&&!future ? "bg-emerald-50/30" : "bg-white"
+                    } ${future ? "opacity-25 cursor-default bg-slate-50/30" : "cursor-pointer hover:bg-emerald-50/60 active:scale-95"} ${last ? "border-r-0" : ""}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-bold font-mono px-1 rounded-full ${
+                        isToday(day) ? "bg-emerald-600 text-white px-1.5 shadow-2xs" : "text-slate-600"
+                      }`}>
+                        {format(day,"d")}
+                      </span>
+                      {isToday(day) && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping mr-0.5"/>}
                     </div>
 
-                    {(rec.subuhNote || rec.maghribNote) && (
-                      <div className="bg-slate-50 rounded-xl p-2 text-xs text-slate-600 border border-slate-100 flex flex-col gap-1 font-mono">
-                        {rec.subuhNote && (
-                          <p><strong className="text-slate-700 font-sans">Catatan Subuh:</strong> "{rec.subuhNote}"</p>
+                    {!future && (
+                      <div className="flex flex-col gap-1 my-0.5 px-0.5">
+                        {calendarSlotFilter !== "maghrib" && (
+                          <div 
+                            className={`h-1.5 rounded-full transition-all ${
+                              r?.subuh ? S[r.subuh].dot : "bg-slate-200"
+                            }`} 
+                            title={`Subuh: ${r?.subuh ?? "Belum"}`}
+                          />
                         )}
-                        {rec.maghribNote && (
-                          <p><strong className="text-slate-700 font-sans">Catatan Maghrib:</strong> "{rec.maghribNote}"</p>
+                        {calendarSlotFilter !== "subuh" && (
+                          <div 
+                            className={`h-1.5 rounded-full transition-all ${
+                              r?.maghrib ? S[r.maghrib].dot : "bg-slate-200"
+                            }`} 
+                            title={`Maghrib: ${r?.maghrib ?? "Belum"}`}
+                          />
                         )}
                       </div>
                     )}
@@ -3196,9 +3345,698 @@ function PageRiwayat({
                 );
               })}
             </div>
-          )
-        }/>
-      </div>
+
+            {/* Compact Legend */}
+            <div className="px-3.5 py-2 border-t border-slate-100 flex gap-2.5 flex-wrap bg-slate-50/60 items-center justify-between text-[10px]">
+              <div className="flex items-center gap-2 flex-wrap">
+                {[{c:"bg-emerald-500",l:"Hadir"},{c:"bg-amber-500",l:"Sakit"},{c:"bg-sky-500",l:"Izin"},{c:"bg-rose-600",l:"Alfa"}].map(x=>(
+                  <div key={x.l} className="flex items-center gap-1">
+                    <div className={`w-2 h-2 rounded-full ${x.c}`}/>
+                    <span className="text-slate-500">{x.l}</span>
+                  </div>
+                ))}
+              </div>
+              <span className="text-emerald-700 font-semibold italic">👆 Klik tgl untuk detail</span>
+            </div>
+          </div>}/>
+
+          {/* Riwayat Sakit, Izin & Alfa Bulan Ini */}
+          <div>
+            <Label ch="Catatan Sakit, Izin & Alfa Bulan Ini"/>
+            <Card ch={
+              nonHadirRecs.length === 0 ? (
+                <div className="p-5 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5"/>
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">Alhamdulillah, Kehadiran Penuh</p>
+                  <p className="text-[11px] text-slate-400">Tidak ada catatan sakit, izin, maupun alfa pada bulan {format(viewMonth,"MMMM yyyy",{locale:id})}.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {nonHadirRecs.map((rec) => {
+                    const dayDate = parseISO(rec.date);
+                    const hasSubuhNonHadir = rec.subuh && rec.subuh !== "hadir";
+                    const hasMaghribNonHadir = rec.maghrib && rec.maghrib !== "hadir";
+
+                    return (
+                      <div key={rec.date} className="p-3.5 hover:bg-slate-50/80 transition-colors flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-bold text-slate-800 font-mono">
+                              {format(dayDate, "EEEE, d MMM yyyy", { locale: id })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {hasSubuhNonHadir && rec.subuh && (
+                              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                                rec.subuh === "sakit" ? "bg-amber-100 text-amber-800" :
+                                rec.subuh === "izin"  ? "bg-sky-100 text-sky-800" : "bg-rose-100 text-rose-800"
+                              }`}>
+                                Subuh: {S[rec.subuh]?.label || rec.subuh}
+                              </span>
+                            )}
+                            {hasMaghribNonHadir && rec.maghrib && (
+                              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                                rec.maghrib === "sakit" ? "bg-amber-100 text-amber-800" :
+                                rec.maghrib === "izin"  ? "bg-sky-100 text-sky-800" : "bg-rose-100 text-rose-800"
+                              }`}>
+                                Maghrib: {S[rec.maghrib]?.label || rec.maghrib}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {(rec.subuhNote || rec.maghribNote) && (
+                          <div className="bg-slate-50 rounded-xl p-2 text-xs text-slate-600 border border-slate-100 flex flex-col gap-1 font-mono">
+                            {rec.subuhNote && (
+                              <p><strong className="text-slate-700 font-sans">Catatan Subuh:</strong> "{rec.subuhNote}"</p>
+                            )}
+                            {rec.maghribNote && (
+                              <p><strong className="text-slate-700 font-sans">Catatan Maghrib:</strong> "{rec.maghribNote}"</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            }/>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 2: JURNAL LOGBOOK */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "logbook" && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          {/* Header & Month Filter */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <ClipboardList className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Rekapitulasi Jurnal Logbook</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">Bulan {format(viewMonth, "MMMM yyyy", { locale: id })}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={()=>setViewMonth(subMonths(viewMonth,1))} 
+                  className="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 flex items-center justify-center transition-all"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5"/>
+                </button>
+                <button 
+                  onClick={()=>setViewMonth(addMonths(viewMonth,1))} 
+                  className="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 flex items-center justify-center transition-all"
+                >
+                  <ChevronRight className="w-3.5 h-3.5"/>
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Clean Metric Pills for Logbook */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+              <div className="bg-indigo-50/60 border border-indigo-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-indigo-700 block mb-0.5">Tugas Selesai</span>
+                <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{logbookMonthStats.totalTasksDone}</p>
+                <span className="text-[10px] text-indigo-600/80 font-medium block mt-0.5">tugas terlaksana</span>
+              </div>
+
+              <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Hari Terisi</span>
+                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">{logbookMonthStats.daysFilled}</p>
+                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">hari aktif</span>
+              </div>
+
+              <div className="bg-sky-50/60 border border-sky-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-sky-700 block mb-0.5">Rata-rata/Hari</span>
+                <p className="text-xl sm:text-2xl font-black text-sky-950 font-mono">{logbookMonthStats.avgPerDay}<span className="text-xs font-normal">/11</span></p>
+                <span className="text-[10px] text-sky-600/80 font-medium block mt-0.5">tugas/hari</span>
+              </div>
+
+              <div className="bg-purple-50/60 border border-purple-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-purple-700 block mb-0.5">Langkah Patroli</span>
+                <p className="text-xl sm:text-2xl font-black text-purple-950 font-mono">{logbookMonthStats.totalSteps}</p>
+                <span className="text-[10px] text-purple-600/80 font-medium block mt-0.5">total steps</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Logbook Cards */}
+          <div className="space-y-3">
+            <Label ch={`Catatan Logbook Harian (${logbookDatesThisMonth.length} Hari Terdata)`}/>
+            {logbookDatesThisMonth.length === 0 ? (
+              <Card ch={
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-1">
+                    <ClipboardList className="w-6 h-6"/>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800">Belum Ada Catatan Logbook</p>
+                  <p className="text-xs text-slate-400 max-w-xs">Belum ada data jurnal logbook musyrif yang tercatat pada bulan {format(viewMonth, "MMMM yyyy", { locale: id })}.</p>
+                </div>
+              }/>
+            ) : (
+              logbookDatesThisMonth.map(dateStr => {
+                const entry = musyrifLogbooks[dateStr];
+                if (!entry) return null;
+                const isExpanded = expandedLogbookDate === dateStr;
+                let dayDoneCount = 0;
+                LOGBOOK_TASK_DEFS.forEach(t => {
+                  if (entry[t.key]?.done) dayDoneCount++;
+                });
+
+                return (
+                  <div key={dateStr} className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden transition-all">
+                    {/* Header */}
+                    <div 
+                      onClick={() => setExpandedLogbookDate(isExpanded ? null : dateStr)}
+                      className="p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/80 transition-colors select-none"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs ${
+                          dayDoneCount >= 8 ? "bg-emerald-100 text-emerald-800" :
+                          dayDoneCount >= 4 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
+                        }`}>
+                          {dayDoneCount}/11
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-xs sm:text-sm text-slate-800">
+                            {format(parseISO(dateStr), "EEEE, d MMMM yyyy", { locale: id })}
+                          </h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                            {dayDoneCount === 11 ? "✨ Seluruh 11 tugas harian selesai" : `${dayDoneCount} dari 11 tugas terlaksana`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-xl font-mono ${
+                          dayDoneCount >= 8 ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70" :
+                          dayDoneCount >= 4 ? "bg-amber-50 text-amber-700 border border-amber-200/70" :
+                          "bg-slate-100 text-slate-600"
+                        }`}>
+                          {Math.round((dayDoneCount / 11) * 100)}%
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      </div>
+                    </div>
+
+                    {/* General Notes Banner if available */}
+                    {entry.generalNotes && (
+                      <div className="px-4 pb-3">
+                        <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-2.5 text-xs text-indigo-900 flex items-start gap-2">
+                          <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <span className="font-bold text-[11px] text-indigo-700 block">Catatan Tambahan Asrama:</span>
+                            <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-line">{entry.generalNotes}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Expanded Task Breakdown */}
+                    {isExpanded && (
+                      <div className="p-4 pt-2 border-t border-slate-100 bg-slate-50/40 divide-y divide-slate-100">
+                        {LOGBOOK_TASK_DEFS.map(tDef => {
+                          const tData = entry[tDef.key] || { done: false };
+                          const isDone = !!tData.done;
+
+                          return (
+                            <div key={tDef.key} className="py-2.5 flex items-start justify-between gap-3 text-xs">
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                                  isDone ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
+                                }`}>
+                                  {isDone ? <CheckCircle2 className="w-3.5 h-3.5"/> : <X className="w-3 h-3"/>}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className={`font-bold text-xs ${isDone ? "text-slate-900" : "text-slate-500"}`}>
+                                    {tDef.title}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 flex-wrap">
+                                    <span className="font-mono">{tDef.window}</span>
+                                    {isDone && tData.completedAt && (
+                                      <span className="text-emerald-700 font-semibold">· Selesai {tData.completedAt} WIB</span>
+                                    )}
+                                    {isDone && tData.gpsVerified && (
+                                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-1.5 py-0.2 rounded font-mono">📍 GPS Valid</span>
+                                    )}
+                                    {isDone && !!tData.stepsCount && (
+                                      <span className="bg-purple-50 text-purple-700 border border-purple-200/60 px-1.5 py-0.2 rounded font-mono">👣 {tData.stepsCount} langkah</span>
+                                    )}
+                                  </div>
+                                  {tData.notes && (
+                                    <p className="text-[11px] text-slate-600 bg-white border border-slate-200/60 rounded-xl p-1.5 mt-1 font-mono">
+                                      "{tData.notes}"
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${
+                                isDone ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                              }`}>
+                                {isDone ? "Terlaksana" : "Belum"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 3: MUTABAAH YAUMIYAH */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "mutabaah" && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          {/* Header & Stats */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Rekap Mutaba'ah Yaumiyah</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">Amalan Sunnah Bulan {format(viewMonth, "MMMM yyyy", { locale: id })}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={()=>setViewMonth(subMonths(viewMonth,1))} 
+                  className="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 flex items-center justify-center transition-all"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5"/>
+                </button>
+                <button 
+                  onClick={()=>setViewMonth(addMonths(viewMonth,1))} 
+                  className="w-7 h-7 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 flex items-center justify-center transition-all"
+                >
+                  <ChevronRight className="w-3.5 h-3.5"/>
+                </button>
+              </div>
+            </div>
+
+            {/* 4 Clean Metric Pills for Mutabaah */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+              <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Total Skor Mutaba'ah</span>
+                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">{mutabaahMonthStats.totalPoints}</p>
+                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">poin yaumiyah</span>
+              </div>
+
+              <div className="bg-teal-50/60 border border-teal-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-teal-700 block mb-0.5">Tilawah Qur'an</span>
+                <p className="text-xl sm:text-2xl font-black text-teal-950 font-mono">{mutabaahMonthStats.totalTilawah}</p>
+                <span className="text-[10px] text-teal-600/80 font-medium block mt-0.5">halaman / lembar</span>
+              </div>
+
+              <div className="bg-indigo-50/60 border border-indigo-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-indigo-700 block mb-0.5">Qiyamul Lail</span>
+                <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{mutabaahMonthStats.totalTahajjud}</p>
+                <span className="text-[10px] text-indigo-600/80 font-medium block mt-0.5">malam tahajjud</span>
+              </div>
+
+              <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">Puasa Sunnah</span>
+                <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{mutabaahMonthStats.totalPuasa}</p>
+                <span className="text-[10px] text-amber-600/80 font-medium block mt-0.5">hari berpuasa</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Mutaba'ah Cards */}
+          <div className="space-y-3">
+            <Label ch={`Riwayat Amalan Yaumiyah (${mutabaahDatesThisMonth.length} Hari Terdata)`}/>
+            {mutabaahDatesThisMonth.length === 0 ? (
+              <Card ch={
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mb-1">
+                    <Sparkles className="w-6 h-6"/>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800">Belum Ada Data Mutaba'ah</p>
+                  <p className="text-xs text-slate-400 max-w-xs">Belum ada amalan yaumiyah musyrif yang tercatat pada bulan {format(viewMonth, "MMMM yyyy", { locale: id })}.</p>
+                </div>
+              }/>
+            ) : (
+              mutabaahDatesThisMonth.map(dateStr => {
+                const mEntry = musyrifMutabaah[dateStr];
+                if (!mEntry) return null;
+
+                let completedCount = 0;
+                if (mEntry.tahajjud) completedCount++;
+                if (mEntry.dhuha) completedCount++;
+                if (mEntry.rawatib) completedCount++;
+                if (mEntry.tilawahPages > 0) completedCount++;
+                if (mEntry.dzikirPagi) completedCount++;
+                if (mEntry.dzikirPetang) completedCount++;
+                if (mEntry.puasaSunnah) completedCount++;
+                if (mEntry.muthalaah) completedCount++;
+
+                return (
+                  <div key={dateStr} className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-2xs flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-800">
+                          {format(parseISO(dateStr), "EEEE, d MMMM yyyy", { locale: id })}
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {completedCount} dari 8 amalan sunnah terlaksana
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-xl font-mono">
+                        {completedCount}/8 Selesai
+                      </span>
+                    </div>
+
+                    {/* 8 Amalan Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.tahajjud ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">🌙</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Tahajjud</p>
+                          <p className="text-[10px] opacity-75">{mEntry.tahajjud ? "Dikerjakan" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.dhuha ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">☀️</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Dhuha</p>
+                          <p className="text-[10px] opacity-75">{mEntry.dhuha ? "Dikerjakan" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.rawatib ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">🕌</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Rawatib</p>
+                          <p className="text-[10px] opacity-75">{mEntry.rawatib ? "Dikerjakan" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.tilawahPages > 0 ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">📖</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Tilawah</p>
+                          <p className="text-[10px] opacity-75 font-mono">{mEntry.tilawahPages > 0 ? `${mEntry.tilawahPages} Hal` : "0 Hal"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.dzikirPagi ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">🌅</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Dzikir Pagi</p>
+                          <p className="text-[10px] opacity-75">{mEntry.dzikirPagi ? "Dikerjakan" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.dzikirPetang ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">🌆</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Dzikir Petang</p>
+                          <p className="text-[10px] opacity-75">{mEntry.dzikirPetang ? "Dikerjakan" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.puasaSunnah ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">🌿</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Puasa Sunnah</p>
+                          <p className="text-[10px] opacity-75">{mEntry.puasaSunnah ? "Berpuasa" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        mEntry.muthalaah ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">📚</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Muthala'ah</p>
+                          <p className="text-[10px] opacity-75">{mEntry.muthalaah ? "Membaca" : "Tidak"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 4: PENGAJUAN IZIN */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "izin" && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          {/* Header Stats */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <FileCheck2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Riwayat Pengajuan Izin</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">Izin Sakit, Pulang & Keperluan Musyrif</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl font-mono">
+                {izinStats.total} Pengajuan
+              </span>
+            </div>
+
+            {/* Metric Pills */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+              <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Disetujui</span>
+                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">{izinStats.approved}</p>
+                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">disetujui Pamong</span>
+              </div>
+
+              <div className="bg-amber-50/70 border border-amber-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">Menunggu</span>
+                <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{izinStats.pending}</p>
+                <span className="text-[10px] text-amber-600/80 font-medium block mt-0.5">dalam proses review</span>
+              </div>
+
+              <div className="bg-rose-50/70 border border-rose-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-rose-700 block mb-0.5">Ditolak</span>
+                <p className="text-xl sm:text-2xl font-black text-rose-950 font-mono">{izinStats.rejected}</p>
+                <span className="text-[10px] text-rose-600/80 font-medium block mt-0.5">tidak disetujui</span>
+              </div>
+            </div>
+          </div>
+
+          {/* List of Izin */}
+          <div className="space-y-3">
+            <Label ch={`Daftar Permohonan Izin (${musyrifIzinList.length})`}/>
+            {musyrifIzinList.length === 0 ? (
+              <Card ch={
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center mb-1">
+                    <FileCheck2 className="w-6 h-6"/>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800">Tidak Ada Riwayat Izin</p>
+                  <p className="text-xs text-slate-400 max-w-xs">Musyrif belum pernah mengajukan surat izin atau izin sakit.</p>
+                </div>
+              }/>
+            ) : (
+              musyrifIzinList.map(req => {
+                const isApproved = req.status === "approved";
+                const isPending = req.status === "pending";
+                const isRejected = req.status === "rejected";
+
+                return (
+                  <div key={req.id} className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            req.type === "sakit" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-800"
+                          }`}>
+                            {req.type === "sakit" ? "🏥 Sakit" : "📋 Izin"}
+                          </span>
+                          <span className="text-xs font-bold text-slate-800">
+                            {req.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono mt-1">
+                          📅 {req.startDate} s/d {req.endDate} {req.prayerSlot !== "all" && `(${req.prayerSlot.toUpperCase()})`}
+                        </p>
+                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold shrink-0 font-mono ${
+                        isApproved ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
+                        isPending  ? "bg-amber-100 text-amber-800 border border-amber-200 animate-pulse" :
+                        "bg-rose-100 text-rose-800 border border-rose-200"
+                      }`}>
+                        {isApproved ? "✓ Disetujui" : isPending ? "⏳ Menunggu" : "✕ Ditolak"}
+                      </span>
+                    </div>
+
+                    {/* Alasan */}
+                    <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 text-xs">
+                      <span className="font-bold text-slate-700 block text-[11px] mb-0.5">Alasan Permohonan:</span>
+                      <p className="text-slate-600 leading-relaxed font-sans">{req.reason}</p>
+                    </div>
+
+                    {/* Reviewer Note if available */}
+                    {req.reviewedBy && (
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <span>Diverifikasi oleh: <strong className="text-slate-700">{req.reviewedBy}</strong></span>
+                        {req.reviewedAt && <span>{format(parseISO(req.reviewedAt), "d MMM yyyy, HH:mm", { locale: id })}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 5: RAPAT & AGENDA ASRAMA */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "kegiatan" && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          {/* Header Stats */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Riwayat Rapat & Agenda Asrama</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">Tahfidz, Kajian, Apel, Piket & Rapat Koordinasi</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-xl font-mono">
+                {kegiatanStats.total} Agenda
+              </span>
+            </div>
+
+            {/* Metric Pills */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
+              <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Hadir</span>
+                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">{kegiatanStats.hadir}</p>
+                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">kegiatan</span>
+              </div>
+
+              <div className="bg-sky-50/70 border border-sky-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-sky-700 block mb-0.5">Izin</span>
+                <p className="text-xl sm:text-2xl font-black text-sky-950 font-mono">{kegiatanStats.izin}</p>
+                <span className="text-[10px] text-sky-600/80 font-medium block mt-0.5">kegiatan</span>
+              </div>
+
+              <div className="bg-amber-50/70 border border-amber-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">Sakit</span>
+                <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{kegiatanStats.sakit}</p>
+                <span className="text-[10px] text-amber-600/80 font-medium block mt-0.5">kegiatan</span>
+              </div>
+
+              <div className="bg-rose-50/70 border border-rose-200/70 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-rose-700 block mb-0.5">Alpa</span>
+                <p className="text-xl sm:text-2xl font-black text-rose-950 font-mono">{kegiatanStats.alfa}</p>
+                <span className="text-[10px] text-rose-600/80 font-medium block mt-0.5">kegiatan</span>
+              </div>
+            </div>
+          </div>
+
+          {/* List of Kegiatan */}
+          <div className="space-y-3">
+            <Label ch={`Daftar Agenda & Rapat Asrama (${musyrifKegiatanList.length})`}/>
+            {musyrifKegiatanList.length === 0 ? (
+              <Card ch={
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-500 flex items-center justify-center mb-1">
+                    <Building2 className="w-6 h-6"/>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800">Tidak Ada Agenda Terdaftar</p>
+                  <p className="text-xs text-slate-400 max-w-xs">Belum ada catatan agenda, rapat, atau kegiatan asrama untuk musyrif ini.</p>
+                </div>
+              }/>
+            ) : (
+              musyrifKegiatanList.map(keg => {
+                const myStatus = keg.attendees?.[musyrif.id] || "belum";
+                const typeLabels: Record<string, string> = {
+                  tahfidz: "Tahfidz Al-Qur'an",
+                  kajian: "Kajian & Rapat Asrama",
+                  apel: "Apel / Upacara",
+                  piket: "Piket & Gotong Royong"
+                };
+
+                return (
+                  <div key={keg.id} className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800">
+                            {typeLabels[keg.activityType] || keg.activityType}
+                          </span>
+                          <span className="text-xs font-bold text-slate-800">
+                            {keg.activityTitle}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono mt-1">
+                          📅 {format(parseISO(keg.date), "EEEE, d MMMM yyyy", { locale: id })} · 📍 {keg.asrama}
+                        </p>
+                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold shrink-0 font-mono ${
+                        myStatus === "hadir" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
+                        myStatus === "izin"  ? "bg-sky-100 text-sky-800 border border-sky-200" :
+                        myStatus === "sakit" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                        myStatus === "alfa"  ? "bg-rose-100 text-rose-800 border border-rose-200" :
+                        "bg-slate-100 text-slate-600 border border-slate-200"
+                      }`}>
+                        {myStatus === "hadir" ? "✓ Hadir" : myStatus === "izin" ? "📋 Izin" : myStatus === "sakit" ? "🏥 Sakit" : myStatus === "alfa" ? "✕ Alpa" : "Belum Diisi"}
+                      </span>
+                    </div>
+
+                    {keg.notes && (
+                      <div className="bg-slate-50 rounded-2xl p-2.5 text-xs text-slate-600 border border-slate-100 font-mono">
+                        <strong className="text-slate-700 font-sans">Catatan Agenda:</strong> "{keg.notes}"
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Calendar Day Detail Modal with Quick Pamong Status Revision */}
       {selectedDay && (
@@ -5413,6 +6251,10 @@ export default function App() {
             <motion.div key="riwayat" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <PageRiwayat 
                 records={records} 
+                logbookData={logbookData}
+                mutabaahData={mutabaahData}
+                izinList={izinList}
+                kegiatanRecords={kegiatanRecords}
                 authUser={authUser} 
                 onLogin={()=>setShowLogin(true)} 
                 initialMusyrifId={selectedMusyrifId} 
