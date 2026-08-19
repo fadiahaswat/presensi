@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert, appConfirm } from "../utils/customDialog";
 
 export interface MutabaahEntry {
   tahajjud: boolean;
@@ -103,7 +104,7 @@ export function MutabaahYaumiyahModal({
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
     if (!canEdit) return;
     if (selectedDate > todayStr && !isKoordinator) {
-      alert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.");
+      appAlert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
       return;
     }
     const updated: MutabaahEntry = {
@@ -118,7 +119,7 @@ export function MutabaahYaumiyahModal({
   const handleMarkAll = (done: boolean) => {
     if (!canEdit) return;
     if (selectedDate > todayStr && !isKoordinator) {
-      alert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.");
+      appAlert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
       return;
     }
     const updated: MutabaahEntry = {
@@ -135,9 +136,14 @@ export function MutabaahYaumiyahModal({
     onSaveMutabaah(selectedMusyrifId, selectedDate, updated);
   };
 
-  const handleResetToday = () => {
+  const handleResetToday = async () => {
     if (!canEdit) return;
-    if (window.confirm(`Yakin ingin mengosongkan/reset catatan amalan mutaba'ah tanggal ${selectedDate}?`)) {
+    const ok = await appConfirm(
+      `Yakin ingin mengosongkan/reset catatan amalan mutaba'ah tanggal ${selectedDate}?`,
+      "Reset Mutaba'ah",
+      { type: "danger", confirmText: "Ya, Reset", cancelText: "Batal" }
+    );
+    if (ok) {
       setEntry(DEFAULT_ENTRY);
       if (onResetMutabaah) {
         onResetMutabaah(selectedMusyrifId, selectedDate);
@@ -145,13 +151,13 @@ export function MutabaahYaumiyahModal({
         onSaveMutabaah(selectedMusyrifId, selectedDate, DEFAULT_ENTRY);
       }
       triggerHaptic("medium");
-      alert("Catatan amalan mutaba'ah berhasil di-reset.");
+      appAlert("Catatan amalan mutaba'ah berhasil di-reset.", "Reset Selesai", "info");
     }
   };
 
   const handleSave = () => {
     if (selectedDate > todayStr && !isKoordinator) {
-      alert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.");
+      appAlert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
       return;
     }
     onSaveMutabaah(selectedMusyrifId, selectedDate, entry);

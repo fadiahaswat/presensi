@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Bell, BellRing, Volume2, VolumeX, Clock, Check, ShieldCheck, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert } from "../utils/customDialog";
 
 interface AlarmNotificationManagerProps {
   onClose: () => void;
@@ -37,7 +38,7 @@ export function AlarmNotificationManager({
 
   const requestPermission = async () => {
     if (!("Notification" in window)) {
-      alert("Browser Anda belum mendukung Web Notification API.");
+      appAlert("Browser atau perangkat Anda belum mendukung Web Notification API.", "Fitur Notifikasi", "warning");
       return;
     }
     try {

@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert, appConfirm } from "../utils/customDialog";
 
 export interface KegiatanRecord {
   id: string;
@@ -126,7 +127,7 @@ export function KegiatanAsramaModal({
 
   const handleSave = () => {
     if (selectedDate > todayStr && !isSuperAdmin) {
-      alert("Presensi kegiatan asrama tidak dapat dicatat untuk tanggal di masa depan.");
+      appAlert("Presensi kegiatan asrama tidak dapat dicatat untuk tanggal di masa depan.", "Tanggal Tidak Valid", "warning");
       return;
     }
     const actMeta = ACTIVITIES.find(a => a.id === selectedActivity);
@@ -152,7 +153,7 @@ export function KegiatanAsramaModal({
     });
 
     triggerHaptic("medium");
-    alert(editingKegiatan ? "Data kegiatan berhasil diperbarui." : "Presensi kegiatan berhasil disimpan.");
+    appAlert(editingKegiatan ? "Data kegiatan berhasil diperbarui." : "Presensi kegiatan berhasil disimpan.", "Berhasil", "success");
     resetForm();
     setActiveTab("riwayat");
   };
@@ -532,8 +533,13 @@ export function KegiatanAsramaModal({
                         {onDeleteKegiatan && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(`Hapus data agenda "${rec.activityTitle}" tanggal ${rec.date}?`)) {
+                            onClick={async () => {
+                              const ok = await appConfirm(
+                                `Hapus data agenda "${rec.activityTitle}" tanggal ${rec.date}?`,
+                                "Hapus Agenda Kegiatan",
+                                { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+                              );
+                              if (ok) {
                                 onDeleteKegiatan(rec.id);
                               }
                             }}

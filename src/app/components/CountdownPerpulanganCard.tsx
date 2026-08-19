@@ -208,104 +208,88 @@ export const CountdownPerpulanganCard: React.FC<CountdownPerpulanganCardProps> =
   // FULL EXPANDED CARD (Untuk di dalam PageKalenderPendidikan)
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-emerald-900 via-teal-900 to-slate-900 text-white shadow-md ring-1 ring-emerald-500/20 p-4 sm:p-6 transition-all">
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Header inside card */}
-      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-emerald-500/20">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300">
-            <Clock className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm sm:text-base text-white">
-              Countdown Perpulangan Santri
-            </h3>
-            <p className="text-[11px] text-emerald-200/70">TA 2026/2027 • Mu'allimin</p>
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl border border-white/10 text-xs">
-          {(["Semua", "I", "II-VI"] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={(e) => handleSetFilter(f, e)}
-              className={`px-2.5 py-0.5 rounded-lg font-medium transition ${
-                activeFilter === f ? "bg-emerald-500 text-white" : "text-emerald-200/60 hover:text-white"
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-950 text-white shadow-md ring-1 ring-emerald-500/20 p-3.5 sm:p-4 transition-all">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Left: Info Title & Target */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                isCurrentlyOngoing
+                  ? "bg-rose-500/20 text-rose-300 border border-rose-400/30 animate-pulse"
+                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
               }`}
             >
-              {f === "Semua" ? "Semua" : `Kelas ${f}`}
-            </button>
-          ))}
-        </div>
-      </div>
+              {isCurrentlyOngoing ? "Sedang Libur" : "Perpulangan Terdekat"}
+            </span>
+            <span className="text-[10px] text-emerald-200/70 font-mono">
+              Kelas {activeDisplayItem.targetKelas}
+            </span>
 
-      {/* Content */}
-      <div className="relative z-10 pt-4 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  isCurrentlyOngoing
-                    ? "bg-rose-500/20 text-rose-300 border border-rose-400/30 animate-pulse"
-                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
-                }`}
-              >
-                {isCurrentlyOngoing ? "Sedang Libur" : "Perpulangan Terdekat"}
-              </span>
-              <span className="text-[10px] text-emerald-200/70 font-mono">
-                Kelas {activeDisplayItem.targetKelas}
-              </span>
+            {/* Filter Pills */}
+            <div className="flex items-center gap-0.5 bg-black/40 p-0.5 rounded-lg border border-white/10 text-[10px]">
+              {(["Semua", "I", "II-VI"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={(e) => handleSetFilter(f, e)}
+                  className={`px-2 py-0.5 rounded-md font-medium transition ${
+                    activeFilter === f ? "bg-emerald-500 text-white shadow-2xs" : "text-emerald-200/60 hover:text-white"
+                  }`}
+                >
+                  {f === "Semua" ? "Semua" : `Kelas ${f}`}
+                </button>
+              ))}
             </div>
-            <h4 className="text-base sm:text-lg font-black text-white">
-              {activeDisplayItem.nama}
-            </h4>
-            <p className="text-xs text-emerald-200/80 mt-0.5">
-              {dateLabel} • Keluar: {activeDisplayItem.startTime || "12:30"} WIB • Kembali: Maks. {activeDisplayItem.endTime || "17:00"} WIB
-            </p>
+          </div>
+
+          <h4 className="text-sm sm:text-base font-black text-white truncate">
+            {activeDisplayItem.nama}
+          </h4>
+          <p className="text-[11px] text-emerald-200/70 mt-0.5 truncate">
+            {dateLabel} • Keluar: {activeDisplayItem.startTime || "12:30"} WIB • Kembali: Maks. {activeDisplayItem.endTime || "17:00"} WIB
+          </p>
+        </div>
+
+        {/* Right: Counter Grid + SCRUD */}
+        <div className="flex items-center gap-2 self-start md:self-center shrink-0">
+          <div className="grid grid-cols-4 gap-1 text-center">
+            <div className="px-2 py-1 rounded-lg bg-black/50 border border-white/10 min-w-[42px]">
+              <span className="text-xs sm:text-sm font-black font-mono text-emerald-300 block leading-tight">
+                {String(timeRemaining.days).padStart(2, "0")}
+              </span>
+              <span className="text-[8px] uppercase tracking-wider text-emerald-200/50 font-bold block">Hari</span>
+            </div>
+            <div className="px-2 py-1 rounded-lg bg-black/50 border border-white/10 min-w-[42px]">
+              <span className="text-xs sm:text-sm font-black font-mono text-teal-300 block leading-tight">
+                {String(timeRemaining.hours).padStart(2, "0")}
+              </span>
+              <span className="text-[8px] uppercase tracking-wider text-emerald-200/50 font-bold block">Jam</span>
+            </div>
+            <div className="px-2 py-1 rounded-lg bg-black/50 border border-white/10 min-w-[42px]">
+              <span className="text-xs sm:text-sm font-black font-mono text-cyan-300 block leading-tight">
+                {String(timeRemaining.minutes).padStart(2, "0")}
+              </span>
+              <span className="text-[8px] uppercase tracking-wider text-emerald-200/50 font-bold block">Menit</span>
+            </div>
+            <div className="px-2 py-1 rounded-lg bg-black/50 border border-white/10 min-w-[42px]">
+              <span className="text-xs sm:text-sm font-black font-mono text-emerald-400 block leading-tight">
+                {String(timeRemaining.seconds).padStart(2, "0")}
+              </span>
+              <span className="text-[8px] uppercase tracking-wider text-emerald-200/50 font-bold block">Detik</span>
+            </div>
           </div>
 
           {canScrud && onOpenScrudModal && (
             <button
               type="button"
               onClick={onOpenScrudModal}
-              className="self-start sm:self-auto inline-flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 text-emerald-100 border border-white/20 px-2.5 py-1 rounded-xl transition font-medium"
+              title="Kelola Jadwal"
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-emerald-200 border border-white/10 flex items-center justify-center transition active:scale-95 shrink-0"
             >
-              <Edit3 className="w-3 h-3" />
-              <span>Kelola (SCRUD)</span>
+              <Edit3 className="w-3.5 h-3.5" />
             </button>
           )}
-        </div>
-
-        {/* Mini Counter Grid */}
-        <div className="grid grid-cols-4 gap-2">
-          <div className="p-2 sm:p-2.5 rounded-xl bg-black/40 border border-white/10 text-center">
-            <span className="text-lg sm:text-2xl font-black font-mono text-emerald-300 block">
-              {String(timeRemaining.days).padStart(2, "0")}
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-emerald-200/60 font-semibold">Hari</span>
-          </div>
-          <div className="p-2 sm:p-2.5 rounded-xl bg-black/40 border border-white/10 text-center">
-            <span className="text-lg sm:text-2xl font-black font-mono text-teal-300 block">
-              {String(timeRemaining.hours).padStart(2, "0")}
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-emerald-200/60 font-semibold">Jam</span>
-          </div>
-          <div className="p-2 sm:p-2.5 rounded-xl bg-black/40 border border-white/10 text-center">
-            <span className="text-lg sm:text-2xl font-black font-mono text-cyan-300 block">
-              {String(timeRemaining.minutes).padStart(2, "0")}
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-emerald-200/60 font-semibold">Menit</span>
-          </div>
-          <div className="p-2 sm:p-2.5 rounded-xl bg-black/40 border border-white/10 text-center">
-            <span className="text-lg sm:text-2xl font-black font-mono text-emerald-400 block">
-              {String(timeRemaining.seconds).padStart(2, "0")}
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-emerald-200/60 font-semibold">Detik</span>
-          </div>
         </div>
       </div>
     </div>

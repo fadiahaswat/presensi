@@ -9,6 +9,7 @@ import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { searchSantri, getSantriForMusyrif, SantriData } from "../data/santriData";
+import { appAlert } from "../utils/customDialog";
 
 export interface SantriSakitRecord {
   id: string;
@@ -136,7 +137,7 @@ export function SantriSakitModal({
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
     if (formDate > todayStr) {
-      alert("Tanggal pemeriksaan santri sakit tidak dapat dicatat untuk tanggal di masa depan.");
+      appAlert("Tanggal pemeriksaan santri sakit tidak dapat dicatat untuk tanggal di masa depan.", "Tanggal Tidak Valid", "warning");
       return;
     }
 
@@ -160,7 +161,7 @@ export function SantriSakitModal({
 
     onSaveSantriSakit(recordToSave);
     triggerHaptic("medium");
-    alert(editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan.");
+    appAlert(editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan.", "Berhasil", "success");
     resetForm();
   };
 

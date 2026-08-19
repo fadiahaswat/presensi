@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Search, Plus, UserPlus, Edit3, Trash2, Mail, Building2, ShieldCheck, CheckCircle2, ChevronLeft, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert, appConfirm } from "../utils/customDialog";
 
 export interface Pamong {
   id: string;
@@ -121,11 +122,11 @@ export function PamongManagerModal({
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanName) {
-      alert("Nama pamong wajib diisi.");
+      appAlert("Nama pamong wajib diisi.", "Validasi Data", "warning");
       return;
     }
     if (!cleanEmail) {
-      alert("Email pamong wajib diisi.");
+      appAlert("Email pamong wajib diisi.", "Validasi Data", "warning");
       return;
     }
 
@@ -136,14 +137,14 @@ export function PamongManagerModal({
         email: cleanEmail,
         asrama,
       });
-      alert(`Data pamong "${cleanName}" berhasil diperbarui.`);
+      appAlert(`Data pamong "${cleanName}" berhasil diperbarui.`, "Berhasil", "success");
     } else {
       onAddPamong({
         name: cleanName,
         email: cleanEmail,
         asrama,
       });
-      alert(`Pamong baru "${cleanName}" berhasil ditambahkan.`);
+      appAlert(`Pamong baru "${cleanName}" berhasil ditambahkan.`, "Berhasil", "success");
     }
 
     triggerHaptic("medium");
@@ -390,8 +391,13 @@ export function PamongManagerModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Yakin ingin menghapus pamong "${p.name}" dari sistem?`)) {
+                        onClick={async () => {
+                          const ok = await appConfirm(
+                            `Yakin ingin menghapus pamong "${p.name}" dari sistem?`,
+                            "Hapus Pamong",
+                            { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+                          );
+                          if (ok) {
                             onDeletePamong(p.id);
                             triggerHaptic("medium");
                           }

@@ -34,6 +34,7 @@ const TABLES = {
   MUTABAAH: "Mutabaah",
   SANTRI_SAKIT: "SantriSakit",
   MUSYRIF: "Musyrif",
+  SANTRI: "Santri",
   SUNNAH_FASTS: "SunnahFasts"
 };
 

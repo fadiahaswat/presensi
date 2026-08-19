@@ -109,28 +109,28 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-5 max-w-7xl mx-auto w-full pb-12 animate-in fade-in duration-300">
+    <div className="space-y-3.5 max-w-7xl mx-auto pb-10">
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onBack}
-            className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
+            className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
             title="Kembali ke Dasbor"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold font-mono">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                 KHGT Majelis Tarjih
               </span>
               <span className="text-[10px] text-slate-400 font-mono">PP Muhammadiyah</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2 mt-0.5">
-              <CalendarIcon className="w-5 h-5 text-emerald-600 shrink-0" />
+            <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5 mt-0.5">
+              <CalendarIcon className="w-4 h-4 text-emerald-600 shrink-0" />
               Kalender Hijriah Global Tunggal
             </h2>
           </div>
@@ -139,23 +139,23 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
         <button
           type="button"
           onClick={() => setShowKHGTInfo(!showKHGTInfo)}
-          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border text-xs font-bold transition-all shadow-2xs self-start sm:self-auto ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs self-start sm:self-auto ${
             showKHGTInfo
               ? "bg-emerald-700 text-white border-emerald-800"
-              : "bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50"
+              : "bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100"
           }`}
         >
-          <Info className="w-4 h-4" />
-          <span>Panduan Kriteria KHGT</span>
+          <Info className="w-3.5 h-3.5" />
+          <span>Kriteria KHGT</span>
         </button>
       </div>
 
       {/* Info Banner KHGT Collapsible */}
       {showKHGTInfo && (
-        <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50/50 border border-emerald-200/90 text-emerald-950 text-xs space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 shadow-xs">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50/50 border border-emerald-200/90 text-emerald-950 text-xs space-y-2.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <p className="font-extrabold text-sm text-emerald-900 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-emerald-700" />
+            <p className="font-extrabold text-xs text-emerald-900 flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
               Prinsip Kalender Hijriah Global Tunggal (KHGT) Muhammadiyah
             </p>
             <button
@@ -166,96 +166,96 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
               Tutup
             </button>
           </div>
-          <p className="leading-relaxed text-slate-700">
+          <p className="leading-relaxed text-slate-700 text-[11.5px]">
             Berdasarkan keputusan <strong>Munas Tarjih ke-32 Pekalongan</strong> dan <strong>Keputusan PP Muhammadiyah No. 120/KEP/I.0/B/2024</strong>, Muhammadiyah resmi memberlakukan KHGT mulai <strong>1 Muharram 1446 H (7 Juli 2024 M)</strong>.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-emerald-100 shadow-2xs">
-              <p className="font-bold text-emerald-900 mb-1">1. Kesatuan Matla&apos; Global</p>
-              <p className="text-[11px] text-slate-600">Satu hari satu tanggal di seluruh penjuru dunia dengan parameter kesepakatan Istanbul 2016.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-0.5">
+            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
+              <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">1. Kesatuan Matla&apos; Global</p>
+              <p className="text-[10.5px] text-slate-600">Satu hari satu tanggal di seluruh penjuru dunia dengan parameter kesepakatan Istanbul 2016.</p>
             </div>
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-emerald-100 shadow-2xs">
-              <p className="font-bold text-emerald-900 mb-1">2. Kepastian Kalender Jauh Hari</p>
-              <p className="text-[11px] text-slate-600">Awal Ramadan, Syawal, & Dzulhijjah dapat dihitung pasti bertahun-tahun sebelumnya.</p>
+            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
+              <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">2. Kepastian Kalender Jauh Hari</p>
+              <p className="text-[10.5px] text-slate-600">Awal Ramadan, Syawal, & Dzulhijjah dapat dihitung pasti bertahun-tahun sebelumnya.</p>
             </div>
-            <div className="bg-white/80 p-3.5 rounded-2xl border border-emerald-100 shadow-2xs">
-              <p className="font-bold text-emerald-900 mb-1">3. Keselarasan Ibadah Global</p>
-              <p className="text-[11px] text-slate-600">Puasa Arafah (9 Dzulhijjah) selaras secara global dengan hari wukuf di padang Arafah.</p>
+            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
+              <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">3. Keselarasan Ibadah Global</p>
+              <p className="text-[10.5px] text-slate-600">Puasa Arafah (9 Dzulhijjah) selaras secara global dengan hari wukuf di padang Arafah.</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modern Month Navigator & Filters Bar */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Month Title & Gregorian Range */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
-              <Moon className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-black text-xl sm:text-2xl text-slate-900 tracking-tight leading-tight">
-                {HIJRI_MONTHS[selectedMonth - 1]} {selectedYear} H
-              </h3>
-              {daysInMonth.length > 0 && (
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  {format(daysInMonth[0].gregorianDate, "d MMMM yyyy", { locale: id })} —{" "}
-                  {format(daysInMonth[daysInMonth.length - 1].gregorianDate, "d MMMM yyyy", { locale: id })}
-                </p>
-              )}
-            </div>
+      {/* Month Navigator & Filters Bar */}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Month Title & Gregorian Range */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
+            <Moon className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-black text-base sm:text-lg text-slate-900 tracking-tight leading-tight">
+              {HIJRI_MONTHS[selectedMonth - 1]} {selectedYear} H
+            </h3>
+            {daysInMonth.length > 0 && (
+              <p className="text-[11px] text-slate-500 font-medium">
+                {format(daysInMonth[0].gregorianDate, "d MMM yyyy", { locale: id })} — {format(daysInMonth[daysInMonth.length - 1].gregorianDate, "d MMM yyyy", { locale: id })}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Navigation & Filter Buttons Row */}
+        <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+            {[
+              { id: "all", label: "Semua" },
+              { id: "sunnah", label: "Puasa Sunnah" },
+              { id: "event", label: "Hari Besar" },
+              { id: "haram", label: "Haram Puasa" },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFilterType(f.id as any)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
+                  filterType === f.id
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/70"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+          {/* Nav Controls */}
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-2xs transition-all flex items-center justify-center"
+              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-2xs transition-all flex items-center justify-center"
               title="Bulan Sebelumnya"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
               onClick={handleGoToday}
-              className="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs active:scale-95 shadow-xs transition-all"
+              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] active:scale-95 shadow-2xs transition-all"
             >
               Hari Ini
             </button>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-2xs transition-all flex items-center justify-center"
+              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-2xs transition-all flex items-center justify-center"
               title="Bulan Berikutnya"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pt-1 border-t border-slate-100">
-          {[
-            { id: "all", label: "Semua Hari" },
-            { id: "sunnah", label: "Puasa Sunnah" },
-            { id: "event", label: "Hari Besar Islam" },
-            { id: "haram", label: "Larangan Puasa" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilterType(f.id as any)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                filterType === f.id
-                  ? "bg-slate-900 text-white shadow-xs"
-                  : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -283,12 +283,12 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
             </div>
 
             {/* Calendar Grid Days */}
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
               {/* Empty prefix cells */}
               {Array.from({ length: firstDayOfWeek }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="h-20 sm:h-24 md:h-26 rounded-2xl bg-slate-50/40 border border-slate-100/60 opacity-25"
+                  className="h-14 sm:h-16 md:h-18 rounded-xl bg-slate-50/40 border border-slate-100/60 opacity-25"
                 />
               ))}
 
@@ -316,9 +316,9 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
                       setSelectedHijriDay(d.day);
                       if (onSelectDate) onSelectDate(d.gregorianDate);
                     }}
-                    className={`relative h-20 sm:h-24 md:h-26 p-2 sm:p-2.5 rounded-2xl text-left transition-all flex flex-col justify-between border ${
+                    className={`relative h-14 sm:h-16 md:h-18 p-1.5 sm:p-2 rounded-xl text-left transition-all flex flex-col justify-between border ${
                       isSelected
-                        ? "bg-gradient-to-br from-emerald-600 to-teal-700 text-white ring-4 ring-emerald-500/25 border-emerald-600 shadow-md scale-[1.02] z-10"
+                        ? "bg-gradient-to-br from-emerald-600 to-teal-700 text-white ring-2 ring-emerald-500/30 border-emerald-600 shadow-md scale-[1.02] z-10"
                         : d.isToday
                         ? "bg-emerald-50 text-slate-900 border-emerald-400 ring-2 ring-emerald-300 shadow-2xs"
                         : isHaram
@@ -333,7 +333,7 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
                     {/* Top Row: Hijri Day Number & Status Icon */}
                     <div className="flex items-center justify-between w-full">
                       <span
-                        className={`font-black text-base sm:text-lg font-mono leading-none ${
+                        className={`font-black text-sm sm:text-base font-mono leading-none ${
                           isSelected ? "text-white" : "text-slate-900"
                         }`}
                       >

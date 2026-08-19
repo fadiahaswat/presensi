@@ -3,7 +3,8 @@ import {
   X, Check, Clock, Calendar, CheckCircle2, 
   AlertCircle, ChevronRight, FileText, Sparkles, Building2, User, Eye, ShieldCheck,
   MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft, Lock,
-  Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award
+  Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award,
+  Sunrise, Sunset, Star
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -11,6 +12,7 @@ import { motion } from "motion/react";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "../utils/geoUtils";
 import { PatroliStepsModal } from "./PatroliStepsModal";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert, appConfirm } from "../utils/customDialog";
 
 export interface LogbookTaskItem {
   done: boolean;
@@ -276,20 +278,34 @@ export function JurnalLogbookModal({
   isPage = false
 }: JurnalLogbookModalProps) {
   const isKoordinator = authUser?.role === "koordinator_musyrif";
-  const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
-  const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
+  const isKoorGedung = authUser?.role === "koordinator_gedung";
+  const isPamong = authUser?.role === "pamong";
+  const isPamongOrKoord = isPamong || isKoordinator || isKoorGedung;
 
   const activeMusyrifList = useMemo(() => {
     if (isKoordinator) {
       return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
     }
-    if (authUser?.role === "koordinator_gedung") {
+    if (isKoorGedung) {
+      return musyrifList.filter(m => m.asrama === authUser.asrama);
+    }
+    if (isPamong) {
       return musyrifList.filter(m => m.asrama === authUser.asrama);
     }
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
-  }, [musyrifList, authUser, isKoordinator]);
+  }, [musyrifList, authUser, isKoordinator, isKoorGedung, isPamong]);
 
-  const defaultMusyrifId = authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
+  // Find the musyrif record matching logged-in user (including Koordinator Gedung)
+  const mySelfMusyrif = useMemo(() => {
+    if (!authUser) return null;
+    return musyrifList.find(m => 
+      m.id === authUser.musyrifId || 
+      m.id === authUser.id || 
+      (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase())
+    ) || null;
+  }, [authUser, musyrifList]);
+
+  const defaultMusyrifId = mySelfMusyrif?.id || authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -297,6 +313,13 @@ export function JurnalLogbookModal({
   const [searchTaskQuery, setSearchTaskQuery] = useState<string>("");
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+
+  // Check if currently active selected musyrif is logged-in user himself
+  const isEditingSelf = Boolean(
+    mySelfMusyrif && selectedMusyrifId === mySelfMusyrif.id
+  ) || authUser?.role === "musyrif";
+
+  const isMusyrifUser = isEditingSelf;
 
   // Active Patrol Modal Tracker State
   const [activePatrolTask, setActivePatrolTask] = useState<TaskDefinition | null>(null);
@@ -320,8 +343,13 @@ export function JurnalLogbookModal({
   }, [logbookData, selectedMusyrifId, selectedDate]);
 
   // Reset logbook entries for selected date
-  const handleResetLogbook = () => {
-    if (window.confirm(`Yakin ingin mengosongkan/reset catatan logbook tanggal ${selectedDate} untuk ${selectedMusyrif?.name}?`)) {
+  const handleResetLogbook = async () => {
+    const ok = await appConfirm(
+      `Yakin ingin mengosongkan/reset catatan logbook tanggal ${selectedDate} untuk ${selectedMusyrif?.name}?`,
+      "Reset Catatan Logbook",
+      { type: "danger", confirmText: "Ya, Reset Logbook", cancelText: "Batal" }
+    );
+    if (ok) {
       setFormState(EMPTY_LOGBOOK);
       if (onResetLogbook) {
         onResetLogbook(selectedMusyrifId, selectedDate);
@@ -329,7 +357,7 @@ export function JurnalLogbookModal({
         onSaveLogbook(selectedMusyrifId, selectedDate, EMPTY_LOGBOOK);
       }
       triggerHaptic("medium");
-      alert("Catatan logbook berhasil di-reset.");
+      appAlert("Catatan logbook berhasil di-reset.", "Reset Selesai", "info");
     }
   };
 
@@ -367,13 +395,13 @@ export function JurnalLogbookModal({
     
     // 1. Must be today (for standard musyrif only)
     if (!isToday && !isPamongOrKoord) {
-      alert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini). Tanggal selain hari ini telah terkunci.");
+      appAlert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini). Tanggal selain hari ini telah terkunci.", "Waktu Terkunci", "warning");
       return;
     }
 
     // 2. Must be in Asrama (Geofencing check if GPS available, for standard musyrif only)
     if (gpsResult && !gpsResult.isInRange && !isPamongOrKoord) {
-      alert(`Anda terdeteksi berada di luar area ${asramaTarget} (${gpsResult.distanceMeters}m dari radius valid). Pencatatan tugas logbook hanya diizinkan saat Anda berada di lingkungan asrama.`);
+      appAlert(`Anda terdeteksi berada di luar area ${asramaTarget} (${gpsResult.distanceMeters}m dari radius valid). Pencatatan tugas logbook hanya diizinkan saat Anda berada di lingkungan asrama.`, "Di Luar Asrama", "warning");
       return;
     }
 
@@ -383,15 +411,15 @@ export function JurnalLogbookModal({
     // 3. Strict Locking for standard Musyrif only:
     if (!isPamongOrKoord) {
       if (cur.done) {
-        alert(`Tugas "${taskDef.title}" telah diverifikasi selesai pada ${cur.completedAt || "-"} WIB.`);
+        appAlert(`Tugas "${taskDef.title}" telah diverifikasi selesai pada ${cur.completedAt || "-"} WIB.`, "Tugas Selesai", "info");
         return;
       }
       if (timeInfo.status === "upcoming") {
-        alert(`Tugas "${taskDef.title}" belum masuk waktu pelaksanaan.\nJadwal tugas: ${taskDef.timeWindow}.\n\nSilakan isi saat waktu tugas aktif tiba.`);
+        appAlert(`Tugas "${taskDef.title}" belum masuk waktu pelaksanaan.\nJadwal tugas: ${taskDef.timeWindow}.\n\nSilakan isi saat waktu tugas aktif tiba.`, "Belum Masuk Waktu", "info");
         return;
       }
       if (timeInfo.status === "passed") {
-        alert(`Jadwal tugas "${taskDef.title}" (${taskDef.timeWindow}) telah BERAKHIR dan TERKUNCI secara otomatis oleh sistem.\n\nTugas yang tidak dilaksanakan pada jamnya tidak dapat dicentang susulan.`);
+        appAlert(`Jadwal tugas "${taskDef.title}" (${taskDef.timeWindow}) telah BERAKHIR dan TERKUNCI secara otomatis oleh sistem.\n\nTugas yang tidak dilaksanakan pada jamnya tidak dapat dicentang susulan.`, "Jadwal Terkunci", "danger");
         return;
       }
     }
@@ -564,23 +592,25 @@ export function JurnalLogbookModal({
         )}
       </div>
 
-      {/* GPS Status Banner */}
-      <div className={`p-3.5 sm:p-4 rounded-3xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-            <MapPin className="w-4 h-4" />
+      {/* GPS Status Banner (Only for standard Musyrif doing self-input) */}
+      {!isPamongOrKoord && (
+        <div className={`p-3.5 sm:p-4 rounded-3xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-xs leading-tight truncate">
+                {isCheckingGps ? "Memeriksa koordinat GPS asrama..." : !gpsResult ? `GPS Belum Diperiksa (${asramaTarget})` : isGpsVerified ? `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)` : `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters === 99999 ? "GPS Tidak Terdeteksi / Ditolak" : `${gpsResult.distanceMeters}m dari radius`})`}
+              </p>
+              <p className="text-[11px] opacity-75 truncate mt-0.5">{isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="font-bold text-xs leading-tight truncate">
-              {isCheckingGps ? "Memeriksa koordinat GPS asrama..." : !gpsResult ? `GPS Belum Diperiksa (${asramaTarget})` : isGpsVerified ? `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)` : `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters === 99999 ? "GPS Tidak Terdeteksi / Ditolak" : `${gpsResult.distanceMeters}m dari radius`})`}
-            </p>
-            <p className="text-[11px] opacity-75 truncate mt-0.5">{isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}</p>
-          </div>
+          <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-600 text-white hover:bg-rose-700"}`}>
+            <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Mengecek..." : isGpsVerified ? "Perbarui GPS" : "Cek GPS Sekarang"}</span>
+          </button>
         </div>
-        <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-600 text-white hover:bg-rose-700"}`}>
-          <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Mengecek..." : isGpsVerified ? "Perbarui GPS" : "Cek GPS Sekarang"}</span>
-        </button>
-      </div>
+      )}
 
       {/* Form & Progress Card */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">
@@ -591,12 +621,23 @@ export function JurnalLogbookModal({
             <input type="date" value={selectedDate} onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs" />
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-700 mb-1.5 block">{isMusyrifUser ? "Akun Musyrif (Mandiri)" : "Pilih Musyrif Dipantau"}</label>
-            {isMusyrifUser ? (
+            <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+              <span>{authUser?.role === "musyrif" ? "Akun Musyrif (Mandiri)" : "Pilih Personel"}</span>
+              {isKoorGedung && (
+                <span className="text-[10px] text-emerald-600 font-bold">
+                  {isEditingSelf ? "Mode Mengisi Pribadi (Strava Aktif)" : "Mode Pantau Musyrif"}
+                </span>
+              )}
+            </label>
+            {authUser?.role === "musyrif" ? (
               <div className="w-full text-xs bg-emerald-50/80 border border-emerald-200 text-emerald-900 rounded-2xl px-3.5 py-2.5 font-bold truncate flex items-center gap-1.5 shadow-2xs"><User className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> {authUser?.name}</div>
             ) : (
               <select value={selectedMusyrifId} onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 outline-none cursor-pointer shadow-2xs">
-                {activeMusyrifList.map(m => <option key={m.id} value={m.id}>{m.name} ({m.asrama}{m.kamar ? ` - Kmr ${m.kamar}` : ""})</option>)}
+                {activeMusyrifList.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.id === mySelfMusyrif?.id ? `${m.name} (Saya Sendiri - Logbook & Patroli)` : `${m.name} (${m.asrama}${m.kamar ? ` - Kmr ${m.kamar}` : ""})`}
+                  </option>
+                ))}
               </select>
             )}
           </div>
@@ -651,31 +692,36 @@ export function JurnalLogbookModal({
 
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
             {[
-              { id: "all", label: "Semua Kategori" },
-              { id: "Pagi", label: "🌅 Pagi" },
-              { id: "Siang", label: "☀️ Siang" },
-              { id: "Sore", label: "🌇 Sore" },
-              { id: "Malam", label: "🌙 Malam" },
-              { id: "patrol", label: "🚶 Patroli Langkah" }
-            ].map(cat => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setFilterCategory(cat.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-2xs ${
-                  filterCategory === cat.id
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+              { id: "all", label: "Semua Kategori", icon: null },
+              { id: "Pagi", label: "Pagi", icon: Sunrise },
+              { id: "Siang", label: "Siang", icon: Sun },
+              { id: "Sore", label: "Sore", icon: Sunset },
+              { id: "Malam", label: "Malam", icon: Moon },
+              { id: "patrol", label: "Patroli Langkah", icon: Footprints }
+            ].map(cat => {
+              const IconComp = cat.icon;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setFilterCategory(cat.id as any)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shadow-2xs inline-flex items-center gap-1.5 ${
+                    filterCategory === cat.id
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/80"
+                  }`}
+                >
+                  {IconComp && <IconComp className="w-3.5 h-3.5" />}
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {isMusyrifUser && !isGpsVerified ? (
+      {/* Only block standard field musyrifs if GPS not verified; Super Admins & Pamong NEVER blocked */}
+      {(!isKoordinator && !isPamong && isMusyrifUser && !isGpsVerified) ? (
         <div className="bg-white rounded-3xl p-8 text-center border border-rose-200 shadow-sm space-y-4">
           <div className="w-16 h-16 rounded-3xl bg-rose-50 border-2 border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-inner"><MapPin className="w-8 h-8" /></div>
           <div>
@@ -732,7 +778,7 @@ export function JurnalLogbookModal({
                         onClick={() => {
                           if (t.isPatrol && !isPamongOrKoord && isMusyrifUser && !isDone) {
                             if (isLocked) {
-                              alert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`);
+                              appAlert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`, "Jadwal Terkunci", "warning");
                               return;
                             }
                             setActivePatrolTask(t);
@@ -774,13 +820,13 @@ export function JurnalLogbookModal({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`text-xs sm:text-sm font-bold leading-tight ${
-                              isDone ? "text-emerald-950" : isPassed ? "text-slate-500 line-through" : "text-slate-900"
+                              isDone ? "text-slate-900" : isPassed ? "text-slate-400 line-through" : "text-slate-800"
                             }`}
                           >
                             {t.number}. {t.title}
                           </span>
-                          {isPassed && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-100/90 border border-rose-200 px-2 py-0.5 rounded-full font-mono">
+                          {!isDone && isPassed && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md font-mono">
                               <Lock className="w-2.5 h-2.5" /> Terkunci
                             </span>
                           )}
@@ -788,21 +834,29 @@ export function JurnalLogbookModal({
                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t.shortDesc}</p>
                         
                         {/* Badges row */}
-                        <div className="flex items-center gap-2 mt-2.5 flex-wrap text-xs">
-                          <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200/80">
-                            <Clock className="w-3.5 h-3.5 text-slate-500" /> {t.timeWindow}
+                        <div className="flex items-center gap-1.5 mt-3 flex-wrap text-xs">
+                          <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200/60 text-[11px]">
+                            <Clock className="w-3 h-3 text-slate-400" /> {t.timeWindow}
                           </span>
-                          <span className={`font-semibold px-2.5 py-1 rounded-xl font-mono ${timeInfo.badgeClass}`}>
-                            {timeInfo.label}
-                          </span>
-                          {isDone && taskData.completedAt && (
-                            <span className="font-semibold font-mono text-emerald-800 bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-xl">
-                              ✓ Selesai {taskData.completedAt} WIB
+
+                          {/* Only show time status (e.g. Selesai Jamnya / Terlewat) if NOT done */}
+                          {!isDone && (
+                            <span className={`font-semibold px-2.5 py-1 rounded-lg font-mono text-[11px] border ${timeInfo.badgeClass}`}>
+                              {timeInfo.label}
                             </span>
                           )}
+
+                          {/* Clean Emerald Completed Badge */}
+                          {isDone && (
+                            <span className="inline-flex items-center gap-1 font-semibold font-mono text-emerald-800 bg-emerald-100/90 border border-emerald-300/80 px-2.5 py-1 rounded-lg text-[11px] shadow-2xs">
+                              <Check className="w-3 h-3 text-emerald-700" />
+                              <span>Selesai{taskData.completedAt ? ` • ${taskData.completedAt} WIB` : ""}</span>
+                            </span>
+                          )}
+
                           {taskData.stepsCount && (
-                            <span className="font-semibold font-mono text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-xl flex items-center gap-1">
-                              <Footprints className="w-3.5 h-3.5" /> {taskData.stepsCount} Langkah
+                            <span className="font-semibold font-mono text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 shadow-2xs">
+                              <Footprints className="w-3 h-3 text-sky-600" /> {taskData.stepsCount} Langkah
                             </span>
                           )}
                         </div>
@@ -817,7 +871,7 @@ export function JurnalLogbookModal({
                             type="button"
                             onClick={() => {
                               if (!isToday && !isPamongOrKoord) {
-                                alert("Patroli hanya dapat dilakukan pada tanggal hari ini.");
+                                appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Patroli Asrama", "warning");
                                 return;
                               }
                               setActivePatrolTask(t);

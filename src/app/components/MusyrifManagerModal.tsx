@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert, appConfirm } from "../utils/customDialog";
 
 export type MusyrifRole = "musyrif" | "pamong" | "koordinator_gedung" | "koordinator_musyrif";
 
@@ -24,30 +25,30 @@ export interface Musyrif {
   role?: MusyrifRole;
 }
 
-const ROLE_CONFIG: Record<MusyrifRole, { label: string; badge: string; desc: string; icon: string }> = {
+const ROLE_CONFIG: Record<MusyrifRole, { label: string; badge: string; desc: string; icon: React.ComponentType<{ className?: string }> }> = {
   musyrif: {
     label: "Musyrif",
-    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    badge: "bg-emerald-50 text-emerald-800 border-emerald-200/80",
     desc: "Musyrif Kamar / Asrama (Presensi, Mutabaah Yaumiyah, Jurnal Logbook)",
-    icon: "🏢"
+    icon: Building2
   },
   pamong: {
     label: "Pamong Asrama",
-    badge: "bg-amber-50 text-amber-800 border-amber-200",
+    badge: "bg-amber-50 text-amber-800 border-amber-200/80",
     desc: "Pamong Asrama (Approval Perizinan Santri, Verifikasi Logbook, Monitoring Asrama)",
-    icon: "🛡️"
+    icon: ShieldCheck
   },
   koordinator_gedung: {
     label: "Koord. Gedung",
-    badge: "bg-sky-50 text-sky-800 border-sky-200",
+    badge: "bg-sky-50 text-sky-800 border-sky-200/80",
     desc: "Koordinator Asrama / Gedung (Monitoring Multi-Asrama & Wilayah)",
-    icon: "🏛️"
+    icon: Shield
   },
   koordinator_musyrif: {
     label: "Koord. Musyrif",
-    badge: "bg-purple-50 text-purple-800 border-purple-200",
+    badge: "bg-purple-50 text-purple-800 border-purple-200/80",
     desc: "Koordinator Musyrif (Super Admin / Akses Penuh Seluruh Asrama & Pengaturan)",
-    icon: "⭐"
+    icon: Crown
   }
 };
 
@@ -148,7 +149,7 @@ export function MusyrifManagerModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("Nama lengkap wajib diisi.");
+      appAlert("Nama lengkap wajib diisi.", "Validasi Data", "warning");
       return;
     }
 
@@ -166,7 +167,7 @@ export function MusyrifManagerModal({
         phone: phone.trim().replace(/\D/g, "") || undefined,
       });
       triggerHaptic("medium");
-      alert(`Data "${name.trim()}" (${ROLE_CONFIG[role]?.label || role}) berhasil diperbarui.`);
+      appAlert(`Data "${name.trim()}" (${ROLE_CONFIG[role]?.label || role}) berhasil diperbarui.`, "Berhasil", "success");
     } else {
       onAddMusyrif({
         name: name.trim(),
@@ -180,7 +181,7 @@ export function MusyrifManagerModal({
         phone: phone.trim().replace(/\D/g, "") || undefined,
       });
       triggerHaptic("medium");
-      alert(`Personel baru "${name.trim()}" (${ROLE_CONFIG[role]?.label || role}) berhasil ditambahkan ke ${asrama}.`);
+      appAlert(`Personel baru "${name.trim()}" (${ROLE_CONFIG[role]?.label || role}) berhasil ditambahkan ke ${asrama}.`, "Berhasil", "success");
     }
 
     resetForm();
@@ -210,81 +211,90 @@ export function MusyrifManagerModal({
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
-      {/* Header */}
-      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${
+      {/* Modern Clean Header */}
+      <div className={`p-4 sm:p-5 ${
         isPage 
-          ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" 
-          : "bg-emerald-800 text-white rounded-t-3xl sm:rounded-t-[28px]"
+          ? "bg-white rounded-3xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60" 
+          : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"
       }`}>
-        <div className="flex items-center gap-3">
-          <button 
-            type="button"
-            onClick={onClose}
-            aria-label="Tutup"
-            className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${
-              isPage ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"
-            }`}
-          >
-            {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Master Personel & Hak Akses
-              </h2>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full font-mono ${
-                isPage ? "bg-emerald-100 text-emerald-800" : "bg-white/20 text-emerald-100"
-              }`}>
-                {musyrifList.length} Personel
-              </span>
-            </div>
-            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
-              Kelola Musyrif, Pamong, Koordinator & Hak Akses Role (Tersinkron ke Google Sheet)
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {isKoordinator && onSyncAllOfficialData && (
-            <button
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button 
               type="button"
-              onClick={onSyncAllOfficialData}
-              title="Perbarui seluruh 56 Musyrif & 9 Pamong ke Google Sheets"
-              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-500/50 shadow-xs flex items-center gap-1 active:scale-95"
+              onClick={onClose}
+              aria-label="Kembali"
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-95 shrink-0 shadow-2xs ${
+                isPage ? "bg-slate-50 border border-slate-200/80 hover:bg-slate-100 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Update Data Resmi ke Sheet</span>
+              {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              if (activeTab === "tambah") resetForm();
-              setActiveTab("daftar");
-            }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "daftar"
-                ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs")
-                : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
-            }`}
-          >
-            Daftar ({filteredList.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              resetForm();
-              setActiveTab("tambah");
-            }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-              activeTab === "tambah"
-                ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs")
-                : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{editingMusyrif ? "Edit Data" : "Tambah"}</span>
-          </button>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+                  Master Personel & Hak Akses
+                </h2>
+                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full font-mono ${
+                  isPage ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-white/15 text-emerald-200 border border-white/20"
+                }`}>
+                  {musyrifList.length} Personel
+                </span>
+              </div>
+              <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>
+                Kelola Musyrif, Pamong, Koordinator & Hak Akses Role
+              </p>
+            </div>
+          </div>
+
+          {/* Action Segmented Controls */}
+          <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
+            {isKoordinator && onSyncAllOfficialData && (
+              <button
+                type="button"
+                onClick={onSyncAllOfficialData}
+                title="Perbarui seluruh 56 Musyrif & 9 Pamong ke Google Sheets"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 active:scale-95"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Sync ke Sheet</span>
+              </button>
+            )}
+            
+            {/* Segmented Switch */}
+            <div className={`p-1 rounded-2xl flex items-center gap-1 border ${
+              isPage ? "bg-slate-100/80 border-slate-200/60" : "bg-white/10 border-white/10"
+            }`}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTab === "tambah") resetForm();
+                  setActiveTab("daftar");
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeTab === "daftar"
+                    ? (isPage ? "bg-white text-emerald-800 shadow-xs" : "bg-white text-slate-900 shadow-xs")
+                    : (isPage ? "text-slate-600 hover:text-slate-900" : "text-white/80 hover:text-white")
+                }`}
+              >
+                Daftar ({filteredList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setActiveTab("tambah");
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === "tambah"
+                    ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-emerald-500 text-white shadow-xs")
+                    : (isPage ? "text-slate-600 hover:text-slate-900" : "text-white/80 hover:text-white")
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -320,6 +330,7 @@ export function MusyrifManagerModal({
                 .filter((rKey) => isKoordinator ? true : (rKey === "musyrif" || rKey === "koordinator_gedung"))
                 .map((rKey) => {
                 const conf = ROLE_CONFIG[rKey];
+                const IconComp = conf.icon;
                 const isSelected = role === rKey;
                 return (
                   <button
@@ -329,13 +340,17 @@ export function MusyrifManagerModal({
                       setRole(rKey);
                       triggerHaptic("light");
                     }}
-                    className={`p-3 rounded-2xl text-left border-2 transition-all flex items-start gap-2.5 ${
+                    className={`p-3 rounded-2xl text-left border-2 transition-all flex items-start gap-3 ${
                       isSelected
                         ? "border-emerald-600 bg-emerald-50/60 shadow-xs ring-2 ring-emerald-500/20"
                         : "border-slate-200/80 bg-white hover:border-slate-300"
                     }`}
                   >
-                    <span className="text-xl shrink-0 mt-0.5">{conf.icon}</span>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                      isSelected ? "bg-emerald-600 text-white shadow-2xs" : "bg-slate-100 text-slate-600"
+                    }`}>
+                      <IconComp className="w-4 h-4" />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-bold text-slate-900">{conf.label}</span>
@@ -481,42 +496,66 @@ export function MusyrifManagerModal({
         </form>
       ) : (
         <div className="space-y-3 pb-6 max-h-[75vh] overflow-y-auto pr-1">
-          {/* Search & Filter Bar */}
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/70 shadow-xs space-y-2.5">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari nama personel, role, kamar, kelas, pamong, HP, email..."
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+          {/* Compact Unified Search & Filter Bar */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Cari nama, kamar, kelas, email..."
+                  className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-xl pl-9 pr-8 py-2 font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none shadow-2xs"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center absolute right-2 top-1/2 -translate-y-1/2 text-xs transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Compact Asrama Select Dropdown */}
+              <div className="sm:w-48 shrink-0">
+                <select
+                  value={selectedAsrama}
+                  onChange={e => setSelectedAsrama(e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-2 font-bold text-slate-700 outline-none cursor-pointer shadow-2xs hover:bg-slate-100"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+                  <option value="all">Semua Asrama ({musyrifList.length})</option>
+                  {activeAsramaList.map(asr => {
+                    const count = musyrifList.filter(m => m.asrama === asr).length;
+                    return (
+                      <option key={asr} value={asr}>
+                        {asr} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
 
-            {/* Filter by Role */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+            {/* Compact Horizontal Role Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1 border-t border-slate-100/80">
               <button
                 type="button"
                 onClick={() => setSelectedRole("all")}
                 className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all ${
                   selectedRole === "all"
-                    ? "bg-slate-800 text-white shadow-2xs"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/70"
                 }`}
               >
                 Semua Role ({musyrifList.length})
               </button>
               {(Object.keys(ROLE_CONFIG) as MusyrifRole[]).map((rKey) => {
                 const conf = ROLE_CONFIG[rKey];
+                const IconComp = conf.icon;
                 const count = musyrifList.filter(m => (m.role || "musyrif") === rKey).length;
                 return (
                   <button
@@ -526,43 +565,11 @@ export function MusyrifManagerModal({
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1 ${
                       selectedRole === rKey
                         ? "bg-emerald-600 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/70"
                     }`}
                   >
-                    <span>{conf.icon}</span>
+                    <IconComp className="w-3 h-3" />
                     <span>{conf.label} ({count})</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Filter by Asrama */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-              <button
-                type="button"
-                onClick={() => setSelectedAsrama("all")}
-                className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedAsrama === "all"
-                    ? "bg-emerald-700 text-white shadow-2xs"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                Semua Asrama ({musyrifList.length})
-              </button>
-              {activeAsramaList.map(asr => {
-                const count = musyrifList.filter(m => m.asrama === asr).length;
-                return (
-                  <button
-                    key={asr}
-                    type="button"
-                    onClick={() => setSelectedAsrama(asr)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                      selectedAsrama === asr
-                        ? "bg-emerald-700 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {asr} ({count})
                   </button>
                 );
               })}
@@ -587,6 +594,7 @@ export function MusyrifManagerModal({
               {filteredList.map((m) => {
                 const roleKey = (m.role as MusyrifRole) || "musyrif";
                 const roleConfig = ROLE_CONFIG[roleKey] || ROLE_CONFIG.musyrif;
+                const RoleIcon = roleConfig.icon;
 
                 return (
                   <div
@@ -603,7 +611,7 @@ export function MusyrifManagerModal({
                           <div className="flex items-center gap-1.5 flex-wrap mt-1">
                             {/* Role Badge */}
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${roleConfig.badge}`}>
-                              <span>{roleConfig.icon}</span>
+                              <RoleIcon className="w-3 h-3" />
                               <span>{roleConfig.label}</span>
                             </span>
 
@@ -636,8 +644,13 @@ export function MusyrifManagerModal({
                         {isKoordinator && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(`Yakin ingin menghapus personel "${m.name}" (${roleConfig.label}) dari sistem? Data presensi dan logbook yang terkait mungkin akan terpengaruh.`)) {
+                            onClick={async () => {
+                              const ok = await appConfirm(
+                                `Yakin ingin menghapus personel "${m.name}" (${roleConfig.label}) dari sistem? Data presensi dan logbook yang terkait mungkin akan terpengaruh.`,
+                                "Hapus Personel",
+                                { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+                              );
+                              if (ok) {
                                 onDeleteMusyrif(m.id);
                                 triggerHaptic("medium");
                               }

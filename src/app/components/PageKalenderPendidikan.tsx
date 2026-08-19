@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { appConfirm } from "../utils/customDialog";
 import {
   ChevronLeft,
   ChevronRight,
@@ -263,8 +265,13 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
     setIsAddingJadwal(false);
   };
 
-  const handleDeleteJadwal = (id: string, nama: string) => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus jadwal "${nama}"?`)) return;
+  const handleDeleteJadwal = async (id: string, nama: string) => {
+    const ok = await appConfirm(
+      `Apakah Anda yakin ingin menghapus jadwal "${nama}"?`,
+      "Hapus Jadwal Perpulangan",
+      { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+    );
+    if (!ok) return;
     const updated = jadwalList.filter((j) => j.id !== id);
     updateJadwalState(updated);
     showToast(`Jadwal "${nama}" telah dihapus.`);
@@ -288,8 +295,13 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
     setIsAddingAgenda(false);
   };
 
-  const handleDeleteAgenda = (id: string, nama: string) => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus agenda "${nama}"?`)) return;
+  const handleDeleteAgenda = async (id: string, nama: string) => {
+    const ok = await appConfirm(
+      `Apakah Anda yakin ingin menghapus agenda "${nama}"?`,
+      "Hapus Agenda Madrasah",
+      { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+    );
+    if (!ok) return;
     const updated = agendaList.filter((a) => a.id !== id);
     updateAgendaState(updated);
     showToast(`Agenda "${nama}" telah dihapus.`);

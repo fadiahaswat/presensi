@@ -46,6 +46,8 @@ import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } 
 import { motion, AnimatePresence } from "motion/react";
 import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdropVariants, modalContentVariants } from "./utils/animations";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "./utils/geoUtils";
+import { CustomDialogModal } from "./components/CustomDialogModal";
+import { appAlert, appConfirm, appUndoToast } from "./utils/customDialog";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -238,8 +240,8 @@ const AUTH_USERS: AuthUser[] = [
 
   // ─── PAMONG ASRAMA ───
   { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galangmuhammady@muallimin.sch.id", role:"pamong", asrama:"Asrama 1" },
-  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"auliaabdan@muallimin.sch.id",      role:"pamong", asrama:"Asrama 8A" },
-  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"abukaysan86@gmail.com",            role:"pamong", asrama:"Asrama 8B" },
+  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"auliaabdan@muallimin.sch.id",      role:"pamong", asrama:"Asrama 8A & 8C Kelas 6" },
+  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"abukaysan86@gmail.com",            role:"pamong", asrama:"Asrama 8B & 8C Kelas 5" },
   { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggitprabowo13@gmail.com",        role:"pamong", asrama:"Asrama 10" },
   { id:"p5",  name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com, cutisrais@gmail.com", role:"pamong", asrama:"Asrama Sedayu Gedung A" },
   { id:"p6",  name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaflubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B" },
@@ -514,7 +516,9 @@ function PageDashboard({
   activeSantriSakitCount = 0,
   canInstallPWA = false,
   musyrifList = MUSYRIF_LIST,
-  pamongList = []
+  pamongList = [],
+  izinList = [],
+  santriSakitList = []
 }: { 
   records: AttendanceRecord[]; 
   authUser: AuthUser|null; 
@@ -538,6 +542,8 @@ function PageDashboard({
   canInstallPWA?: boolean;
   musyrifList?: Musyrif[];
   pamongList?: Pamong[];
+  izinList?: IzinMusyrif[];
+  santriSakitList?: SantriSakit[];
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif);
@@ -1153,301 +1159,337 @@ function PageDashboard({
             </button>
           </div>
         ) : (
-          /* Pamong & Koordinator Services Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-            {/* 1. Kirim WA */}
-            <button
-              type="button"
-              onClick={onOpenWA}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Share2 className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-700 font-mono">1-Klik</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Rekap WhatsApp</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Kirim laporan resmi grup</p>
-              </div>
-            </button>
+          /* Pamong & Koordinator Dynamic Widgets & Clean Services Grid */
+          <div className="space-y-4">
+            {/* 1. INTERACTIVE RICH WIDGET ROW (Izin, Santri Sakit, Papan Peringkat) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Widget 1: Izin & Sakit Musyrif dengan Daftar Antrean Real */}
+              {(() => {
+                const pendingList = (izinList || []).filter(iz => iz.status === "pending").slice(0, 2);
+                return (
+                  <div
+                    onClick={() => onGoTo("izin")}
+                    className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-blue-300 transition-all cursor-pointer flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                            <FileCheck2 className="w-4 h-4"/>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-slate-800 leading-tight">Izin Musyrif</h4>
+                            <span className="text-[10px] text-slate-400">Approval Pamong</span>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                          pendingIzinCount > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-blue-50 text-blue-700 border border-blue-200"
+                        }`}>
+                          {pendingIzinCount > 0 ? `${pendingIzinCount} Pending` : "Nihil ✓"}
+                        </span>
+                      </div>
 
-            {/* 2. Pengajuan & Persetujuan Izin */}
-            <button
-              type="button"
-              onClick={() => onGoTo("izin")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-500 hover:shadow-xs transition-all text-left flex flex-col justify-between relative active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                  <FileCheck2 className="w-4 h-4"/>
-                </div>
-                {pendingIzinCount > 0 && (
-                  <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
-                    {pendingIzinCount} Menunggu
-                  </span>
-                )}
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Izin & Sakit Musyrif</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Persetujuan & riwayat</p>
-              </div>
-            </button>
+                      {pendingList.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {pendingList.map(iz => (
+                            <div key={iz.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-slate-800 truncate">{iz.musyrifName}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{iz.alasan} • {iz.durasiHari} hari</p>
+                              </div>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 shrink-0">
+                                {iz.jenis === "sakit" ? "Sakit" : "Izin"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-3 text-center text-slate-400 text-xs">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
+                          <p className="text-[11px] font-medium text-slate-500">Semua permohonan izin selesai</p>
+                        </div>
+                      )}
+                    </div>
 
-            {/* 3. Pantauan Santri Sakit */}
-            <button
-              type="button"
-              onClick={() => onGoTo("santri-sakit")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-rose-500 hover:shadow-xs transition-all text-left flex flex-col justify-between relative active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
-                  <HeartPulse className="w-4 h-4" />
-                </div>
-                {activeSantriSakitCount > 0 && (
-                  <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full font-mono animate-pulse">
-                    {activeSantriSakitCount} Santri
-                  </span>
-                )}
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Santri Sakit Asrama</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Pantau UKS & PKU</p>
-              </div>
-            </button>
-
-            {/* 4. Alarm & Notifikasi */}
-            <button
-              type="button"
-              onClick={onOpenAlarm}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <BellRing className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-amber-700 font-mono">Web Push</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Alarm Presensi</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Pengingat shalat hisab</p>
-              </div>
-            </button>
-
-            {/* 5. Agenda Non-Shalat */}
-            <button
-              type="button"
-              onClick={() => onGoTo("kegiatan")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-teal-700 font-mono">Tahfidz</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Agenda Khusus</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Tahfidz, Kuliah, Apel</p>
-              </div>
-            </button>
-
-            {/* 6. Jurnal Logbook Musyrif */}
-            <button
-              type="button"
-              onClick={() => onGoTo("logbook")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                  <ClipboardList className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-indigo-700 font-mono">Logbook</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Jurnal Logbook</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Pantau 11 tugas harian</p>
-              </div>
-            </button>
-
-            {/* 7. Mutaba'ah Yaumiyah */}
-            <button
-              type="button"
-              onClick={() => onGoTo("mutabaah")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-700 font-mono">Sunnah</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Mutaba'ah Musyrif</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Pantau amalan sunnah</p>
-              </div>
-            </button>
-
-            {/* 8. Leaderboard */}
-            <button
-              type="button"
-              onClick={() => onGoTo("leaderboard")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-purple-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                  <Trophy className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-purple-700 font-mono">4 Pilar</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Papan Peringkat</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Skor & ranking terpadu</p>
-              </div>
-            </button>
-
-            {/* 8b. Riwayat Terpadu Musyrif */}
-            <button
-              type="button"
-              onClick={() => onGoTo("riwayat")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
-                  <BookOpen className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-lg font-mono">5 Tab</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Riwayat Musyrif</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Shalat, logbook, amalan, izin</p>
-              </div>
-            </button>
-
-            {/* 9. Raport & E-Sertifikat */}
-            <button
-              type="button"
-              onClick={() => onGoTo("raport")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Award className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
-                  Cetak / PDF
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Raport & Ekspor</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Format resmi & evaluasi</p>
-              </div>
-            </button>
-
-            {/* 10. Master Data Personel & Musyrif (SCRUD) */}
-            <button
-              type="button"
-              onClick={() => onOpenMusyrifManager ? onOpenMusyrifManager() : onGoTo("musyrif-manager")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                  <Users className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-lg font-mono">
-                  SCRUD
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Master Musyrif</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Kelola seluruh musyrif & koord</p>
-              </div>
-            </button>
-
-            {/* 11. Master Data Pamong (SCRUD) — koordinator_musyrif only */}
-            {authUser?.role === "koordinator_musyrif" && (
-            <button
-              type="button"
-              onClick={() => onOpenPamongManager ? onOpenPamongManager() : onGoTo("pamong-manager")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-fuchsia-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-fuchsia-50 text-fuchsia-700 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-fuchsia-800 bg-fuchsia-100 px-2 py-0.5 rounded-lg font-mono">
-                  SCRUD
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Master Pamong</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Kelola akun pamong</p>
-              </div>
-            </button>
-            )}
-
-            {/* 12. Kalender Hijriah KHGT */}
-            <button
-              type="button"
-              onClick={onOpenKalenderHijriah}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
-                  KHGT
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Hijriah</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Hisab & puasa sunnah</p>
-              </div>
-            </button>
-
-            {/* 13. Kalender Pendidikan & Perpulangan */}
-            <button
-              type="button"
-              onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-lg font-mono">
-                  2026/27
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
-              </div>
-            </button>
-
-            {/* 14. Database Induk Santri (Hanya Koordinator Musyrif) */}
-            {authUser?.role === "koordinator_musyrif" && (
-              <button
-                type="button"
-                onClick={() => onGoTo("data-santri")}
-                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                    <GraduationCap className="w-4 h-4" />
+                    <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-blue-600 group-hover:text-blue-700">
+                      <span>Buka Manajemen Izin</span>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
-                    1.499
-                  </span>
-                </div>
+                );
+              })()}
+
+              {/* Widget 2: Pantauan Santri Sakit (UKS & PKU) dengan Daftar Santri */}
+              {(() => {
+                const activeSakit = (santriSakitList || []).filter(s => s.statusRawat !== "sembuh").slice(0, 2);
+                return (
+                  <div
+                    onClick={() => onGoTo("santri-sakit")}
+                    className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                            <HeartPulse className="w-4 h-4"/>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-xs text-slate-800 leading-tight">Santri Sakit</h4>
+                            <span className="text-[10px] text-slate-400">Kamar & UKS</span>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                          activeSantriSakitCount > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        }`}>
+                          {activeSantriSakitCount > 0 ? `${activeSantriSakitCount} Santri` : "Nihil ✓"}
+                        </span>
+                      </div>
+
+                      {activeSakit.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {activeSakit.map(s => (
+                            <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{s.diagnosa || "Gejala Sakit"} • {s.asrama}</p>
+                              </div>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                                s.statusRawat === "pku" ? "bg-rose-100 text-rose-800 font-bold" :
+                                s.statusRawat === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
+                                "bg-blue-100 text-blue-800"
+                              }`}>
+                                {s.statusRawat === "pku" ? "PKU" : s.statusRawat === "uks" ? "UKS" : "Kamar"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-3 text-center text-slate-400 text-xs">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
+                          <p className="text-[11px] font-medium text-slate-500">Semua santri dalam kondisi sehat</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-rose-600 group-hover:text-rose-700">
+                      <span>Buka Pantauan Sakit</span>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Widget 3: Papan Peringkat (Top 3 Musyrif Teladan) */}
+              <div
+                onClick={() => onGoTo("leaderboard")}
+                className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-purple-300 transition-all cursor-pointer flex flex-col justify-between group"
+              >
                 <div>
-                  <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                        <Trophy className="w-4 h-4"/>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-slate-800 leading-tight">Papan Peringkat</h4>
+                        <span className="text-[10px] text-slate-400">Musyrif Teladan</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono">
+                      Top 3
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {streakTop.slice(0, 2).map((m, idx) => (
+                      <div key={m.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                            idx === 0 ? "bg-amber-400 text-amber-950 shadow-2xs" : "bg-slate-200 text-slate-700"
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <p className="font-bold text-slate-800 truncate">{m.name}</p>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-700 font-mono shrink-0">
+                          {m.cur} Hari Sholat
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </button>
-            )}
+
+                <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-purple-600 group-hover:text-purple-700">
+                  <span>Lihat Ranking 4 Pilar</span>
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. OPERASIONAL & LAYANAN MANAJEMEN GRID */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 px-0.5">
+                <div className="w-1.5 h-3.5 rounded-full bg-emerald-600" />
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 font-mono">
+                  Layanan & Manajemen Keasramaan
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5">
+                {/* 1. Kirim WA */}
+                <button
+                  type="button"
+                  onClick={onOpenWA}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <Share2 className="w-3.5 h-3.5"/>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 font-mono">1-Klik</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Rekap WhatsApp</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Kirim laporan resmi grup</p>
+                  </div>
+                </button>
+
+                {/* 2. Logbook */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("logbook")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-indigo-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-indigo-700 font-mono">11 Tugas</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Jurnal Logbook</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Pantau tugas harian</p>
+                  </div>
+                </button>
+
+                {/* 3. Mutabaah */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("mutabaah")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 font-mono">Sunnah</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Mutaba'ah Musyrif</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Pantau amalan sunnah</p>
+                  </div>
+                </button>
+
+                {/* 4. Raport & Cetak */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("raport")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <Award className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded-md font-mono">PDF</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Raport & Ekspor</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Format resmi & cetak</p>
+                  </div>
+                </button>
+
+                {/* 5. Master Personel (Unified Musyrif & Pamong) */}
+                <button
+                  type="button"
+                  onClick={() => onOpenMusyrifManager ? onOpenMusyrifManager() : onGoTo("musyrif-manager")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-indigo-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                      <Users className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      SCRUD
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Master Personel</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Musyrif, Pamong & Akses</p>
+                  </div>
+                </button>
+
+                {/* 6. Kalender Hijriah KHGT */}
+                <button
+                  type="button"
+                  onClick={onOpenKalenderHijriah}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      KHGT
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Hijriah</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Hisab & puasa sunnah</p>
+                  </div>
+                </button>
+
+                {/* 7. Kalender Pendidikan */}
+                <button
+                  type="button"
+                  onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-teal-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      2026/27
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Pendidikan</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Countdown perpulangan</p>
+                  </div>
+                </button>
+
+                {/* 8. Database Santri (Koordinator Musyrif) */}
+                {authUser?.role === "koordinator_musyrif" && (
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("data-santri")}
+                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                        1.499
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Biodata & kontak ortu</p>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1781,13 +1823,17 @@ function PageInputPrayer({
   const isMusyrifOnly = authUser.role === "musyrif";
   const fullAccess = hasFullAccess(authUser);
   const isSedayuPamong = authUser.role === "pamong" && (authUser.asrama || "").toLowerCase().includes("sedayu");
+  const isPamongAnang = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("anang") || (authUser.email || "").includes("abukaysan86"));
+  const isPamongAbdan = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("abdan") || (authUser.email || "").includes("auliaabdan"));
 
   // Determine allowed asramas for this user
   const allowedAsramaList = useMemo(() => {
     if (fullAccess) return ASRAMAS;
     if (isSedayuPamong) return ASRAMAS.filter(a => a.toLowerCase().includes("sedayu"));
+    if (isPamongAnang) return ["Asrama 8B", "Asrama 8C"];
+    if (isPamongAbdan) return ["Asrama 8A", "Asrama 8C"];
     return authUser.asrama ? [authUser.asrama] : [ASRAMAS[0]];
-  }, [fullAccess, isSedayuPamong, authUser.asrama]);
+  }, [fullAccess, isSedayuPamong, isPamongAnang, isPamongAbdan, authUser.asrama]);
 
   // If currently selected asrama is not in allowed list, reset to first allowed
   const activeAsrama = allowedAsramaList.includes(selAsrama) 
@@ -1797,7 +1843,16 @@ function PageInputPrayer({
   const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
   
   // Musyrif only sees his own record in his dormitory or full building list where only he can edit himself
-  const musyrifList = allM.filter(m => m.asrama === activeAsrama && isFieldMusyrif(m));
+  const musyrifList = allM.filter(m => {
+    if (m.asrama !== activeAsrama || !isFieldMusyrif(m)) return false;
+    if (isPamongAnang && activeAsrama === "Asrama 8C") {
+      return (m.kelas || "").startsWith("5");
+    }
+    if (isPamongAbdan && activeAsrama === "Asrama 8C") {
+      return (m.kelas || "").startsWith("6");
+    }
+    return true;
+  });
   const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
 
   // Find logged in musyrif ID
@@ -2239,8 +2294,13 @@ function PageInputPrayer({
                   ) : <span/>}
                   {onResetMark && (
                     <button
-                      onClick={()=>{
-                        if(window.confirm("Reset / hapus presensi ini?")) {
+                      onClick={async () => {
+                        const ok = await appConfirm(
+                          "Reset / hapus status presensi musyrif ini?",
+                          "Reset Presensi",
+                          { type: "danger", confirmText: "Ya, Reset", cancelText: "Batal" }
+                        );
+                        if (ok) {
                           onResetMark(m.id, slot, selDate);
                           showToast?.("Presensi berhasil di-reset","info");
                         }
@@ -2268,8 +2328,13 @@ function PageInputPrayer({
               {getRecord(noteFor.id)?.[noteFor.prayer] && onResetMark && (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm("Hapus tanda kehadiran & catatan musyrif ini untuk waktu shalat terpilih?")) {
+                  onClick={async () => {
+                    const ok = await appConfirm(
+                      "Hapus tanda kehadiran & catatan musyrif ini untuk waktu shalat terpilih?",
+                      "Hapus Absensi",
+                      { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+                    );
+                    if (ok) {
                       onResetMark(noteFor.id, noteFor.prayer, selDate);
                       showToast?.("Status presensi berhasil di-reset / dihapus", "info");
                       setNoteFor(null);
@@ -2768,6 +2833,8 @@ function PageRiwayat({
   const isPersonalMusyrif = authUser.role === "musyrif";
   const isPamongOrKoord = authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung";
   const isSedayuPamong = authUser.role === "pamong" && (authUser.asrama || "").toLowerCase().includes("sedayu");
+  const isPamongAnang = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("anang") || (authUser.email || "").includes("abukaysan86"));
+  const isPamongAbdan = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("abdan") || (authUser.email || "").includes("auliaabdan"));
 
   const allowed = isPersonalMusyrif
     ? allM.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
@@ -2775,7 +2842,11 @@ function PageRiwayat({
       ? allM
       : isSedayuPamong
         ? allM.filter(m => (m.asrama || "").toLowerCase().includes("sedayu"))
-        : allM.filter(m => m.asrama === authUser.asrama);
+        : isPamongAnang
+          ? allM.filter(m => (m.asrama === "Asrama 8B" || m.asrama === "Asrama 8C") && (m.kelas || "").startsWith("5"))
+          : isPamongAbdan
+            ? allM.filter(m => (m.asrama === "Asrama 8A" || m.asrama === "Asrama 8C") && (m.kelas || "").startsWith("6"))
+            : allM.filter(m => m.asrama === authUser.asrama);
 
   const musyrif = isPersonalMusyrif
     ? (allowed[0] ?? allM.find(m => m.id === authUser.musyrifId) ?? allM[0])
@@ -4868,7 +4939,7 @@ const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v5";
 const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v5";
 const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v5";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v5";
-const STORAGE_KEY_SANTRI = "presensi_santri_master_v5";
+const STORAGE_KEY_SANTRI = "presensi_santri_master_v6";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v5";
 const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v5";
 const SYNC_TABLE_AUTH_USERS = "AuthUsers";
@@ -4905,10 +4976,10 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     id: "p2",  
     name: "Aulia Abdan Idza Shalla, S.Th.I.",  
     role: "pamong", 
-    asrama: "Asrama 8A", 
-    kamar: "Ruang Pamong 8A", 
-    kelas: "Kelas 5 & 6", 
-    tingkat: "Kelas 5", 
+    asrama: "Asrama 8A & 8C Kelas 6", 
+    kamar: "Ruang Pamong 8A & 8C", 
+    kelas: "Kelas 6 (6 A - 6 E)", 
+    tingkat: "Kelas 6", 
     pamong: "Pimpinan Asrama", 
     email: "auliaabdan@muallimin.sch.id",     
     phone: "6285725891945" 
@@ -4917,9 +4988,9 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
     id: "p3",  
     name: "Anang Fathurrahman, Lc.",           
     role: "pamong", 
-    asrama: "Asrama 8B", 
-    kamar: "Ruang Pamong 8B", 
-    kelas: "Kelas 5 & 6", 
+    asrama: "Asrama 8B & 8C Kelas 5", 
+    kamar: "Ruang Pamong 8B & 8C", 
+    kelas: "Kelas 5 (5 A - 5 D)", 
     tingkat: "Kelas 5", 
     pamong: "Pimpinan Asrama", 
     email: "abukaysan86@gmail.com",    
@@ -5190,7 +5261,10 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY_SANTRI);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Filter out legacy duplicates if present
+          return parsed.filter(s => s.id !== "s1007" && s.id !== "s986");
+        }
       }
     } catch {}
     return ALL_SANTRI_DATA;
@@ -5357,6 +5431,10 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(authUsers)); } catch {}
   }, [authUsers]);
 
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(santriList)); } catch {}
+  }, [santriList]);
+
   // Initial Cloud Hydration & Realtime Delta Subscription
   useEffect(() => {
     // 1. Subscribe to incoming delta updates from Google Sheets
@@ -5374,6 +5452,21 @@ export default function App() {
           setKegiatanRecords(cloudRecords);
         } else if (tbl === "santrisakit" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           setSantriSakitList(cloudRecords);
+        } else if (tbl === "santri" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
+          setSantriList(prev => {
+            const map = new Map<string, SantriData>();
+            ALL_SANTRI_DATA.forEach(s => map.set(s.id, s));
+            cloudRecords.forEach((cr: any) => {
+              if (cr.is_deleted) {
+                map.delete(cr.id);
+              } else {
+                map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+              }
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
         } else if (tbl === "musyrif" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           setMusyrifList(sanitizeMusyrifList(cloudRecords));
         } else if (tbl === "authusers" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
@@ -5457,6 +5550,18 @@ export default function App() {
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
           });
           return Array.from(map.values());
+        });
+      } else if (tbl === "santri") {
+        setSantriList(prev => {
+          const map = new Map<string, SantriData>();
+          prev.forEach(s => map.set(s.id, s));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          const updated = Array.from(map.values());
+          try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(updated)); } catch {}
+          return updated;
         });
       } else if (tbl === "musyrif") {
         setMusyrifList(prev => {
@@ -5594,6 +5699,18 @@ export default function App() {
     const created: Musyrif = { ...newM, id: newId };
     setMusyrifList(prev => sanitizeMusyrifList([created, ...prev]));
     googleSyncService.enqueue("Musyrif", created, "upsert", true);
+    
+    if (created.role === "pamong" || created.role === "koordinator_musyrif") {
+      const authItem: AuthUser = {
+        id: created.id,
+        name: created.name,
+        email: (created.email || "").trim().toLowerCase(),
+        role: created.role as Role,
+        asrama: created.asrama
+      };
+      setAuthUsers(prev => [authItem, ...prev.filter(u => u.id !== created.id)]);
+      googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, authItem, "upsert", true);
+    }
     showToast(`Personel ${created.name} berhasil ditambahkan!`, "success");
   };
 
@@ -5604,6 +5721,18 @@ export default function App() {
     }
     setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => m.id === updated.id ? updated : m)));
     googleSyncService.enqueue("Musyrif", updated, "upsert", true);
+
+    if (updated.role === "pamong" || updated.role === "koordinator_musyrif") {
+      const authItem: AuthUser = {
+        id: updated.id,
+        name: updated.name,
+        email: (updated.email || "").trim().toLowerCase(),
+        role: updated.role as Role,
+        asrama: updated.asrama
+      };
+      setAuthUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...authItem } : u));
+      googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, authItem, "upsert", true);
+    }
     showToast(`Data personel ${updated.name} berhasil diperbarui!`, "success");
   };
 
@@ -5615,6 +5744,10 @@ export default function App() {
     const target = musyrifList.find(m => m.id === id);
     setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
     googleSyncService.enqueue("Musyrif", { id }, "delete", true);
+    if (target?.role === "pamong" || target?.role === "koordinator_musyrif") {
+      setAuthUsers(prev => prev.filter(u => u.id !== id));
+      googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete", true);
+    }
     showToast(`Data personel ${target?.name || id} berhasil dihapus.`, "info");
   };
 
@@ -5729,7 +5862,8 @@ export default function App() {
       try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next)); } catch {}
       return next;
     });
-    showToast(`Data santri ${santri.nama} (${santri.kelasLengkap}) berhasil disimpan!`, "success");
+    googleSyncService.enqueue("Santri", santri, "upsert");
+    showToast(`Data santri ${santri.nama} (${santri.kelasLengkap}) berhasil disimpan dan disinkronkan ke Google Sheets!`, "success");
   };
 
   const handleDeleteSantri = (id: string) => {
@@ -5742,7 +5876,8 @@ export default function App() {
       try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next)); } catch {}
       return next;
     });
-    showToast("Data santri berhasil dihapus dari database.", "info");
+    googleSyncService.enqueue("Santri", { id }, "delete");
+    showToast("Data santri berhasil dihapus dan disinkronkan ke Google Sheets.", "info");
   };
 
   const handleResetSantri = () => {
@@ -5752,9 +5887,14 @@ export default function App() {
     showToast("Database santri berhasil dipulihkan ke data master Excel (1.499 santri).", "success");
   };
 
-  const handleSyncAllOfficialData = () => {
+  const handleSyncAllOfficialData = async () => {
     if (authUser?.role !== "koordinator_musyrif") return;
-    if (window.confirm("Sinkronkan seluruh 56 data Musyrif dan 9 Pamong resmi ke Google Sheets sekarang? Ini akan memperbarui seluruh email & nomor WA di Google Sheets.")) {
+    const ok = await appConfirm(
+      "Sinkronkan seluruh 56 data Musyrif dan 9 Pamong resmi ke Google Sheets sekarang? Ini akan memperbarui seluruh email & nomor WA di Google Sheets.",
+      "Sinkronisasi Data Master",
+      { type: "info", confirmText: "Ya, Sinkronkan", cancelText: "Batal" }
+    );
+    if (ok) {
       DEFAULT_ALL_PERSONNEL.forEach(p => {
         googleSyncService.enqueue("Musyrif", p, "upsert");
       });
@@ -6292,6 +6432,8 @@ export default function App() {
                 activeSantriSakitCount={activeSantriSakitCount}
                 canInstallPWA={!!deferredPrompt}
                 musyrifList={musyrifList}
+                izinList={izinList}
+                santriSakitList={santriSakitList}
               />
             </motion.div>
           )}
@@ -6780,6 +6922,9 @@ export default function App() {
           musyrif: musyrifList.length
         }}
       />
+
+      {/* Global Custom Dialog Modal (Alert, Confirm, Prompt & Undo Toast) */}
+      <CustomDialogModal />
 
     </div>
   );

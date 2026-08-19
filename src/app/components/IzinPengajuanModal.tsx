@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { appAlert, appConfirm } from "../utils/customDialog";
 
 export interface IzinRequest {
   id: string;
@@ -138,11 +139,11 @@ export function IzinPengajuanModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
-      alert("Harap isi alasan perizinan dengan jelas.");
+      appAlert("Harap isi alasan perizinan dengan jelas.", "Perizinan", "warning");
       return;
     }
     if (endDate < startDate) {
-      alert("Tanggal selesai izin tidak boleh lebih awal dari tanggal mulai izin.");
+      appAlert("Tanggal selesai izin tidak boleh lebih awal dari tanggal mulai izin.", "Perizinan", "warning");
       return;
     }
     const currentMusyrif = musyrifList.find(m => m.id === selectedMusyrifId);
@@ -164,7 +165,7 @@ export function IzinPengajuanModal({
         attachmentUrl: attachment || undefined
       });
       triggerHaptic("medium");
-      alert("Data perizinan berhasil diperbarui.");
+      appAlert("Data perizinan berhasil diperbarui.", "Berhasil", "success");
     } else {
       onSubmitIzin({
         musyrifId: currentMusyrif.id,
@@ -584,8 +585,13 @@ export function IzinPengajuanModal({
                     {req.status === "pending" && onDeleteIzin && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Batalkan pengajuan izin untuk ${req.musyrifName}?`)) {
+                        onClick={async () => {
+                          const ok = await appConfirm(
+                            `Batalkan pengajuan izin untuk ${req.musyrifName}?`,
+                            "Batalkan Izin",
+                            { type: "warning", confirmText: "Ya, Batalkan Izin", cancelText: "Kembali" }
+                          );
+                          if (ok) {
                             onDeleteIzin(req.id);
                           }
                         }}
