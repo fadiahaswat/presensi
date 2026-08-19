@@ -67,6 +67,7 @@ interface MusyrifManagerModalProps {
   onClose: () => void;
   musyrifList: Musyrif[];
   asramaList?: string[];
+  pamongList?: { id: string; name: string; email?: string; asrama: string }[];
   onAddMusyrif: (musyrif: Omit<Musyrif, "id">) => void;
   onUpdateMusyrif: (musyrif: Musyrif) => void;
   onDeleteMusyrif: (id: string) => void;
@@ -78,6 +79,7 @@ export function MusyrifManagerModal({
   onClose,
   musyrifList = [],
   asramaList = DEFAULT_ASRAMAS,
+  pamongList = [],
   onAddMusyrif,
   onUpdateMusyrif,
   onDeleteMusyrif,
@@ -98,11 +100,21 @@ export function MusyrifManagerModal({
   const [role, setRole] = useState<MusyrifRole>("musyrif");
   const [kelas, setKelas] = useState("1 A");
   const [tingkat, setTingkat] = useState("Kelas 1");
-  const [asrama, setAsrama] = useState(!isKoordinator && userAsrama ? userAsrama : (activeAsramaList[0] || "Asrama 1"));
+  const initialAsrama = !isKoordinator && userAsrama ? userAsrama : (activeAsramaList[0] || "Asrama 1");
+  const [asrama, setAsrama] = useState(initialAsrama);
+  const defaultPamongForAsrama = pamongList.find(p => p.asrama === initialAsrama)?.name || (!isKoordinator && authUser?.name ? authUser.name : "");
+  const [pamong, setPamong] = useState(defaultPamongForAsrama);
   const [kamar, setKamar] = useState("1 A");
-  const [pamong, setPamong] = useState(!isKoordinator && authUser?.name ? authUser.name : "");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+
+  const handleAsramaChange = (newAsrama: string) => {
+    setAsrama(newAsrama);
+    const matchedPamong = pamongList.find(p => p.asrama === newAsrama);
+    if (matchedPamong) {
+      setPamong(matchedPamong.name);
+    }
+  };
 
   const resetForm = () => {
     setName("");
@@ -342,7 +354,7 @@ export function MusyrifManagerModal({
               {isKoordinator ? (
                 <select
                   value={asrama}
-                  onChange={e => setAsrama(e.target.value)}
+                  onChange={e => handleAsramaChange(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
                 >
                   {activeAsramaList.map(a => (

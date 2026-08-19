@@ -741,53 +741,17 @@ function PageDashboard({
         onOpenFullCalendar={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
       />
 
-      {/* Action Cards based on Role */}
-      {authUser?.role === "musyrif" ? (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <button
-            type="button"
-            onClick={() => onGoTo("riwayat")}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 bg-teal-700 hover:bg-teal-800 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border border-teal-600/50"
-          >
-            <div className="flex items-center justify-between w-full mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full font-mono">
-                Saya
-              </span>
-            </div>
-            <div>
-              <p className="font-extrabold text-base leading-tight tracking-tight">Riwayat Presensi</p>
-              <p className="text-xs text-teal-100/90 mt-1">Cek kalender kehadiran pribadi</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onGoTo("logbook")}
-            className="group relative flex flex-col justify-between p-4 sm:p-5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border border-indigo-600/50"
-          >
-            <div className="flex items-center justify-between w-full mb-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center text-white">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full font-mono">
-                Logbook
-              </span>
-            </div>
-            <div>
-              <p className="font-extrabold text-base leading-tight tracking-tight">Jurnal Harian Musyrif</p>
-              <p className="text-xs text-indigo-100/90 mt-1">11 tugas & batas waktu harian</p>
-            </div>
-          </button>
-        </div>
-      ) : authUser && (authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung") ? (
+      {/* Action Cards for Authenticated Users (Subuh & Maghrib) */}
+      {authUser ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Subuh Action Card */}
           {(() => {
             const subuhOpenTime = 4.0; // Buka jam 04:00 WIB
             const isSubuhLocked = nowH < subuhOpenTime;
+            const myMid = authUser.musyrifId || authUser.id;
+            const mySubuhRec = todayRecs.find(r => r.musyrifId === myMid);
+            const isMySubuhHadir = mySubuhRec?.subuh === "hadir";
+            const mySubuhStatus = mySubuhRec?.subuh;
 
             return (
               <button
@@ -804,7 +768,9 @@ function PageDashboard({
                     {isSubuhLocked ? <Lock className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
-                    {sh}/{total}
+                    {authUser.role === "musyrif" 
+                      ? (isMySubuhHadir ? "Hadir ✓" : mySubuhStatus ? mySubuhStatus.toUpperCase() : "Belum") 
+                      : `${sh}/${total}`}
                   </span>
                 </div>
                 
@@ -814,18 +780,29 @@ function PageDashboard({
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       isSubuhLocked
                         ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        : authUser.role === "musyrif"
+                        ? (isMySubuhHadir ? "bg-emerald-950/30 text-emerald-100" : "bg-amber-950/30 text-amber-100")
                         : belumS.length > 0
                         ? "bg-amber-950/30 text-amber-100"
                         : "bg-emerald-950/30 text-emerald-100"
                     }`}>
-                      {isSubuhLocked ? "🔒 Buka 04:00 WIB" : belumS.length > 0 ? `${belumS.length} belum terisi` : "Lengkap ✓"}
+                      {isSubuhLocked 
+                        ? "🔒 Buka 04:00 WIB" 
+                        : authUser.role === "musyrif"
+                        ? (isMySubuhHadir ? "Sudah Hadir ✓" : "Isi Presensi Subuh →")
+                        : belumS.length > 0 
+                        ? `${belumS.length} belum terisi` 
+                        : "Lengkap ✓"}
                     </span>
                   </div>
                 </div>
 
                 {/* Progress bar inside card */}
                 <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
-                  <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(sh/total)*100:0}%`}}/>
+                  <div 
+                    className="bg-white h-full rounded-full transition-all duration-500" 
+                    style={{ width: authUser.role === "musyrif" ? (isMySubuhHadir ? "100%" : "0%") : `${total ? (sh / total) * 100 : 0}%` }}
+                  />
                 </div>
               </button>
             );
@@ -835,6 +812,10 @@ function PageDashboard({
           {(() => {
             const maghribOpenTime = 17.0; // Buka jam 17:00 WIB (5 sore)
             const isMaghribLocked = nowH < maghribOpenTime;
+            const myMid = authUser.musyrifId || authUser.id;
+            const myMaghribRec = todayRecs.find(r => r.musyrifId === myMid);
+            const isMyMaghribHadir = myMaghribRec?.maghrib === "hadir";
+            const myMaghribStatus = myMaghribRec?.maghrib;
 
             return (
               <button
@@ -851,7 +832,9 @@ function PageDashboard({
                     {isMaghribLocked ? <Lock className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
-                    {mh}/{total}
+                    {authUser.role === "musyrif" 
+                      ? (isMyMaghribHadir ? "Hadir ✓" : myMaghribStatus ? myMaghribStatus.toUpperCase() : "Belum") 
+                      : `${mh}/${total}`}
                   </span>
                 </div>
 
@@ -861,18 +844,29 @@ function PageDashboard({
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       isMaghribLocked
                         ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        : authUser.role === "musyrif"
+                        ? (isMyMaghribHadir ? "bg-emerald-950/30 text-emerald-100" : "bg-teal-950/30 text-teal-100")
                         : belumM.length > 0
                         ? "bg-teal-950/30 text-teal-100"
                         : "bg-emerald-950/30 text-emerald-100"
                     }`}>
-                      {isMaghribLocked ? "🔒 Buka 17:00 WIB" : belumM.length > 0 ? `${belumM.length} belum terisi` : "Lengkap ✓"}
+                      {isMaghribLocked 
+                        ? "🔒 Buka 17:00 WIB" 
+                        : authUser.role === "musyrif"
+                        ? (isMyMaghribHadir ? "Sudah Hadir ✓" : "Isi Presensi Maghrib →")
+                        : belumM.length > 0 
+                        ? `${belumM.length} belum terisi` 
+                        : "Lengkap ✓"}
                     </span>
                   </div>
                 </div>
 
                 {/* Progress bar inside card */}
                 <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
-                  <div className="bg-white h-full rounded-full transition-all duration-500" style={{width:`${total?(mh/total)*100:0}%`}}/>
+                  <div 
+                    className="bg-white h-full rounded-full transition-all duration-500" 
+                    style={{ width: authUser.role === "musyrif" ? (isMyMaghribHadir ? "100%" : "0%") : `${total ? (mh / total) * 100 : 0}%` }}
+                  />
                 </div>
               </button>
             );
@@ -1007,7 +1001,43 @@ function PageDashboard({
         ) : authUser.role === "musyrif" ? (
           /* Musyrif Role Services Grid */
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {/* 1. Pengajuan Izin */}
+            {/* 1. Jurnal Logbook Harian */}
+            <button
+              type="button"
+              onClick={() => onGoTo("logbook")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <ClipboardList className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-indigo-700 font-mono">11 Tugas</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Jurnal Logbook</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Patroli & checklist santri</p>
+              </div>
+            </button>
+
+            {/* 2. Riwayat Presensi Pribadi */}
+            <button
+              type="button"
+              onClick={() => onGoTo("riwayat")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4"/>
+                </div>
+                <span className="text-[10px] font-bold text-teal-700 font-mono">Saya</span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Riwayat Presensi</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Kalender kehadiran saya</p>
+              </div>
+            </button>
+
+            {/* 3. Pengajuan Izin */}
             <button
               type="button"
               onClick={() => onGoTo("izin")}
@@ -1025,25 +1055,7 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 2. Jadwal Shalat & Arah Kiblat */}
-            <button
-              type="button"
-              onClick={() => onGoTo("ibadah")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <Compass className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-amber-700 font-mono">Ibadah</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Jadwal & Kiblat</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Waktu shalat & kompas</p>
-              </div>
-            </button>
-
-            {/* 3. Laporan Santri Sakit */}
+            {/* 4. Laporan Santri Sakit */}
             <button
               type="button"
               onClick={() => onGoTo("santri-sakit")}
@@ -1065,7 +1077,7 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 4. Mutaba'ah Yaumiyah */}
+            {/* 5. Mutaba'ah Yaumiyah */}
             <button
               type="button"
               onClick={() => onGoTo("mutabaah")}
@@ -1080,24 +1092,6 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Mutaba'ah Yaumiyah</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Tahajjud, Tilawah, Dhuha</p>
-              </div>
-            </button>
-
-            {/* 5. Alarm Presensi */}
-            <button
-              type="button"
-              onClick={onOpenAlarm}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <BellRing className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-amber-700 font-mono">Notif</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Alarm Presensi</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Pengingat shalat hisab</p>
               </div>
             </button>
 
@@ -1119,21 +1113,21 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 7. Kalender Hijriah KHGT */}
+            {/* 7. Jadwal Shalat & Arah Kiblat */}
             <button
               type="button"
-              onClick={onOpenKalenderHijriah}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+              onClick={() => onGoTo("ibadah")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Calendar className="w-4 h-4"/>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <Compass className="w-4 h-4"/>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">KHGT</span>
+                <span className="text-[10px] font-bold text-amber-700 font-mono">Ibadah</span>
               </div>
               <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Kalender Hijriah</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Hisab & puasa sunnah</p>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Jadwal & Kiblat</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Waktu shalat & kompas</p>
               </div>
             </button>
 
@@ -4132,7 +4126,13 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
   ...MUSYRIF_LIST
 ];
 
-const DEPRECATED_PERSONNEL_IDS = new Set(["m8b", "m50", "k2", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6"]);
+const DEPRECATED_PERSONNEL_IDS = new Set([
+  "m8b", "m50", "k2", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6",
+  "m_1787054333371",
+  "m_1787054789315",
+  "m_1787055011646",
+  "m_1787034667866"
+]);
 
 function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return DEFAULT_ALL_PERSONNEL;
@@ -4144,17 +4144,17 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
     const emailLow = (p.email || "").toLowerCase();
     const isTestItem = nameLow.includes("testing") || nameLow.includes("test ") || emailLow.includes("testing");
 
-    // Filter out obsolete/ghost IDs from old tests
+    // Filter out obsolete/ghost IDs from old tests and trigger cloud delete
     if (
       DEPRECATED_PERSONNEL_IDS.has(p.id) ||
       nameLow.includes("naufal muzakki") ||
       isTestItem ||
-      (p.id.startsWith("m_") && (!p.name || p.name.trim() === "" || p.role === "pamong"))
+      (p.id.startsWith("m_") && (p.role === "pamong" || p.role === "koordinator_musyrif" || !p.name || p.name.trim() === "" || isTestItem)) ||
+      (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role))
     ) {
-      return false;
-    }
-    // Also filter out any ghost item with id starting with "g" or kelas "Gedung A/B/C/D"
-    if (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role)) {
+      setTimeout(() => {
+        googleSyncService.enqueue("Musyrif", { id: p.id }, "delete");
+      }, 0);
       return false;
     }
     return true;
@@ -4401,9 +4401,10 @@ export default function App() {
     if (authUser.role === "musyrif") {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
-        { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
+        { id: "subuh" as Page, label: "Subuh", Icon: Sun },
+        { id: "maghrib" as Page, label: "Maghrib", Icon: Moon },
         { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
-        { id: "ibadah" as Page, label: "Ibadah", Icon: Compass },
+        { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
       ];
     }
     return [
@@ -4425,10 +4426,6 @@ export default function App() {
       if (page === "musyrif-manager" || page === "pamong-manager") {
         setPage("dashboard");
         showToast("Akses ditolak: Menu Master Data hanya untuk Koordinator Musyrif.", "error");
-      } else if (authUser.role === "musyrif") {
-        if (page === "subuh" || page === "maghrib") {
-          setPage("dashboard");
-        }
       }
     }
   }, [authUser, page]);
@@ -4509,6 +4506,17 @@ export default function App() {
           setMusyrifList(sanitizeMusyrifList(cloudRecords));
         } else if (tbl === "authusers" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           setAuthUsers(cloudRecords);
+          // Cascading sync: propagate updated pamong names to musyrifList
+          const pamongsInAuth = cloudRecords.filter((u: any) => u.role === "pamong");
+          if (pamongsInAuth.length > 0) {
+            setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => {
+              const matchingPamong = pamongsInAuth.find((p: any) => p.asrama === m.asrama);
+              if (matchingPamong && m.role !== "pamong" && m.role !== "koordinator_musyrif") {
+                return { ...m, pamong: matchingPamong.name };
+              }
+              return m;
+            })));
+          }
         } else if (tbl === "logbook" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           const next: LogbookStorage = {};
           cloudRecords.forEach((cr: any) => {
@@ -4596,7 +4604,18 @@ export default function App() {
             if (cr.is_deleted) map.delete(cr.id);
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
           });
-          return Array.from(map.values());
+          const updatedUsers = Array.from(map.values());
+          const pamongs = updatedUsers.filter(u => u.role === "pamong");
+          if (pamongs.length > 0) {
+            setMusyrifList(mPrev => sanitizeMusyrifList(mPrev.map(m => {
+              const matchingPamong = pamongs.find(p => p.asrama === m.asrama);
+              if (matchingPamong && m.role !== "pamong" && m.role !== "koordinator_musyrif") {
+                return { ...m, pamong: matchingPamong.name };
+              }
+              return m;
+            })));
+          }
+          return updatedUsers;
         });
       } else if (tbl === "logbook") {
         setLogbookData(prev => {
@@ -4646,12 +4665,19 @@ export default function App() {
     // 2. Perform initial full cloud pull — this is the Single Source of Truth
     // Always fetch from Sheet on startup; state will be replaced via isFullReplace flag
     const initSync = async () => {
+      // Proactively purge deprecated test & ghost records from cloud
+      DEPRECATED_PERSONNEL_IDS.forEach(depId => {
+        googleSyncService.enqueue("Musyrif", { id: depId }, "delete");
+      });
+
       if (googleSyncService.getGasUrl() && navigator.onLine) {
         try {
           const syncPromise = googleSyncService.fetchAllFromCloud();
           // Timeout race: maximum 3.5s loading time to prevent hanging on bad/slow connections
           const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3500));
           await Promise.race([syncPromise, timeoutPromise]);
+          // Flush deletions immediately
+          googleSyncService.flushQueue();
         } catch (_) {}
       }
       setIsInitialSyncing(false);
@@ -4695,7 +4721,7 @@ export default function App() {
     const newId = `m_${Date.now()}`;
     const created: Musyrif = { ...newM, id: newId };
     setMusyrifList(prev => sanitizeMusyrifList([created, ...prev]));
-    googleSyncService.enqueue("Musyrif", created, "upsert");
+    googleSyncService.enqueue("Musyrif", created, "upsert", true);
     showToast(`Personel ${created.name} berhasil ditambahkan!`, "success");
   };
 
@@ -4705,7 +4731,7 @@ export default function App() {
       return;
     }
     setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => m.id === updated.id ? updated : m)));
-    googleSyncService.enqueue("Musyrif", updated, "upsert");
+    googleSyncService.enqueue("Musyrif", updated, "upsert", true);
     showToast(`Data personel ${updated.name} berhasil diperbarui!`, "success");
   };
 
@@ -4716,7 +4742,7 @@ export default function App() {
     }
     const target = musyrifList.find(m => m.id === id);
     setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
-    googleSyncService.enqueue("Musyrif", { id }, "delete");
+    googleSyncService.enqueue("Musyrif", { id }, "delete", true);
     showToast(`Data personel ${target?.name || id} berhasil dihapus.`, "info");
   };
 
@@ -4759,8 +4785,8 @@ export default function App() {
     // Auto update pamong field in musyrifs of that asrama
     setMusyrifList(prev => sanitizeMusyrifList(prev.map(m => m.asrama === newPamong.asrama && m.role !== "pamong" && m.role !== "koordinator_musyrif" ? { ...m, pamong: newPamong.name.trim() } : m)));
 
-    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, createdAuth, "upsert");
-    googleSyncService.enqueue("Musyrif", createdMusyrif, "upsert");
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, createdAuth, "upsert", true);
+    googleSyncService.enqueue("Musyrif", createdMusyrif, "upsert", true);
     showToast(`Pamong ${createdAuth.name} berhasil ditambahkan!`, "success");
   };
 
@@ -4801,8 +4827,8 @@ export default function App() {
       email: cleanEmail,
     };
 
-    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, authPayload, "upsert");
-    googleSyncService.enqueue("Musyrif", musyrifPayload, "upsert");
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, authPayload, "upsert", true);
+    googleSyncService.enqueue("Musyrif", musyrifPayload, "upsert", true);
     showToast(`Data pamong ${cleanName} berhasil diperbarui!`, "success");
   };
 
@@ -4814,8 +4840,8 @@ export default function App() {
     const target = authUsers.find(u => u.id === id && u.role === "pamong");
     setAuthUsers(prev => prev.filter(u => u.id !== id));
     setMusyrifList(prev => sanitizeMusyrifList(prev.filter(m => m.id !== id)));
-    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete");
-    googleSyncService.enqueue("Musyrif", { id }, "delete");
+    googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id }, "delete", true);
+    googleSyncService.enqueue("Musyrif", { id }, "delete", true);
     showToast(`Data pamong ${target?.name || id} berhasil dihapus.`, "info");
   };
 
@@ -5516,6 +5542,7 @@ export default function App() {
                 onClose={() => setPage("dashboard")}
                 musyrifList={musyrifList}
                 asramaList={ASRAMAS}
+                pamongList={pamongList}
                 onAddMusyrif={handleAddMusyrif}
                 onUpdateMusyrif={handleUpdateMusyrif}
                 onDeleteMusyrif={handleDeleteMusyrif}
@@ -5761,6 +5788,7 @@ export default function App() {
             onClose={() => setShowMusyrifManager(false)}
             musyrifList={musyrifList}
             asramaList={ASRAMAS}
+            pamongList={pamongList}
             onAddMusyrif={handleAddMusyrif}
             onUpdateMusyrif={handleUpdateMusyrif}
             onDeleteMusyrif={handleDeleteMusyrif}

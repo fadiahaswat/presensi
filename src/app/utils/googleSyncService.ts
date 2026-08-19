@@ -175,7 +175,7 @@ class GoogleSyncService {
   /**
    * Enqueue a record for asynchronous upsert or delete
    */
-  public enqueue(table: string, record: any, action: "upsert" | "delete" = "upsert") {
+  public enqueue(table: string, record: any, action: "upsert" | "delete" = "upsert", immediate: boolean = false) {
     const id = String(record.id || crypto.randomUUID());
     const now = new Date().toISOString();
     
@@ -202,11 +202,16 @@ class GoogleSyncService {
     this.saveQueue();
     this.updateStatus("pending");
 
-    // Debounce flush (1.5 seconds after user stops typing/editing)
-    if (this.flushTimer) clearTimeout(this.flushTimer);
-    this.flushTimer = setTimeout(() => {
+    if (immediate) {
+      if (this.flushTimer) clearTimeout(this.flushTimer);
       this.flushQueue();
-    }, 1500);
+    } else {
+      // Fast debounce flush (300ms instead of 1500ms)
+      if (this.flushTimer) clearTimeout(this.flushTimer);
+      this.flushTimer = setTimeout(() => {
+        this.flushQueue();
+      }, 300);
+    }
   }
 
   /**
