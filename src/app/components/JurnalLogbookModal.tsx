@@ -275,15 +275,19 @@ export function JurnalLogbookModal({
   onOpenSantriSakit,
   isPage = false
 }: JurnalLogbookModalProps) {
+  const isKoordinator = authUser?.role === "koordinator_musyrif";
   const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
 
   const activeMusyrifList = useMemo(() => {
+    if (isKoordinator) {
+      return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+    }
     if (authUser?.role === "koordinator_gedung") {
       return musyrifList.filter(m => m.asrama === authUser.asrama);
     }
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
-  }, [musyrifList, authUser]);
+  }, [musyrifList, authUser, isKoordinator]);
 
   const defaultMusyrifId = authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
 
@@ -361,13 +365,13 @@ export function JurnalLogbookModal({
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const isToday = selectedDate === todayStr;
     
-    // 1. Must be today (for musyrif)
+    // 1. Must be today (for standard musyrif only)
     if (!isToday && !isPamongOrKoord) {
       alert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini). Tanggal selain hari ini telah terkunci.");
       return;
     }
 
-    // 2. Must be in Asrama (Geofencing check if GPS available)
+    // 2. Must be in Asrama (Geofencing check if GPS available, for standard musyrif only)
     if (gpsResult && !gpsResult.isInRange && !isPamongOrKoord) {
       alert(`Anda terdeteksi berada di luar area ${asramaTarget} (${gpsResult.distanceMeters}m dari radius valid). Pencatatan tugas logbook hanya diizinkan saat Anda berada di lingkungan asrama.`);
       return;
@@ -376,7 +380,7 @@ export function JurnalLogbookModal({
     const timeInfo = getTaskTimeStatus(taskDef);
     const cur = formState[taskDef.key] || { done: false };
 
-    // 3. Strict Locking for Musyrif:
+    // 3. Strict Locking for standard Musyrif only:
     if (!isPamongOrKoord) {
       if (cur.done) {
         alert(`Tugas "${taskDef.title}" telah diverifikasi selesai pada ${cur.completedAt || "-"} WIB.`);
@@ -393,28 +397,30 @@ export function JurnalLogbookModal({
     }
 
     const nextDone = !cur.done;
-    setFormState(prev => {
-      return {
-        ...prev,
-        [taskDef.key]: {
-          ...cur,
-          done: nextDone,
-          completedAt: nextDone ? format(new Date(), "HH:mm") : undefined,
-          gpsVerified: nextDone ? (gpsResult?.isInRange ?? false) : false
-        }
-      };
-    });
+    const updatedEntry: JurnalLogbookEntry = {
+      ...formState,
+      [taskDef.key]: {
+        ...cur,
+        done: nextDone,
+        completedAt: nextDone ? (cur.completedAt || format(new Date(), "HH:mm")) : undefined,
+        gpsVerified: nextDone ? (isPamongOrKoord ? true : (gpsResult?.isInRange ?? false)) : false
+      }
+    };
+    setFormState(updatedEntry);
+    // Instant Auto-Save & Cloud Sync on toggle
+    onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
   };
 
   // Handle note updates
   const updateTaskNotes = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, notes: string) => {
-    setFormState(prev => ({
-      ...prev,
+    const updatedEntry: JurnalLogbookEntry = {
+      ...formState,
       [key]: {
-        ...(prev[key] || { done: false }),
+        ...(formState[key] || { done: false }),
         notes
       }
-    }));
+    };
+    setFormState(updatedEntry);
   };
 
   // Save complete logbook
@@ -426,16 +432,18 @@ export function JurnalLogbookModal({
 
   // Complete Patrol Task with Step count
   const handlePatrolSuccess = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, steps: number) => {
-    setFormState(prev => ({
-      ...prev,
+    const updatedEntry: JurnalLogbookEntry = {
+      ...formState,
       [key]: {
-        ...(prev[key] || { done: false }),
+        ...(formState[key] || { done: false }),
         done: true,
         stepsCount: steps,
         completedAt: format(new Date(), "HH:mm"),
         gpsVerified: gpsResult?.isInRange ?? false
       }
-    }));
+    };
+    setFormState(updatedEntry);
+    onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
   };
 
   // Summary Metrics
@@ -720,9 +728,9 @@ export function JurnalLogbookModal({
                       {/* Checkbox button */}
                       <button
                         type="button"
-                        disabled={isLocked || (!isMusyrifUser && !isPamongOrKoord) || isDone}
+                        disabled={!isPamongOrKoord && (isLocked || !isMusyrifUser || isDone)}
                         onClick={() => {
-                          if (t.isPatrol && isMusyrifUser && !isDone) {
+                          if (t.isPatrol && !isPamongOrKoord && isMusyrifUser && !isDone) {
                             if (isLocked) {
                               alert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`);
                               return;
@@ -734,28 +742,28 @@ export function JurnalLogbookModal({
                         }}
                         className={`w-9 h-9 rounded-2xl border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
                           isDone
-                            ? "bg-emerald-600 border-emerald-600 text-white shadow-xs cursor-default"
-                            : isPassed
+                            ? "bg-emerald-600 border-emerald-600 text-white shadow-xs " + (isPamongOrKoord ? "cursor-pointer hover:opacity-85" : "cursor-default")
+                            : isPassed && !isPamongOrKoord
                             ? "border-rose-200 bg-rose-50/80 text-rose-400 cursor-not-allowed"
-                            : isUpcoming
+                            : isUpcoming && !isPamongOrKoord
                             ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                            : "border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 text-transparent active:scale-95 cursor-pointer shadow-2xs"
+                            : "border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 text-transparent hover:text-emerald-600 active:scale-95 cursor-pointer shadow-2xs"
                         }`}
                         title={
                           isDone
-                            ? "Tugas Selesai"
-                            : isPassed
+                            ? (isPamongOrKoord ? "Tugas Selesai (Klik untuk ubah/batal)" : "Tugas Selesai")
+                            : isPassed && !isPamongOrKoord
                             ? "Jadwal Terlewat (Terkunci)"
-                            : isUpcoming
+                            : isUpcoming && !isPamongOrKoord
                             ? "Belum Masuk Waktu"
                             : "Klik untuk Selesaikan Tugas"
                         }
                       >
                         {isDone ? (
                           <Check className="w-4 h-4" />
-                        ) : isPassed ? (
+                        ) : isPassed && !isPamongOrKoord ? (
                           <Lock className="w-3.5 h-3.5 text-rose-400" />
-                        ) : isUpcoming ? (
+                        ) : isUpcoming && !isPamongOrKoord ? (
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                         ) : (
                           <Check className="w-4 h-4" />

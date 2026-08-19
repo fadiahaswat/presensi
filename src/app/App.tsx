@@ -1817,14 +1817,14 @@ function PageInputPrayer({
 
   const isNotYetTime = isTodayDate && curDecimal < openTimeRaw;
   const isPastTimeMusyrif = isMusyrifOnly && isTodayDate && curDecimal > closeTimeRaw;
-  const isLocked = isFuture || isNotYetTime || (isMusyrifOnly && (!isTodayDate || isPastTimeMusyrif));
+  const isLocked = !fullAccess && (isFuture || isNotYetTime || (isMusyrifOnly && (!isTodayDate || isPastTimeMusyrif)));
 
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
-    if (isFuture) {
+    if (isFuture && !fullAccess) {
       showToast?.("Tidak dapat mengisi presensi untuk tanggal di masa depan.", "error");
       return;
     }
-    if (isNotYetTime) {
+    if (isNotYetTime && !fullAccess) {
       showToast?.(`Presensi ${p === "subuh" ? "Subuh" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
       return;
     }
@@ -1858,7 +1858,7 @@ function PageInputPrayer({
     setSelDate(format(d, "yyyy-MM-dd"));
   };
   const nextDay = () => {
-    if (selDate >= todayStr()) return;
+    if (selDate >= todayStr() && !fullAccess) return;
     const d = parseISO(selDate); d.setDate(d.getDate() + 1);
     setSelDate(format(d, "yyyy-MM-dd"));
   };

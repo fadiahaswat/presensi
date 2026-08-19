@@ -125,7 +125,7 @@ export function KegiatanAsramaModal({
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const handleSave = () => {
-    if (selectedDate > todayStr) {
+    if (selectedDate > todayStr && !isSuperAdmin) {
       alert("Presensi kegiatan asrama tidak dapat dicatat untuk tanggal di masa depan.");
       return;
     }

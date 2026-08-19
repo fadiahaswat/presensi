@@ -56,17 +56,23 @@ export function MutabaahYaumiyahModal({
   musyrifList,
   mutabaahData,
   onSaveMutabaah,
+  onResetMutabaah,
   isPage = false
 }: MutabaahYaumiyahModalProps) {
+  const isKoordinator = authUser?.role === "koordinator_musyrif";
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
   const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
+  const canEdit = isMusyrifUser || isPamongOrKoord;
   
   const activeMusyrifList = useMemo(() => {
+    if (isKoordinator) {
+      return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+    }
     if (authUser?.role === "koordinator_gedung") {
       return musyrifList.filter(m => m.asrama === authUser.asrama);
     }
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
-  }, [musyrifList, authUser]);
+  }, [musyrifList, authUser, isKoordinator]);
 
   const defaultMusyrifId = authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
   
@@ -95,24 +101,27 @@ export function MutabaahYaumiyahModal({
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
-    if (!isMusyrifUser) return;
-    if (selectedDate > todayStr) {
+    if (!canEdit) return;
+    if (selectedDate > todayStr && !isKoordinator) {
       alert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.");
       return;
     }
-    setEntry(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
+    const updated: MutabaahEntry = {
+      ...entry,
+      [field]: !entry[field]
+    };
+    setEntry(updated);
+    // Instant Auto-Save & Cloud Sync
+    onSaveMutabaah(selectedMusyrifId, selectedDate, updated);
   };
 
   const handleMarkAll = (done: boolean) => {
-    if (!isMusyrifUser) return;
-    if (selectedDate > todayStr) {
+    if (!canEdit) return;
+    if (selectedDate > todayStr && !isKoordinator) {
       alert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.");
       return;
     }
-    setEntry({
+    const updated: MutabaahEntry = {
       tahajjud: done,
       dhuha: done,
       rawatib: done,
@@ -121,11 +130,13 @@ export function MutabaahYaumiyahModal({
       dzikirPetang: done,
       puasaSunnah: done,
       muthalaah: done
-    });
+    };
+    setEntry(updated);
+    onSaveMutabaah(selectedMusyrifId, selectedDate, updated);
   };
 
   const handleResetToday = () => {
-    if (!isMusyrifUser && !isPamongOrKoord) return;
+    if (!canEdit) return;
     if (window.confirm(`Yakin ingin mengosongkan/reset catatan amalan mutaba'ah tanggal ${selectedDate}?`)) {
       setEntry(DEFAULT_ENTRY);
       if (onResetMutabaah) {
@@ -139,7 +150,7 @@ export function MutabaahYaumiyahModal({
   };
 
   const handleSave = () => {
-    if (selectedDate > todayStr) {
+    if (selectedDate > todayStr && !isKoordinator) {
       alert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.");
       return;
     }
@@ -359,7 +370,7 @@ export function MutabaahYaumiyahModal({
           {/* Tahajjud */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("tahajjud")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.tahajjud ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -384,7 +395,7 @@ export function MutabaahYaumiyahModal({
           {/* Dhuha */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("dhuha")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.dhuha ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -409,7 +420,7 @@ export function MutabaahYaumiyahModal({
           {/* Rawatib */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("rawatib")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.rawatib ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -434,7 +445,7 @@ export function MutabaahYaumiyahModal({
           {/* Muthala'ah */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("muthalaah")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.muthalaah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -459,7 +470,7 @@ export function MutabaahYaumiyahModal({
           {/* Dzikir Pagi */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("dzikirPagi")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.dzikirPagi ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -484,7 +495,7 @@ export function MutabaahYaumiyahModal({
           {/* Dzikir Petang */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("dzikirPetang")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.dzikirPetang ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -509,7 +520,7 @@ export function MutabaahYaumiyahModal({
           {/* Puasa Sunnah */}
           <button
             type="button"
-            disabled={!isMusyrifUser}
+            disabled={!canEdit}
             onClick={() => toggleField("puasaSunnah")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
               entry.puasaSunnah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
@@ -548,7 +559,7 @@ export function MutabaahYaumiyahModal({
               </span>
             </div>
 
-            {isMusyrifUser && (
+            {canEdit && (
               <div className="flex items-center gap-1.5 pt-0.5">
                 {[0, 2, 5, 10, 20].map(pages => (
                   <button
