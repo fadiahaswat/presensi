@@ -1,20 +1,21 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
-  X, Search, GraduationCap, Users, Phone, Mail, MapPin, 
+  X, Search, GraduationCap, Users, Phone, Mail, MapPin,
   Download, Eye, CheckCircle2, ChevronRight, ChevronLeft, Building2,
   Calendar, BookOpen, ShieldCheck, UserCheck, MessageCircle, ExternalLink,
-  Layers, Copy, Sparkles, Check, Plus, Edit3, Trash2, AlertTriangle, 
-  RotateCcw, ArrowRightLeft, UserX, UserPlus, Save, SlidersHorizontal, 
-  Filter, School, ArrowUpRight, Heart
+  Layers, Copy, Sparkles, Check, Plus, Edit3, Trash2, AlertTriangle,
+  RotateCcw, ArrowRightLeft, UserX, UserPlus, Save, SlidersHorizontal,
+  Filter, School, ArrowUpRight, Heart, Globe
 } from "lucide-react";
-import { 
-  ALL_SANTRI_DATA, SantriData, getSantriStats, normalizeClassName, 
+import {
+  ALL_SANTRI_DATA, SantriData, getSantriStats, normalizeClassName,
   LIST_ALL_KELAS_GROUPED, LIST_ALL_KELAS_FLAT, getClassMetadata,
   buildSiblingMap, SiblingInfo
 } from "../data/santriData";
 import { motion, AnimatePresence } from "motion/react";
 import { modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
+import { SantriPetaSebaran } from "./SantriPetaSebaran";
 
 interface DataSantriModalProps {
   onClose: () => void;
@@ -94,6 +95,9 @@ export function DataSantriModal({
   // Quick Class Transfer Modal
   const [transferSantri, setTransferSantri] = useState<SantriData | null>(null);
   const [transferNewClass, setTransferNewClass] = useState("1 A");
+
+  // Peta Sebaran Modal
+  const [showPetaSebaran, setShowPetaSebaran] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -470,14 +474,28 @@ export function DataSantriModal({
               type="button"
               onClick={handleExportCSV}
               className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 ${
-                isPage 
-                  ? "bg-slate-800 hover:bg-slate-900 text-white" 
+                isPage
+                  ? "bg-slate-800 hover:bg-slate-900 text-white"
                   : "bg-white/10 hover:bg-white/20 text-white border border-white/15"
               }`}
               title="Unduh data dalam format CSV / Excel"
             >
               <Download className="w-3.5 h-3.5 text-slate-300" />
               <span>Ekspor CSV ({filteredSantri.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPetaSebaran(true)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 ${
+                isPage
+                  ? "bg-emerald-700 hover:bg-emerald-800 text-white"
+                  : "bg-emerald-600/80 hover:bg-emerald-600 text-white border border-emerald-400/30"
+              }`}
+              title="Lihat peta sebaran asal santri"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Peta Sebaran</span>
             </button>
 
             {isKoorMusyrif && onResetSantri && (
@@ -1786,11 +1804,33 @@ export function DataSantriModal({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Peta Sebaran Modal */}
+      <AnimatePresence>
+        {showPetaSebaran && (
+          <SantriPetaSebaran
+            onClose={() => setShowPetaSebaran(false)}
+            isPage={false}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 
   if (isPage) {
-    return content;
+    return (
+      <>
+        {content}
+        <AnimatePresence>
+          {showPetaSebaran && (
+            <SantriPetaSebaran
+              onClose={() => setShowPetaSebaran(false)}
+              isPage={true}
+            />
+          )}
+        </AnimatePresence>
+      </>
+    );
   }
 
   return (

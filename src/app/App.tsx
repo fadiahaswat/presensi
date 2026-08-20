@@ -48,6 +48,7 @@ import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdrop
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "./utils/geoUtils";
 import { CustomDialogModal } from "./components/CustomDialogModal";
 import { appAlert, appConfirm, appUndoToast } from "./utils/customDialog";
+import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAccess, isFieldMusyrif as checkFieldMusyrif, getPamongAssignedAsramas } from "./utils/roleAccessUtils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -327,10 +328,6 @@ const MUSYRIF_LIST: Musyrif[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function isFieldMusyrif(m: { role?: Role | string }): boolean {
-  return m.role !== "pamong" && m.role !== "koordinator_musyrif";
-}
-
 function matchesEmail(emailField?: string, inputEmail?: string): boolean {
   if (!emailField || !inputEmail) return false;
   const target = inputEmail.trim().toLowerCase();
@@ -423,11 +420,10 @@ function Label({ ch }: { ch: React.ReactNode }) {
   return <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 font-mono">{ch}</p>;
 }
 
-function hasFullAccess(u: AuthUser) { return u.role === "koordinator_musyrif"; }
-
-// Only this admin email can access database settings
-const ADMIN_DB_EMAIL = "andiaqillahfadiahaswat@gmail.com";
-function isDbAdmin(u: AuthUser | null): boolean { return !!u && u.email === ADMIN_DB_EMAIL; }
+// Use centralized role access utilities
+function hasFullAccess(u: AuthUser) { return checkFullAccess(u); }
+function isDbAdmin(u: AuthUser | null): boolean { return checkDbAdmin(u); }
+function isFieldMusyrif(m: { role?: Role | string }): boolean { return checkFieldMusyrif(m); }
 
 function computeStreak(mid: string, records: AttendanceRecord[]) {
   let cur = 0, best = 0, tmp = 0;
@@ -1161,8 +1157,8 @@ function PageDashboard({
         ) : (
           /* Pamong & Koordinator Dynamic Widgets & Clean Services Grid */
           <div className="space-y-4">
-            {/* 1. INTERACTIVE RICH WIDGET ROW (Izin, Santri Sakit, Papan Peringkat) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* 1. INTERACTIVE RICH WIDGET ROW (Izin & Santri Sakit) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Widget 1: Izin & Sakit Musyrif dengan Daftar Antrean Real */}
               {(() => {
                 const pendingList = (izinList || []).filter(iz => iz.status === "pending").slice(0, 2);
@@ -1279,51 +1275,6 @@ function PageDashboard({
                 );
               })()}
 
-              {/* Widget 3: Papan Peringkat (Top 3 Musyrif Teladan) */}
-              <div
-                onClick={() => onGoTo("leaderboard")}
-                className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-purple-300 transition-all cursor-pointer flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                        <Trophy className="w-4 h-4"/>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-800 leading-tight">Papan Peringkat</h4>
-                        <span className="text-[10px] text-slate-400">Musyrif Teladan</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono">
-                      Top 3
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {streakTop.slice(0, 2).map((m, idx) => (
-                      <div key={m.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                            idx === 0 ? "bg-amber-400 text-amber-950 shadow-2xs" : "bg-slate-200 text-slate-700"
-                          }`}>
-                            {idx + 1}
-                          </span>
-                          <p className="font-bold text-slate-800 truncate">{m.name}</p>
-                        </div>
-                        <span className="text-[10px] font-bold text-emerald-700 font-mono shrink-0">
-                          {m.cur} Hari Sholat
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-purple-600 group-hover:text-purple-700">
-                  <span>Lihat Ranking 4 Pilar</span>
-                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
             </div>
 
             {/* 2. OPERASIONAL & LAYANAN MANAJEMEN GRID */}
@@ -1334,7 +1285,7 @@ function PageDashboard({
                   Layanan & Manajemen Keasramaan
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                 {/* 1. Kirim WA */}
                 <button
                   type="button"
@@ -1637,27 +1588,59 @@ function PageDashboard({
         </div>}/>
       )}
 
-      {/* Streak leaderboard - Clickable to open detail */}
+      {/* Streak leaderboard + Papan Peringkat — Gabungan dalam satu kartu */}
       <div>
-        <Label ch="Presensi Beruntun Tertinggi"/>
-        <Card ch={<div className="divide-y divide-slate-50">
-          {streakTop.map((m,i)=>(
-            <button 
-              key={m.id} 
-              onClick={()=>setDetailMusyrif(m)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors"
-            >
-              <div className="w-6 flex items-center justify-center shrink-0">
-                {i === 0 ? <Crown className="w-4 h-4 text-amber-500" /> :
-                 i === 1 ? <Medal className="w-4 h-4 text-slate-400" /> :
-                 <Award className="w-4 h-4 text-amber-700" />}
+        <Label ch="Papan Peringkat Musyrif Teladan"/>
+        <Card ch={<div>
+          {/* Header info */}
+          <div className="px-4 pt-3 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                <Trophy className="w-3.5 h-3.5"/>
               </div>
-              <Av name={m.name} src={m.photo} sz="sm"/>
-              <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-500">{m.asrama}</p></div>
-              <div className="text-right"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-500"/><span className="font-bold text-slate-800 font-mono">{m.cur}</span><span className="text-xs text-slate-500">hari</span></div><p className="text-[10px] text-slate-400">terbaik: {m.best}h</p></div>
-              <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1"/>
-            </button>
-          ))}
+              <div>
+                <p className="text-xs font-bold text-slate-700 leading-tight">Streak Presensi Shalat Beruntun</p>
+                <p className="text-[10px] text-slate-400 font-mono">Klik nama untuk lihat riwayat detail</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono shrink-0">
+              Top {streakTop.length}
+            </span>
+          </div>
+
+          {/* Daftar streak - klik buka detail individu */}
+          <div className="divide-y divide-slate-50">
+            {streakTop.map((m,i)=>(
+              <button
+                key={m.id}
+                onClick={()=>setDetailMusyrif(m)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors"
+              >
+                <div className="w-6 flex items-center justify-center shrink-0">
+                  {i === 0 ? <Crown className="w-4 h-4 text-amber-500" /> :
+                   i === 1 ? <Medal className="w-4 h-4 text-slate-400" /> :
+                   <Award className="w-4 h-4 text-amber-700" />}
+                </div>
+                <Av name={m.name} src={m.photo} sz="sm"/>
+                <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-500">{m.asrama}</p></div>
+                <div className="text-right"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-500"/><span className="font-bold text-slate-800 font-mono">{m.cur}</span><span className="text-xs text-slate-500">hari</span></div><p className="text-[10px] text-slate-400">terbaik: {m.best}h</p></div>
+                <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1"/>
+              </button>
+            ))}
+          </div>
+
+          {/* Footer — link ke Leaderboard 4 Pilar */}
+          <button
+            type="button"
+            onClick={()=>onGoTo("leaderboard")}
+            className="w-full flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-50/60 transition-colors group"
+          >
+            <div className="flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5"/>
+              <span>Lihat Ranking 4 Pilar Lengkap</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"/>
+          </button>
         </div>}/>
       </div>
 
@@ -1821,19 +1804,19 @@ function PageInputPrayer({
   );
 
   const isMusyrifOnly = authUser.role === "musyrif";
+  const isKoordGedung = authUser.role === "koordinator_gedung";
+  // Koord. Gedung memiliki batasan sama dengan Musyrif: today only, time window, GPS required
+  const isMusyrifOrKoorGedung = isMusyrifOnly || isKoordGedung;
   const fullAccess = hasFullAccess(authUser);
-  const isSedayuPamong = authUser.role === "pamong" && (authUser.asrama || "").toLowerCase().includes("sedayu");
-  const isPamongAnang = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("anang") || (authUser.email || "").includes("abukaysan86"));
-  const isPamongAbdan = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("abdan") || (authUser.email || "").includes("auliaabdan"));
+  const { isSedayuPamong, isPamongAnang, isPamongAbdan } = getPamongType(authUser);
 
-  // Determine allowed asramas for this user
+  // Determine allowed asramas for this user using centralized utility
   const allowedAsramaList = useMemo(() => {
     if (fullAccess) return ASRAMAS;
-    if (isSedayuPamong) return ASRAMAS.filter(a => a.toLowerCase().includes("sedayu"));
-    if (isPamongAnang) return ["Asrama 8B", "Asrama 8C"];
-    if (isPamongAbdan) return ["Asrama 8A", "Asrama 8C"];
+    const pamongAsramas = getPamongAssignedAsramas(authUser);
+    if (pamongAsramas.length > 0) return pamongAsramas;
     return authUser.asrama ? [authUser.asrama] : [ASRAMAS[0]];
-  }, [fullAccess, isSedayuPamong, isPamongAnang, isPamongAbdan, authUser.asrama]);
+  }, [fullAccess, authUser]);
 
   // If currently selected asrama is not in allowed list, reset to first allowed
   const activeAsrama = allowedAsramaList.includes(selAsrama) 
@@ -1858,9 +1841,9 @@ function PageInputPrayer({
   // Find logged in musyrif ID
   const myMusyrifId = authUser.musyrifId || authUser.id;
 
-  // Run GPS Check for Musyrif
+  // Run GPS Check for Musyrif and Koordinator Gedung
   useEffect(() => {
-    if (isMusyrifOnly && activeAsrama) {
+    if (isMusyrifOrKoorGedung && activeAsrama) {
       setIsCheckingGps(true);
       checkAsramaGeofenceBrowser(activeAsrama).then(res => {
         setGpsResult(res);
@@ -1869,7 +1852,7 @@ function PageInputPrayer({
         setIsCheckingGps(false);
       });
     }
-  }, [isMusyrifOnly, activeAsrama]);
+  }, [isMusyrifOrKoorGedung, activeAsrama]);
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
   const doneCount = musyrifList.filter(m => Boolean(getRecord(m.id)?.[slot])).length;
@@ -1896,8 +1879,8 @@ function PageInputPrayer({
   const closeTimeDisplayStr = isSubuh ? "06:00" : "19:30";
 
   const isNotYetTime = isTodayDate && curDecimal < openTimeRaw;
-  const isPastTimeMusyrif = isMusyrifOnly && isTodayDate && curDecimal > closeTimeRaw;
-  const isLocked = !fullAccess && (isFuture || isNotYetTime || (isMusyrifOnly && (!isTodayDate || isPastTimeMusyrif)));
+  const isPastTimeMusyrif = isMusyrifOrKoorGedung && isTodayDate && curDecimal > closeTimeRaw;
+  const isLocked = !fullAccess && (isFuture || isNotYetTime || (isMusyrifOrKoorGedung && (!isTodayDate || isPastTimeMusyrif)));
 
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
     if (isFuture && !fullAccess) {
@@ -1908,17 +1891,19 @@ function PageInputPrayer({
       showToast?.(`Presensi ${p === "subuh" ? "Subuh" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
       return;
     }
-    if (isMusyrifOnly) {
+    // Musyrif dan Koordinator Gedung memiliki batasan sama: today only, time window, GPS
+    if (isMusyrifOrKoorGedung) {
       if (!isTodayDate) {
-        showToast?.("Presensi mandiri musyrif hanya dapat diisi pada hari berjalan (hari ini).", "error");
+        showToast?.("Presensi hanya dapat diisi pada hari berjalan (hari ini).", "error");
         return;
       }
       if (curDecimal > closeTimeRaw) {
-        showToast?.(`Waktu presensi mandiri ${p === "subuh" ? "Subuh" : "Maghrib"} telah ditutup pada pukul ${closeTimeDisplayStr} WIB.`, "error");
+        showToast?.(`Waktu presensi ${p === "subuh" ? "Subuh" : "Maghrib"} telah ditutup pada pukul ${closeTimeDisplayStr} WIB.`, "error");
         return;
       }
-      if (mid !== myMusyrifId && !matchesEmail(authUser.email, musyrifList.find(m => m.id === mid)?.email || "")) {
-        showToast?.("Anda hanya memiliki wewenang untuk mengisi presensi mandiri atas nama Anda sendiri.", "error");
+      // Koord. Gedung boleh presensi musyrif di gedungnya (beda asrama), tapi harus GPS
+      if (isMusyrifOnly && mid !== myMusyrifId && !matchesEmail(authUser.email, musyrifList.find(m => m.id === mid)?.email || "")) {
+        showToast?.("Anda hanya memiliki wewenang untuk mengisi presensi atas nama Anda sendiri.", "error");
         return;
       }
       if (gpsResult && !gpsResult.isInRange) {
@@ -1934,6 +1919,8 @@ function PageInputPrayer({
   const hijriSel = toHijri(parseISO(selDate));
 
   const prevDay = () => {
+    // Musyrif dan Koord. Gedung tidak boleh navigasi mundur
+    if (isMusyrifOrKoorGedung && selDate <= todayStr()) return;
     const d = parseISO(selDate); d.setDate(d.getDate() - 1);
     setSelDate(format(d, "yyyy-MM-dd"));
   };
@@ -2055,8 +2042,8 @@ function PageInputPrayer({
         )}
       </div>
 
-      {/* Geofence Alert Banner for Musyrif User */}
-      {isMusyrifOnly && (
+      {/* Geofence Alert Banner for Musyrif and Koordinator Gedung */}
+      {isMusyrifOrKoorGedung && (
         <div className={`rounded-2xl p-3.5 border flex items-center justify-between gap-3 text-xs ${
           isCheckingGps ? "bg-slate-50 border-slate-200 text-slate-600" :
           gpsResult?.isInRange ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
@@ -2165,8 +2152,8 @@ function PageInputPrayer({
         </div>
       )}
 
-      {/* 3. Search Bar */}
-      {!isMusyrifOnly && (
+      {/* 3. Search Bar - Hide for Musyrif and Koord. Gedung */}
+      {!isMusyrifOrKoorGedung && (
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
           <input 
@@ -2832,21 +2819,16 @@ function PageRiwayat({
 
   const isPersonalMusyrif = authUser.role === "musyrif";
   const isPamongOrKoord = authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung";
-  const isSedayuPamong = authUser.role === "pamong" && (authUser.asrama || "").toLowerCase().includes("sedayu");
-  const isPamongAnang = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("anang") || (authUser.email || "").includes("abukaysan86"));
-  const isPamongAbdan = authUser.role === "pamong" && (authUser.name.toLowerCase().includes("abdan") || (authUser.email || "").includes("auliaabdan"));
+  const { isSedayuPamong, isPamongAnang, isPamongAbdan } = getPamongType(authUser);
+  const pamongAssignedAsramas = getPamongAssignedAsramas(authUser);
 
   const allowed = isPersonalMusyrif
     ? allM.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
     : hasFullAccess(authUser)
       ? allM
-      : isSedayuPamong
-        ? allM.filter(m => (m.asrama || "").toLowerCase().includes("sedayu"))
-        : isPamongAnang
-          ? allM.filter(m => (m.asrama === "Asrama 8B" || m.asrama === "Asrama 8C") && (m.kelas || "").startsWith("5"))
-          : isPamongAbdan
-            ? allM.filter(m => (m.asrama === "Asrama 8A" || m.asrama === "Asrama 8C") && (m.kelas || "").startsWith("6"))
-            : allM.filter(m => m.asrama === authUser.asrama);
+      : pamongAssignedAsramas.length > 0
+        ? allM.filter(m => pamongAssignedAsramas.includes(m.asrama))
+        : allM.filter(m => m.asrama === authUser.asrama);
 
   const musyrif = isPersonalMusyrif
     ? (allowed[0] ?? allM.find(m => m.id === authUser.musyrifId) ?? allM[0])

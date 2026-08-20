@@ -2,6 +2,8 @@
 // Madrasah Mu'allimin Muhammadiyah Yogyakarta
 // Tahun Ajaran 2026/2027
 
+import { ADMIN_SCRUD_EMAILS as CONFIG_ADMIN_EMAILS } from "../config/envConfig";
+
 export interface JadwalPerpulangan {
   id: string;
   no: number;
@@ -440,9 +442,8 @@ export const STORAGE_KEY_JADWAL_PERPULANGAN = "muallimin_jadwal_perpulangan_v1";
 export const STORAGE_KEY_AGENDA_PENDIDIKAN = "muallimin_kalender_agenda_v1";
 export const STORAGE_KEY_KETENTUAN_PERPULANGAN = "muallimin_ketentuan_perpulangan_v1";
 
-export const ADMIN_SCRUD_EMAILS = [
-  "andiaqillahfadiahaswat@gmail.com",
-];
+// Admin SCRUD emails from config (imported at top of file)
+export const ADMIN_SCRUD_EMAILS = CONFIG_ADMIN_EMAILS;
 
 export function canUserScrudKalender(email?: string | null, role?: string | null): boolean {
   if (!email) return false;
