@@ -37,6 +37,7 @@ import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
 import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
 import { DataSantriModal } from "./components/DataSantriModal";
+import { SantriMapModal } from "./components/SantriMapModal";
 import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
 import { AppSkeleton } from "./components/AppSkeleton";
@@ -56,7 +57,7 @@ import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAcc
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
 interface Musyrif {
@@ -1430,12 +1431,34 @@ function PageDashboard({
                         <GraduationCap className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                        1.499
+                        1.497
                       </span>
                     </div>
                     <div>
                       <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
                       <p className="text-[10px] text-slate-400 mt-0.5 truncate">Biodata & kontak ortu</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* 9. Peta Sebaran Santri */}
+                {authUser && (
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("peta-santri")}
+                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-7 h-7 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                        <MapPin className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                        36 prov
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-slate-800 leading-tight">Peta Sebaran</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Asal daerah santri</p>
                     </div>
                   </button>
                 )}
@@ -6652,6 +6675,15 @@ export default function App() {
                 onResetSantri={handleResetSantri}
                 onSelectSantriForIzin={() => setPage("izin")}
                 onSelectSantriForSakit={() => setPage("santri-sakit")}
+              />
+            </motion.div>
+          )}
+          {page==="peta-santri" && authUser && (
+            <motion.div key="peta-santri" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <SantriMapModal
+                onClose={() => setPage("dashboard")}
+                isPage={true}
+                santriList={santriList}
               />
             </motion.div>
           )}
