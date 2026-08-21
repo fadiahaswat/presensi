@@ -10,6 +10,7 @@ import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { searchSantri, getSantriForMusyrif, SantriData } from "../data/santriData";
 import { appAlert } from "../utils/customDialog";
+import { getPamongAssignedAsramas } from "../utils/roleAccessUtils";
 
 export interface SantriSakitRecord {
   id: string;
@@ -267,15 +268,26 @@ export function SantriSakitModal({
   };
 
   // Filtered List — scope by role first
+  const pamongAsramas = useMemo(() => authUser ? getPamongAssignedAsramas(authUser) : [], [authUser]);
+  const isSuperAdmin = authUser?.role === "koordinator_musyrif" || authUser?.role === "kaur_kis" || authUser?.role === "wadir4" || authUser?.role === "admin";
+
   const filteredList = santriSakitList.filter(item => {
     // Role-based scoping
     if (isPamong) {
-      if (item.asrama !== authUser?.asrama) return false;
-    } else if (isClassScoped) {
-      // musyrif / koordinator_gedung → hanya kelasnya
-      if (item.musyrifId !== (authUser?.musyrifId || authUser?.id)) return false;
+      if (pamongAsramas.length > 0) {
+        if (!pamongAsramas.includes(item.asrama) && !pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) return false;
+      } else if (authUser?.asrama && item.asrama !== authUser.asrama) {
+        return false;
+      }
+    } else if (isKoorGedung) {
+      if (authUser?.asrama && item.asrama !== authUser.asrama) return false;
+    } else if (isMusyrif) {
+      const isMyRoomOrClass = item.musyrifId === (authUser?.musyrifId || authUser?.id) || 
+        (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
+        (authUser?.kamar && item.kamar === authUser.kamar);
+      if (!isMyRoomOrClass) return false;
     }
-    // koor → semua santri, tidak perlu filter tambahan
+    // superadmin & public → semua santri sakit
 
     const matchAsrama = filterAsrama === "all" || item.asrama === filterAsrama;
     const matchStatus = filterStatus === "all" || item.status === filterStatus;
@@ -289,8 +301,14 @@ export function SantriSakitModal({
 
   const activeSickCount = (() => {
     const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
-    if (isPamong) return active.filter(s => s.asrama === authUser?.asrama).length;
-    if (isClassScoped) return active.filter(s => s.musyrifId === (authUser?.musyrifId || authUser?.id)).length;
+    if (isPamong) {
+      if (pamongAsramas.length > 0) {
+        return active.filter(s => pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => s.asrama.toLowerCase().includes(pa.toLowerCase()))).length;
+      }
+      return active.filter(s => s.asrama === authUser?.asrama).length;
+    }
+    if (isKoorGedung) return active.filter(s => s.asrama === authUser?.asrama).length;
+    if (isMusyrif) return active.filter(s => s.musyrifId === (authUser?.musyrifId || authUser?.id) || (authUser?.kelas && s.kelasSantri === authUser.kelas)).length;
     return active.length; // koor/all
   })();
 
@@ -732,9 +750,15 @@ export function SantriSakitModal({
                       )}
 
                       {(() => {
-                        const canEditDelete = !isMusyrif || 
-                          item.musyrifId === authUser?.id || 
-                          item.musyrifId === authUser?.musyrifId;
+                        const canEditDelete = isSuperAdmin ||
+                          (isPamong && (pamongAsramas.length > 0 ? (pamongAsramas.includes(item.asrama) || pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) : item.asrama === authUser?.asrama)) ||
+                          (isKoorGedung && item.asrama === authUser?.asrama) ||
+                          (isMusyrif && (
+                            item.musyrifId === authUser?.id || 
+                            item.musyrifId === authUser?.musyrifId || 
+                            (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
+                            (authUser?.kamar && item.kamar === authUser.kamar)
+                          ));
                         return canEditDelete ? (
                           <>
                             <button

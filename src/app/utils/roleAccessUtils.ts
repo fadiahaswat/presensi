@@ -25,6 +25,18 @@ export function isFieldMusyrif(user: { role?: Role | string }): boolean {
          user.role !== "wadir4";
 }
 
+// Check if user can manage/record Kegiatan Asrama (koordinator_gedung, pamong, koordinator_musyrif, kaur_kis, wadir4)
+export function canManageKegiatanAsrama(user: AuthUser | { role?: Role | string } | null | undefined): boolean {
+  if (!user) return false;
+  return (
+    user.role === "koordinator_gedung" ||
+    user.role === "pamong" ||
+    user.role === "koordinator_musyrif" ||
+    user.role === "kaur_kis" ||
+    user.role === "wadir4"
+  );
+}
+
 // Get assigned asramas for pamong - uses ID first, falls back to name matching
 export function getPamongAssignedAsramas(user: AuthUser): string[] {
   // Full access gets all asramas

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   X, BookOpen, Users, Check, AlertCircle, 
   Calendar, ShieldCheck, Plus, Sparkles, Building2, Search,
@@ -9,6 +9,7 @@ import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
+import { canManageKegiatanAsrama, getPamongAssignedAsramas, hasFullAccess } from "../utils/roleAccessUtils";
 
 export interface KegiatanRecord {
   id: string;
@@ -66,13 +67,36 @@ export function KegiatanAsramaModal({
   authUser,
   isPage = false
 }: KegiatanAsramaModalProps) {
-  const isSuperAdmin = authUser?.role === "koordinator_musyrif";
+  const isSuperAdmin = authUser ? hasFullAccess(authUser) : false;
+  const isPamong = authUser?.role === "pamong";
+  const isKoordGedung = authUser?.role === "koordinator_gedung";
+  const canManage = canManageKegiatanAsrama(authUser);
   const userAsrama = authUser?.asrama || asramaList[0] || "1";
 
-  const [activeTab, setActiveTab] = useState<"input" | "riwayat">("input");
+  // List of asramas this user is allowed to manage/view
+  const availableAsramas = useMemo(() => {
+    if (isSuperAdmin) return asramaList;
+    if (isPamong) {
+      const pamongAsramas = getPamongAssignedAsramas(authUser);
+      if (pamongAsramas && pamongAsramas.length > 0) {
+        const filtered = asramaList.filter(a => 
+          pamongAsramas.includes(a) || 
+          pamongAsramas.some(pa => a.toLowerCase().includes(pa.toLowerCase()))
+        );
+        if (filtered.length > 0) return filtered;
+      }
+    }
+    if (authUser?.asrama) {
+      const matched = asramaList.find(a => a.toLowerCase() === authUser.asrama.toLowerCase());
+      return matched ? [matched] : [authUser.asrama];
+    }
+    return asramaList;
+  }, [authUser, asramaList, isSuperAdmin, isPamong]);
+
+  const [activeTab, setActiveTab] = useState<"input" | "riwayat">(canManage ? "input" : "riwayat");
   const [selectedActivity, setSelectedActivity] = useState<string>("tahfidz");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [selectedAsrama, setSelectedAsrama] = useState<string>(isSuperAdmin ? (asramaList[0] || "1") : userAsrama);
+  const [selectedAsrama, setSelectedAsrama] = useState<string>(availableAsramas[0] || userAsrama || asramaList[0] || "1");
   const [notes, setNotes] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [editingKegiatan, setEditingKegiatan] = useState<KegiatanRecord | null>(null);
@@ -107,13 +131,17 @@ export function KegiatanAsramaModal({
   const resetForm = () => {
     setSelectedActivity("tahfidz");
     setSelectedDate(format(new Date(), "yyyy-MM-dd"));
-    setSelectedAsrama(isSuperAdmin ? (asramaList[0] || "1") : userAsrama);
+    setSelectedAsrama(availableAsramas[0] || userAsrama || asramaList[0] || "1");
     setNotes("");
     setAttendance({});
     setEditingKegiatan(null);
   };
 
   const handleStartEdit = (rec: KegiatanRecord) => {
+    if (!canManage) {
+      appAlert("Hanya Koordinator Gedung, Pamong Asrama, atau Manajemen yang dapat mengedit agenda kegiatan.", "Akses Terbatas", "warning");
+      return;
+    }
     setEditingKegiatan(rec);
     setSelectedActivity(rec.activityType);
     setSelectedDate(rec.date);
@@ -126,6 +154,10 @@ export function KegiatanAsramaModal({
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const handleSave = () => {
+    if (!canManage) {
+      appAlert("Akses Ditolak: Hanya Koordinator Gedung, Pamong Asrama, atau Manajemen yang berhak mencatat presensi kegiatan asrama.", "Akses Ditolak", "error");
+      return;
+    }
     if (selectedDate > todayStr && !isSuperAdmin) {
       appAlert("Presensi kegiatan asrama tidak dapat dicatat untuk tanggal di masa depan.", "Tanggal Tidak Valid", "warning");
       return;
@@ -141,6 +173,9 @@ export function KegiatanAsramaModal({
       }
     });
 
+    const roleLabel = isSuperAdmin ? "Manajemen" : isPamong ? "Pamong" : isKoordGedung ? "Koord. Gedung" : "Petugas";
+    const defaultMarker = authUser?.name ? `${authUser.name} (${roleLabel})` : (isKoordGedung ? "Koordinator Gedung" : isPamong ? "Pamong" : "Manajemen");
+
     onSaveKegiatan({
       id: recId,
       activityType: selectedActivity as any,
@@ -149,7 +184,7 @@ export function KegiatanAsramaModal({
       asrama: selectedAsrama,
       attendees: finalAttendance,
       notes: notes.trim() || undefined,
-      markedBy: editingKegiatan ? editingKegiatan.markedBy : (authUser?.name || "Pamong")
+      markedBy: editingKegiatan ? editingKegiatan.markedBy : defaultMarker
     });
 
     triggerHaptic("medium");
@@ -182,26 +217,30 @@ export function KegiatanAsramaModal({
               Presensi Kegiatan Asrama
             </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
-              Tahfidz, Kuliah Shubuh, Apel, & Ronda Kebersihan Asrama
+              {canManage 
+                ? "Tahfidz, Kuliah Shubuh, Apel, & Ronda Kebersihan Asrama"
+                : "Riwayat & Agenda Kegiatan Asrama"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              if (activeTab === "input" && editingKegiatan) resetForm();
-              setActiveTab("input");
-            }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "input" 
-                ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs") 
-                : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
-            }`}
-          >
-            {editingKegiatan ? "Edit Agenda" : "Input Agenda"}
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTab === "input" && editingKegiatan) resetForm();
+                setActiveTab("input");
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "input" 
+                  ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs") 
+                  : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
+              }`}
+            >
+              {editingKegiatan ? "Edit Agenda" : "Input Agenda"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab("riwayat")}
@@ -218,6 +257,24 @@ export function KegiatanAsramaModal({
 
       {/* Content Area */}
       {activeTab === "input" ? (
+        !canManage ? (
+          <div className="bg-white rounded-3xl p-8 border border-slate-200/70 text-center space-y-3 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-slate-800 text-base">Hak Akses Terbatas</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              Pengisian presensi kegiatan asrama khusus untuk <strong>Koordinator Gedung</strong>, <strong>Pamong Asrama</strong>, dan <strong>Manajemen Asrama</strong>.
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveTab("riwayat")}
+              className="mt-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-emerald-700 transition-all"
+            >
+              Buka Riwayat Kegiatan
+            </button>
+          </div>
+        ) : (
         <div className="space-y-4">
           {editingKegiatan && (
             <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl flex items-center justify-between text-xs text-amber-900">
@@ -280,10 +337,10 @@ export function KegiatanAsramaModal({
                 <select
                   value={selectedAsrama}
                   onChange={(e) => setSelectedAsrama(e.target.value)}
-                  disabled={!isSuperAdmin}
-                  className={`w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none ${!isSuperAdmin ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                  disabled={availableAsramas.length <= 1}
+                  className={`w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none ${availableAsramas.length <= 1 ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                 >
-                  {asramaList.map(a => (
+                  {availableAsramas.map(a => (
                     <option key={a} value={a}>Asrama {a}</option>
                   ))}
                 </select>
@@ -375,6 +432,7 @@ export function KegiatanAsramaModal({
             </div>
           </div>
         </div>
+        )
       ) : (
         <div className="space-y-3 pb-6">
           {/* Riwayat Search & Filter */}
@@ -424,8 +482,14 @@ export function KegiatanAsramaModal({
 
           {kegiatanRecords
             .filter(rec => {
-              // Scope asrama: non-superadmin can only see their own asrama
-              if (!isSuperAdmin && rec.asrama !== userAsrama) return false;
+              // Scope asrama
+              if (!isSuperAdmin) {
+                if (isPamong) {
+                  if (availableAsramas.length > 0 && !availableAsramas.includes(rec.asrama)) return false;
+                } else {
+                  if (rec.asrama !== userAsrama) return false;
+                }
+              }
               const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
               const q = riwayatSearch.toLowerCase();
               const matchSearch = !riwayatSearch ||
@@ -449,8 +513,14 @@ export function KegiatanAsramaModal({
           ) : (
             kegiatanRecords
               .filter(rec => {
-                // Scope asrama: non-superadmin can only see their own asrama
-                if (!isSuperAdmin && rec.asrama !== userAsrama) return false;
+                // Scope asrama
+                if (!isSuperAdmin) {
+                  if (isPamong) {
+                    if (availableAsramas.length > 0 && !availableAsramas.includes(rec.asrama)) return false;
+                  } else {
+                    if (rec.asrama !== userAsrama) return false;
+                  }
+                }
                 const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
                 const q = riwayatSearch.toLowerCase();
                 const matchSearch = !riwayatSearch ||
@@ -514,7 +584,7 @@ export function KegiatanAsramaModal({
                     )}
 
                     <div className="text-xs text-slate-400 flex justify-between items-center pt-2 border-t border-slate-100">
-                      <span>Pamong: {rec.markedBy || "Pamong"}</span>
+                      <span>Dicatat: {rec.markedBy || "Pamong"}</span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -523,30 +593,34 @@ export function KegiatanAsramaModal({
                         >
                           {isExpanded ? "Sembunyikan Rincian" : "Lihat Rincian Peserta"}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(rec)}
-                          className="text-xs font-semibold text-amber-600 hover:underline"
-                        >
-                          Edit
-                        </button>
-                        {onDeleteKegiatan && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const ok = await appConfirm(
-                                `Hapus data agenda "${rec.activityTitle}" tanggal ${rec.date}?`,
-                                "Hapus Agenda Kegiatan",
-                                { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
-                              );
-                              if (ok) {
-                                onDeleteKegiatan(rec.id);
-                              }
-                            }}
-                            className="text-xs font-semibold text-rose-600 hover:underline"
-                          >
-                            Hapus
-                          </button>
+                        {canManage && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(rec)}
+                              className="text-xs font-semibold text-amber-600 hover:underline"
+                            >
+                              Edit
+                            </button>
+                            {onDeleteKegiatan && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const ok = await appConfirm(
+                                    `Hapus data agenda "${rec.activityTitle}" tanggal ${rec.date}?`,
+                                    "Hapus Agenda Kegiatan",
+                                    { type: "danger", confirmText: "Ya, Hapus", cancelText: "Batal" }
+                                  );
+                                  if (ok) {
+                                    onDeleteKegiatan(rec.id);
+                                  }
+                                }}
+                                className="text-xs font-semibold text-rose-600 hover:underline"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
