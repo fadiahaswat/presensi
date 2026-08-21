@@ -42,6 +42,7 @@ import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
 import { DataSantriModal } from "./components/DataSantriModal";
 import { SantriMapModal } from "./components/SantriMapModal";
 import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
+import { SantriChangeRequest } from "./types/santriRequest";
 import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
 import { AppSkeleton } from "./components/AppSkeleton";
 import { googleSyncService } from "./utils/googleSyncService";
@@ -562,7 +563,8 @@ function PageDashboard({
   santriIzinList = [],
   logbookData = {},
   mutabaahData = {},
-  kegiatanRecords = []
+  kegiatanRecords = [],
+  isLoadingIzinSedayu = false
 }: { 
   records: AttendanceRecord[]; 
   authUser: AuthUser|null; 
@@ -596,6 +598,7 @@ function PageDashboard({
   logbookData?: Record<string, any>;
   mutabaahData?: Record<string, any>;
   kegiatanRecords?: any[];
+  isLoadingIzinSedayu?: boolean;
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif);
@@ -1123,39 +1126,40 @@ function PageDashboard({
             const todayStr = format(new Date(), "yyyy-MM-dd");
             const pamongAsramas = authUser ? getPamongAssignedAsramas(authUser) : [];
 
-            // Scope izin list based on role
+            // Scope izin list based on role with flexible fallback
             const scopedSantriIzinList = (() => {
-              if (!authUser || checkFullAccess(authUser) || authUser.role === "admin") {
+              if (!authUser || checkFullAccess(authUser) || authUser.role === "admin" || authUser.role === "koordinator_musyrif") {
                 return santriIzinList || [];
               }
+              let filtered: SantriIzinRecord[] = [];
               if (authUser.role === "pamong") {
-                return (santriIzinList || []).filter(iz => {
+                filtered = (santriIzinList || []).filter(iz => {
                   if (pamongAsramas.length > 0) {
-                    return pamongAsramas.includes(iz.asrama) || pamongAsramas.some(pa => iz.asrama?.toLowerCase().includes(pa.toLowerCase()));
+                    return pamongAsramas.some(pa => !iz.asrama || iz.asrama === "Kampus Asrama" || iz.asrama.toLowerCase().includes(pa.toLowerCase()) || pa.toLowerCase().includes(iz.asrama.toLowerCase()));
                   }
-                  return iz.asrama === authUser.asrama;
+                  return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || iz.asrama.toLowerCase().includes(authUser.asrama.toLowerCase());
                 });
-              }
-              if (authUser.role === "koordinator_gedung") {
-                return (santriIzinList || []).filter(iz => iz.asrama === authUser.asrama);
-              }
-              if (authUser.role === "musyrif") {
-                return (santriIzinList || []).filter(iz => 
-                  (authUser.asrama && iz.asrama === authUser.asrama) || 
-                  (authUser.kelas && iz.kelas === authUser.kelas) ||
-                  (authUser.kamar && iz.kamar === authUser.kamar) ||
-                  iz.dibuatOleh === authUser.name
+              } else if (authUser.role === "koordinator_gedung") {
+                filtered = (santriIzinList || []).filter(iz => !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || iz.asrama.toLowerCase().includes(authUser.asrama.toLowerCase()));
+              } else if (authUser.role === "musyrif") {
+                filtered = (santriIzinList || []).filter(iz => 
+                  (authUser.asrama && iz.asrama && iz.asrama.toLowerCase().includes(authUser.asrama.toLowerCase())) || 
+                  (authUser.kamar && iz.kamar && iz.kamar.toLowerCase().includes(authUser.kamar.toLowerCase())) ||
+                  (authUser.kelas && iz.kelas && iz.kelas.toLowerCase().includes(authUser.kelas.toLowerCase())) ||
+                  iz.dibuatOleh === authUser.name ||
+                  !iz.asrama || iz.asrama === "Kampus Asrama"
                 );
               }
-              return santriIzinList || [];
+              return filtered.length > 0 ? filtered : (santriIzinList || []);
             })();
 
-            const pendingSantriList = scopedSantriIzinList.filter(iz => String(iz?.statusApproval || "").startsWith("pending"));
-            const approvedTodayList = scopedSantriIzinList.filter(iz => {
+            const validIzinList = (scopedSantriIzinList || []).filter(iz => Boolean(iz && iz.namaSantri && iz.namaSantri.trim() !== ""));
+            const pendingSantriList = validIzinList.filter(iz => String(iz?.statusApproval || "").startsWith("pending"));
+            const approvedTodayList = validIzinList.filter(iz => {
               if (String(iz?.statusApproval || "") !== "approved") return false;
               return iz.tglKeluarRencana === todayStr || iz.tglKembaliRencana === todayStr || (iz.tglKeluarRencana <= todayStr && iz.tglKembaliRencana >= todayStr);
             });
-            const santriDiLuarList = scopedSantriIzinList.filter(iz => String(iz?.statusApproval || "") === "approved" && iz?.statusPKM === "di_luar");
+            const santriDiLuarList = validIzinList.filter(iz => String(iz?.statusApproval || "") === "approved" && iz?.statusPKM === "di_luar");
             
             // Prioritas tampilan: 1. Pending approval -> 2. Santri di luar -> 3. Izin aktif hari ini -> 4. Izin terbaru
             const displayList = pendingSantriList.length > 0 
@@ -1164,7 +1168,7 @@ function PageDashboard({
               ? santriDiLuarList.slice(0, 2)
               : approvedTodayList.length > 0
               ? approvedTodayList.slice(0, 2)
-              : scopedSantriIzinList.slice(0, 2);
+              : validIzinList.slice(0, 2);
 
             const pendingCount = pendingSantriList.length;
             const diLuarCount = santriDiLuarList.length;
@@ -1187,7 +1191,9 @@ function PageDashboard({
                       </div>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                      pendingCount > 0 
+                      isLoadingIzinSedayu
+                        ? "bg-slate-100 text-slate-500 animate-pulse border border-slate-200"
+                        : pendingCount > 0 
                         ? "bg-rose-500 text-white animate-pulse" 
                         : diLuarCount > 0 
                         ? "bg-sky-50 text-sky-800 border border-sky-200"
@@ -1195,19 +1201,46 @@ function PageDashboard({
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                         : "bg-blue-50 text-blue-700 border border-blue-200"
                     }`}>
-                      {pendingCount > 0 
+                      {isLoadingIzinSedayu
+                        ? "Menyinkron..."
+                        : pendingCount > 0 
                         ? `${pendingCount} Pending` 
                         : diLuarCount > 0 
                         ? `${diLuarCount} di Luar`
                         : totalActiveCount > 0
                         ? `${totalActiveCount} Hari Ini`
-                        : scopedSantriIzinList.length > 0
-                        ? `${scopedSantriIzinList.length} Izin`
+                        : validIzinList.length > 0
+                        ? `${validIzinList.length} Izin`
                         : "Nihil ✓"}
                     </span>
                   </div>
 
-                  {displayList.length > 0 ? (
+                  {isLoadingIzinSedayu ? (
+                    <div className="space-y-2 py-1">
+                      {/* Shimmer Item 1 */}
+                      <div className="p-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 border border-slate-200/70 flex items-center justify-between gap-2.5 animate-pulse">
+                        <div className="w-8 h-8 rounded-xl bg-slate-200/90 shrink-0 flex items-center justify-center">
+                          <Clock className="w-4 h-4 text-slate-300 animate-spin" />
+                        </div>
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="h-3 bg-slate-200 rounded-md w-3/4"></div>
+                          <div className="h-2 bg-slate-200/70 rounded-md w-1/2"></div>
+                        </div>
+                        <div className="h-4 bg-amber-100/80 rounded-md w-12 shrink-0 border border-amber-200/60"></div>
+                      </div>
+                      {/* Shimmer Item 2 */}
+                      <div className="p-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 border border-slate-200/70 flex items-center justify-between gap-2.5 animate-pulse">
+                        <div className="w-8 h-8 rounded-xl bg-slate-200/90 shrink-0 flex items-center justify-center">
+                          <Clock className="w-4 h-4 text-slate-300" />
+                        </div>
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="h-3 bg-slate-200 rounded-md w-2/3"></div>
+                          <div className="h-2 bg-slate-200/70 rounded-md w-1/3"></div>
+                        </div>
+                        <div className="h-4 bg-sky-100/80 rounded-md w-12 shrink-0 border border-sky-200/60"></div>
+                      </div>
+                    </div>
+                  ) : displayList.length > 0 ? (
                     <div className="space-y-1.5">
                       {displayList.map(iz => {
                         const isPending = String(iz?.statusApproval || "").startsWith("pending");
@@ -1216,8 +1249,10 @@ function PageDashboard({
                         return (
                           <div key={iz.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-blue-50/50 transition">
                             <div className="min-w-0 flex-1">
-                              <p className="font-bold text-slate-800 truncate">{iz.namaSantri}</p>
-                              <p className="text-[10px] text-slate-400 truncate">{iz.kelas} • {iz.keperluan}</p>
+                              <p className="font-bold text-slate-800 truncate">{iz.namaSantri || "Santri"}</p>
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {iz.kelas || "Santri"} {iz.keperluan ? `• ${iz.keperluan}` : ""}
+                              </p>
                             </div>
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
                               isPending 
@@ -1630,6 +1665,24 @@ function PageDashboard({
                   <p className="text-[10px] text-slate-500 mt-0.5">Countdown perpulangan</p>
                 </div>
               </button>
+
+              {/* 7. Database Santri Kelas Binaan (Musyrif) */}
+              <button
+                type="button"
+                onClick={() => onGoTo("data-santri")}
+                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-cyan-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4"/>
+                  </div>
+                  <span className="text-[10px] font-bold text-cyan-800 bg-cyan-100 px-2 py-0.5 rounded-lg font-mono">Kelas</span>
+                </div>
+                <div>
+                  <p className="font-bold text-xs text-slate-800 leading-tight">Data Santri Kelas</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
+                </div>
+              </button>
             </div>
           </div>
         ) : (
@@ -1787,7 +1840,7 @@ function PageDashboard({
                 </button>
 
                 {/* 9. Database Santri - Cyan */}
-                {authUser?.role === "koordinator_musyrif" && (
+                {authUser && (
                   <button
                     type="button"
                     onClick={() => onGoTo("data-santri")}
@@ -1798,12 +1851,16 @@ function PageDashboard({
                         <GraduationCap className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                        1.497
+                        {authUser.role === "koordinator_musyrif" ? "1.497" : (authUser.role === "pamong" ? "Asrama" : "Santri")}
                       </span>
                     </div>
                     <div>
-                      <p className="font-bold text-xs text-slate-800 leading-tight">Database Santri</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Biodata & kontak ortu</p>
+                      <p className="font-bold text-xs text-slate-800 leading-tight">
+                        {authUser.role === "pamong" ? "Santri Asrama" : "Database Santri"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                        {authUser.role === "pamong" ? "Biodata santri asrama" : "Biodata & kontak ortu"}
+                      </p>
                     </div>
                   </button>
                 )}
@@ -5405,6 +5462,7 @@ const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v5";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v5";
 const STORAGE_KEY_SANTRI_IZIN = "presensi_santri_izin_v5";
 const STORAGE_KEY_SANTRI = "presensi_santri_master_v6";
+const STORAGE_KEY_SANTRI_REQUESTS = "presensi_santri_change_requests_v1";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v5";
 const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v5";
 const SYNC_TABLE_AUTH_USERS = "AuthUsers";
@@ -5752,11 +5810,30 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY_SANTRI_IZIN);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Immediately enrich with master santri dataset on boot
+          return parsed.map(item => {
+            if (!item.namaSantri) return item;
+            const rawName = item.namaSantri.trim().toLowerCase();
+            const matched = ALL_SANTRI_DATA.find(s => {
+              if (!s.nama) return false;
+              const sName = s.nama.trim().toLowerCase();
+              return sName === rawName || sName.includes(rawName) || rawName.includes(sName);
+            });
+            return {
+              ...item,
+              asrama: item.asrama && item.asrama !== "Kampus Asrama" ? item.asrama : (matched?.asrama || (matched?.tingkat && parseInt(matched.tingkat) <= 2 ? "Asrama 1" : "Asrama 2") || "Asrama 1"),
+              kamar: item.kamar && item.kamar !== "Kamar" ? item.kamar : (matched?.kamar || "Kamar"),
+              kelas: item.kelas && item.kelas !== "Kelas Asrama" ? item.kelas : (matched?.kelasLengkap || "Kelas 1 A"),
+              nisn: item.nisn && item.nisn !== "-" ? item.nisn : (matched?.nisn || "-")
+            };
+          }).filter(x => Boolean(x?.namaSantri && x.namaSantri.trim()));
+        }
       }
     } catch {}
     return [];
   });
+  const [isLoadingIzinSedayu, setIsLoadingIzinSedayu] = useState<boolean>(true);
 
   // Master Database Santri (SCRUD by Koordinator Musyrif)
   const [santriList, setSantriList] = useState<SantriData[]>(() => {
@@ -5771,6 +5848,18 @@ export default function App() {
       }
     } catch {}
     return ALL_SANTRI_DATA;
+  });
+
+  // Santri Change Requests (Edit/Transfer/Delete approval system)
+  const [santriRequests, setSantriRequests] = useState<SantriChangeRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SANTRI_REQUESTS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
   });
 
   // Modals Visibility
@@ -5934,15 +6023,22 @@ export default function App() {
   // Synchronize Perizinan Santri directly with Izin Sedayu Google Sheets
   useEffect(() => {
     let isMounted = true;
-    const syncIzinSedayu = async () => {
-      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    const initialStartTime = Date.now();
+    const syncIzinSedayu = async (isFirst = false) => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        if (isMounted) setIsLoadingIzinSedayu(false);
+        return;
+      }
       try {
+        if (isFirst && isMounted) {
+          setIsLoadingIzinSedayu(true);
+        }
         const cloudIzin = await fetchIzinSedayuFromCloud();
         if (isMounted && cloudIzin && cloudIzin.length > 0) {
           setSantriIzinList(prev => {
             const map = new Map<string, SantriIzinRecord>();
-            prev.forEach(item => map.set(item.nomorSurat || item.id, item));
-            cloudIzin.forEach(item => {
+            prev.filter(x => Boolean(x?.namaSantri && x.namaSantri.trim())).forEach(item => map.set(item.nomorSurat || item.id, item));
+            cloudIzin.filter(x => Boolean(x?.namaSantri && x.namaSantri.trim())).forEach(item => {
               const key = item.nomorSurat || item.id;
               map.set(key, { ...(map.get(key) || {}), ...item });
             });
@@ -5951,11 +6047,24 @@ export default function App() {
             );
           });
         }
-      } catch (_) {}
+      } catch (_) {
+      } finally {
+        if (isMounted) {
+          if (isFirst) {
+            const elapsed = Date.now() - initialStartTime;
+            const remaining = Math.max(0, 1500 - elapsed);
+            setTimeout(() => {
+              if (isMounted) setIsLoadingIzinSedayu(false);
+            }, remaining);
+          } else {
+            setIsLoadingIzinSedayu(false);
+          }
+        }
+      }
     };
 
-    syncIzinSedayu();
-    const interval = setInterval(syncIzinSedayu, 25000);
+    syncIzinSedayu(true);
+    const interval = setInterval(() => syncIzinSedayu(false), 25000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -5973,6 +6082,10 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(santriList)); } catch {}
   }, [santriList]);
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(santriRequests)); } catch {}
+  }, [santriRequests]);
 
   // Initial Cloud Hydration & Realtime Delta Subscription
   useEffect(() => {
@@ -6112,6 +6225,18 @@ export default function App() {
           });
           const updated = Array.from(map.values());
           try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      } else if (tbl === "santrirequests" || tbl === "santrichangerequest") {
+        setSantriRequests(prev => {
+          const map = new Map<string, SantriChangeRequest>();
+          prev.forEach(r => map.set(r.id, r));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted) map.delete(cr.id);
+            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+          });
+          const updated = Array.from(map.values());
+          try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(updated)); } catch {}
           return updated;
         });
       } else if (tbl === "musyrif") {
@@ -6459,6 +6584,106 @@ export default function App() {
     showToast("Database santri berhasil dipulihkan ke data master Excel (1.499 santri).", "success");
   };
 
+  // ─── SANTRI CHANGE REQUEST APPROVAL WORKFLOW ───
+  const handleRequestSantriChange = (reqData: Omit<SantriChangeRequest, "id" | "status" | "requestedAt" | "requestedBy">) => {
+    if (!authUser) return;
+    const newReq: SantriChangeRequest = {
+      id: `req_${Date.now()}`,
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      requestedBy: {
+        id: authUser.id,
+        name: authUser.name,
+        role: authUser.role,
+        email: authUser.email || ""
+      },
+      ...reqData
+    };
+
+    setSantriRequests(prev => {
+      const next = [newReq, ...prev];
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    googleSyncService.enqueue("SantriRequests", newReq, "upsert");
+    showToast("Permohonan berhasil dikirim ke Koordinator Musyrif untuk diverifikasi.", "success");
+  };
+
+  const handleApproveSantriRequest = (requestId: string) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator yang dapat menyetujui permohonan.", "error");
+      return;
+    }
+
+    const req = santriRequests.find(r => r.id === requestId);
+    if (!req) return;
+
+    // Apply the change
+    if (req.type === "delete") {
+      setSantriList(prev => {
+        const next = prev.filter(s => s.id !== req.santriId);
+        try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      googleSyncService.enqueue("Santri", { id: req.santriId }, "delete");
+    } else if (req.proposedData) {
+      setSantriList(prev => {
+        const exists = prev.some(s => s.id === req.santriId);
+        const next = exists 
+          ? prev.map(s => s.id === req.santriId ? { ...s, ...req.proposedData } as SantriData : s)
+          : [{ ...req.proposedData, id: req.santriId } as SantriData, ...prev];
+        try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      googleSyncService.enqueue("Santri", { ...req.proposedData, id: req.santriId }, "upsert");
+    }
+
+    // Update request status to approved
+    const updatedReq: SantriChangeRequest = {
+      ...req,
+      status: "approved",
+      reviewedBy: { id: authUser.id, name: authUser.name },
+      reviewedAt: new Date().toISOString()
+    };
+
+    setSantriRequests(prev => {
+      const next = prev.map(r => r.id === requestId ? updatedReq : r);
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    googleSyncService.enqueue("SantriRequests", updatedReq, "upsert");
+    showToast(`Permohonan ${req.type === "delete" ? "hapus" : "perubahan"} santri ${req.santriNama} disetujui (ACC) & disinkronkan ke Sheet!`, "success");
+  };
+
+  const handleRejectSantriRequest = (requestId: string, notes?: string) => {
+    if (authUser?.role !== "koordinator_musyrif") {
+      showToast("Akses ditolak: Hanya Koordinator yang dapat menolak permohonan.", "error");
+      return;
+    }
+
+    const req = santriRequests.find(r => r.id === requestId);
+    if (!req) return;
+
+    const updatedReq: SantriChangeRequest = {
+      ...req,
+      status: "rejected",
+      reviewedBy: { id: authUser.id, name: authUser.name },
+      reviewedAt: new Date().toISOString(),
+      reviewNotes: notes || "Permohonan ditolak oleh Koordinator Musyrif"
+    };
+
+    setSantriRequests(prev => {
+      const next = prev.map(r => r.id === requestId ? updatedReq : r);
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    googleSyncService.enqueue("SantriRequests", updatedReq, "upsert");
+    showToast(`Permohonan santri ${req.santriNama} telah ditolak.`, "info");
+  };
+
   const handleSyncAllOfficialData = async () => {
     if (authUser?.role !== "koordinator_musyrif") return;
     const ok = await appConfirm(
@@ -6751,9 +6976,10 @@ export default function App() {
 
     setSantriIzinList(prev => [newRecord, ...prev]);
 
-    // Push langsung ke Google Sheet Izin Sedayu
+    // Push ke Database Presensi via googleSyncService & cloud bridge
+    googleSyncService.enqueue("SantriIzin", newRecord, "upsert");
     createIzinSedayuInCloud(newRecord);
-    showToast(`Izin ${newRecord.namaSantri} (${idUnik}) berhasil diterbitkan & tersimpan di Sheet Izin Sedayu!`, "success");
+    showToast(`Izin ${newRecord.namaSantri} (${idUnik}) berhasil diterbitkan & tersimpan di Database!`, "success");
   };
 
   const handleApproveSantriIzin = (id: string, approved: boolean, catatan?: string) => {
@@ -6769,7 +6995,8 @@ export default function App() {
           updatedAt: new Date().toISOString()
         };
 
-        // Push update status langsung ke Google Sheet Izin Sedayu
+        // Push update status ke Database Presensi & cloud bridge
+        googleSyncService.enqueue("SantriIzin", updated, "upsert");
         updateIzinSedayuStatusInCloud(
           item.nomorSurat || item.id,
           approved ? "APPROVED" : "REJECTED",
@@ -6782,7 +7009,7 @@ export default function App() {
       }
       return item;
     }));
-    showToast(approved ? "Izin santri disetujui & terupdate di Sheet Izin Sedayu" : "Izin santri ditolak", approved ? "success" : "warning");
+    showToast(approved ? "Izin santri disetujui & terupdate di Database" : "Izin santri ditolak", approved ? "success" : "warning");
   };
 
   const handlePKMTap = (id: string, type: "keluar" | "kembali", petugasName: string) => {
@@ -6798,6 +7025,7 @@ export default function App() {
             petugasPKMKeluar: petugasName,
             updatedAt: now.toISOString()
           };
+          googleSyncService.enqueue("SantriIzin", updated, "upsert");
           updateIzinSedayuStatusInCloud(
             item.nomorSurat || item.id,
             "CHECKED_OUT",
@@ -6816,6 +7044,7 @@ export default function App() {
             petugasPKMKembali: petugasName,
             updatedAt: now.toISOString()
           };
+          googleSyncService.enqueue("SantriIzin", updated, "upsert");
           updateIzinSedayuStatusInCloud(
             item.nomorSurat || item.id,
             "RETURNED",
@@ -6838,8 +7067,8 @@ export default function App() {
   };
 
   const handleDeleteSantriIzin = (id: string) => {
-    setSantriIzinList(prev => prev.filter(item => item.id !== id));
-    googleSyncService.enqueue("DataPerizinanSantri", { id }, "delete");
+    setSantriIzinList(prev => prev.filter(item => item.id !== id && item.nomorSurat !== id));
+    googleSyncService.enqueue("SantriIzin", { id }, "delete");
     showToast("Data perizinan santri dihapus", "info");
   };
 
@@ -7196,6 +7425,7 @@ export default function App() {
                 logbookData={logbookData}
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
+                isLoadingIzinSedayu={isLoadingIzinSedayu}
               />
             </motion.div>
           )}
@@ -7434,7 +7664,7 @@ export default function App() {
               />
             </motion.div>
           )}
-          {page==="data-santri" && authUser?.role === "koordinator_musyrif" && (
+          {page==="data-santri" && authUser && (
             <motion.div key="data-santri" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <DataSantriModal
                 onClose={() => setPage("dashboard")}
@@ -7442,9 +7672,13 @@ export default function App() {
                 authUser={authUser}
                 musyrifList={musyrifList}
                 santriList={santriList}
+                santriRequests={santriRequests}
                 onSaveSantri={handleSaveSantri}
                 onDeleteSantri={handleDeleteSantri}
                 onResetSantri={handleResetSantri}
+                onRequestChange={handleRequestSantriChange}
+                onApproveRequest={handleApproveSantriRequest}
+                onRejectRequest={handleRejectSantriRequest}
                 onSelectSantriForIzin={() => setPage("izin")}
                 onSelectSantriForSakit={() => setPage("santri-sakit")}
               />

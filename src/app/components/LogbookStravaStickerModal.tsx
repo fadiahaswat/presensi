@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { 
   X, Download, Copy, Sparkles, Check, 
-  Layers, Palette, Image as ImageIcon
+  Layers, Palette, Image as ImageIcon, Clock
 } from "lucide-react";
 import { motion } from "motion/react";
 import { format } from "date-fns";
@@ -29,6 +29,7 @@ export function LogbookStravaStickerModal({
   const [routeColor, setRouteColor] = useState<"orange" | "emerald" | "white">("orange");
   const [metricUnit, setMetricUnit] = useState<"km" | "steps">("km");
   const [taskStyle, setTaskStyle] = useState<"done" | "of" | "pct" | "tasks">("done");
+  const [durationStyle, setDurationStyle] = useState<"real" | "span">("real");
   const [showPreviewBg, setShowPreviewBg] = useState<boolean>(false);
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -41,22 +42,53 @@ export function LogbookStravaStickerModal({
   const displaySteps = totalSteps > 0 ? totalSteps : 2150; // realistic default patrol steps
   const distanceKm = (displaySteps * 0.75 / 1000).toFixed(2); // estimated ~0.75m per step
 
-  // Format date in English (e.g., "AUGUST 21, 2026" or "August 21, 2026")
-  const formattedDateEnglish = (() => {
-    try {
-      return format(new Date(date), "MMMM d, yyyy");
-    } catch {
-      return date;
+  // Compute real duration between earliest and latest completed task
+  const calculatedDurationStr = (() => {
+    const completedTimes = Object.values(logbookEntry)
+      .filter(item => item?.done && item?.completedAt)
+      .map(item => {
+        const parts = (item.completedAt || "").split(":").map(Number);
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          return parts[0] * 60 + parts[1];
+        }
+        return null;
+      })
+      .filter((t): t is number => t !== null);
+
+    if (completedTimes.length >= 2) {
+      const minT = Math.min(...completedTimes);
+      const maxT = Math.max(...completedTimes);
+      let diffM = maxT - minT;
+      if (diffM <= 0) diffM = 3 * 60 + 49; // realistic fallback
+      const h = Math.floor(diffM / 60);
+      const m = diffM % 60;
+      return `${h}h ${m}m`;
     }
+    return "3h 49m";
   })();
 
+  const displayDuration = durationStyle === "real" ? calculatedDurationStr : "03:30 - 22:00";
+
   // Render Strava-styled sticker on canvas
-  const renderStickerToCanvas = (
+  const renderStickerToCanvas = async (
     canvas: HTMLCanvasElement, 
     width = 1080, 
     height = 1920, 
     includeBgPhoto = false
   ): Promise<void> => {
+    // Ensure Inter webfont is fully loaded before drawing
+    try {
+      if (document.fonts) {
+        await Promise.all([
+          document.fonts.load('700 48px "Inter"'),
+          document.fonts.load('800 94px "Inter"')
+        ]);
+        await document.fonts.ready;
+      }
+    } catch {
+      // fallback smoothly
+    }
+
     return new Promise((resolve) => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return resolve();
@@ -70,77 +102,84 @@ export function LogbookStravaStickerModal({
       const drawForeground = () => {
         const scale = width / 1080;
 
-        // Shadow settings for crisp readability over any photo
-        ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
-        ctx.shadowBlur = 18 * scale;
+        // No shadow for pure crisp minimal vector look
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
         ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 4 * scale;
+        ctx.shadowOffsetY = 0;
 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
+        const fontStack = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
         // --- BLOCK 1: DISTANCE ---
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        ctx.font = `700 ${34 * scale}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif`;
-        ctx.fillText("Distance", width / 2, 340 * scale);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.font = `700 ${46 * scale}px ${fontStack}`;
+        ctx.fillText("Distance", width / 2, 270 * scale);
 
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = `900 ${96 * scale}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif`;
+        ctx.font = `800 ${94 * scale}px ${fontStack}`;
         const distanceStr = metricUnit === "km" ? `${distanceKm} km` : `${displaySteps.toLocaleString("id-ID")} steps`;
-        ctx.fillText(distanceStr, width / 2, 425 * scale);
+        ctx.fillText(distanceStr, width / 2, 355 * scale);
 
-        // --- BLOCK 2: PACE / TASKS ---
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        ctx.font = `700 ${34 * scale}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif`;
-        ctx.fillText("Pace", width / 2, 570 * scale);
+        // --- BLOCK 2: TASK ---
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.font = `700 ${46 * scale}px ${fontStack}`;
+        ctx.fillText("Task", width / 2, 495 * scale);
 
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = `900 ${96 * scale}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif`;
+        ctx.font = `800 ${94 * scale}px ${fontStack}`;
         const taskStr = 
           taskStyle === "done" ? "11 / 11 Done" :
           taskStyle === "of" ? "11 of 11" :
           taskStyle === "pct" ? "100% Done" : "11 Tasks";
-        ctx.fillText(taskStr, width / 2, 655 * scale);
+        ctx.fillText(taskStr, width / 2, 580 * scale);
 
-        // --- BLOCK 3: TIME ---
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        ctx.font = `700 ${34 * scale}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif`;
-        ctx.fillText("Time", width / 2, 800 * scale);
+        // --- BLOCK 3: DURATION ---
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.font = `700 ${46 * scale}px ${fontStack}`;
+        ctx.fillText("Duration", width / 2, 720 * scale);
 
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = `900 ${96 * scale}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif`;
-        ctx.fillText("03:30 - 22:00", width / 2, 885 * scale);
+        ctx.font = `800 ${94 * scale}px ${fontStack}`;
+        ctx.fillText(displayDuration, width / 2, 805 * scale);
 
-        // --- GPS ROUTE CURVE (Iconic Strava Path) ---
+        // --- GPS ROUTE LOOP (Authentic Strava Circuit Track) ---
         ctx.save();
         const strokeColor = routeColor === "orange" ? "#FC4C02" : routeColor === "emerald" ? "#10B981" : "#FFFFFF";
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 14 * scale;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        ctx.shadowColor = routeColor === "orange" ? "rgba(252, 76, 2, 0.55)" : "rgba(0, 0, 0, 0.4)";
-        ctx.shadowBlur = 18 * scale;
+        ctx.shadowColor = "transparent";
 
-        // Draw elegant GPS-like curve
+        const cx = width / 2;
+        const cy = 1120 * scale;
+
+        // Outer patrol circuit loop with realistic corners
         ctx.beginPath();
-        const startX = width / 2 - 140 * scale;
-        const startY = 1100 * scale;
-        ctx.moveTo(startX, startY);
-        ctx.bezierCurveTo(
-          width / 2 - 60 * scale, 1000 * scale,
-          width / 2 + 80 * scale, 1000 * scale,
-          width / 2 + 130 * scale, 1060 * scale
-        );
-        ctx.bezierCurveTo(
-          width / 2 + 160 * scale, 1110 * scale,
-          width / 2 + 120 * scale, 1240 * scale,
-          width / 2 + 170 * scale, 1290 * scale
-        );
-        ctx.lineTo(width / 2 + 135 * scale, 1350 * scale);
+        ctx.moveTo(cx - 95 * scale, cy - 130 * scale);
+        ctx.lineTo(cx + 35 * scale, cy - 165 * scale);
+        ctx.lineTo(cx + 120 * scale, cy - 90 * scale);
+        ctx.lineTo(cx + 85 * scale, cy - 15 * scale);
+        ctx.lineTo(cx + 135 * scale, cy + 60 * scale);
+        ctx.lineTo(cx + 75 * scale, cy + 175 * scale);
+        ctx.lineTo(cx - 65 * scale, cy + 185 * scale);
+        ctx.lineTo(cx - 125 * scale, cy + 95 * scale);
+        ctx.lineTo(cx - 75 * scale, cy + 45 * scale);
+        ctx.lineTo(cx - 135 * scale, cy - 25 * scale);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Inner connector path divider
+        ctx.beginPath();
+        ctx.moveTo(cx - 75 * scale, cy + 45 * scale);
+        ctx.lineTo(cx + 85 * scale, cy - 15 * scale);
         ctx.stroke();
         ctx.restore();
 
-        // --- FOOTER: MU'ALLIMIN LOGO ONLY (Original Aspect Ratio + Pure White) ---
+        // --- FOOTER: MU'ALLIMIN LOGO ONLY (Proportional Size + Pure White) ---
         const logoImg = new Image();
         logoImg.crossOrigin = "anonymous";
         logoImg.src = mualliminLogo;
@@ -149,12 +188,12 @@ export function LogbookStravaStickerModal({
           const naturalH = logoImg.naturalHeight || logoImg.height || 100;
           const aspect = naturalW / naturalH;
 
-          // Preserve exact natural aspect ratio for the emblem
-          const targetH = 160 * scale;
+          // Proportional compact logo size matching Strava logo footprint
+          const targetH = 95 * scale;
           const logoH = targetH;
           const logoW = targetH * aspect;
           const logoX = width / 2 - logoW / 2;
-          const logoY = 1530 * scale;
+          const logoY = 1520 * scale;
 
           // Create offscreen canvas for pure white tint
           const offCanvas = document.createElement("canvas");
@@ -168,8 +207,8 @@ export function LogbookStravaStickerModal({
             offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
 
             ctx.save();
-            ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
-            ctx.shadowBlur = 16 * scale;
+            ctx.shadowColor = "transparent";
+            ctx.shadowBlur = 0;
             ctx.drawImage(offCanvas, logoX, logoY);
             ctx.restore();
           }
@@ -214,7 +253,7 @@ export function LogbookStravaStickerModal({
     if (previewCanvasRef.current) {
       renderStickerToCanvas(previewCanvasRef.current, 540, 960, showPreviewBg);
     }
-  }, [routeColor, metricUnit, taskStyle, showPreviewBg, customBgImage, date, logbookEntry]);
+  }, [routeColor, metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
 
   // Export full HD transparent PNG (1080x1920)
   const handleDownloadPng = async () => {
@@ -452,6 +491,36 @@ export function LogbookStravaStickerModal({
                     {st.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800/60 flex-wrap gap-2">
+              <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" /> Format Durasi:
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setDurationStyle("real")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    durationStyle === "real"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Aktual ({calculatedDurationStr})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDurationStyle("span")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    durationStyle === "span"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Rentang (03:30 - 22:00)
+                </button>
               </div>
             </div>
 

@@ -35,7 +35,10 @@ const TABLES = {
   SANTRI_SAKIT: "SantriSakit",
   MUSYRIF: "Musyrif",
   SANTRI: "Santri",
-  SUNNAH_FASTS: "SunnahFasts"
+  SUNNAH_FASTS: "SunnahFasts",
+  SANTRI_IZIN: "SantriIzin",
+  DATA_PERIZINAN: "DataPerizinan",
+  SANTRI_REQUESTS: "SantriRequests"
 };
 
 const STANDARD_HEADERS = ["id", "created_at", "updated_at", "is_deleted", "data_json"];

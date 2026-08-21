@@ -5,26 +5,33 @@ import {
   Calendar, BookOpen, ShieldCheck, UserCheck, MessageCircle, ExternalLink,
   Layers, Copy, Sparkles, Check, Plus, Edit3, Trash2, AlertTriangle,
   RotateCcw, ArrowRightLeft, UserX, UserPlus, Save, SlidersHorizontal,
-  Filter, School, ArrowUpRight, Heart, Globe
+  Filter, School, ArrowUpRight, Heart, Globe, Clock, CheckCircle, XCircle,
+  FileEdit, Send, Inbox, AlertCircle, ShieldAlert
 } from "lucide-react";
 import {
   ALL_SANTRI_DATA, SantriData, getSantriStats, normalizeClassName,
   LIST_ALL_KELAS_GROUPED, LIST_ALL_KELAS_FLAT, getClassMetadata,
   buildSiblingMap, SiblingInfo
 } from "../data/santriData";
+import { SantriChangeRequest, SantriRequestType } from "../types/santriRequest";
 import { motion, AnimatePresence } from "motion/react";
 import { modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { SantriPetaSebaran } from "./SantriPetaSebaran";
+import { getPamongAssignedAsramas, hasFullAccess } from "../utils/roleAccessUtils";
 
 interface DataSantriModalProps {
   onClose: () => void;
   authUser?: any;
   musyrifList?: any[];
   santriList?: SantriData[];
+  santriRequests?: SantriChangeRequest[];
   onSaveSantri?: (santri: SantriData) => void;
   onDeleteSantri?: (id: string) => void;
   onResetSantri?: () => void;
+  onRequestChange?: (req: Omit<SantriChangeRequest, "id" | "status" | "requestedAt" | "requestedBy">) => void;
+  onApproveRequest?: (requestId: string) => void;
+  onRejectRequest?: (requestId: string, notes?: string) => void;
   onSelectSantriForIzin?: (santri: SantriData) => void;
   onSelectSantriForSakit?: (santri: SantriData) => void;
   isPage?: boolean;
@@ -35,14 +42,70 @@ export function DataSantriModal({
   authUser,
   musyrifList = [],
   santriList = ALL_SANTRI_DATA,
+  santriRequests = [],
   onSaveSantri,
   onDeleteSantri,
   onResetSantri,
+  onRequestChange,
+  onApproveRequest,
+  onRejectRequest,
   onSelectSantriForIzin,
   onSelectSantriForSakit,
   isPage = false
 }: DataSantriModalProps) {
-  const isKoorMusyrif = authUser?.role === "koordinator_musyrif";
+  const isKoorMusyrif = authUser?.role === "koordinator_musyrif" || hasFullAccess(authUser || {});
+  const isPamong = authUser?.role === "pamong";
+  const isMusyrif = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
+
+  // ─── SCOPE FILTERING (Role-based dataset visibility) ───
+  const scopedSantriList = useMemo(() => {
+    if (!authUser || isKoorMusyrif) {
+      return santriList;
+    }
+
+    if (isMusyrif) {
+      // Find musyrif assigned class
+      const myMusyrif = musyrifList.find(m => m.id === authUser.musyrifId || m.id === authUser.id || m.email?.toLowerCase() === authUser.email?.toLowerCase());
+      const rawClass = myMusyrif?.kelas || authUser.kelas || "";
+      if (!rawClass || rawClass.toLowerCase().includes("multi") || rawClass.toLowerCase().includes("semua")) {
+        return santriList;
+      }
+      const normClass = normalizeClassName(rawClass).toLowerCase();
+      return santriList.filter(s => {
+        const sNorm = normalizeClassName(s.kelasLengkap || "").toLowerCase();
+        return sNorm === normClass || sNorm.includes(normClass) || normClass.includes(sNorm);
+      });
+    }
+
+    if (isPamong) {
+      // Find pamong assigned asramas
+      const assignedAsramas = getPamongAssignedAsramas(authUser);
+      const userAsrama = authUser.asrama || "";
+      const validAsramas = assignedAsramas.length > 0 ? assignedAsramas : (userAsrama ? [userAsrama] : []);
+
+      if (validAsramas.length === 0) return santriList;
+
+      // Find all musyrifs and their classes in those asramas
+      const classesInAsrama = new Set<string>();
+      musyrifList.forEach(m => {
+        if (m.asrama && validAsramas.includes(m.asrama) && m.kelas && !m.kelas.toLowerCase().includes("multi")) {
+          classesInAsrama.add(normalizeClassName(m.kelas).toLowerCase());
+        }
+      });
+
+      if (classesInAsrama.size === 0) return santriList;
+
+      return santriList.filter(s => {
+        const sNorm = normalizeClassName(s.kelasLengkap || "").toLowerCase();
+        return classesInAsrama.has(sNorm);
+      });
+    }
+
+    return santriList;
+  }, [santriList, authUser, isKoorMusyrif, isMusyrif, isPamong, musyrifList]);
+
+  // Main navigation tab for Koordinator: "database" vs "requests"
+  const [activeMainTab, setActiveMainTab] = useState<"database" | "requests">("database");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTingkat, setSelectedTingkat] = useState<string>("all");
@@ -56,7 +119,7 @@ export function DataSantriModal({
   const [selectedSantri, setSelectedSantri] = useState<SantriData | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Form State for Add / Edit Modal
+  // Form State for Add / Edit Modal (Direct or Request)
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSantri, setEditingSantri] = useState<SantriData | null>(null);
 
@@ -88,20 +151,32 @@ export function DataSantriModal({
   const [formWaliKelas, setFormWaliKelas] = useState("");
   const [formStatusSantri, setFormStatusSantri] = useState<"aktif" | "keluar" | "pindah" | "lulus">("aktif");
   const [formCatatanStatus, setFormCatatanStatus] = useState("");
+  const [requestReason, setRequestReason] = useState("");
 
-  // Delete Confirmation State
+  // Delete State
   const [deletingSantri, setDeletingSantri] = useState<SantriData | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   // Quick Class Transfer Modal
   const [transferSantri, setTransferSantri] = useState<SantriData | null>(null);
   const [transferNewClass, setTransferNewClass] = useState("1 A");
+  const [transferReason, setTransferReason] = useState("");
 
   // Peta Sebaran Modal
   const [showPetaSebaran, setShowPetaSebaran] = useState(false);
 
+  // Reject Request Modal
+  const [rejectingRequest, setRejectingRequest] = useState<SantriChangeRequest | null>(null);
+  const [rejectNotes, setRejectNotes] = useState("");
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+
+  // Pending requests count
+  const pendingRequestsCount = useMemo(() => {
+    return santriRequests.filter(r => r.status === "pending").length;
+  }, [santriRequests]);
 
   // Stats calculation
   const stats = useMemo(() => {
@@ -111,7 +186,7 @@ export function DataSantriModal({
     let activeCount = 0;
     let inactiveCount = 0;
 
-    santriList.forEach(s => {
+    scopedSantriList.forEach(s => {
       const isAktif = !s.statusSantri || s.statusSantri === "aktif";
       if (isAktif) activeCount++;
       else inactiveCount++;
@@ -126,7 +201,7 @@ export function DataSantriModal({
     const siblingsCount = Array.from(siblingMap.keys()).length;
 
     return {
-      total: santriList.length,
+      total: scopedSantriList.length,
       activeCount,
       inactiveCount,
       siblingsCount,
@@ -134,11 +209,11 @@ export function DataSantriModal({
       byTingkat,
       byKelas
     };
-  }, [santriList, siblingMap]);
+  }, [scopedSantriList, siblingMap]);
 
   // Filtered dataset
   const filteredSantri = useMemo(() => {
-    let result = santriList;
+    let result = scopedSantriList;
 
     // Filter Status
     if (filterStatus === "aktif") {
@@ -174,19 +249,20 @@ export function DataSantriModal({
     }
 
     return result;
-  }, [santriList, filterStatus, selectedClass, selectedTingkat, searchQuery, siblingMap]);
+  }, [scopedSantriList, filterStatus, selectedClass, selectedTingkat, searchQuery, siblingMap]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, selectedClass, selectedTingkat]);
+  }, [searchQuery, selectedTingkat, selectedClass, filterStatus]);
 
   const totalPages = Math.ceil(filteredSantri.length / itemsPerPage) || 1;
   const paginatedSantri = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredSantri.slice(start, start + itemsPerPage);
-  }, [filteredSantri, currentPage]);
+  }, [filteredSantri, currentPage, itemsPerPage]);
 
   const handleCopyText = (text: string, id: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     triggerHaptic();
@@ -194,9 +270,13 @@ export function DataSantriModal({
   };
 
   const handleOpenAddForm = () => {
+    if (!isKoorMusyrif) {
+      appAlert("Penambahan santri baru hanya dapat dilakukan oleh Koordinator Musyrif.", "Akses Dibatasi", { type: "warning" });
+      return;
+    }
     setEditingSantri(null);
     setFormNama("");
-    setFormKelas(selectedClass !== "all" ? selectedClass : "1 A");
+    setFormKelas(LIST_ALL_KELAS_FLAT[0] || "1 A");
     setFormNis("");
     setFormNisn("");
     setFormNik("");
@@ -222,53 +302,57 @@ export function DataSantriModal({
     setFormWaliKelas("");
     setFormStatusSantri("aktif");
     setFormCatatanStatus("");
+    setRequestReason("");
     setIsFormOpen(true);
   };
 
   const handleOpenEditForm = (santri: SantriData) => {
     setEditingSantri(santri);
-    setFormNama(santri.nama);
-    setFormKelas(santri.kelasLengkap);
-    setFormNis(santri.nis);
-    setFormNisn(santri.nisn);
-    setFormNik(santri.nik);
+    setFormNama(santri.nama || "");
+    setFormKelas(santri.kelasLengkap || "1 A");
+    setFormNis(santri.nis || "");
+    setFormNisn(santri.nisn || "");
+    setFormNik(santri.nik || "");
     setFormJk(santri.jk || "Laki-laki");
     setFormAgama(santri.agama || "Islam");
-    setFormTempatLahir(santri.tempatLahir);
-    setFormTanggalLahir(santri.tanggalLahir);
-    setFormAlamat(santri.alamat);
-    setFormDesa(santri.desa);
-    setFormKecamatan(santri.kecamatan);
-    setFormKabupaten(santri.kabupaten);
-    setFormProvinsi(santri.provinsi);
-    setFormKodepos(santri.kodepos);
-    setFormAsalSekolah(santri.asalSekolah);
-    setFormNamaAyah(santri.namaAyah);
-    setFormPekerjaanAyah(santri.pekerjaanAyah);
-    setFormTelpAyah(santri.telpAyah);
-    setFormNamaIbu(santri.namaIbu);
-    setFormPekerjaanIbu(santri.pekerjaanIbu);
-    setFormTelpIbu(santri.telpIbu);
-    setFormNamaWali(santri.namaWali);
-    setFormTelpWali(santri.telpWali);
-    setFormWaliKelas(santri.waliKelas);
+    setFormTempatLahir(santri.tempatLahir || "");
+    setFormTanggalLahir(santri.tanggalLahir || "");
+    setFormAlamat(santri.alamat || "");
+    setFormDesa(santri.desa || "");
+    setFormKecamatan(santri.kecamatan || "");
+    setFormKabupaten(santri.kabupaten || "Yogyakarta");
+    setFormProvinsi(santri.provinsi || "D.I. Yogyakarta");
+    setFormKodepos(santri.kodepos || "");
+    setFormAsalSekolah(santri.asalSekolah || "");
+    setFormNamaAyah(santri.namaAyah || "");
+    setFormPekerjaanAyah(santri.pekerjaanAyah || "");
+    setFormTelpAyah(santri.telpAyah || "");
+    setFormNamaIbu(santri.namaIbu || "");
+    setFormPekerjaanIbu(santri.pekerjaanIbu || "");
+    setFormTelpIbu(santri.telpIbu || "");
+    setFormNamaWali(santri.namaWali || "");
+    setFormTelpWali(santri.telpWali || "");
+    setFormWaliKelas(santri.waliKelas || "");
     setFormStatusSantri(santri.statusSantri || "aktif");
     setFormCatatanStatus(santri.catatanStatus || "");
+    setRequestReason("");
     setIsFormOpen(true);
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formNama.trim()) {
-      appAlert("Nama santri wajib diisi.", "Validasi Data", "warning");
+      appAlert("Nama santri wajib diisi.", "Peringatan", { type: "warning" });
       return;
     }
 
     const meta = getClassMetadata(formKelas);
-    const santriId = editingSantri?.id || `santri_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const santriId = editingSantri ? editingSantri.id : `s_${Date.now()}`;
+    const santriNo = editingSantri ? editingSantri.no : (santriList.length + 1);
+
     const recordToSave: SantriData = {
       id: santriId,
-      no: editingSantri?.no || santriList.length + 1,
+      no: santriNo,
       tingkat: meta.tingkat,
       tingkatRomawi: meta.tingkatRomawi,
       jenjang: meta.jenjang,
@@ -314,9 +398,30 @@ export function DataSantriModal({
       catatanStatus: formCatatanStatus.trim()
     };
 
-    if (onSaveSantri) {
-      onSaveSantri(recordToSave);
+    if (isKoorMusyrif) {
+      // Direct Save
+      if (onSaveSantri) {
+        onSaveSantri(recordToSave);
+      }
+    } else {
+      // Musyrif / Pamong creates Request
+      if (!editingSantri) {
+        appAlert("Hanya Koordinator yang dapat menambah santri baru secara langsung.", "Akses Dibatasi", { type: "warning" });
+        return;
+      }
+      if (onRequestChange) {
+        onRequestChange({
+          santriId: editingSantri.id,
+          santriNama: editingSantri.nama,
+          santriKelasAsal: editingSantri.kelasLengkap,
+          santriNis: editingSantri.nis,
+          type: "edit",
+          reason: requestReason.trim() || "Pembaruan biodata santri",
+          proposedData: recordToSave
+        });
+      }
     }
+
     triggerHaptic();
     setIsFormOpen(false);
     setEditingSantri(null);
@@ -336,11 +441,28 @@ export function DataSantriModal({
       paralel: meta.paralel,
       kelasLengkap: transferNewClass
     };
-    if (onSaveSantri) {
-      onSaveSantri(updated);
+
+    if (isKoorMusyrif) {
+      if (onSaveSantri) {
+        onSaveSantri(updated);
+      }
+    } else {
+      if (onRequestChange) {
+        onRequestChange({
+          santriId: transferSantri.id,
+          santriNama: transferSantri.nama,
+          santriKelasAsal: transferSantri.kelasLengkap,
+          santriNis: transferSantri.nis,
+          type: "transfer_kelas",
+          reason: transferReason.trim() || `Mutasi ke kelas ${transferNewClass}`,
+          proposedData: updated
+        });
+      }
     }
+
     triggerHaptic();
     setTransferSantri(null);
+    setTransferReason("");
     if (selectedSantri && selectedSantri.id === updated.id) {
       setSelectedSantri(updated);
     }
@@ -348,11 +470,27 @@ export function DataSantriModal({
 
   const handleConfirmDelete = () => {
     if (!deletingSantri) return;
-    if (onDeleteSantri) {
-      onDeleteSantri(deletingSantri.id);
+
+    if (isKoorMusyrif) {
+      if (onDeleteSantri) {
+        onDeleteSantri(deletingSantri.id);
+      }
+    } else {
+      if (onRequestChange) {
+        onRequestChange({
+          santriId: deletingSantri.id,
+          santriNama: deletingSantri.nama,
+          santriKelasAsal: deletingSantri.kelasLengkap,
+          santriNis: deletingSantri.nis,
+          type: "delete",
+          reason: deleteReason.trim() || "Permohonan penghapusan data santri"
+        });
+      }
     }
+
     triggerHaptic();
     setDeletingSantri(null);
+    setDeleteReason("");
     if (selectedSantri && selectedSantri.id === deletingSantri.id) {
       setSelectedSantri(null);
     }
@@ -409,6 +547,17 @@ export function DataSantriModal({
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, "_blank");
   };
 
+  // Scope label for UI badge
+  const scopeBadgeLabel = useMemo(() => {
+    if (isKoorMusyrif) return "Akses Koordinator (Seluruh Santri)";
+    if (isMusyrif) {
+      const myMusyrif = musyrifList.find(m => m.id === authUser?.musyrifId || m.id === authUser?.id || m.email?.toLowerCase() === authUser?.email?.toLowerCase());
+      return `Musyrif Kelas ${myMusyrif?.kelas || authUser?.kelas || ""}`;
+    }
+    if (isPamong) return `Pamong ${authUser?.asrama || "Asrama"}`;
+    return "Akses Terbatas";
+  }, [isKoorMusyrif, isMusyrif, isPamong, authUser, musyrifList]);
+
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[92vh] overflow-hidden"}`}>
       {/* ─── HEADER BAR ─── */}
@@ -417,7 +566,6 @@ export function DataSantriModal({
           ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" 
           : "bg-slate-900 text-white rounded-t-3xl"
       }`}>
-        {/* Row 1: back button + title + action buttons */}
         <div className="flex items-center gap-3">
           <button 
             type="button"
@@ -443,30 +591,32 @@ export function DataSantriModal({
                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200" 
                   : "bg-white/15 text-emerald-200"
               }`}>
-                {stats.activeCount.toLocaleString("id-ID")} aktif
+                {stats.activeCount.toLocaleString("id-ID")} santri
               </span>
-              {isKoorMusyrif && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
-                  isPage ? "bg-teal-50 text-teal-700 border border-teal-200/60" : "bg-teal-500/20 text-teal-200"
-                }`}>
-                  Koordinator
-                </span>
-              )}
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                isKoorMusyrif
+                  ? (isPage ? "bg-teal-50 text-teal-700 border border-teal-200/60" : "bg-teal-500/20 text-teal-200")
+                  : (isPage ? "bg-amber-50 text-amber-800 border border-amber-200/60" : "bg-amber-500/20 text-amber-200")
+              }`}>
+                {scopeBadgeLabel}
+              </span>
             </div>
             <p className={`text-[11px] mt-0.5 truncate ${isPage ? "text-slate-400" : "text-slate-400"}`}>
-              Biodata, mutasi kelas &amp; sinkronisasi Google Sheets
+              {isKoorMusyrif 
+                ? "Master biodata, mutasi kelas & kelola permohonan santri" 
+                : "Daftar santri binaan. Untuk edit/pindah/hapus, ajukan permohonan ke Koordinator."}
             </p>
           </div>
 
-          {/* Action Buttons — always in one row, right side */}
+          {/* Action Buttons */}
           <div className="flex items-center gap-1.5 shrink-0">
             {isKoorMusyrif && (
               <button
                 type="button"
                 onClick={handleOpenAddForm}
-                className="h-8 px-3 rounded-xl text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 active:scale-95 whitespace-nowrap"
+                className="h-8 px-3 rounded-xl text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 active:scale-95 whitespace-nowrap shadow-2xs"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Tambah</span>
               </button>
             )}
@@ -522,359 +672,475 @@ export function DataSantriModal({
         </div>
       </div>
 
-      {/* ─── STATISTICAL METRIC CARDS (Mu'allimin Brand Palette) ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {/* Total Aktif */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-emerald-200/70 shadow-2xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] text-slate-500 font-medium truncate">Santri Aktif</p>
-            <p className="text-lg sm:text-xl font-black text-emerald-800 font-mono leading-none mt-0.5">
-              {stats.activeCount.toLocaleString("id-ID")}
-            </p>
-          </div>
-        </div>
+      {/* ─── MAIN TABS FOR KOORDINATOR (Database vs Permohonan) ─── */}
+      <div className="bg-slate-100/90 p-1 rounded-2xl flex gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveMainTab("database")}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeMainTab === "database"
+              ? "bg-white text-emerald-800 shadow-2xs"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <GraduationCap className="w-4 h-4" />
+          <span>Daftar Santri ({scopedSantriList.length})</span>
+        </button>
 
-        {/* Tingkat MTs */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-teal-200/70 shadow-2xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center shrink-0">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] text-slate-500 font-medium truncate">MTs (Kls 1-3)</p>
-            <p className="text-lg sm:text-xl font-black text-teal-800 font-mono leading-none mt-0.5">
-              {stats.byJenjang.MTs.toLocaleString("id-ID")}
-            </p>
-          </div>
-        </div>
-
-        {/* Tingkat MA */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-sky-200/70 shadow-2xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center shrink-0">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] text-slate-500 font-medium truncate">MA (Kls 4-6)</p>
-            <p className="text-lg sm:text-xl font-black text-sky-800 font-mono leading-none mt-0.5">
-              {stats.byJenjang.MA.toLocaleString("id-ID")}
-            </p>
-          </div>
-        </div>
-
-        {/* Hasil Filter */}
-        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-amber-200/70 shadow-2xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center shrink-0">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] text-slate-500 font-medium truncate">Tersaring</p>
-            <p className="text-lg sm:text-xl font-black text-amber-800 font-mono leading-none mt-0.5">
-              {filteredSantri.length.toLocaleString("id-ID")}
-            </p>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab("requests")}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 relative ${
+            activeMainTab === "requests"
+              ? "bg-white text-emerald-800 shadow-2xs"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Inbox className="w-4 h-4" />
+          <span>{isKoorMusyrif ? "Kelola Permohonan" : "Status Pengajuan"}</span>
+          {pendingRequestsCount > 0 && (
+            <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
+              {pendingRequestsCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* ─── SEARCH & FILTER CONTROLS ─── */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3.5">
-        {/* Row 1: Search & Class Picker */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari Nama, NIS, NISN, Kelas, Kota/Kabupaten, Asal Sekolah, Ortu..."
-              className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-800 transition-all placeholder:text-slate-400"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center absolute right-2.5 top-1/2 -translate-y-1/2 text-xs"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Select Kelas Resmi */}
-          <div className="w-full sm:w-60 shrink-0">
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full text-xs font-bold bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-2xs"
-            >
-              <option value="all">-- Semua 54 Kelas --</option>
-              {LIST_ALL_KELAS_GROUPED.map((grp) => (
-                <optgroup key={grp.tingkat} label={grp.label}>
-                  {grp.kelas.map((cls) => (
-                    <option key={cls} value={cls}>
-                      Kelas {cls}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Row 2: Status Filter Tabs */}
-        <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-2xl w-full sm:w-fit overflow-x-auto scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setFilterStatus("aktif")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
-                filterStatus === "aktif"
-                  ? "bg-white text-emerald-800 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Aktif ({stats.activeCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus("bersaudara")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                filterStatus === "bersaudara"
-                  ? "bg-purple-700 text-white shadow-xs"
-                  : "text-purple-700 hover:text-purple-900 bg-purple-50/70"
-              }`}
-            >
-              <Heart className={`w-3.5 h-3.5 ${filterStatus === "bersaudara" ? "text-white fill-white" : "text-purple-600 fill-purple-600"}`} />
-              <span>Bersaudara ({stats.siblingsCount})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus("non_aktif")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
-                filterStatus === "non_aktif"
-                  ? "bg-white text-rose-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Pindah/Keluar ({stats.inactiveCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus("all")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
-                filterStatus === "all"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Semua ({stats.total})
-            </button>
-          </div>
-
-          {/* Quick Filter Tingkat (Horizontal Pill Row) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-            <span className="text-xs font-bold text-slate-400 mr-0.5 shrink-0 hidden sm:inline">Tingkat:</span>
-            <button
-              type="button"
-              onClick={() => { setSelectedClass("all"); setSelectedTingkat("all"); }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap shrink-0 transition-all ${
-                selectedClass === "all" && selectedTingkat === "all"
-                  ? "bg-emerald-700 text-white shadow-xs"
-                  : "bg-slate-50 text-slate-600 border border-slate-200/80 hover:bg-slate-100"
-              }`}
-            >
-              Semua Tingkat
-            </button>
-            {[
-              { val: "Kelas 1", label: "Kls 1" },
-              { val: "Kelas 2", label: "Kls 2" },
-              { val: "Kelas 3", label: "Kls 3" },
-              { val: "Kelas 4", label: "Kls 4" },
-              { val: "Kelas 5", label: "Kls 5" },
-              { val: "Kelas 6", label: "Kls 6" },
-            ].map(t => (
-              <button
-                key={t.val}
-                type="button"
-                onClick={() => {
-                  setSelectedTingkat(selectedTingkat === t.val ? "all" : t.val);
-                  setSelectedClass("all");
-                }}
-                className={`px-2.5 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap shrink-0 transition-all ${
-                  selectedTingkat === t.val && selectedClass === "all"
-                    ? "bg-emerald-700 text-white shadow-xs"
-                    : "bg-slate-50 text-slate-600 border border-slate-200/80 hover:bg-slate-100"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ─── MAIN CONTENT: RESPONSIVE CARDS & ELEGANT TABLE ─── */}
-      <div className="flex-1 overflow-y-auto space-y-3 pb-6">
-        {paginatedSantri.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 p-8 shadow-xs">
-            <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3">
-              <Users className="w-7 h-7" />
+      {/* ─── TAB CONTENT: REQUESTS LIST ─── */}
+      {activeMainTab === "requests" && (
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">
+                {isKoorMusyrif ? "Antrean Permohonan Perubahan Data" : "Riwayat Permohonan Saya"}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {isKoorMusyrif 
+                  ? "Permohonan edit biodata, mutasi kelas, atau hapus dari Musyrif/Pamong" 
+                  : "Daftar usulan yang Anda ajukan ke Koordinator Musyrif"}
+              </p>
             </div>
-            <p className="text-sm font-bold text-slate-800">Tidak ada santri yang sesuai</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Coba gunakan kata kunci pencarian lain atau ubah filter kelas/tingkat yang dipilih.
-            </p>
-            <button
-              type="button"
-              onClick={() => { setSearchQuery(""); setSelectedClass("all"); setSelectedTingkat("all"); setFilterStatus("all"); }}
-              className="mt-4 px-4 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors shadow-2xs"
-            >
-              Tampilkan Semua Santri
-            </button>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-mono">
+              Total: {santriRequests.length}
+            </span>
           </div>
-        ) : (
+
+          {santriRequests.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 space-y-2">
+              <Inbox className="w-10 h-10 mx-auto text-slate-300 stroke-[1.5]" />
+              <p className="text-sm font-semibold">Belum ada permohonan perubahan data.</p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {isKoorMusyrif 
+                  ? "Saat Musyrif atau Pamong mengajukan edit data santri, daftarnya akan muncul di sini untuk Anda setujui." 
+                  : "Anda dapat mengajukan permohonan edit biodata, pindah kelas, atau hapus melalui tombol aksi pada santri."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+              {santriRequests.map((req) => {
+                const isPending = req.status === "pending";
+                const isApproved = req.status === "approved";
+                const isRejected = req.status === "rejected";
+
+                return (
+                  <div 
+                    key={req.id}
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isPending ? "bg-amber-50/40 border-amber-200" :
+                      isApproved ? "bg-emerald-50/40 border-emerald-200" :
+                      "bg-rose-50/40 border-rose-200"
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md font-mono ${
+                            req.type === "edit" ? "bg-blue-100 text-blue-800" :
+                            req.type === "transfer_kelas" ? "bg-purple-100 text-purple-800" :
+                            "bg-rose-100 text-rose-800"
+                          }`}>
+                            {req.type === "edit" ? "Edit Biodata" :
+                             req.type === "transfer_kelas" ? "Mutasi Kelas" : "Hapus Data"}
+                          </span>
+
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                            isPending ? "bg-amber-100 text-amber-800" :
+                            isApproved ? "bg-emerald-100 text-emerald-800" :
+                            "bg-rose-100 text-rose-800"
+                          }`}>
+                            {isPending && <Clock className="w-3 h-3 animate-spin" />}
+                            {isApproved && <CheckCircle className="w-3 h-3" />}
+                            {isRejected && <XCircle className="w-3 h-3" />}
+                            <span>{isPending ? "Menunggu Persetujuan" : isApproved ? "Disetujui (ACC)" : "Ditolak"}</span>
+                          </span>
+
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            {new Date(req.requestedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+
+                        <p className="text-sm font-bold text-slate-900 leading-tight">
+                          {req.santriNama} <span className="text-xs font-normal text-slate-500 font-mono">({req.santriKelasAsal} · NIS: {req.santriNis})</span>
+                        </p>
+
+                        <p className="text-xs text-slate-600">
+                          <span className="font-semibold text-slate-700">Alasan/Keterangan:</span> {req.reason}
+                        </p>
+
+                        {/* Proposed Details */}
+                        {req.type === "transfer_kelas" && req.proposedData?.kelasLengkap && (
+                          <div className="text-xs bg-white/80 p-2 rounded-xl border border-purple-100 text-purple-900 flex items-center gap-1.5">
+                            <ArrowRightLeft className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Pindah ke: <strong>{req.proposedData.kelasLengkap}</strong></span>
+                          </div>
+                        )}
+
+                        {req.type === "edit" && req.proposedData && (
+                          <div className="text-xs bg-white/80 p-2 rounded-xl border border-blue-100 text-slate-700 space-y-0.5">
+                            <span className="font-semibold text-blue-800">Perubahan data yang diajukan:</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] text-slate-600">
+                              {req.proposedData.nama !== req.santriNama && <div>• Nama: {req.proposedData.nama}</div>}
+                              {req.proposedData.kelasLengkap !== req.santriKelasAsal && <div>• Kelas: {req.proposedData.kelasLengkap}</div>}
+                              {req.proposedData.telpAyah && <div>• Telp Ayah: {req.proposedData.telpAyah}</div>}
+                              {req.proposedData.telpIbu && <div>• Telp Ibu: {req.proposedData.telpIbu}</div>}
+                              {req.proposedData.waliKelas && <div>• Wali Kelas: {req.proposedData.waliKelas}</div>}
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-[11px] text-slate-400">
+                          Diajukan oleh: <strong className="text-slate-600">{req.requestedBy.name}</strong> ({req.requestedBy.role})
+                        </p>
+
+                        {req.reviewNotes && (
+                          <p className="text-xs text-rose-700 bg-rose-50 p-1.5 rounded-lg">
+                            Catatan Penolakan: {req.reviewNotes}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Approval Actions (Koordinator Only) */}
+                      {isKoorMusyrif && isPending && (
+                        <div className="flex sm:flex-col items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => onApproveRequest && onApproveRequest(req.id)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Setujui (ACC)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectingRequest(req);
+                              setRejectNotes("");
+                            }}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 active:scale-95 transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Tolak</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB CONTENT: DATABASE SANTRI ─── */}
+      {activeMainTab === "database" && (
+        <>
+          {/* ─── STATISTICAL METRIC CARDS ─── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
+            {/* Total Aktif */}
+            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-emerald-200/70 shadow-2xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-slate-500 font-medium truncate">Santri Aktif</p>
+                <p className="text-lg sm:text-xl font-black text-emerald-800 font-mono leading-none mt-0.5">
+                  {stats.activeCount.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+
+            {/* Tingkat MTs */}
+            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-teal-200/70 shadow-2xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center shrink-0">
+                <School className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-slate-500 font-medium truncate">MTs (Kls 1-3)</p>
+                <p className="text-lg sm:text-xl font-black text-teal-800 font-mono leading-none mt-0.5">
+                  {stats.byJenjang.MTs.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+
+            {/* Tingkat MA */}
+            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-sky-200/70 shadow-2xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center shrink-0">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-slate-500 font-medium truncate">MA (Kls 4-6)</p>
+                <p className="text-lg sm:text-xl font-black text-sky-800 font-mono leading-none mt-0.5">
+                  {stats.byJenjang.MA.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+
+            {/* Hasil Filter */}
+            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-amber-200/70 shadow-2xs flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-slate-500 font-medium truncate">Tersaring</p>
+                <p className="text-lg sm:text-xl font-black text-amber-800 font-mono leading-none mt-0.5">
+                  {filteredSantri.length.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── SEARCH & FILTER CONTROLS ─── */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3.5">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari Nama, NIS, NISN, Kelas, Kota/Kabupaten, Asal Sekolah, Ortu..."
+                  className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-800 transition-all placeholder:text-slate-400"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center absolute right-2.5 top-1/2 -translate-y-1/2 text-xs"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Class Picker */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedClass}
+                  onChange={(e) => {
+                    setSelectedClass(e.target.value);
+                    if (e.target.value !== "all") setSelectedTingkat("all");
+                  }}
+                  className="px-3.5 py-2.5 text-xs font-semibold bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-700 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="all">Semua Kelas ({scopedSantriList.length})</option>
+                  {LIST_ALL_KELAS_GROUPED.map(grp => (
+                    <optgroup key={grp.tingkat} label={grp.label}>
+                      {grp.kelas.map(k => (
+                        <option key={k} value={k}>{k}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="space-y-2 pt-1 border-t border-slate-100">
+              {/* Row 1: Status Filters */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Status:</span>
+                {[
+                  { id: "aktif", label: `Aktif (${stats.activeCount})` },
+                  { id: "bersaudara", label: `Bersaudara (${stats.siblingsCount})`, icon: Heart },
+                  { id: "all", label: `Semua (${stats.total})` },
+                  { id: "non_aktif", label: `Non-Aktif (${stats.inactiveCount})` }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setFilterStatus(tab.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+                      filterStatus === tab.id
+                        ? tab.id === "bersaudara"
+                          ? "bg-purple-600 text-white shadow-2xs"
+                          : "bg-emerald-700 text-white shadow-2xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {tab.icon && <tab.icon className="w-3 h-3" />}
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Row 2: Tingkat Filters */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Tingkat:</span>
+                {["all", "Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"].map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTingkat(t);
+                      setSelectedClass("all");
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                      selectedTingkat === t && selectedClass === "all"
+                        ? "bg-slate-800 text-white"
+                        : "bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60"
+                    }`}
+                  >
+                    {t === "all" ? "Semua Tingkat" : t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ─── SANTRI TABLE VIEW (Desktop) / CARD VIEW (Mobile) ─── */}
           <div className="bg-white rounded-3xl border border-slate-200/70 shadow-xs overflow-hidden">
-            {/* Desktop View Table */}
+            {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
-                    <th className="py-3.5 px-4 text-center w-12 whitespace-nowrap">No</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap min-w-[200px]">Nama Santri</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-28">Kelas</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-32">NIS / NISN</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap min-w-[160px]">Asal Daerah</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap w-40">Kontak Ortu / WA</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap w-28">Aksi</th>
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500 font-mono">
+                    <th className="py-3.5 px-4 w-12 text-center">No</th>
+                    <th className="py-3.5 px-4">Nama Lengkap & Biodata</th>
+                    <th className="py-3.5 px-4 w-28 text-center">Kelas</th>
+                    <th className="py-3.5 px-4">NIS / NISN</th>
+                    <th className="py-3.5 px-4">Asal Daerah</th>
+                    <th className="py-3.5 px-4">Kontak Orang Tua</th>
+                    <th className="py-3.5 px-4 text-center w-36">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 text-xs">
                   {paginatedSantri.map((s, idx) => {
-                    const rowNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                    const isInactive = s.statusSantri && s.statusSantri !== "aktif";
-                    const contactPhone = s.telpAyah || s.telpIbu || s.telpWali;
-                    const contactName = s.namaAyah ? s.namaAyah.split(" ")[0] : (s.namaIbu ? s.namaIbu.split(" ")[0] : "Ortu");
-
+                    const siblings = siblingMap.get(s.id);
                     return (
-                      <tr
+                      <tr 
                         key={s.id}
+                        className="hover:bg-emerald-50/30 transition-colors group cursor-pointer"
                         onClick={() => setSelectedSantri(s)}
-                        className={`hover:bg-emerald-50/40 cursor-pointer transition-colors ${
-                          isInactive ? "bg-rose-50/30" : ""
-                        }`}
                       >
-                        <td className="py-3.5 px-4 text-center text-slate-400 font-mono whitespace-nowrap">
-                          {rowNumber}
+                        <td className="py-3 px-4 text-center font-mono text-slate-400 font-bold">
+                          {(currentPage - 1) * itemsPerPage + idx + 1}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate">{s.nama}</span>
-                            {s.statusSantri && s.statusSantri !== "aktif" && (
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap ${
-                                s.statusSantri === "keluar" 
-                                  ? "bg-rose-100 text-rose-800" 
-                                  : s.statusSantri === "pindah" 
-                                  ? "bg-amber-100 text-amber-800" 
-                                  : "bg-blue-100 text-blue-800"
-                              }`}>
-                                {s.statusSantri}
-                              </span>
-                            )}
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900 text-sm group-hover:text-emerald-800 transition-colors">
+                            {s.nama}
                           </div>
-                          {siblingMap.has(s.id) && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSantri(s);
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-purple-50 text-purple-800 border border-purple-200/80 hover:bg-purple-100 transition-colors shadow-2xs font-sans whitespace-nowrap cursor-pointer"
-                                title={siblingMap.get(s.id)!.map(sib => `${sib.relationship === "kakak" ? "Kakak" : sib.relationship === "adik" ? "Adik" : "Saudara"}: ${sib.santri.nama} (${sib.santri.kelasLengkap})`).join(", ")}
-                              >
-                                <Heart className="w-2.5 h-2.5 text-purple-600 fill-purple-600 shrink-0" />
-                                <span>
-                                  {siblingMap.get(s.id)!.length === 1 
-                                    ? `${siblingMap.get(s.id)![0].relationship === "kakak" ? "Kakak" : siblingMap.get(s.id)![0].relationship === "adik" ? "Adik" : "Saudara"} di Kls ${siblingMap.get(s.id)![0].santri.kelasLengkap}`
-                                    : `${siblingMap.get(s.id)!.length + 1} Bersaudara`}
-                                </span>
-                              </span>
+                          {siblings && siblings.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                              {siblings.map((sib, sIdx) => (
+                                <button
+                                  key={sIdx}
+                                  type="button"
+                                  onClick={() => setSelectedSantri(sib.santri)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 border border-purple-200 text-[10px] font-bold text-purple-700 transition-all active:scale-95"
+                                  title={`Klik untuk lihat profil saudara: ${sib.santri.nama}`}
+                                >
+                                  <Heart className="w-2.5 h-2.5 text-purple-500 fill-purple-500" />
+                                  <span>{sib.relationLabel}: {sib.santri.nama.split(" ")[0]} ({sib.santri.kelasLengkap})</span>
+                                </button>
+                              ))}
                             </div>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isKoorMusyrif) {
-                                setTransferSantri(s);
-                                setTransferNewClass(s.kelasLengkap);
-                              }
-                            }}
-                            className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100 hover:border-emerald-300 transition-colors shadow-2xs font-mono"
-                            title={isKoorMusyrif ? "Klik untuk Pindah Kelas Kilat" : undefined}
-                          >
-                            <span>{s.kelasLengkap}</span>
-                            {isKoorMusyrif && <ArrowRightLeft className="w-3 h-3 text-emerald-600 shrink-0" />}
-                          </button>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className="inline-block px-3 py-1 rounded-xl text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-mono shadow-2xs whitespace-nowrap">
+                            {s.kelasLengkap}
+                          </span>
                         </td>
-                        <td className="py-3.5 px-4 text-center font-mono text-xs text-slate-700 whitespace-nowrap">
-                          <div className="font-bold">{s.nis || "-"}</div>
-                          <div className="text-[10px] text-slate-400">{s.nisn || ""}</div>
+                        <td className="py-3 px-4 font-mono text-slate-600">
+                          <div><span className="text-[10px] text-slate-400">NIS:</span> {s.nis}</div>
+                          {s.nisn && <div className="text-[11px] text-slate-400"><span className="text-[9px]">NISN:</span> {s.nisn}</div>}
                         </td>
-                        <td className="py-3.5 px-4 text-slate-600 text-xs">
-                          <div className="font-medium truncate max-w-xs">{s.kabupaten || s.provinsi || "-"}</div>
-                          {s.desa && <div className="text-[10px] text-slate-400 truncate max-w-xs">{s.desa}</div>}
+                        <td className="py-3 px-4 text-slate-600">
+                          <div className="font-medium text-slate-800">{s.kabupaten || "-"}</div>
+                          <div className="text-[10px] text-slate-400">{s.provinsi || ""}</div>
                         </td>
-                        <td className="py-3.5 px-4 text-xs whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          {contactPhone ? (
+                        <td className="py-3 px-4 text-slate-600" onClick={(e) => e.stopPropagation()}>
+                          {s.telpAyah ? (
                             <button
                               type="button"
-                              onClick={() => openWhatsApp(contactPhone, s.nama)}
-                              className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs"
-                              title={`Chat WhatsApp ke ${contactName} (${contactPhone})`}
+                              onClick={() => openWhatsApp(s.telpAyah, s.nama)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 text-xs font-bold transition-all active:scale-95 shadow-2xs whitespace-nowrap"
                             >
                               <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              <span>WA {contactName}</span>
+                              <span className="font-mono">{s.telpAyah}</span>
+                            </button>
+                          ) : s.telpIbu ? (
+                            <button
+                              type="button"
+                              onClick={() => openWhatsApp(s.telpIbu, s.nama)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 text-xs font-bold transition-all active:scale-95 shadow-2xs whitespace-nowrap"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="font-mono">{s.telpIbu}</span>
                             </button>
                           ) : (
-                            <span className="text-slate-300 text-xs font-mono">-</span>
+                            <span className="text-slate-300 italic text-[11px]">Tidak ada nomor</span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => setSelectedSantri(s)}
-                              className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors"
-                              title="Lihat Detail Profil"
+                              className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                              title="Lihat Detail Santri"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
 
-                            {isKoorMusyrif && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditForm(s)}
-                                  className="p-1.5 text-slate-500 hover:text-teal-700 hover:bg-teal-50 rounded-xl transition-colors"
-                                  title="Edit Biodata Santri"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
+                            {/* Edit / Request Edit */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditForm(s)}
+                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                              title={isKoorMusyrif ? "Edit Biodata Santri" : "Ajukan Perubahan Biodata ke Koordinator"}
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => setDeletingSantri(s)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                                  title="Hapus / Mutasi Keluar"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
+                            {/* Class Transfer / Request Transfer */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTransferSantri(s);
+                                setTransferNewClass(s.kelasLengkap || "1 A");
+                                setTransferReason("");
+                              }}
+                              className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition-colors"
+                              title={isKoorMusyrif ? "Mutasi / Pindah Kelas Cepat" : "Ajukan Pindah Kelas ke Koordinator"}
+                            >
+                              <ArrowRightLeft className="w-4 h-4" />
+                            </button>
+
+                            {/* Delete / Request Delete */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeletingSantri(s);
+                                setDeleteReason("");
+                              }}
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors"
+                              title={isKoorMusyrif ? "Hapus Santri" : "Ajukan Penghapusan Santri ke Koordinator"}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -884,100 +1150,98 @@ export function DataSantriModal({
               </table>
             </div>
 
-            {/* Mobile / Tablet Card View */}
-            <div className="block md:hidden divide-y divide-slate-100">
+            {/* Mobile Card List */}
+            <div className="md:hidden divide-y divide-slate-100">
               {paginatedSantri.map((s, idx) => {
-                const rowNumber = (currentPage - 1) * itemsPerPage + idx + 1;
-                const contactPhone = s.telpAyah || s.telpIbu || s.telpWali;
-                const contactName = s.namaAyah ? s.namaAyah.split(" ")[0] : (s.namaIbu ? s.namaIbu.split(" ")[0] : "Ortu");
-
+                const siblings = siblingMap.get(s.id);
                 return (
                   <div
                     key={s.id}
+                    className="p-4 hover:bg-slate-50 transition-colors space-y-2.5"
                     onClick={() => setSelectedSantri(s)}
-                    className="p-3.5 hover:bg-emerald-50/40 active:bg-emerald-50/60 transition-colors flex items-start gap-3"
                   >
-                    {/* Avatar Initials */}
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-black text-sm flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-                      {s.nama.charAt(0)}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-mono text-slate-400 font-bold mr-1.5">
+                          #{(currentPage - 1) * itemsPerPage + idx + 1}
+                        </span>
+                        <span className="font-bold text-sm text-slate-900">{s.nama}</span>
+                        {siblings && siblings.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                            {siblings.map((sib, sIdx) => (
+                              <button
+                                key={sIdx}
+                                type="button"
+                                onClick={() => setSelectedSantri(sib.santri)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-[10px] font-bold text-purple-700"
+                              >
+                                <Heart className="w-2.5 h-2.5 text-purple-500 fill-purple-500" />
+                                <span>{sib.relationLabel}: {sib.santri.nama.split(" ")[0]} ({sib.santri.kelasLengkap})</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono shrink-0 whitespace-nowrap">
+                        {s.kelasLengkap}
+                      </span>
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <h4 className="font-bold text-sm text-slate-900 truncate leading-tight">
-                          {s.nama}
-                        </h4>
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 font-mono">
-                          {s.kelasLengkap}
-                        </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50/70 p-2.5 rounded-2xl border border-slate-100">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">NIS / NISN</span>
+                        <span className="font-mono font-semibold">{s.nis}</span>
                       </div>
-
-                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap font-mono">
-                        <span>NIS: {s.nis || "-"}</span>
-                        <span>•</span>
-                        <span className="truncate max-w-[140px]">{s.kabupaten || s.provinsi || "Yogyakarta"}</span>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Asal Daerah</span>
+                        <span className="font-medium truncate block">{s.kabupaten || "-"}</span>
                       </div>
+                    </div>
 
-                      {siblingMap.has(s.id) && (
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200/80 shadow-2xs font-sans">
-                            <Heart className="w-2.5 h-2.5 text-purple-600 fill-purple-600 shrink-0" />
-                            <span>
-                              {siblingMap.get(s.id)!.length === 1 
-                                ? `${siblingMap.get(s.id)![0].relationship === "kakak" ? "Kakak" : siblingMap.get(s.id)![0].relationship === "adik" ? "Adik" : "Saudara"} (${siblingMap.get(s.id)![0].santri.nama.split(" ")[0]} - Kls ${siblingMap.get(s.id)![0].santri.kelasLengkap})`
-                                : `${siblingMap.get(s.id)!.length + 1} Bersaudara`}
-                            </span>
-                          </span>
-                        </div>
-                      )}
+                    <div className="flex items-center justify-between pt-1" onClick={(e) => e.stopPropagation()}>
+                      {s.telpAyah || s.telpIbu ? (
+                        <button
+                          type="button"
+                          onClick={() => openWhatsApp(s.telpAyah || s.telpIbu, s.nama)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Hubungi Ortu</span>
+                        </button>
+                      ) : <span />}
 
-                      {/* Quick Action Bottom Row */}
-                      <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100/80" onClick={(e) => e.stopPropagation()}>
-                        {contactPhone ? (
-                          <button
-                            type="button"
-                            onClick={() => openWhatsApp(contactPhone, s.nama)}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold transition-colors border border-emerald-200/60 shadow-2xs"
-                          >
-                            <MessageCircle className="w-3 h-3 text-emerald-600" />
-                            <span>WA {contactName}</span>
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400">Tanpa Kontak</span>
-                        )}
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSantri(s)}
-                            className="p-1 text-slate-500 hover:text-emerald-700 rounded-lg hover:bg-slate-100"
-                            title="Detail"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {isKoorMusyrif && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditForm(s)}
-                                className="p-1 text-slate-500 hover:text-teal-700 rounded-lg hover:bg-teal-50"
-                                title="Edit"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeletingSantri(s)}
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50"
-                                title="Hapus"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditForm(s)}
+                          className="p-2 rounded-xl text-blue-600 bg-blue-50"
+                          title="Edit"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTransferSantri(s);
+                            setTransferNewClass(s.kelasLengkap || "1 A");
+                            setTransferReason("");
+                          }}
+                          className="p-2 rounded-xl text-purple-600 bg-purple-50"
+                          title="Mutasi"
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeletingSantri(s);
+                            setDeleteReason("");
+                          }}
+                          className="p-2 rounded-xl text-rose-600 bg-rose-50"
+                          title="Hapus"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -985,39 +1249,65 @@ export function DataSantriModal({
               })}
             </div>
 
-            {/* Pagination Footer */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50/80 border-t border-slate-200 text-xs text-slate-500">
-              <div>
-                Menampilkan <span className="font-bold text-slate-800">{paginatedSantri.length}</span> dari <span className="font-bold text-slate-800">{filteredSantri.length}</span> santri (Halaman {currentPage} dari {totalPages})
+            {/* Empty State */}
+            {filteredSantri.length === 0 && (
+              <div className="py-16 text-center text-slate-400 space-y-3">
+                <Users className="w-12 h-12 mx-auto text-slate-300 stroke-[1.5]" />
+                <p className="text-sm font-semibold">Tidak ada santri yang sesuai dengan filter pencarian.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedTingkat("all");
+                    setSelectedClass("all");
+                    setFilterStatus("all");
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors inline-block"
+                >
+                  Reset Semua Filter
+                </button>
               </div>
+            )}
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="p-1.5 rounded-xl border border-slate-200/80 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors bg-white shadow-2xs"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="px-3 py-1 font-bold text-slate-800 bg-white border border-slate-200/80 rounded-xl shadow-2xs">
-                  {currentPage} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  className="p-1.5 rounded-xl border border-slate-200/80 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors bg-white shadow-2xs"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+            {/* Pagination Controls */}
+            {filteredSantri.length > itemsPerPage && (
+              <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap bg-slate-50/50">
+                <p className="text-xs text-slate-500 font-medium">
+                  Menampilkan <strong className="text-slate-800">{(currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-800">{Math.min(currentPage * itemsPerPage, filteredSantri.length)}</strong> dari <strong className="text-slate-800">{filteredSantri.length}</strong> santri
+                </p>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-1 px-2 font-mono text-xs font-bold text-slate-700">
+                    <span>{currentPage}</span>
+                    <span className="text-slate-400">/</span>
+                    <span className="text-slate-400">{totalPages}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="p-2 rounded-xl border border-slate-200 bg-white text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {/* ─── DETAIL SANTRI POPUP MODAL ─── */}
+      {/* ─── SANTRI DETAIL MODAL POPUP ─── */}
       <AnimatePresence>
         {selectedSantri && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
@@ -1028,282 +1318,164 @@ export function DataSantriModal({
               exit="exit"
               className="bg-white w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
             >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 sm:p-5 bg-linear-to-r from-emerald-800 to-teal-800 text-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-lg shadow-inner">
-                    {selectedSantri.nama.charAt(0)}
+              {/* Detail Header */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-800 to-teal-900 text-white flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base sm:text-lg font-black">{selectedSantri.nama}</h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-white/20 text-white font-mono">
+                      {selectedSantri.kelasLengkap}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-black leading-tight">{selectedSantri.nama}</h3>
-                    <p className="text-xs text-emerald-200">
-                      Kelas {selectedSantri.kelasLengkap} ({selectedSantri.tingkatRomawi}) • NIS: {selectedSantri.nis || "-"} • NISN: {selectedSantri.nisn || "-"}
-                    </p>
-                  </div>
+                  <p className="text-xs text-emerald-100/80 mt-0.5 font-mono">
+                    NIS: {selectedSantri.nis} {selectedSantri.nisn && `· NISN: ${selectedSantri.nisn}`}
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedSantri(null)}
-                  className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Modal Body */}
-              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
-                {/* Status Notice if Non-Aktif */}
-                {selectedSantri.statusSantri && selectedSantri.statusSantri !== "aktif" && (
-                  <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 flex items-start gap-2.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold text-xs uppercase tracking-wider">Status: Santri {selectedSantri.statusSantri}</p>
-                      {selectedSantri.catatanStatus && (
-                        <p className="text-xs mt-0.5 text-amber-800">{selectedSantri.catatanStatus}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 1. Bagian Identitas */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4" />
-                    <span>Identitas Pribadi</span>
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">Tempat, Tanggal Lahir</p>
-                      <p className="font-bold text-slate-800">
-                        {selectedSantri.tempatLahir ? `${selectedSantri.tempatLahir}, ${selectedSantri.tanggalLahir}` : selectedSantri.tanggalLahir || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">NIK Santri</p>
-                      <p className="font-mono font-bold text-slate-800">{selectedSantri.nik || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">Jenis Kelamin / Agama</p>
-                      <p className="font-bold text-slate-800">{selectedSantri.jk} / {selectedSantri.agama}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">Asal Sekolah</p>
-                      <p className="font-bold text-slate-800">{selectedSantri.asalSekolah || "-"}</p>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <p className="text-[11px] text-slate-400 font-medium">Alamat Tempat Tinggal</p>
-                      <p className="font-medium text-slate-800">
-                        {selectedSantri.alamat || "-"} {selectedSantri.desa ? `, Desa ${selectedSantri.desa}` : ""} {selectedSantri.kecamatan ? `, Kec. ${selectedSantri.kecamatan}` : ""} {selectedSantri.kabupaten ? `, ${selectedSantri.kabupaten}` : ""} {selectedSantri.provinsi ? `, ${selectedSantri.provinsi}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Bagian Akademik & Kelas */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-800 flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4" />
-                    <span>Data Akademik & Kelas</span>
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">Jenjang</p>
-                      <p className="font-bold text-slate-800">{selectedSantri.jenjang}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">Tingkat</p>
-                      <p className="font-bold text-emerald-700">{selectedSantri.tingkat} ({selectedSantri.tingkatRomawi})</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-slate-400 font-medium">Kelas Lengkap</p>
-                      <p className="font-bold text-slate-800">{selectedSantri.kelasLengkap}</p>
-                    </div>
-                    {selectedSantri.waliKelas && (
-                      <div className="sm:col-span-3">
-                        <p className="text-[11px] text-slate-400 font-medium">Wali Kelas</p>
-                        <p className="font-bold text-slate-800">{selectedSantri.waliKelas} {selectedSantri.nbmWaliKelas ? `(NBM: ${selectedSantri.nbmWaliKelas})` : ""}</p>
+              {/* Detail Body */}
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
+                {/* Saudara Kandung Section */}
+                {(() => {
+                  const siblings = siblingMap.get(selectedSantri.id);
+                  if (!siblings || siblings.length === 0) return null;
+                  return (
+                    <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-3.5 space-y-2">
+                      <div className="flex items-center gap-1.5 text-purple-900 font-bold">
+                        <Heart className="w-4 h-4 text-purple-600 fill-purple-500" />
+                        <span>Saudara Kandung di Mu'allimiin ({siblings.length})</span>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bagian Hubungan Saudara Kandung */}
-                {selectedSantri && siblingMap.has(selectedSantri.id) && (
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                        <Heart className="w-4 h-4 text-purple-600 fill-purple-600" />
-                        <span>Saudara Kandung di Mu'allimiin ({siblingMap.get(selectedSantri.id)!.length} Santri)</span>
-                      </h4>
-                      <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                        {siblingMap.get(selectedSantri.id)!.length + 1} Bersaudara Satu Keluarga
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {siblingMap.get(selectedSantri.id)!.map((sib) => (
-                        <div
-                          key={sib.santri.id}
-                          className="bg-purple-50/70 p-3 rounded-2xl border border-purple-200/90 flex items-center justify-between gap-3 shadow-2xs hover:bg-purple-100/60 transition-all"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-purple-700 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                              {sib.santri.nama.charAt(0)}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-xs text-purple-950 truncate max-w-[130px]">
-                                  {sib.santri.nama}
-                                </span>
-                                <span className={`text-[9.5px] font-black px-1.5 py-0.2 rounded-md ${
-                                  sib.relationship === "kakak"
-                                    ? "bg-blue-100 text-blue-800 border border-blue-200"
-                                    : sib.relationship === "adik"
-                                    ? "bg-teal-100 text-teal-800 border border-teal-200"
-                                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                }`}>
-                                  {sib.relationship === "kakak" ? "Kakak" : sib.relationship === "adik" ? "Adik" : "Kembar / Saudara"}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-purple-800 font-mono mt-0.5">
-                                Kelas {sib.santri.kelasLengkap} • NIS: {sib.santri.nis || "-"}
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSantri(sib.santri);
-                              triggerHaptic("light");
-                            }}
-                            className="px-2.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-[11px] font-bold shadow-2xs transition-all shrink-0 active:scale-95 flex items-center gap-1"
-                            title={`Lihat profil ${sib.santri.nama}`}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {siblings.map((sib, i) => (
+                          <div 
+                            key={i}
+                            onClick={() => setSelectedSantri(sib.santri)}
+                            className="bg-white p-2.5 rounded-xl border border-purple-100 hover:border-purple-300 transition-all cursor-pointer shadow-2xs"
                           >
-                            <span>Lihat</span>
-                            <ArrowUpRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900 truncate">{sib.santri.nama}</span>
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800 font-mono">
+                                {sib.santri.kelasLengkap}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-purple-700 font-semibold mt-0.5">
+                              {sib.relationLabel}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Grid Informasi Biodata */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2">
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-emerald-600" /> Data Pribadi
+                    </p>
+                    <div className="space-y-1.5">
+                      <div><span className="text-slate-400">Tempat, Tgl Lahir:</span> <span className="font-medium text-slate-800">{selectedSantri.tempatLahir || "-"}, {selectedSantri.tanggalLahir || "-"}</span></div>
+                      <div><span className="text-slate-400">Jenis Kelamin:</span> <span className="font-medium text-slate-800">{selectedSantri.jk || "Laki-laki"}</span></div>
+                      <div><span className="text-slate-400">Asal Sekolah:</span> <span className="font-medium text-slate-800">{selectedSantri.asalSekolah || "-"}</span></div>
+                      <div><span className="text-slate-400">Wali Kelas:</span> <span className="font-medium text-slate-800">{selectedSantri.waliKelas || "-"}</span></div>
                     </div>
                   </div>
-                )}
 
-                {/* 3. Bagian Orang Tua / Wali */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-sky-800 flex items-center gap-1.5">
-                    <Users className="w-4 h-4" />
-                    <span>Data Orang Tua & Kontak WhatsApp</span>
-                  </h4>
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2">
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-teal-600" /> Domisili & Asal
+                    </p>
+                    <div className="space-y-1.5">
+                      <div><span className="text-slate-400">Kabupaten/Kota:</span> <span className="font-medium text-slate-800">{selectedSantri.kabupaten || "-"}</span></div>
+                      <div><span className="text-slate-400">Provinsi:</span> <span className="font-medium text-slate-800">{selectedSantri.provinsi || "-"}</span></div>
+                      <div><span className="text-slate-400">Alamat:</span> <span className="font-medium text-slate-800">{selectedSantri.alamat || "-"}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kontak Orang Tua */}
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2.5">
+                  <p className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-600" /> Orang Tua & Kontak
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Ayah */}
-                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2">
-                      <p className="text-xs font-bold text-slate-700">Data Ayah</p>
-                      <div>
-                        <p className="text-[11px] text-slate-400">Nama</p>
-                        <p className="font-bold text-slate-800">{selectedSantri.namaAyah || "-"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400">Pekerjaan</p>
-                        <p className="text-slate-700 font-medium">{selectedSantri.pekerjaanAyah || "-"}</p>
-                      </div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200/80 space-y-1">
+                      <p className="font-bold text-slate-800">Ayah: {selectedSantri.namaAyah || "-"}</p>
+                      <p className="text-slate-500 text-[11px]">Pekerjaan: {selectedSantri.pekerjaanAyah || "-"}</p>
                       {selectedSantri.telpAyah && (
-                        <div className="pt-1">
-                          <p className="text-[11px] text-slate-400 mb-1">Kontak Telepon / WA</p>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-xs">{selectedSantri.telpAyah}</span>
-                            <button
-                              type="button"
-                              onClick={() => openWhatsApp(selectedSantri.telpAyah, selectedSantri.nama)}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs transition-colors"
-                            >
-                              <MessageCircle className="w-3 h-3" /> WA
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openWhatsApp(selectedSantri.telpAyah, selectedSantri.nama)}
+                          className="mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold"
+                        >
+                          <MessageCircle className="w-3 h-3 text-emerald-600" />
+                          <span>WA: {selectedSantri.telpAyah}</span>
+                        </button>
                       )}
                     </div>
 
-                    {/* Ibu */}
-                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2">
-                      <p className="text-xs font-bold text-slate-700">Data Ibu</p>
-                      <div>
-                        <p className="text-[11px] text-slate-400">Nama</p>
-                        <p className="font-bold text-slate-800">{selectedSantri.namaIbu || "-"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400">Pekerjaan</p>
-                        <p className="text-slate-700 font-medium">{selectedSantri.pekerjaanIbu || "-"}</p>
-                      </div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200/80 space-y-1">
+                      <p className="font-bold text-slate-800">Ibu: {selectedSantri.namaIbu || "-"}</p>
+                      <p className="text-slate-500 text-[11px]">Pekerjaan: {selectedSantri.pekerjaanIbu || "-"}</p>
                       {selectedSantri.telpIbu && (
-                        <div className="pt-1">
-                          <p className="text-[11px] text-slate-400 mb-1">Kontak Telepon / WA</p>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-xs">{selectedSantri.telpIbu}</span>
-                            <button
-                              type="button"
-                              onClick={() => openWhatsApp(selectedSantri.telpIbu, selectedSantri.nama)}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs transition-colors"
-                            >
-                              <MessageCircle className="w-3 h-3" /> WA
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openWhatsApp(selectedSantri.telpIbu, selectedSantri.nama)}
+                          className="mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold"
+                        >
+                          <MessageCircle className="w-3 h-3 text-emerald-600" />
+                          <span>WA: {selectedSantri.telpIbu}</span>
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+              {/* Detail Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleCopyText(
-                      `Data Santri Mu'allimiin:\nNama: ${selectedSantri.nama}\nKelas: ${selectedSantri.kelasLengkap}\nNIS: ${selectedSantri.nis}\nNISN: ${selectedSantri.nisn}\nAlamat: ${selectedSantri.alamat}, ${selectedSantri.kabupaten}\nOrtu: ${selectedSantri.namaAyah || selectedSantri.namaIbu} (${selectedSantri.telpAyah || selectedSantri.telpIbu || "-"})`,
-                      selectedSantri.id
-                    )}
-                    className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 flex items-center gap-1.5 transition-colors shadow-2xs"
+                    onClick={() => {
+                      const s = selectedSantri;
+                      setSelectedSantri(null);
+                      handleOpenEditForm(s);
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{copiedId === selectedSantri.id ? "Tersalin!" : "Salin Biodata"}</span>
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>{isKoorMusyrif ? "Edit Data" : "Ajukan Edit"}</span>
                   </button>
 
-                  {isKoorMusyrif && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const s = selectedSantri;
-                          setSelectedSantri(null);
-                          handleOpenEditForm(s);
-                        }}
-                        className="px-3.5 py-2 text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-xl hover:bg-teal-100 flex items-center gap-1.5 transition-colors shadow-2xs"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Edit Data</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTransferSantri(selectedSantri);
-                          setTransferNewClass(selectedSantri.kelasLengkap);
-                        }}
-                        className="px-3.5 py-2 text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 flex items-center gap-1.5 transition-colors shadow-2xs"
-                      >
-                        <ArrowRightLeft className="w-3.5 h-3.5" />
-                        <span>Pindah Kelas</span>
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = selectedSantri;
+                      setSelectedSantri(null);
+                      setTransferSantri(s);
+                      setTransferNewClass(s.kelasLengkap || "1 A");
+                      setTransferReason("");
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                    <span>{isKoorMusyrif ? "Mutasi Kelas" : "Ajukan Mutasi"}</span>
+                  </button>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setSelectedSantri(null)}
-                  className="px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors shadow-2xs"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-700"
                 >
                   Tutup
                 </button>
@@ -1313,7 +1485,7 @@ export function DataSantriModal({
         )}
       </AnimatePresence>
 
-      {/* ─── MODAL FORM TAMBAH / EDIT SANTRI ─── */}
+      {/* ─── ADD / EDIT FORM MODAL ─── */}
       <AnimatePresence>
         {isFormOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
@@ -1324,325 +1496,173 @@ export function DataSantriModal({
               exit="exit"
               className="bg-white w-full max-w-3xl max-h-[92vh] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
             >
-              {/* Form Header */}
-              <div className="flex items-center justify-between p-4 sm:p-5 bg-emerald-800 text-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-700/80 border border-emerald-600 flex items-center justify-center">
-                    {editingSantri ? <Edit3 className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-black leading-tight">
-                      {editingSantri ? `Edit Data: ${editingSantri.nama}` : "Tambah Santri Baru"}
-                    </h3>
-                    <p className="text-xs text-emerald-200">
-                      Kelola biodata, kelas, dan kontak orang tua santri
-                    </p>
-                  </div>
+              <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base">
+                    {isKoorMusyrif 
+                      ? (editingSantri ? `Edit Data: ${editingSantri.nama}` : "Tambah Santri Baru")
+                      : `Ajukan Perubahan Data: ${editingSantri?.nama}`}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {isKoorMusyrif
+                      ? "Perubahan langsung tersimpan & sinkron ke Google Sheets"
+                      : "Perubahan akan diverifikasi dan di-ACC oleh Koordinator Musyrif"}
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Form Fields */}
-              <form onSubmit={handleSaveForm} className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
-                {/* 1. Akademik & Kelas */}
-                <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80 space-y-3">
-                  <p className="font-bold text-xs uppercase tracking-wider text-emerald-900">
-                    1. Kelas & Status Santri
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Pilih Kelas Resmi (54 Kelas) *
-                      </label>
-                      <select
-                        value={formKelas}
-                        onChange={(e) => setFormKelas(e.target.value)}
-                        className="w-full text-xs font-bold bg-white border border-emerald-400 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-2xs"
-                      >
-                        {LIST_ALL_KELAS_GROUPED.map((grp) => (
-                          <optgroup key={grp.tingkat} label={grp.label}>
-                            {grp.kelas.map((cls) => (
-                              <option key={cls} value={cls}>
-                                Kelas {cls}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
+              <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                {/* Notice for Musyrif/Pamong */}
+                {!isKoorMusyrif && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 space-y-2">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>Form Pengajuan Permohonan Perubahan Data</span>
                     </div>
-
+                    <p className="text-slate-600">
+                      Anda sedang mengajukan permohonan pembaruan data santri ini. Koordinator Musyrif akan menerima tiket permohonan untuk di-ACC sebelum data diperbarui secara permanen.
+                    </p>
                     <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Status Santri
-                      </label>
-                      <select
-                        value={formStatusSantri}
-                        onChange={(e: any) => setFormStatusSantri(e.target.value)}
-                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-2xs"
-                      >
-                        <option value="aktif">Aktif Belajar</option>
-                        <option value="pindah">Pindah Sekolah</option>
-                        <option value="keluar">Keluar / Mengundurkan Diri</option>
-                        <option value="lulus">Lulus / Alumni</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Wali Kelas (Opsional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Nama Wali Kelas"
-                        value={formWaliKelas}
-                        onChange={(e) => setFormWaliKelas(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    {formStatusSantri !== "aktif" && (
-                      <div className="sm:col-span-3">
-                        <label className="text-xs font-bold text-rose-700 mb-1 block">
-                          Catatan / Alasan Mutasi
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Contoh: Pindah ke SMAN 1 Yogyakarta per 10 Agustus 2026"
-                          value={formCatatanStatus}
-                          onChange={(e) => setFormCatatanStatus(e.target.value)}
-                          className="w-full text-xs bg-rose-50/60 border border-rose-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-rose-500 outline-none shadow-2xs"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. Biodata Santri */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
-                  <p className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                    2. Identitas Santri
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Nama Lengkap Santri *
-                      </label>
+                      <label className="font-bold text-slate-800 block mb-1">Alasan / Catatan Perubahan (Wajib diisi):</label>
                       <input
                         type="text"
                         required
-                        placeholder="Nama lengkap santri sesuai ijazah/akta"
-                        value={formNama}
-                        onChange={(e) => setFormNama(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none font-bold shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Jenis Kelamin
-                      </label>
-                      <select
-                        value={formJk}
-                        onChange={(e) => setFormJk(e.target.value)}
-                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-2xs"
-                      >
-                        <option value="Laki-laki">Laki-laki</option>
-                        <option value="Perempuan">Perempuan</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        NIS Santri
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: 12478"
-                        value={formNis}
-                        onChange={(e) => setFormNis(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        NISN Santri
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: 0141962152"
-                        value={formNisn}
-                        onChange={(e) => setFormNisn(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        NIK Santri
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="16 digit NIK"
-                        value={formNik}
-                        onChange={(e) => setFormNik(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Tempat Lahir
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Gresik"
-                        value={formTempatLahir}
-                        onChange={(e) => setFormTempatLahir(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Tanggal Lahir
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="DD-MM-YYYY (Contoh: 15-08-2010)"
-                        value={formTanggalLahir}
-                        onChange={(e) => setFormTanggalLahir(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Asal Sekolah
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: SD Muhammadiyah"
-                        value={formAsalSekolah}
-                        onChange={(e) => setFormAsalSekolah(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Alamat Lengkap
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Jalan, No Rumah, RT/RW"
-                        value={formAlamat}
-                        onChange={(e) => setFormAlamat(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 mb-1 block">
-                        Kota / Kabupaten
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Sleman"
-                        value={formKabupaten}
-                        onChange={(e) => setFormKabupaten(e.target.value)}
-                        className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
+                        placeholder="Contoh: Perubahan nomor WA ayah baru / koreksi nama / alamat"
+                        value={requestReason}
+                        onChange={(e) => setRequestReason(e.target.value)}
+                        className="w-full text-xs bg-white border border-amber-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-amber-400"
                       />
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* 3. Data Orang Tua */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
-                  <p className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                    3. Kontak & Biodata Orang Tua
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Ayah */}
-                    <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2 shadow-2xs">
-                      <p className="font-bold text-xs text-slate-800">Data Ayah</p>
-                      <div>
-                        <label className="text-[11px] text-slate-500 mb-0.5 block font-medium">Nama Ayah</label>
-                        <input
-                          type="text"
-                          placeholder="Nama ayah"
-                          value={formNamaAyah}
-                          onChange={(e) => setFormNamaAyah(e.target.value)}
-                          className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-slate-800 outline-none focus:bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-slate-500 mb-0.5 block font-medium">No. Telepon / WA Ayah</label>
-                        <input
-                          type="text"
-                          placeholder="Contoh: 081234567890"
-                          value={formTelpAyah}
-                          onChange={(e) => setFormTelpAyah(e.target.value)}
-                          className="w-full text-xs font-mono bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-slate-800 outline-none focus:bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-slate-500 mb-0.5 block font-medium">Pekerjaan Ayah</label>
-                        <input
-                          type="text"
-                          placeholder="Pekerjaan"
-                          value={formPekerjaanAyah}
-                          onChange={(e) => setFormPekerjaanAyah(e.target.value)}
-                          className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-slate-800 outline-none focus:bg-white"
-                        />
-                      </div>
-                    </div>
+                {/* Input Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Nama Santri *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formNama}
+                      onChange={(e) => setFormNama(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
 
-                    {/* Ibu */}
-                    <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2 shadow-2xs">
-                      <p className="font-bold text-xs text-slate-800">Data Ibu</p>
-                      <div>
-                        <label className="text-[11px] text-slate-500 mb-0.5 block font-medium">Nama Ibu</label>
-                        <input
-                          type="text"
-                          placeholder="Nama ibu"
-                          value={formNamaIbu}
-                          onChange={(e) => setFormNamaIbu(e.target.value)}
-                          className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-slate-800 outline-none focus:bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-slate-500 mb-0.5 block font-medium">No. Telepon / WA Ibu</label>
-                        <input
-                          type="text"
-                          placeholder="Contoh: 081234567890"
-                          value={formTelpIbu}
-                          onChange={(e) => setFormTelpIbu(e.target.value)}
-                          className="w-full text-xs font-mono bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-slate-800 outline-none focus:bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] text-slate-500 mb-0.5 block font-medium">Pekerjaan Ibu</label>
-                        <input
-                          type="text"
-                          placeholder="Pekerjaan"
-                          value={formPekerjaanIbu}
-                          onChange={(e) => setFormPekerjaanIbu(e.target.value)}
-                          className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-slate-800 outline-none focus:bg-white"
-                        />
-                      </div>
-                    </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Kelas</label>
+                    <select
+                      value={formKelas}
+                      onChange={(e) => setFormKelas(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white font-mono"
+                    >
+                      {LIST_ALL_KELAS_FLAT.map(k => (
+                        <option key={k} value={k}>{k}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">NIS</label>
+                    <input
+                      type="text"
+                      value={formNis}
+                      onChange={(e) => setFormNis(e.target.value)}
+                      className="w-full font-mono bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">NISN</label>
+                    <input
+                      type="text"
+                      value={formNisn}
+                      onChange={(e) => setFormNisn(e.target.value)}
+                      className="w-full font-mono bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Kabupaten / Kota</label>
+                    <input
+                      type="text"
+                      value={formKabupaten}
+                      onChange={(e) => setFormKabupaten(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Provinsi</label>
+                    <input
+                      type="text"
+                      value={formProvinsi}
+                      onChange={(e) => setFormProvinsi(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Nama Ayah</label>
+                    <input
+                      type="text"
+                      value={formNamaAyah}
+                      onChange={(e) => setFormNamaAyah(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">No. WA Ayah</label>
+                    <input
+                      type="text"
+                      value={formTelpAyah}
+                      onChange={(e) => setFormTelpAyah(e.target.value)}
+                      placeholder="081234567890"
+                      className="w-full font-mono bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Nama Ibu</label>
+                    <input
+                      type="text"
+                      value={formNamaIbu}
+                      onChange={(e) => setFormNamaIbu(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">No. WA Ibu</label>
+                    <input
+                      type="text"
+                      value={formTelpIbu}
+                      onChange={(e) => setFormTelpIbu(e.target.value)}
+                      placeholder="081234567890"
+                      className="w-full font-mono bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Alamat Lengkap</label>
+                    <textarea
+                      rows={2}
+                      value={formAlamat}
+                      onChange={(e) => setFormAlamat(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-800 outline-none focus:bg-white"
+                    />
                   </div>
                 </div>
 
-                {/* Submit / Cancel Buttons */}
-                <div className="pt-2 flex items-center justify-end gap-2">
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setIsFormOpen(false)}
@@ -1655,7 +1675,7 @@ export function DataSantriModal({
                     className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
                   >
                     <Save className="w-4 h-4" />
-                    <span>{editingSantri ? "Simpan Perubahan" : "Tambahkan Santri"}</span>
+                    <span>{isKoorMusyrif ? (editingSantri ? "Simpan Perubahan" : "Tambahkan Santri") : "Kirim Permohonan"}</span>
                   </button>
                 </div>
               </form>
@@ -1664,7 +1684,7 @@ export function DataSantriModal({
         )}
       </AnimatePresence>
 
-      {/* ─── QUICK CLASS TRANSFER POPUP ─── */}
+      {/* ─── QUICK CLASS TRANSFER / MUTASI POPUP ─── */}
       <AnimatePresence>
         {transferSantri && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
@@ -1676,56 +1696,69 @@ export function DataSantriModal({
               className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 p-5 space-y-4"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center">
                   <ArrowRightLeft className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Pindah Kelas Santri</h3>
-                  <p className="text-xs text-slate-500">Mutasi kelas cepat ke 54 kelas yang tersedia</p>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    {isKoorMusyrif ? "Mutasi / Pindah Kelas Santri" : "Ajukan Mutasi / Pindah Kelas"}
+                  </h3>
+                  <p className="text-xs text-slate-500">{transferSantri.nama}</p>
                 </div>
               </div>
 
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1">
-                <p className="text-slate-400 font-medium">Nama Santri:</p>
-                <p className="font-black text-sm text-slate-900">{transferSantri.nama}</p>
-                <p className="text-slate-500">Kelas Saat Ini: <span className="font-bold text-emerald-700">{transferSantri.kelasLengkap}</span></p>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="text-[11px] text-slate-500 mb-1 block font-medium">Kelas Asal</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={transferSantri.kelasLengkap}
+                    className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-slate-600 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-slate-500 mb-1 block font-medium">Pilih Kelas Tujuan Baru</label>
+                  <select
+                    value={transferNewClass}
+                    onChange={(e) => setTransferNewClass(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white font-mono font-bold"
+                  >
+                    {LIST_ALL_KELAS_FLAT.map(k => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {!isKoorMusyrif && (
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Alasan Mutasi (Wajib diisi)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Keputusan musyawarah pamong / perbaikan rombel"
+                      value={transferReason}
+                      onChange={(e) => setTransferReason(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                  Pilih Kelas Tujuan Baru:
-                </label>
-                <select
-                  value={transferNewClass}
-                  onChange={(e) => setTransferNewClass(e.target.value)}
-                  className="w-full text-xs font-bold bg-slate-50 border border-emerald-500 rounded-2xl px-3.5 py-2.5 text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-2xs"
-                >
-                  {LIST_ALL_KELAS_GROUPED.map((grp) => (
-                    <optgroup key={grp.tingkat} label={grp.label}>
-                      {grp.kelas.map((cls) => (
-                        <option key={cls} value={cls}>
-                          Kelas {cls}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setTransferSantri(null)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
                   onClick={handleExecuteClassTransfer}
-                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs active:scale-95 transition-all"
+                  className="px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl"
                 >
-                  Pindahkan Santri
+                  {isKoorMusyrif ? "Simpan Mutasi" : "Kirim Pengajuan"}
                 </button>
               </div>
             </motion.div>
@@ -1733,7 +1766,7 @@ export function DataSantriModal({
         )}
       </AnimatePresence>
 
-      {/* ─── DELETE CONFIRMATION MODAL ─── */}
+      {/* ─── DELETE / REQUEST DELETE POPUP ─── */}
       <AnimatePresence>
         {deletingSantri && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
@@ -1749,54 +1782,48 @@ export function DataSantriModal({
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Konfirmasi Status & Hapus</h3>
-                  <p className="text-xs text-slate-500">Pilih tindakan perubahan status santri</p>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    {isKoorMusyrif ? "Konfirmasi Hapus Santri" : "Ajukan Penghapusan Santri"}
+                  </h3>
+                  <p className="text-xs text-slate-500">{deletingSantri.nama} ({deletingSantri.kelasLengkap})</p>
                 </div>
               </div>
 
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
-                <p className="font-black text-sm text-slate-900">{deletingSantri.nama}</p>
-                <p className="text-slate-500 font-mono mt-0.5">Kelas {deletingSantri.kelasLengkap} • NIS: {deletingSantri.nis || "-"}</p>
+              <div className="text-xs text-slate-600 space-y-2">
+                <p>
+                  {isKoorMusyrif
+                    ? "Apakah Anda yakin ingin menghapus data santri ini? Data akan ditandai terhapus dan disinkronkan ke Google Sheets."
+                    : "Ajukan permohonan penghapusan santri ini ke Koordinator Musyrif. Mohon sertakan alasan yang jelas."}
+                </p>
+
+                {!isKoorMusyrif && (
+                  <div>
+                    <label className="text-[11px] text-slate-500 mb-1 block font-medium">Alasan Penghapusan (Wajib diisi)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Santri sudah mengundurkan diri / mutasi keluar madrasah"
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      className="w-full bg-white border border-rose-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-rose-400"
+                    />
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const reason = prompt("Masukkan alasan mutasi keluar / pindah:", "Pindah sekolah / Mengundurkan diri");
-                    if (reason !== null) {
-                      const updated: SantriData = {
-                        ...deletingSantri,
-                        statusSantri: "keluar",
-                        catatanStatus: reason
-                      };
-                      if (onSaveSantri) onSaveSantri(updated);
-                      setDeletingSantri(null);
-                    }
-                  }}
-                  className="w-full p-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-2xl text-left flex items-center justify-between text-xs font-bold text-amber-900 transition-colors shadow-2xs"
-                >
-                  <span>Ubah Status jadi "Keluar / Pindah" (Arsipkan)</span>
-                  <UserX className="w-4 h-4 text-amber-600" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleConfirmDelete}
-                  className="w-full p-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-2xl text-left flex items-center justify-between text-xs font-bold text-rose-900 transition-colors shadow-2xs"
-                >
-                  <span>Hapus Permanen dari Database</span>
-                  <Trash2 className="w-4 h-4 text-rose-600" />
-                </button>
-              </div>
-
-              <div className="flex justify-end pt-1">
+              <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setDeletingSantri(null)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl"
                 >
                   Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl"
+                >
+                  {isKoorMusyrif ? "Ya, Hapus Data" : "Kirim Permohonan Hapus"}
                 </button>
               </div>
             </motion.div>
@@ -1804,7 +1831,63 @@ export function DataSantriModal({
         )}
       </AnimatePresence>
 
-      {/* Peta Sebaran Modal */}
+      {/* ─── REJECT REQUEST MODAL ─── */}
+      <AnimatePresence>
+        {rejectingRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              variants={modalContentVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 p-5 space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center">
+                  <XCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Tolak Permohonan</h3>
+                  <p className="text-xs text-slate-500">{rejectingRequest.santriNama}</p>
+                </div>
+              </div>
+
+              <div className="text-xs space-y-2">
+                <label className="text-[11px] text-slate-500 block font-medium">Catatan / Alasan Penolakan:</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Data belum lengkap / tidak sesuai berkas resmi"
+                  value={rejectNotes}
+                  onChange={(e) => setRejectNotes(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-rose-400"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRejectingRequest(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onRejectRequest) onRejectRequest(rejectingRequest.id, rejectNotes);
+                    setRejectingRequest(null);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl"
+                >
+                  Konfirmasi Tolak
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── PETA SEBARAN MODAL ─── */}
       <AnimatePresence>
         {showPetaSebaran && (
           <SantriPetaSebaran

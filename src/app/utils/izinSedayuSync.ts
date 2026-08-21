@@ -5,10 +5,11 @@
  */
 
 import { SantriIzinRecord, JenisIzinSantri, StatusApprovalSantri, StatusPKM } from "../types/izinSantri";
+import { ALL_SANTRI_DATA } from "../data/santriData";
 
-export const IZIN_SEDAYU_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnacuM2ZsgWYP20M9Gjwi--adZsNxzJk14IyH2l8iBuv_tKZCPPrYKdLeJhZhU7iz/exec";
-const STORAGE_KEY_IZIN_LIST = "local_izin_list";
-const STORAGE_KEY_LAST_FETCH = "izin_last_fetch_time";
+export const IZIN_SEDAYU_GAS_URL = "https://script.google.com/macros/s/AKfycbzulnnHPTuqMZ6FwkLb1_3ZKgH5HzYvm1zgG1MaxYeXKKoT0BL6W89q8hDmChB5S94aHQ/exec";
+export const STORAGE_KEY_SANTRI_IZIN = "presensi_santri_izin_v5";
+export const STORAGE_KEY_LAST_FETCH = "izin_last_fetch_time";
 
 export interface IzinSedayuRow {
   idIzin: string;
@@ -37,7 +38,12 @@ export interface IzinSedayuRow {
 }
 
 // Convert Izin Sedayu raw row to Presensi SantriIzinRecord
-export function mapIzinSedayuToRecord(row: IzinSedayuRow): SantriIzinRecord {
+export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
+  // If already in Presensi SantriIzinRecord format
+  if (row.statusApproval || row.statusPKM || row.tglKeluarRencana) {
+    return row as SantriIzinRecord;
+  }
+
   const normalizeStatusApproval = (st: string): StatusApprovalSantri => {
     const s = (st || "").toUpperCase();
     if (s === "APPROVED" || s === "RETURNED" || s === "CHECKED_OUT") return "approved";
@@ -79,36 +85,49 @@ export function mapIzinSedayuToRecord(row: IzinSedayuRow): SantriIzinRecord {
     return m ? m[1].padStart(5, "0") : t;
   };
 
+  // Lookup in master santri dataset for accurate room/dormitory resolution
+  const rawName = (row.namaSantri || "").trim().toLowerCase();
+  const matchedSantri = ALL_SANTRI_DATA.find(s => {
+    if (!s.nama) return false;
+    const sName = s.nama.trim().toLowerCase();
+    return sName === rawName || sName.includes(rawName) || rawName.includes(sName);
+  });
+
+  const resolvedAsrama = matchedSantri?.asrama || (matchedSantri?.tingkat && parseInt(matchedSantri.tingkat) <= 2 ? "Asrama 1" : "Asrama 2") || "Asrama 1";
+  const resolvedKamar = matchedSantri?.kamar || "Kamar";
+  const resolvedKelas = row.kelas || matchedSantri?.kelasLengkap || "Kelas 1 A";
+  const resolvedNisn = matchedSantri?.nisn || "-";
+
   return {
-    id: row.idIzin || `izin-${Date.now()}`,
-    nomorSurat: row.idIzin || `IZN/${new Date().getFullYear()}/000`,
-    santriId: `santri-${(row.namaSantri || "").toLowerCase().replace(/\s+/g, "_")}`,
-    nisn: "-",
-    namaSantri: row.namaSantri || "Santri",
-    kelas: row.kelas || "Kelas Asrama",
-    asrama: "Kampus Asrama",
-    kamar: "Kamar",
-    namaWali: row.namaWali || "",
-    alamatWali: row.alamatWali || "",
-    namaPenjemput: row.namaPenjemput || row.namaWali || "",
+    id: row.idIzin || row.id || `IZN-${Date.now()}`,
+    nomorSurat: row.idIzin || row.nomorSurat || row.id || `IZN/${new Date().getFullYear()}/000`,
+    santriId: matchedSantri?.id || `santri-${(row.namaSantri || "").toLowerCase().replace(/\s+/g, "_")}`,
+    nisn: resolvedNisn,
+    namaSantri: row.namaSantri || matchedSantri?.nama || "Santri",
+    kelas: resolvedKelas,
+    asrama: resolvedAsrama,
+    kamar: resolvedKamar,
+    namaWali: row.namaWali || matchedSantri?.namaAyah || matchedSantri?.namaIbu || "",
+    alamatWali: row.alamatWali || matchedSantri?.alamat || "",
+    namaPenjemput: row.namaPenjemput || row.namaWali || matchedSantri?.namaAyah || "Mandiri",
     hubunganPenjemput: row.hubunganPenjemput || "Orang Tua (Ayah/Ibu)",
     rekomendasiPoskestren: row.rekomendasiPoskestren || "",
     jenisIzin: normalizeJenisIzin(row.jenisIzin),
     keperluan: row.keperluan || "Keperluan Santri",
-    alasanDetail: row.catatanAdmin || "",
-    tujuanLokasi: row.tujuan || row.tempatTujuan || "Tujuan Santri",
-    tglKeluarRencana: cleanDate(row.tanggalKeluar),
-    jamKeluarRencana: cleanTime(row.jamKeluar),
-    tglKembaliRencana: cleanDate(row.tanggalKembali),
-    jamKembaliRencana: cleanTime(row.jamKembali),
-    statusApproval: normalizeStatusApproval(row.status),
-    statusPKM: normalizeStatusPKM(row.status),
-    disetujuiOleh: row.pemberiIzin && row.pemberiIzin !== "-" ? row.pemberiIzin : undefined,
-    dibuatOleh: row.namaWali || "Wali Santri",
-    rolePembuat: "wali",
+    alasanDetail: row.catatanAdmin || row.alasanDetail || "",
+    tujuanLokasi: row.tujuan || row.tempatTujuan || row.tujuanLokasi || "Tujuan Santri",
+    tglKeluarRencana: cleanDate(row.tanggalKeluar || row.tglKeluarRencana),
+    jamKeluarRencana: cleanTime(row.jamKeluar || row.jamKeluarRencana),
+    tglKembaliRencana: cleanDate(row.tanggalKembali || row.tglKembaliRencana),
+    jamKembaliRencana: cleanTime(row.jamKembali || row.jamKembaliRencana),
+    statusApproval: normalizeStatusApproval(row.status || row.statusApproval),
+    statusPKM: normalizeStatusPKM(row.status || row.statusPKM),
+    disetujuiOleh: row.pemberiIzin && row.pemberiIzin !== "-" ? row.pemberiIzin : row.disetujuiOleh,
+    dibuatOleh: row.namaWali || row.dibuatOleh || "Wali Santri",
+    rolePembuat: row.rolePembuat || "wali",
     userEmail: row.userEmail || "",
-    createdAt: row.waktuPengajuan || new Date().toISOString(),
-    updatedAt: row.timestampUpdate || new Date().toISOString()
+    createdAt: row.waktuPengajuan || row.createdAt || new Date().toISOString(),
+    updatedAt: row.timestampUpdate || row.updatedAt || new Date().toISOString()
   };
 }
 
@@ -158,14 +177,15 @@ export function mapRecordToIzinSedayuPayload(rec: SantriIzinRecord): any {
 }
 
 // Fetch all permissions directly from Izin Sedayu Google Sheet with timeout & resilient fallback
+// Fetch all permissions directly from Google Sheet with timeout & resilient fallback
 export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
   const getCachedRecords = (): SantriIzinRecord[] => {
     try {
-      const cached = localStorage.getItem(STORAGE_KEY_IZIN_LIST);
+      const cached = localStorage.getItem(STORAGE_KEY_SANTRI_IZIN);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
-          return parsed.map((r: IzinSedayuRow) => mapIzinSedayuToRecord(r));
+          return parsed;
         }
       }
     } catch (_) {}
@@ -180,7 +200,7 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
   const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const res = await fetch(`${IZIN_SEDAYU_GAS_URL}?action=read`, {
+    const res = await fetch(`${IZIN_SEDAYU_GAS_URL}?action=get_table&table=SantriIzin`, {
       method: "GET",
       redirect: "follow",
       signal: controller.signal
@@ -193,9 +213,12 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
 
     const json = await res.json();
     if (json && json.data && Array.isArray(json.data)) {
-      const mapped = json.data.map((r: IzinSedayuRow) => mapIzinSedayuToRecord(r));
+      const mapped = json.data
+        .map((r: any) => mapIzinSedayuToRecord(r))
+        .filter((x: SantriIzinRecord) => Boolean(x.namaSantri && x.namaSantri.trim() !== ""));
+
       try {
-        localStorage.setItem(STORAGE_KEY_IZIN_LIST, JSON.stringify(json.data));
+        localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(mapped));
         if (json.meta?.lastModified) {
           localStorage.setItem(STORAGE_KEY_LAST_FETCH, String(json.meta.lastModified));
         }
@@ -210,9 +233,8 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
   return getCachedRecords();
 }
 
-// Create new permission in Izin Sedayu Google Sheet
+// Create new permission in Google Sheet
 export async function createIzinSedayuInCloud(rec: SantriIzinRecord): Promise<boolean> {
-  const payload = mapRecordToIzinSedayuPayload(rec);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -220,7 +242,11 @@ export async function createIzinSedayuInCloud(rec: SantriIzinRecord): Promise<bo
     const res = await fetch(IZIN_SEDAYU_GAS_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: "batch_upsert",
+        table: "SantriIzin",
+        records: [rec]
+      }),
       redirect: "follow",
       signal: controller.signal
     });
@@ -235,7 +261,7 @@ export async function createIzinSedayuInCloud(rec: SantriIzinRecord): Promise<bo
   }
 }
 
-// Update status in Izin Sedayu Google Sheet
+// Update status in Google Sheet
 export async function updateIzinSedayuStatusInCloud(
   idIzin: string,
   status: "PENDING" | "APPROVED" | "REJECTED" | "CHECKED_OUT" | "RETURNED",
@@ -244,24 +270,37 @@ export async function updateIzinSedayuStatusInCloud(
   userEmail?: string,
   userRole?: string
 ): Promise<boolean> {
-  const payload = {
-    action: "update",
-    idIzin: idIzin,
-    status: status,
-    catatan: catatan || "",
-    pemberiIzin: pemberiIzin || "Ustadz Pembina",
-    userEmail: userEmail || "musyrif.muallimin@gmail.com",
-    userRole: userRole || "MUSYRIF"
-  };
-
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
+    const cached = localStorage.getItem(STORAGE_KEY_SANTRI_IZIN);
+    let targetRecord: SantriIzinRecord | null = null;
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      targetRecord = Array.isArray(parsed) ? parsed.find((x: any) => x.id === idIzin || x.nomorSurat === idIzin) : null;
+    }
+
+    const payloadRecord = targetRecord ? {
+      ...targetRecord,
+      statusApproval: (status === "APPROVED" || status === "RETURNED" || status === "CHECKED_OUT") ? "approved" : status === "REJECTED" ? "rejected" : "pending_musyrif",
+      statusPKM: status === "CHECKED_OUT" ? "di_luar" : status === "RETURNED" ? "kembali_tepat_waktu" : "menunggu_keluar",
+      disetujuiOleh: pemberiIzin || targetRecord.disetujuiOleh,
+      updatedAt: new Date().toISOString()
+    } : {
+      id: idIzin,
+      statusApproval: status === "APPROVED" ? "approved" : "rejected",
+      updatedAt: new Date().toISOString()
+    };
+
     const res = await fetch(IZIN_SEDAYU_GAS_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: "batch_upsert",
+        table: "SantriIzin",
+        records: [payloadRecord]
+      }),
       redirect: "follow",
       signal: controller.signal
     });

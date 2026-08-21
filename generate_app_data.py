@@ -308,7 +308,95 @@ for s in all_students:
     output += f'    "statusSantri": "{s["statusSantri"]}"\n'
     output += '  },\n'
 
-output += '];\n'
+output += '''];
+
+export function searchSantri(query: string, limit: number = 10): SantriData[] {
+  if (!query || query.trim().length === 0) return [];
+  const q = query.toLowerCase().trim();
+  const results: SantriData[] = [];
+  for (let i = 0; i < ALL_SANTRI_DATA.length; i++) {
+    const s = ALL_SANTRI_DATA[i];
+    if (
+      s.nama.toLowerCase().includes(q) ||
+      s.nisn.includes(q) ||
+      s.nis.includes(q) ||
+      s.kelasLengkap.toLowerCase().includes(q)
+    ) {
+      results.push(s);
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
+}
+
+export function getSantriForMusyrif(asrama?: string, kamar?: string, kelas?: string): SantriData[] {
+  return ALL_SANTRI_DATA.filter(s => {
+    if (kelas && s.kelasLengkap.toLowerCase() === kelas.toLowerCase()) return true;
+    if (asrama && (s as any).asrama === asrama) {
+      if (kamar) return (s as any).kamar === kamar;
+      return true;
+    }
+    return false;
+  });
+}
+
+export function normalizeClassName(className: string): string {
+  return className.trim().replace(/\\s+/g, " ");
+}
+
+export interface SiblingInfo {
+  sesi: SantriData;
+  siblingOf: SantriData[];
+  key: string;
+}
+
+export function getClassMetadata(kelas: string) {
+  const parts = kelas.trim().split(" ");
+  const tingkat = parts[0] || "1";
+  const paralel = parts[1] || "A";
+  const num = parseInt(tingkat, 10);
+  const jenjang = num <= 3 ? "MTs" : "MA";
+  return { tingkat, paralel, jenjang };
+}
+
+export function getSantriStats(data: SantriData[] = ALL_SANTRI_DATA) {
+  const total = data.length;
+  const mts = data.filter(s => parseInt(s.tingkat, 10) <= 3).length;
+  const ma = data.filter(s => parseInt(s.tingkat, 10) >= 4).length;
+  return { total, mts, ma };
+}
+
+export function buildSiblingMap(data: SantriData[] = ALL_SANTRI_DATA): Map<string, SiblingInfo> {
+  const map = new Map<string, SiblingInfo>();
+  const phoneToSantri = new Map<string, SantriData[]>();
+
+  data.forEach(s => {
+    const phones = [s.telpAyah, s.telpIbu, s.telpWali].filter(p => Boolean(p && p.length >= 8));
+    phones.forEach(p => {
+      const list = phoneToSantri.get(p!) || [];
+      list.push(s);
+      phoneToSantri.set(p!, list);
+    });
+  });
+
+  phoneToSantri.forEach((santris, key) => {
+    if (santris.length > 1) {
+      santris.forEach(s => {
+        const others = santris.filter(x => x.id !== s.id && x.nisn !== s.nisn);
+        if (others.length > 0) {
+          map.set(s.id || s.nisn, {
+            sesi: s,
+            siblingOf: others,
+            key
+          });
+        }
+      });
+    }
+  });
+
+  return map;
+}
+'''
 
 # Write to file
 with open('src/app/data/santriData.ts', 'w', encoding='utf-8') as f:
