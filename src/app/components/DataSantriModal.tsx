@@ -11,7 +11,7 @@ import {
 import {
   ALL_SANTRI_DATA, SantriData, getSantriStats, normalizeClassName,
   LIST_ALL_KELAS_GROUPED, LIST_ALL_KELAS_FLAT, getClassMetadata,
-  buildSiblingMap, SiblingInfo
+  buildSiblingMap, SiblingItem
 } from "../data/santriData";
 import { SantriChangeRequest, SantriRequestType } from "../types/santriRequest";
 import { motion, AnimatePresence } from "motion/react";
@@ -70,10 +70,16 @@ export function DataSantriModal({
       if (!rawClass || rawClass.toLowerCase().includes("multi") || rawClass.toLowerCase().includes("semua")) {
         return santriList;
       }
-      const normClass = normalizeClassName(rawClass).toLowerCase();
+
+      // Split multiple classes if musyrif handles more than 1 class (e.g. "5 Upper C & 6 Internasional")
+      const targetClasses = rawClass
+        .split(/[&,/+]+/)
+        .map(c => normalizeClassName(c).toLowerCase().trim())
+        .filter(Boolean);
+
       return santriList.filter(s => {
-        const sNorm = normalizeClassName(s.kelasLengkap || "").toLowerCase();
-        return sNorm === normClass || sNorm.includes(normClass) || normClass.includes(sNorm);
+        const sNorm = normalizeClassName(s.kelasLengkap || "").toLowerCase().trim();
+        return targetClasses.some(tc => sNorm === tc || sNorm.includes(tc) || tc.includes(sNorm));
       });
     }
 
@@ -89,15 +95,16 @@ export function DataSantriModal({
       const classesInAsrama = new Set<string>();
       musyrifList.forEach(m => {
         if (m.asrama && validAsramas.includes(m.asrama) && m.kelas && !m.kelas.toLowerCase().includes("multi")) {
-          classesInAsrama.add(normalizeClassName(m.kelas).toLowerCase());
+          const splitClasses = m.kelas.split(/[&,/+]+/).map(c => normalizeClassName(c).toLowerCase().trim()).filter(Boolean);
+          splitClasses.forEach(sc => classesInAsrama.add(sc));
         }
       });
 
       if (classesInAsrama.size === 0) return santriList;
 
       return santriList.filter(s => {
-        const sNorm = normalizeClassName(s.kelasLengkap || "").toLowerCase();
-        return classesInAsrama.has(sNorm);
+        const sNorm = normalizeClassName(s.kelasLengkap || "").toLowerCase().trim();
+        return Array.from(classesInAsrama).some(ca => sNorm === ca || sNorm.includes(ca) || ca.includes(sNorm));
       });
     }
 

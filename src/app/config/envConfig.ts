@@ -15,16 +15,23 @@ export const ADMIN_SCRUD_EMAILS = (import.meta.env.VITE_ADMIN_SCRUD_EMAILS || "a
 
 // Pamong Assignment by ID - Maps pamong user ID to their assigned asramas
 export const PAMONG_ASRAMA_ASSIGNMENTS: Record<string, string[]> = {
-  // Add pamong ID mappings here
-  // Format: "user-id": ["Asrama 1", "Asrama 2"]
+  p5: ["Asrama Sedayu Gedung A", "Asrama Sedayu Gedung B", "Asrama Sedayu Gedung C", "Asrama Sedayu Gedung D"],
+  p6: ["Asrama Sedayu Gedung A", "Asrama Sedayu Gedung B", "Asrama Sedayu Gedung C", "Asrama Sedayu Gedung D"],
+  p7: ["Asrama Sedayu Gedung A", "Asrama Sedayu Gedung B", "Asrama Sedayu Gedung C", "Asrama Sedayu Gedung D"],
+  p8: ["Asrama Sedayu Gedung A", "Asrama Sedayu Gedung B", "Asrama Sedayu Gedung C", "Asrama Sedayu Gedung D"],
 };
 
 // Special pamong cases - name-based fallback (only for existing users during transition)
 export const PAMONG_NAME_FALLBACK: Record<string, { names: string[]; emails: string[]; asramas: string[] }> = {
   sedayu: {
-    names: [], // Add names here for sedayu pamong
-    emails: [], // Add emails here
-    asramas: ["Asrama Sedayu 1", "Asrama Sedayu 2"], // Adjust as needed
+    names: ["rais", "ahnaf", "marzuq", "ismail", "ariel", "amarta"],
+    emails: ["raiscutis@gmail.com", "cutisrais@gmail.com", "ahnaflubab@muallimin.sch.id", "izmaelpoenya04@gmail.com", "arilamarta@gmail.com"],
+    asramas: [
+      "Asrama Sedayu Gedung A",
+      "Asrama Sedayu Gedung B",
+      "Asrama Sedayu Gedung C",
+      "Asrama Sedayu Gedung D",
+    ],
   },
   anang: {
     names: ["anang"],

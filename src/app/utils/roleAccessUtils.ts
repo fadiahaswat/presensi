@@ -56,9 +56,15 @@ export function getPamongAssignedAsramas(user: AuthUser): string[] {
   const emailLower = user.email?.toLowerCase() || "";
   const asramaLower = user.asrama?.toLowerCase() || "";
 
-  // Check Sedayu (asrama-based)
+  // Check Sedayu (asrama-based, name-based, or email-based)
   if (asramaLower.includes("sedayu")) {
     return PAMONG_NAME_FALLBACK.sedayu?.asramas || [];
+  }
+  for (const name of PAMONG_NAME_FALLBACK.sedayu?.names || []) {
+    if (nameLower.includes(name)) return PAMONG_NAME_FALLBACK.sedayu.asramas;
+  }
+  for (const email of PAMONG_NAME_FALLBACK.sedayu?.emails || []) {
+    if (emailLower.includes(email)) return PAMONG_NAME_FALLBACK.sedayu.asramas;
   }
 
   // Check Anang
@@ -95,7 +101,10 @@ export function getPamongType(user: AuthUser): {
   const emailLower = user.email?.toLowerCase() || "";
   const asramaLower = user.asrama?.toLowerCase() || "";
 
-  const isSedayuPamong = asramaLower.includes("sedayu");
+  const isSedayuPamong = asramaLower.includes("sedayu") ||
+    PAMONG_NAME_FALLBACK.sedayu?.names?.some((n) => nameLower.includes(n)) ||
+    PAMONG_NAME_FALLBACK.sedayu?.emails?.some((e) => emailLower.includes(e)) ||
+    false;
   const isPamongAnang = PAMONG_NAME_FALLBACK.anang?.names?.some((n) => nameLower.includes(n)) ||
     PAMONG_NAME_FALLBACK.anang?.emails?.some((e) => emailLower.includes(e)) ||
     false;
