@@ -226,6 +226,39 @@ function getMeccaDist(lat: number, lon: number) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NICKNAME / PANGGILAN HELPER (Ust. [CallName])
+// ─────────────────────────────────────────────────────────────────────────────
+export function getMusyrifCallName(rawName?: string | null): string {
+  if (!rawName) return "";
+
+  // 1. Remove academic degrees and suffixes after comma, e.g. "Arif Rahman, S.s." -> "Arif Rahman"
+  let clean = rawName.split(",")[0].trim();
+  
+  // Clean standalone degree abbreviations if comma wasn't used
+  clean = clean.replace(/\b(S\.Pd|S\.Sos|Lc|S\.s|S\.T|S\.Kom|M\.Pd|M\.Ag|M\.A|S\.Ag|Ph\.D)\b\.?/gi, "").trim();
+
+  // 2. Remove leading religious title prefix if already included in data (Ustadz / Ustaz / Ustad / Ust.)
+  clean = clean.replace(/^(ustadz|ustaz|ustad|ust\.|ust)\s+/i, "").trim();
+
+  // 3. Check for "Andi" prefix (honorific Bugis/Makassar) -> take "Andi" + next word
+  const andiMatch = clean.match(/^andi\s+([^\s]+)/i);
+  if (andiMatch) {
+    return `Andi ${andiMatch[1]}`;
+  }
+
+  // 4. Strip common Islamic prefixes/initials (Muhammad, Ahmad, M., Moh., etc.)
+  let previous = "";
+  while (previous !== clean && /^(muhammad|muhamad|mohammad|mohamad|muh\.|muh|m\.|md\.|moh\.|moh|ahmad|achmad|akhmad|ah\.)\s+/i.test(clean)) {
+    previous = clean;
+    clean = clean.replace(/^(muhammad|muhamad|mohammad|mohamad|muh\.|muh|m\.|md\.|moh\.|moh|ahmad|achmad|akhmad|ah\.)\s+/i, "").trim();
+  }
+
+  // 5. Take the first remaining word
+  const words = clean.split(/\s+/).filter(Boolean);
+  return words[0] || rawName.split(/\s+/)[0] || "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MOCK DATA
 // ─────────────────────────────────────────────────────────────────────────────
 const ASRAMAS = [
@@ -713,7 +746,7 @@ function PageDashboard({
           {/* Middle: Full-width Greeting */}
           <div>
             <h1 className="text-white text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight">
-              {authUser ? `Ahlan, Ustadz ${authUser.name.split(" ")[0]}!` : "Presensi Musyrif"}
+              {authUser ? `Ahlan, Ustaz ${getMusyrifCallName(authUser.name)}!` : "Presensi Musyrif"}
             </h1>
             <p className="text-emerald-200/90 text-xs sm:text-sm font-medium mt-0.5">
               {format(now, "EEEE, d MMMM yyyy", { locale: id })}
@@ -6212,7 +6245,7 @@ export default function App() {
     try {
       localStorage.setItem("presensi_auth_user", JSON.stringify(u));
     } catch {}
-    showToast(`Selamat datang, Ustadz ${u.name.split(" ")[0]}!`);
+    showToast(`Selamat datang, Ustaz ${getMusyrifCallName(u.name)}!`);
     setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
     // Immediately sync all data from Sheet after login
     googleSyncService.fetchAllFromCloud();
@@ -7078,7 +7111,7 @@ export default function App() {
                   <div className="flex items-center gap-1.5 pr-2">
                     <Av name={authUser.name} src={authUser.picture} sz="xs" />
                     <span className="text-xs font-semibold text-slate-700 truncate max-w-[90px]">
-                      {authUser.name.split(" ")[0]}
+                      {getMusyrifCallName(authUser.name)}
                     </span>
                   </div>
                   <button 
