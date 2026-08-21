@@ -57,8 +57,12 @@ export function SantriSakitModal({
   onDeleteSantriSakit,
   isPage = false
 }: SantriSakitModalProps) {
+  const isKoor = authUser?.role === "koordinator_musyrif";
+  const isPamong = authUser?.role === "pamong";
   const isMusyrif = authUser?.role === "musyrif";
-  const isScopedRole = isMusyrif || authUser?.role === "pamong" || authUser?.role === "koordinator_gedung";
+  const isKoorGedung = authUser?.role === "koordinator_gedung";
+  const isClassScoped = isMusyrif || isKoorGedung; // hanya bisa lihat santri kelasnya
+  const isScopedRole = isPamong || isClassScoped;
   const userAsramaSakit = authUser?.asrama || "all";
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterAsrama, setFilterAsrama] = useState<string>(isScopedRole && authUser?.asrama ? authUser.asrama : "all");
@@ -165,8 +169,17 @@ export function SantriSakitModal({
     resetForm();
   };
 
-  // Filtered List
+  // Filtered List — scope by role first
   const filteredList = santriSakitList.filter(item => {
+    // Role-based scoping
+    if (isPamong) {
+      if (item.asrama !== authUser?.asrama) return false;
+    } else if (isClassScoped) {
+      // musyrif / koordinator_gedung → hanya kelasnya
+      if (item.musyrifId !== (authUser?.musyrifId || authUser?.id)) return false;
+    }
+    // koor → semua santri, tidak perlu filter tambahan
+
     const matchAsrama = filterAsrama === "all" || item.asrama === filterAsrama;
     const matchStatus = filterStatus === "all" || item.status === filterStatus;
     const q = searchQuery.toLowerCase();
@@ -177,7 +190,12 @@ export function SantriSakitModal({
     return matchAsrama && matchStatus && matchSearch;
   });
 
-  const activeSickCount = santriSakitList.filter(s => s.status === "dalam_perawatan").length;
+  const activeSickCount = (() => {
+    const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
+    if (isPamong) return active.filter(s => s.asrama === authUser?.asrama).length;
+    if (isClassScoped) return active.filter(s => s.musyrifId === (authUser?.musyrifId || authUser?.id)).length;
+    return active.length; // koor/all
+  })();
 
   const getLocationBadge = (loc: string) => {
     switch (loc) {
@@ -484,23 +502,30 @@ export function SantriSakitModal({
           </div>
 
           <div className="flex items-center gap-2">
-            <select
-              value={filterAsrama}
-              onChange={(e) => setFilterAsrama(e.target.value)}
-              disabled={isScopedRole}
-              className={`text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 outline-none ${isScopedRole ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-            >
-              {!isScopedRole && <option value="all">Semua Asrama</option>}
-              <option value="Asrama 1">Asrama 1</option>
-              <option value="Asrama 8A">Asrama 8A</option>
-              <option value="Asrama 8B">Asrama 8B</option>
-              <option value="Asrama 8C">Asrama 8C</option>
-              <option value="Asrama 10">Asrama 10</option>
-              <option value="Asrama Sedayu Gedung A">Sedayu Gedung A</option>
-              <option value="Asrama Sedayu Gedung B">Sedayu Gedung B</option>
-              <option value="Asrama Sedayu Gedung C">Sedayu Gedung C</option>
-              <option value="Asrama Sedayu Gedung D">Sedayu Gedung D</option>
-            </select>
+            {isClassScoped ? (
+              <span className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                <span>Kelas</span>
+                <span className="font-mono">{musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id))?.kelas || authUser?.asrama || "-"}</span>
+              </span>
+            ) : (
+              <select
+                value={filterAsrama}
+                onChange={(e) => setFilterAsrama(e.target.value)}
+                disabled={isPamong}
+                className={`text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 outline-none ${isPamong ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                {!isPamong && <option value="all">Semua Asrama</option>}
+                <option value="Asrama 1">Asrama 1</option>
+                <option value="Asrama 8A">Asrama 8A</option>
+                <option value="Asrama 8B">Asrama 8B</option>
+                <option value="Asrama 8C">Asrama 8C</option>
+                <option value="Asrama 10">Asrama 10</option>
+                <option value="Asrama Sedayu Gedung A">Sedayu Gedung A</option>
+                <option value="Asrama Sedayu Gedung B">Sedayu Gedung B</option>
+                <option value="Asrama Sedayu Gedung C">Sedayu Gedung C</option>
+                <option value="Asrama Sedayu Gedung D">Sedayu Gedung D</option>
+              </select>
+            )}
 
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
               <button

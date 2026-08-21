@@ -1218,7 +1218,16 @@ function PageDashboard({
 
               {/* Widget 2: Pantauan Santri Sakit (UKS & PKU) dengan Daftar Santri */}
               {(() => {
-                const activeSakit = (santriSakitList || []).filter(s => s.statusRawat !== "sembuh").slice(0, 2);
+                // Scope sakit list based on role
+                const rawSakit = (santriSakitList || []).filter(s => s.status === "dalam_perawatan");
+                const scopedSakit = authUser?.role === "koordinator_musyrif"
+                  ? rawSakit
+                  : authUser?.role === "pamong"
+                    ? rawSakit.filter(s => s.asrama === authUser?.asrama)
+                    : (authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung")
+                      ? rawSakit.filter(s => s.musyrifId === (authUser?.musyrifId || authUser?.id))
+                      : rawSakit;
+                const activeSakit = scopedSakit.slice(0, 2);
                 return (
                   <div
                     onClick={() => onGoTo("santri-sakit")}
@@ -1236,9 +1245,9 @@ function PageDashboard({
                           </div>
                         </div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                          activeSantriSakitCount > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          scopedSakit.length > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                         }`}>
-                          {activeSantriSakitCount > 0 ? `${activeSantriSakitCount} Santri` : "Nihil ✓"}
+                          {scopedSakit.length > 0 ? `${scopedSakit.length} Santri` : "Nihil ✓"}
                         </span>
                       </div>
 
@@ -1248,14 +1257,15 @@ function PageDashboard({
                             <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5">
                               <div className="min-w-0 flex-1">
                                 <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
-                                <p className="text-[10px] text-slate-400 truncate">{s.diagnosa || "Gejala Sakit"} • {s.asrama}</p>
+                                <p className="text-[10px] text-slate-400 truncate">{s.keluhan || "Gejala Sakit"} • {s.asrama}</p>
                               </div>
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                                s.statusRawat === "pku" ? "bg-rose-100 text-rose-800 font-bold" :
-                                s.statusRawat === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
+                                s.lokasiPerawatan === "rs_pku" ? "bg-rose-100 text-rose-800 font-bold" :
+                                s.lokasiPerawatan === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
+                                s.lokasiPerawatan === "pulang" ? "bg-purple-100 text-purple-800" :
                                 "bg-blue-100 text-blue-800"
                               }`}>
-                                {s.statusRawat === "pku" ? "PKU" : s.statusRawat === "uks" ? "UKS" : "Kamar"}
+                                {s.lokasiPerawatan === "rs_pku" ? "PKU" : s.lokasiPerawatan === "uks" ? "UKS" : s.lokasiPerawatan === "pulang" ? "Pulang" : "Kamar"}
                               </span>
                             </div>
                           ))}
@@ -6245,7 +6255,15 @@ export default function App() {
     showToast("Data santri sakit dihapus", "info");
   };
 
-  const activeSantriSakitCount = santriSakitList.filter(s => s.status === "dalam_perawatan").length;
+  const activeSantriSakitCount = (() => {
+    const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
+    if (authUser?.role === "koordinator_musyrif") return active.length;
+    if (authUser?.role === "pamong") return active.filter(s => s.asrama === authUser?.asrama).length;
+    if (authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung") {
+      return active.filter(s => s.musyrifId === (authUser?.musyrifId || authUser?.id)).length;
+    }
+    return active.length;
+  })();
 
   // Reset All System Data (Wipe local states and clear Google Sheet tabs)
   const handleResetAll = async () => {
