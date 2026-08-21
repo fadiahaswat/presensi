@@ -1488,87 +1488,9 @@ function PageDashboard({
               );
             })()}
 
-            {/* Musyrif Role Services Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-              {/* 1. Perizinan Santri Asrama */}
-              <button
-                type="button"
-                onClick={() => onOpenSantriIzin ? onOpenSantriIzin() : onGoTo("izin-santri")}
-                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-violet-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
-                    <FileCheck2 className="w-4 h-4"/>
-                  </div>
-                  <span className="text-[10px] font-bold text-violet-800 bg-violet-50 border border-violet-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                    Santri
-                  </span>
-                </div>
-                <div>
-                  <p className="font-bold text-xs text-slate-800 leading-tight">Perizinan Santri</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Izin keluar & pulang</p>
-                </div>
-              </button>
-
-              {/* 2. Jurnal Logbook Harian */}
-              <button
-                type="button"
-                onClick={() => onGoTo("logbook")}
-                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                    <ClipboardList className="w-4 h-4"/>
-                  </div>
-                  <span className="text-[10px] font-bold text-indigo-700 font-mono">11 Tugas</span>
-                </div>
-                <div>
-                  <p className="font-bold text-xs text-slate-800 leading-tight">Jurnal Logbook</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Patroli & checklist</p>
-                </div>
-              </button>
-
-              {/* 3. Laporan Santri Sakit */}
-              <button
-                type="button"
-                onClick={() => onGoTo("santri-sakit")}
-                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-rose-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
-                    <HeartPulse className="w-4 h-4" />
-                  </div>
-                  {activeSantriSakitCount > 0 && (
-                    <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full font-mono animate-pulse">
-                      {activeSantriSakitCount} Sakit
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <p className="font-bold text-xs text-slate-800 leading-tight">Santri Sakit</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Poskestren & rawat</p>
-                </div>
-              </button>
-
-              {/* 4. Mutaba'ah Yaumiyah */}
-              <button
-                type="button"
-                onClick={() => onGoTo("mutabaah")}
-                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-700 font-mono">Sunnah</span>
-                </div>
-                <div>
-                  <p className="font-bold text-xs text-slate-800 leading-tight">Mutaba'ah</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Tahajjud & tilawah</p>
-                </div>
-              </button>
-
-              {/* 5. Riwayat Presensi Pribadi */}
+            {/* Musyrif Role Services Grid - Fitur Pelengkap Tanpa Duplikasi */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+              {/* 1. Riwayat Presensi Pribadi */}
               <button
                 type="button"
                 onClick={() => onGoTo("riwayat")}
@@ -1586,7 +1508,7 @@ function PageDashboard({
                 </div>
               </button>
 
-              {/* 6. Pengajuan Izin Musyrif Pribadi */}
+              {/* 2. Pengajuan Izin Musyrif Pribadi */}
               <button
                 type="button"
                 onClick={() => onGoTo("izin")}
@@ -1604,7 +1526,7 @@ function PageDashboard({
                 </div>
               </button>
 
-              {/* 7. Leaderboard */}
+              {/* 3. Leaderboard 4 Pilar */}
               <button
                 type="button"
                 onClick={() => onGoTo("leaderboard")}
@@ -1622,7 +1544,7 @@ function PageDashboard({
                 </div>
               </button>
 
-              {/* 8. Jadwal Shalat & Arah Kiblat */}
+              {/* 4. Jadwal Shalat & Arah Kiblat */}
               <button
                 type="button"
                 onClick={() => onGoTo("ibadah")}
@@ -1640,7 +1562,7 @@ function PageDashboard({
                 </div>
               </button>
 
-              {/* 9. Kalender Hijriah KHGT */}
+              {/* 5. Kalender Hijriah KHGT */}
               <button
                 type="button"
                 onClick={onOpenKalenderHijriah}
@@ -1658,7 +1580,7 @@ function PageDashboard({
                 </div>
               </button>
 
-              {/* 10. Kalender Pendidikan & Perpulangan */}
+              {/* 6. Kalender Pendidikan & Perpulangan */}
               <button
                 type="button"
                 onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
@@ -1768,32 +1690,6 @@ function PageDashboard({
                   </div>
                 </button>
 
-                {/* 5. Perizinan Santri Asrama - Violet */}
-                <button
-                  type="button"
-                  onClick={() => onOpenSantriIzin ? onOpenSantriIzin() : onGoTo("izin-santri")}
-                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-violet-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-7 h-7 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
-                      <FileCheck2 className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[10px] font-bold text-violet-800 bg-violet-50 border border-violet-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                      PKM
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-xs text-slate-800 leading-tight flex items-center gap-1">
-                      Perizinan Santri
-                      {activeSantriIzinCount > 0 && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                      )}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                      {activeSantriIzinCount > 0 ? `${activeSantriIzinCount} aktif / pending` : "Keluar & pulang asrama"}
-                    </p>
-                  </div>
-                </button>
 
                 {/* 6. Master Personel - Blue */}
                 {authUser?.role === "koordinator_musyrif" && (
