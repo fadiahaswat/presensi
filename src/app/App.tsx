@@ -59,7 +59,7 @@ type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
 type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri";
 
-interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; }
+interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
   id: string;
   name: string;
@@ -238,17 +238,17 @@ const ASRAMAS = [
 
 const AUTH_USERS: AuthUser[] = [
   // ─── KOORDINATOR MUSYRIF ───
-  { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com", role:"koordinator_musyrif" },
+  { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com", role:"koordinator_musyrif", phone:"6285339213109" },
 
   // ─── PAMONG ASRAMA ───
-  { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galangmuhammady@muallimin.sch.id", role:"pamong", asrama:"Asrama 1" },
-  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"auliaabdan@muallimin.sch.id",      role:"pamong", asrama:"Asrama 8A & 8C Kelas 6" },
-  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"abukaysan86@gmail.com",            role:"pamong", asrama:"Asrama 8B & 8C Kelas 5" },
-  { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggitprabowo13@gmail.com",        role:"pamong", asrama:"Asrama 10" },
-  { id:"p5",  name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com, cutisrais@gmail.com", role:"pamong", asrama:"Asrama Sedayu Gedung A" },
-  { id:"p6",  name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaflubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B" },
-  { id:"p7",  name:"M. Ismail Marzuq, S.Sos.",          email:"izmaelpoenya04@gmail.com",         role:"pamong", asrama:"Asrama Sedayu Gedung C" },
-  { id:"p8",  name:"Ariel Amarta Dzikrillah, S.Sos.",   email:"arilamarta@gmail.com",             role:"pamong", asrama:"Asrama Sedayu Gedung D" },
+  { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galangmuhammady@muallimin.sch.id", role:"pamong", asrama:"Asrama 1",                   phone:"6287711559827" },
+  { id:"p2",  name:"Aulia Abdan Idza Shalla, S.Th.I.",  email:"auliaabdan@muallimin.sch.id",      role:"pamong", asrama:"Asrama 8A & 8C Kelas 6",      phone:"6285725891945" },
+  { id:"p3",  name:"Anang Fathurrahman, Lc.",           email:"abukaysan86@gmail.com",            role:"pamong", asrama:"Asrama 8B & 8C Kelas 5",      phone:"6281804181182" },
+  { id:"p4",  name:"Inggit Prabowo, S.Pd.",             email:"inggitprabowo13@gmail.com",        role:"pamong", asrama:"Asrama 10",                   phone:"6285377407742" },
+  { id:"p5",  name:"Rais Yudhistira, Lc.",              email:"raiscutis@gmail.com, cutisrais@gmail.com", role:"pamong", asrama:"Asrama Sedayu Gedung A", phone:"6281399548580" },
+  { id:"p6",  name:"Muh. Ahnaf Lubab, M.Pd.",           email:"ahnaflubab@muallimin.sch.id",      role:"pamong", asrama:"Asrama Sedayu Gedung B",      phone:"6285779006160" },
+  { id:"p7",  name:"M. Ismail Marzuq, S.Sos.",          email:"izmaelpoenya04@gmail.com",         role:"pamong", asrama:"Asrama Sedayu Gedung C",      phone:"6285326693918" },
+  { id:"p8",  name:"Ariel Amarta Dzikrillah, S.Sos.",   email:"arilamarta@gmail.com",             role:"pamong", asrama:"Asrama Sedayu Gedung D",      phone:"6285848589328" },
 ];
 
 const MUSYRIF_LIST: Musyrif[] = [
@@ -310,8 +310,8 @@ const MUSYRIF_LIST: Musyrif[] = [
   // ─── ASRAMA 8C & 8B KELAS 5 (Pamong: Anang Fathurrahman, Lc.) ───
   { id:"m41", name:"Wildan Faalul Abror",          role:"musyrif",            kelas:"5 A",         tingkat:"Kelas 5", asrama:"Asrama 8C",              kamar:"5 A",         pamong:"Anang Fathurrahman, Lc.",             email:"wildanabror00@gmail.com",         phone:"6281233318388" },
   { id:"m42", name:"Rahmat Khoirul Anwar, S.Psi.", role:"musyrif",            kelas:"5 B",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 B",         pamong:"Anang Fathurrahman, Lc.",             email:"rahmatkhoirulanwar23@gmail.com",  phone:"6285335241954" },
-  { id:"m43", name:"Muhammad Rafi Feriansyah",     role:"musyrif",            kelas:"5 C",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 C",         pamong:"Anang Fathurrahman, Lc.",             email:"",                                phone:"62881025797090" },
-  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"62882003685998" },
+  { id:"m43", name:"Muhammad Rafi Feriansyah",     role:"musyrif",            kelas:"5 C",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 C",         pamong:"Anang Fathurrahman, Lc.",             email:"cadanganrafi02@gmail.com",        phone:"62881025797090" },
+  { id:"m44", name:"Muhammad Syahrul Mubarok",     role:"musyrif",            kelas:"5 D",         tingkat:"Kelas 5", asrama:"Asrama 8B",              kamar:"5 D",         pamong:"Anang Fathurrahman, Lc.",             email:"m.syahrulmobar06@gmail.com",      phone:"6285236300512" },
 
   // ─── ASRAMA 10 (Pamong: Inggit Prabowo, S.Pd.) ───
   { id:"m45", name:"Dymas Naufal El Fawaz",        role:"musyrif",            kelas:"5 E",         tingkat:"Kelas 5", asrama:"Asrama 10",              kamar:"5 E",         pamong:"Inggit Prabowo, S.Pd.",               email:"dymasn@muallimin.sch.id",         phone:"6285117732302" },
@@ -4686,19 +4686,39 @@ function LoginModal({
   onLogin, 
   authUsers = AUTH_USERS, 
   musyrifList = MUSYRIF_LIST,
-  musyrifSource
+  musyrifSource,
+  onInjectMaster,
 }: { 
   onClose: () => void; 
   onLogin: (u: AuthUser) => void; 
   authUsers?: AuthUser[]; 
   musyrifList?: Musyrif[];
   musyrifSource?: Musyrif[];
+  onInjectMaster?: () => void;
 }) {
   const [errorMsg, setErrorMsg]     = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
+  const [isInjecting, setIsInjecting] = useState(false);
+  const [injectDone, setInjectDone] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const gisInitializedRef = useRef(false);
+
+  const handleInject = () => {
+    if (!onInjectMaster || isInjecting) return;
+    setIsInjecting(true);
+    setInjectDone(false);
+    try {
+      onInjectMaster();
+      setTimeout(() => {
+        setIsInjecting(false);
+        setInjectDone(true);
+        setTimeout(() => setInjectDone(false), 3000);
+      }, 1500);
+    } catch {
+      setIsInjecting(false);
+    }
+  };
 
   const ROLE_LABELS: Record<string, string> = {
     koordinator_musyrif: "Koord. Musyrif",
@@ -4718,9 +4738,8 @@ function LoginModal({
       return;
     }
 
-    // 1. Check in authUsers (Pamong, Koordinator Musyrif, Koordinator Asrama)
-    const activeAuthList = (authUsers && authUsers.length > 0) ? authUsers : AUTH_USERS;
-    const foundAuth = activeAuthList.find(u => matchesEmail(u.email, clean));
+    // 1. Selalu cek hardcoded AUTH_USERS dulu (tidak bergantung cloud)
+    const foundAuth = AUTH_USERS.find(u => matchesEmail(u.email, clean));
     if (foundAuth) {
       const userToLogin: AuthUser = {
         ...foundAuth,
@@ -4734,8 +4753,44 @@ function LoginModal({
       return;
     }
 
-    // 2. Check in dynamic musyrifList (contains Musyrif, Pamong, Koordinator with assigned roles)
-    const currentList = musyrifSource || musyrifList || MUSYRIF_LIST;
+    // 2. Selalu cek hardcoded MUSYRIF_LIST dulu (tidak bergantung cloud)
+    const foundInHardcoded = MUSYRIF_LIST.find(m => matchesEmail(m.email, clean));
+    if (foundInHardcoded) {
+      const assignedRole: Role = (foundInHardcoded.role as Role) || "musyrif";
+      const userToLogin: AuthUser = {
+        id: foundInHardcoded.id,
+        name: foundInHardcoded.name,
+        email: clean,
+        role: assignedRole,
+        asrama: foundInHardcoded.asrama,
+        musyrifId: foundInHardcoded.id,
+        picture: googlePicture,
+      };
+      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundInHardcoded.name} (${ROLE_LABELS[assignedRole] || "Musyrif"})...`);
+      setTimeout(() => {
+        onLogin(userToLogin);
+        onClose();
+      }, 500);
+      return;
+    }
+
+    // 3. Fallback: cek cloud data (authUsers & musyrifList dari Google Sheets)
+    const cloudAuthList = (authUsers && authUsers.length > 0) ? authUsers : [];
+    const foundCloudAuth = cloudAuthList.find(u => matchesEmail(u.email, clean));
+    if (foundCloudAuth) {
+      const userToLogin: AuthUser = {
+        ...foundCloudAuth,
+        picture: googlePicture || foundCloudAuth.picture,
+      };
+      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundCloudAuth.name} (${ROLE_LABELS[foundCloudAuth.role] || "Pengelola"})...`);
+      setTimeout(() => {
+        onLogin(userToLogin);
+        onClose();
+      }, 500);
+      return;
+    }
+
+    const currentList = musyrifSource || musyrifList || [];
     const foundInList = currentList.find(m => matchesEmail(m.email, clean));
     if (foundInList) {
       const assignedRole: Role = (foundInList.role as Role) || "musyrif";
@@ -4924,10 +4979,27 @@ function LoginModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-center text-[11px] text-slate-400">
-          <span className="flex items-center gap-1">
+        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1 text-[11px] text-slate-400">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600"/> Whitelist Terproteksi
           </span>
+          {onInjectMaster && (
+            <button
+              type="button"
+              onClick={handleInject}
+              disabled={isInjecting}
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-60"
+              style={{ background: injectDone ? "#d1fae5" : "#f1f5f9", color: injectDone ? "#065f46" : "#475569" }}
+            >
+              {isInjecting ? (
+                <><RefreshCw className="w-3 h-3 animate-spin"/> Memulihkan...</>
+              ) : injectDone ? (
+                <><CheckCircle2 className="w-3 h-3 text-emerald-600"/> Berhasil!</>
+              ) : (
+                <><RefreshCw className="w-3 h-3"/> Pulihkan Data</>
+              )}
+            </button>
+          )}
         </div>
 
       </motion.div>
@@ -5672,6 +5744,27 @@ export default function App() {
 
   useEffect(()=>{ const t=setInterval(()=>setNow(getTrustedDate()),30000); return()=>clearInterval(t); },[]);
 
+  // ─── AUTO-INJECT MASTER DATA setiap 10 menit (khusus Koordinator Musyrif) ───
+  useEffect(() => {
+    if (authUser?.role !== "koordinator_musyrif") return;
+    const autoInject = () => {
+      DEFAULT_ALL_PERSONNEL.forEach(p => {
+        googleSyncService.enqueue("Musyrif", p, "upsert");
+      });
+      const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong").map(p => ({
+        id: p.id, name: p.name, email: p.email, role: "pamong" as Role, asrama: p.asrama
+      }));
+      pamongAuths.forEach(pa => {
+        googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, pa, "upsert");
+      });
+      googleSyncService.flushQueue();
+      setMusyrifList(DEFAULT_ALL_PERSONNEL);
+    };
+    autoInject(); // langsung inject saat login
+    const t = setInterval(autoInject, 10 * 60 * 1000); // setiap 10 menit
+    return () => clearInterval(t);
+  }, [authUser?.role]);
+
   const handleLogin = (u: AuthUser) => {
     setAuthUser(u);
     (window as any).__presensiAuthUserId__ = u.id;
@@ -5917,6 +6010,22 @@ export default function App() {
       setMusyrifList(DEFAULT_ALL_PERSONNEL);
       showToast("Data master resmi (56 Musyrif & 9 Pamong) berhasil dikirim dan disinkronkan ke Google Sheets!", "success");
     }
+  };
+
+  // Versi silent (tanpa dialog & tanpa role guard) — dipakai di tombol login modal
+  const handleSilentInjectMaster = () => {
+    DEFAULT_ALL_PERSONNEL.forEach(p => {
+      googleSyncService.enqueue("Musyrif", p, "upsert");
+    });
+    const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong").map(p => ({
+      id: p.id, name: p.name, email: p.email, role: "pamong" as Role, asrama: p.asrama
+    }));
+    pamongAuths.forEach(pa => {
+      googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, pa, "upsert");
+    });
+    googleSyncService.flushQueue();
+    setMusyrifList(DEFAULT_ALL_PERSONNEL);
+    showToast("Data master Musyrif & Pamong berhasil dipulihkan!", "success");
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
@@ -6744,6 +6853,7 @@ export default function App() {
             onLogin={handleLogin}
             authUsers={authUsers}
             musyrifList={musyrifList}
+            onInjectMaster={handleSilentInjectMaster}
           />
         )}
       </AnimatePresence>
