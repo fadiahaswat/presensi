@@ -11,6 +11,7 @@ import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "../utils/geoUtils";
 import { PatroliStepsModal } from "./PatroliStepsModal";
+import { LogbookStravaStickerModal } from "./LogbookStravaStickerModal";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
 
@@ -323,6 +324,7 @@ export function JurnalLogbookModal({
 
   // Active Patrol Modal Tracker State
   const [activePatrolTask, setActivePatrolTask] = useState<TaskDefinition | null>(null);
+  const [showStravaSticker, setShowStravaSticker] = useState<boolean>(false);
 
   // GPS Geofence Check State
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
@@ -667,6 +669,70 @@ export function JurnalLogbookModal({
           <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
             <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} />
           </div>
+
+          {/* Strava Story Sticker Unlock Banner */}
+          {scorePct === 100 ? (
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("medium");
+                setShowStravaSticker(true);
+              }}
+              className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
+              <span>Buka Stiker Story Ala Strava (PNG Transparan)</span>
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2 w-full">
+              <div className="w-full py-2 px-3 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-500 text-[11px] font-semibold flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0 truncate">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">Stiker Story Ala Strava terbuka setelah 11/11 tugas tuntas</span>
+                </div>
+                <span className="font-bold text-slate-600 shrink-0 font-mono text-[10px]">Tersisa {totalTasks - completedTasks} tugas</span>
+              </div>
+
+              {/* Special Test Control for Koordinator Musyrif */}
+              {isKoordinator && (
+                <div className="flex items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic("medium");
+                      setShowStravaSticker(true);
+                    }}
+                    className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[11px] font-black shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                    <span>⚡ Test Preview Stiker Strava (Bypass Koor)</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="Simulasikan 11 tugas selesai 100% untuk testing"
+                    onClick={() => {
+                      const fullDone: JurnalLogbookEntry = { ...formState };
+                      LOGBOOK_TASKS.forEach(t => {
+                        fullDone[t.key] = {
+                          done: true,
+                          completedAt: format(new Date(), "HH:mm"),
+                          stepsCount: t.isPatrol ? (t.targetSteps || 150) : undefined,
+                          gpsVerified: true
+                        };
+                      });
+                      setFormState(fullDone);
+                      onSaveLogbook(selectedMusyrifId, selectedDate, fullDone);
+                      triggerHaptic("success");
+                      appAlert("Mode Koor: Seluruh 11 tugas logbook berhasil disimulasikan 100% tuntas untuk testing!", "Testing Koor Sukses", "success");
+                    }}
+                    className="py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-[11px] font-bold shadow-xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0"
+                  >
+                    <span>⚡ Auto 100%</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Task Search & Category Filter Pills */}
@@ -963,6 +1029,15 @@ export function JurnalLogbookModal({
           targetSteps={activePatrolTask.targetSteps || 150}
           initialSteps={formState[activePatrolTask.key]?.stepsCount || 0}
           onConfirmSteps={(steps) => { handlePatrolSuccess(activePatrolTask.key, steps); setActivePatrolTask(null); }}
+        />
+      )}
+      {showStravaSticker && (
+        <LogbookStravaStickerModal
+          onClose={() => setShowStravaSticker(false)}
+          musyrifName={selectedMusyrif?.name || authUser?.name || "Musyrif Asrama"}
+          asramaName={asramaTarget}
+          date={selectedDate}
+          logbookEntry={formState}
         />
       )}
     </div>
