@@ -136,6 +136,44 @@ export function IzinPengajuanModal({
     reader.readAsDataURL(file);
   };
 
+  // Helper to calculate duration in days
+  const calculateDays = (start: string, end: string) => {
+    try {
+      const s = new Date(start);
+      const e = new Date(end);
+      const diffTime = Math.abs(e.getTime() - s.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return isNaN(diffDays) ? 1 : diffDays;
+    } catch {
+      return 1;
+    }
+  };
+
+  const getApprovalAuthority = (days: number) => {
+    if (days <= 1) {
+      return {
+        level: "Pamong Asrama",
+        badge: "bg-blue-50 text-blue-800 border-blue-200",
+        desc: "Izin 1 hari disetujui langsung oleh Pamong Asrama"
+      };
+    }
+    if (days === 2) {
+      return {
+        level: "Kaur KIS",
+        badge: "bg-indigo-50 text-indigo-800 border-indigo-200",
+        desc: "Izin 2 hari memerlukan persetujuan Kepala Urusan KIS (Keasramaan)"
+      };
+    }
+    return {
+      level: "Wakil Direktur IV (Wadir 4)",
+      badge: "bg-purple-50 text-purple-800 border-purple-200",
+      desc: "Izin 3 - 6 hari memerlukan persetujuan Wakil Direktur IV"
+    };
+  };
+
+  const currentDurationDays = calculateDays(startDate, endDate);
+  const currentAuthority = getApprovalAuthority(currentDurationDays);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
@@ -144,6 +182,10 @@ export function IzinPengajuanModal({
     }
     if (endDate < startDate) {
       appAlert("Tanggal selesai izin tidak boleh lebih awal dari tanggal mulai izin.", "Perizinan", "warning");
+      return;
+    }
+    if (currentDurationDays > 6) {
+      appAlert("Pengajuan izin mandiri maksimal adalah 6 hari kerja. Di atas 6 hari harap berkonsultasi langsung dengan Direksi Madrasah.", "Batas Maksimal Izin", "warning");
       return;
     }
     const currentMusyrif = musyrifList.find(m => m.id === selectedMusyrifId);
@@ -393,6 +435,20 @@ export function IzinPengajuanModal({
             </div>
           </div>
 
+          {/* Authority Routing Alert Banner */}
+          <div className={`p-3 rounded-2xl border flex items-center justify-between gap-2 text-xs font-semibold ${currentAuthority.badge}`}>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+              <div>
+                <p className="font-bold">Kewenangan Persetujuan: {currentAuthority.level}</p>
+                <p className="text-[11px] opacity-80 font-normal">{currentAuthority.desc} ({currentDurationDays} hari)</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/70 shadow-2xs">
+              {currentDurationDays} Hari
+            </span>
+          </div>
+
           <div>
             <label className="text-xs font-semibold text-slate-700 mb-1 block">Alasan / Penjelasan Detail</label>
             <textarea
@@ -549,9 +605,20 @@ export function IzinPengajuanModal({
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-slate-700 space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{req.startDate} s/d {req.endDate} ({req.prayerSlot === "all" ? "Subuh & Maghrib" : req.prayerSlot.toUpperCase()})</span>
+                  <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-slate-600 font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>{req.startDate} s/d {req.endDate} ({req.prayerSlot === "all" ? "Subuh & Maghrib" : req.prayerSlot.toUpperCase()})</span>
+                    </div>
+                    {(() => {
+                      const days = calculateDays(req.startDate, req.endDate);
+                      const auth = getApprovalAuthority(days);
+                      return (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${auth.badge}`}>
+                          {days} Hari • Wewenang: {auth.level}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-slate-800 italic leading-relaxed">"{req.reason}"</p>
                   {req.attachmentUrl && (

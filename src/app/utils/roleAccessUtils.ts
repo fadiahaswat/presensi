@@ -3,7 +3,7 @@ import { ADMIN_DB_EMAILS, PAMONG_ASRAMA_ASSIGNMENTS, PAMONG_NAME_FALLBACK } from
 import type { AuthUser } from "../App";
 
 // Type for Role
-export type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
+export type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
 
 // Check if user is database admin
 export function isDbAdmin(user: AuthUser | null): boolean {
@@ -12,14 +12,17 @@ export function isDbAdmin(user: AuthUser | null): boolean {
   return ADMIN_DB_EMAILS.includes(email);
 }
 
-// Check if user has full access (koordinator musyrif)
+// Check if user has full access (koordinator musyrif, kaur_kis, or wadir4)
 export function hasFullAccess(user: AuthUser): boolean {
-  return user.role === "koordinator_musyrif";
+  return user.role === "koordinator_musyrif" || user.role === "kaur_kis" || user.role === "wadir4";
 }
 
-// Check if user is field musyrif (not pamong or koordinator musyrif)
+// Check if user is field musyrif (not pamong, koordinator, kaur, or wadir4)
 export function isFieldMusyrif(user: { role?: Role | string }): boolean {
-  return user.role !== "pamong" && user.role !== "koordinator_musyrif";
+  return user.role !== "pamong" && 
+         user.role !== "koordinator_musyrif" && 
+         user.role !== "kaur_kis" && 
+         user.role !== "wadir4";
 }
 
 // Get assigned asramas for pamong - uses ID first, falls back to name matching

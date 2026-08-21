@@ -54,7 +54,7 @@ import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAcc
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
-type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif";
+type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
 type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri";
@@ -237,7 +237,11 @@ const ASRAMAS = [
 ];
 
 const AUTH_USERS: AuthUser[] = [
-  // ─── KOORDINATOR MUSYRIF ───
+  // ─── PIMPINAN & DIREKSI MADRASAH (MONITORING / OVERSIGHT) ───
+  { id:"wadir4", name:"Ahmad Salim, S.E.I., Lc.", email:"ahmad.salim@muallimin.sch.id", role:"wadir4", phone:"6281226310736" },
+  { id:"kaurkis", name:"Muhammad Shaleh, S.Pd.I., M.S.I.", email:"muhammad.shaleh@muallimin.sch.id", role:"kaur_kis", phone:"6281578968855" },
+
+  // ─── KOORDINATOR MUSYRIF (SUPER ADMIN / FULL SCRUD) ───
   { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com", role:"koordinator_musyrif", phone:"6285339213109" },
 
   // ─── PAMONG ASRAMA ───
@@ -515,7 +519,10 @@ function PageDashboard({
   musyrifList = MUSYRIF_LIST,
   pamongList = [],
   izinList = [],
-  santriSakitList = []
+  santriSakitList = [],
+  logbookData = {},
+  mutabaahData = {},
+  kegiatanRecords = []
 }: { 
   records: AttendanceRecord[]; 
   authUser: AuthUser|null; 
@@ -541,6 +548,9 @@ function PageDashboard({
   pamongList?: Pamong[];
   izinList?: IzinMusyrif[];
   santriSakitList?: SantriSakit[];
+  logbookData?: Record<string, any>;
+  mutabaahData?: Record<string, any>;
+  kegiatanRecords?: any[];
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif);
@@ -551,14 +561,13 @@ function PageDashboard({
   const mh = todayRecs.filter(r => r.maghrib === "hadir").length;
   const belumS = mList.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.subuh));
   const belumM = mList.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.maghrib));
-  const now = new Date();
 
   const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
   const [asramaCampus, setAsramaCampus] = useState<"all" | "sparman" | "sedayu">("all");
   const [expandedAsrama, setExpandedAsrama] = useState<string | null>(null);
 
   // Live 1-second interval for real-time MM:SS countdown
-  const [liveNow, setLiveNow] = useState(() => new Date());
+  const [liveNow, setLiveNow] = useState<Date>(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setLiveNow(new Date()), 1000);
     return () => clearInterval(timer);
@@ -608,8 +617,9 @@ function PageDashboard({
     };
   });
 
-  const streakTop = useMemo(() => mList.map(m=>({...m,...computeStreak(m.id,records)})).sort((a,b)=>b.cur-a.cur).slice(0,3),[mList,records]);
+  const streakTop = useMemo(() => mList.map(m=>({...m,...computeStreak(m.id,records)})).sort((a,b)=>b.cur-a.cur).slice(0,10),[mList,records]);
 
+  const now = liveNow;
   const thisMK = format(now,"yyyy-MM");
   const lastMK = format(subMonths(now,1),"yyyy-MM");
   const thisH = records.filter(r=>r.date.startsWith(thisMK)&&(r.subuh==="hadir"||r.maghrib==="hadir")).length;
@@ -698,27 +708,178 @@ function PageDashboard({
             </p>
           </div>
 
-          {/* Bottom: 3 Stat Tiles */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
-            {[
-              { label: "Subuh", val: `${sh}/${total}`, icon: <Sun className="w-3.5 h-3.5" /> },
-              { label: "Maghrib", val: `${mh}/${total}`, icon: <Moon className="w-3.5 h-3.5" /> },
-              { label: "vs bln lalu", val: `${delta > 0 ? "+" : ""}${delta}%`, icon: <TrendingUp className="w-3.5 h-3.5" /> },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all"
-              >
-                <div className="flex items-center gap-1.5 text-emerald-200 mb-1">
-                  {s.icon}
-                  <span className="text-[10px] sm:text-[11px] font-semibold">{s.label}</span>
+          {/* Bottom: 3 Stat Tiles / Quick Actions based on Role */}
+          {(() => {
+            const isMusyrifOrKoorGedung = authUser && (authUser.role === "musyrif" || authUser.role === "koordinator_gedung");
+
+            if (isMusyrifOrKoorGedung) {
+              const myId = authUser.musyrifId || authUser.id;
+              const myRec = todayRecs.find(r => r.musyrifId === myId);
+              const subuhStatus = myRec?.subuh;
+              const maghribStatus = myRec?.maghrib;
+
+              // Current time-window logbook session
+              const currentHour = liveNow.getHours();
+              const currentMinute = liveNow.getMinutes();
+              const currentMinutesOfDay = currentHour * 60 + currentMinute;
+
+              // Find active or next logbook task
+              let activeTaskTitle = "Logbook Harian";
+              let activeTaskKey = "tahajjud";
+              let activeTaskTime = "11 Tugas";
+
+              if (currentMinutesOfDay >= 210 && currentMinutesOfDay <= 270) {
+                activeTaskTitle = "Tahajjud Pagi";
+                activeTaskKey = "tahajjud";
+                activeTaskTime = "Sesi 03:30–04:30";
+              } else if (currentMinutesOfDay > 270 && currentMinutesOfDay <= 360) {
+                activeTaskTitle = "Ba'da Subuh";
+                activeTaskKey = "bakdaSubuh";
+                activeTaskTime = "Sesi 05:15–06:00";
+              } else if (currentMinutesOfDay > 360 && currentMinutesOfDay <= 410) {
+                activeTaskTitle = "Cek Santri Sakit";
+                activeTaskKey = "cekSakit";
+                activeTaskTime = "Sesi 06:00–06:45";
+              } else if (currentMinutesOfDay > 410 && currentMinutesOfDay <= 450) {
+                activeTaskTitle = "Sisir Sekolah";
+                activeTaskKey = "sisirSekolah";
+                activeTaskTime = "Sesi 06:45–07:15";
+              } else if (currentMinutesOfDay > 450 && currentMinutesOfDay <= 840) {
+                activeTaskTitle = "Jaga Gerbang";
+                activeTaskKey = "jagaGerbang";
+                activeTaskTime = "Sesi 07:15–14:00";
+              } else if (currentMinutesOfDay > 840 && currentMinutesOfDay <= 960) {
+                activeTaskTitle = "Oprak Ashar";
+                activeTaskKey = "oprakAshar";
+                activeTaskTime = "Sesi 15:00–16:00";
+              } else if (currentMinutesOfDay > 960 && currentMinutesOfDay <= 1050) {
+                activeTaskTitle = "Oprak Mandi";
+                activeTaskKey = "oprakMandi";
+                activeTaskTime = "Sesi 16:30–17:30";
+              } else if (currentMinutesOfDay > 1050 && currentMinutesOfDay <= 1120) {
+                activeTaskTitle = "Sisir Maghrib";
+                activeTaskKey = "sisirMaghrib";
+                activeTaskTime = "Sesi 17:30–18:40";
+              } else if (currentMinutesOfDay > 1120 && currentMinutesOfDay <= 1200) {
+                activeTaskTitle = "Ba'da Maghrib";
+                activeTaskKey = "bakdaMaghrib";
+                activeTaskTime = "Sesi 18:40–20:00";
+              } else if (currentMinutesOfDay > 1200 && currentMinutesOfDay <= 1290) {
+                activeTaskTitle = "Belajar Malam";
+                activeTaskKey = "belajarMalam";
+                activeTaskTime = "Sesi 20:00–21:30";
+              } else {
+                activeTaskTitle = "Cek Tidur Malam";
+                activeTaskKey = "cekTidur";
+                activeTaskTime = "Sesi 21:30–22:30";
+              }
+
+              const todayLogKey = `${myId}_${today}`;
+              const myLog = (logbookData as any)?.[todayLogKey];
+              const isTaskDone = !!myLog?.tasks?.[activeTaskKey];
+
+              return (
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
+                  {/* Tile 1: Status Presensi Subuh Pribadi */}
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("subuh")}
+                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95"
+                  >
+                    <div className="flex items-center justify-between text-emerald-200 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <Sun className="w-3.5 h-3.5" />
+                        <span className="text-[10px] sm:text-[11px] font-semibold">Subuh Saya</span>
+                      </div>
+                      {subuhStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />}
+                    </div>
+                    <p className={`font-black text-xs sm:text-base tracking-tight leading-tight flex items-center gap-1 ${
+                      subuhStatus === "hadir" ? "text-emerald-200" :
+                      subuhStatus === "sakit" ? "text-amber-200" :
+                      subuhStatus === "izin" ? "text-sky-200" :
+                      subuhStatus === "alfa" ? "text-rose-300" : "text-white/80"
+                    }`}>
+                      {subuhStatus === "hadir" ? "✓ Hadir" :
+                       subuhStatus === "sakit" ? "Sakit" :
+                       subuhStatus === "izin" ? "Izin" :
+                       subuhStatus === "alfa" ? "Alfa" : "Belum Presensi"}
+                    </p>
+                  </button>
+
+                  {/* Tile 2: Status Presensi Maghrib Pribadi */}
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("maghrib")}
+                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95"
+                  >
+                    <div className="flex items-center justify-between text-emerald-200 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <Moon className="w-3.5 h-3.5" />
+                        <span className="text-[10px] sm:text-[11px] font-semibold">Maghrib Saya</span>
+                      </div>
+                      {maghribStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />}
+                    </div>
+                    <p className={`font-black text-xs sm:text-base tracking-tight leading-tight flex items-center gap-1 ${
+                      maghribStatus === "hadir" ? "text-emerald-200" :
+                      maghribStatus === "sakit" ? "text-amber-200" :
+                      maghribStatus === "izin" ? "text-sky-200" :
+                      maghribStatus === "alfa" ? "text-rose-300" : "text-white/80"
+                    }`}>
+                      {maghribStatus === "hadir" ? "✓ Hadir" :
+                       maghribStatus === "sakit" ? "Sakit" :
+                       maghribStatus === "izin" ? "Izin" :
+                       maghribStatus === "alfa" ? "Alfa" : "Belum Presensi"}
+                    </p>
+                  </button>
+
+                  {/* Tile 3: Aksi Cepat Logbook Sesi Waktu Saat Itu */}
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("logbook")}
+                    className="bg-white/20 hover:bg-white/25 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/25 shadow-xs transition-all text-left group active:scale-95 flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between text-amber-200 mb-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-[10px] sm:text-[11px] font-bold truncate">{activeTaskTitle}</span>
+                      </div>
+                      {isTaskDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />}
+                    </div>
+                    <div>
+                      <p className="text-[9px] sm:text-[10px] text-emerald-100/80 font-mono truncate">{activeTaskTime}</p>
+                      <span className={`text-[10px] sm:text-xs font-black tracking-tight ${isTaskDone ? "text-emerald-200" : "text-amber-300 underline"}`}>
+                        {isTaskDone ? "✓ Terisi" : "Isi Sekarang →"}
+                      </span>
+                    </div>
+                  </button>
                 </div>
-                <p className="font-black text-base sm:text-xl text-white font-mono tracking-tight">
-                  {s.val}
-                </p>
+              );
+            }
+
+            // Mode Pamong / Koordinator / Kaur KIS / Wadir / Publik: Global Aggregates
+            return (
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
+                {[
+                  { label: "Subuh", val: `${sh}/${total}`, icon: <Sun className="w-3.5 h-3.5" /> },
+                  { label: "Maghrib", val: `${mh}/${total}`, icon: <Moon className="w-3.5 h-3.5" /> },
+                  { label: "vs bln lalu", val: `${delta > 0 ? "+" : ""}${delta}%`, icon: <TrendingUp className="w-3.5 h-3.5" /> },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all"
+                  >
+                    <div className="flex items-center gap-1.5 text-emerald-200 mb-1">
+                      {s.icon}
+                      <span className="text-[10px] sm:text-[11px] font-semibold">{s.label}</span>
+                    </div>
+                    <p className="font-black text-base sm:text-xl text-white font-mono tracking-tight">
+                      {s.val}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -885,16 +1046,48 @@ function PageDashboard({
       {/* ───────────────────────────────────────────────────────────────────── */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
-          <Label ch={!authUser ? "Layanan & Fitur Terbuka" : authUser.role === "musyrif" ? "Layanan & Fitur Musyrif" : "Pusat Layanan & Manajemen Keasramaan"}/>
+          <Label ch={!authUser ? "Layanan & Fitur Terbuka" : (authUser.role === "musyrif" || authUser.role === "koordinator_gedung") ? "Layanan & Fitur Musyrif" : "Pusat Layanan & Manajemen Keasramaan"}/>
           <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full">
-            {!authUser ? "Akses Publik" : authUser.role === "musyrif" ? "Musyrif" : "Pamong & Koordinator"}
+            {!authUser 
+              ? "Akses Publik" 
+              : authUser.role === "wadir4"
+                ? "Wadir IV"
+                : authUser.role === "kaur_kis"
+                  ? "Kaur KIS"
+                  : authUser.role === "koordinator_musyrif"
+                    ? "Koord. Musyrif"
+                    : authUser.role === "pamong"
+                      ? "Pamong Asrama"
+                      : "Musyrif"}
           </span>
         </div>
 
         {!authUser ? (
           /* Public Mode Services Grid */
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-            {/* 1. Leaderboard */}
+            {/* 1. Pantauan Santri Sakit (Publik) */}
+            <button
+              type="button"
+              onClick={() => onGoTo("santri-sakit")}
+              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-rose-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                  <HeartPulse className="w-4 h-4"/>
+                </div>
+                {activeSantriSakitCount > 0 && (
+                  <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full font-mono">
+                    {activeSantriSakitCount} Sakit
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 leading-tight">Santri Sakit</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Pantauan Poskestren</p>
+              </div>
+            </button>
+
+            {/* 2. Leaderboard 4 Pilar */}
             <button
               type="button"
               onClick={() => onGoTo("leaderboard")}
@@ -909,26 +1102,6 @@ function PageDashboard({
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Papan Peringkat</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Musyrif teladan & evaluasi</p>
-              </div>
-            </button>
-
-            {/* 2. Raport & E-Sertifikat */}
-            <button
-              type="button"
-              onClick={() => onGoTo("raport")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Award className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-lg font-mono">
-                  PDF
-                </span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Raport & Sertifikat</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Format evaluasi resmi</p>
               </div>
             </button>
 
@@ -1004,9 +1177,97 @@ function PageDashboard({
               </div>
             </button>
           </div>
-        ) : authUser.role === "musyrif" ? (
-          /* Musyrif Role Services Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        ) : (authUser.role === "musyrif" || authUser.role === "koordinator_gedung") ? (
+          /* Musyrif & Koordinator Gedung Dashboard */
+          <div className="space-y-3">
+            {/* Quick Status Widgets Banner (Logbook, Mutaba'ah, Agenda) */}
+            {(() => {
+              const myId = authUser.musyrifId || authUser.id;
+              const todayLogKey = `${myId}_${today}`;
+              const myLog = (logbookData as any)?.[todayLogKey];
+              const logDoneCount = myLog ? Object.values(myLog.tasks || {}).filter(Boolean).length : 0;
+              const isLogComplete = logDoneCount >= 11;
+
+              const todayMutKey = `${myId}_${today}`;
+              const myMut = (mutabaahData as any)?.[todayMutKey];
+              const mutDoneCount = myMut ? Object.values(myMut.amalan || {}).filter(Boolean).length : 0;
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Status Logbook Hari Ini */}
+                  <div 
+                    onClick={() => onGoTo("logbook")}
+                    className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-indigo-400 cursor-pointer transition-all flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isLogComplete ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"}`}>
+                        <ClipboardList className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-slate-800 truncate">Jurnal Logbook</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {isLogComplete ? "11/11 Tugas Lengkap ✓" : `${logDoneCount}/11 tugas terisi`}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 ${
+                      isLogComplete ? "bg-emerald-100 text-emerald-800" : "bg-indigo-100 text-indigo-800"
+                    }`}>
+                      {isLogComplete ? "Lengkap" : "Isi"}
+                    </span>
+                  </div>
+
+                  {/* Status Mutaba'ah Hari Ini */}
+                  <div 
+                    onClick={() => onGoTo("mutabaah")}
+                    className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-emerald-400 cursor-pointer transition-all flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${mutDoneCount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-teal-50 text-teal-600"}`}>
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-slate-800 truncate">Mutaba'ah Yaumiyah</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {mutDoneCount > 0 ? `${mutDoneCount} amalan sunnah ✓` : "Belum dicatat hari ini"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 ${
+                      mutDoneCount > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"
+                    }`}>
+                      {mutDoneCount > 0 ? "Aktif" : "Isi"}
+                    </span>
+                  </div>
+
+                  {/* Agenda Asrama */}
+                  <div 
+                    onClick={() => onOpenKegiatan ? onOpenKegiatan() : onGoTo("kegiatan")}
+                    className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between gap-2 sm:col-span-1"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-slate-800 truncate">Agenda Asrama</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {kegiatanRecords && kegiatanRecords.length > 0 
+                            ? `${kegiatanRecords.length} agenda terjadwal` 
+                            : "Kajian & Piket Asrama"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono bg-amber-100 text-amber-800 shrink-0">
+                      Lihat
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Musyrif Role Services Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* 1. Jurnal Logbook Harian */}
             <button
               type="button"
@@ -1154,6 +1415,7 @@ function PageDashboard({
                 <p className="text-[10px] text-slate-500 mt-0.5">Countdown & perpulangan</p>
               </div>
             </button>
+          </div>
           </div>
         ) : (
           /* Pamong & Koordinator Dynamic Widgets & Clean Services Grid */
@@ -1369,25 +1631,27 @@ function PageDashboard({
                   </div>
                 </button>
 
-                {/* 5. Master Personel (Unified Musyrif & Pamong) */}
-                <button
-                  type="button"
-                  onClick={() => onOpenMusyrifManager ? onOpenMusyrifManager() : onGoTo("musyrif-manager")}
-                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-indigo-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                      <Users className="w-3.5 h-3.5" />
+                {/* 5. Master Personel (Unified Musyrif & Pamong - Khusus Koordinator Musyrif) */}
+                {authUser?.role === "koordinator_musyrif" && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenMusyrifManager ? onOpenMusyrifManager() : onGoTo("musyrif-manager")}
+                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-indigo-600 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                        <Users className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[10px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                        SCRUD
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                      SCRUD
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-xs text-slate-800 leading-tight">Master Personel</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Musyrif, Pamong & Akses</p>
-                  </div>
-                </button>
+                    <div>
+                      <p className="font-bold text-xs text-slate-800 leading-tight">Master Personel</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Musyrif, Pamong & Akses</p>
+                    </div>
+                  </button>
+                )}
 
                 {/* 6. Kalender Hijriah KHGT */}
                 <button
@@ -1621,66 +1885,79 @@ function PageDashboard({
         </div>}/>
       )}
 
-      {/* Streak leaderboard + Papan Peringkat — Gabungan dalam satu kartu */}
-      <div>
-        <Label ch="Papan Peringkat Musyrif Teladan"/>
-        <Card ch={<div>
-          {/* Header info */}
-          <div className="px-4 pt-3 pb-2.5 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                <Trophy className="w-3.5 h-3.5"/>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-700 leading-tight">Streak Presensi Shalat Beruntun</p>
-                <p className="text-[10px] text-slate-400 font-mono">Klik nama untuk lihat riwayat detail</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono shrink-0">
-              Top {streakTop.length}
+      {/* Streak leaderboard Top 10 — HANYA TAMPIL SETELAH LOGIN (Internal Musyrif/Pamong/Koor) */}
+      {authUser && (
+        <div>
+          <div className="flex items-center justify-between px-1 mb-2">
+            <Label ch="Top 10 Streak Shalat Beruntun"/>
+            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono">
+              Konsistensi Jamaah
             </span>
           </div>
-
-          {/* Daftar streak - klik buka detail individu */}
-          <div className="divide-y divide-slate-50">
-            {streakTop.map((m,i)=>(
-              <button
-                key={m.id}
-                onClick={()=>setDetailMusyrif(m)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors"
-              >
-                <div className="w-6 flex items-center justify-center shrink-0">
-                  {i === 0 ? <Crown className="w-4 h-4 text-amber-500" /> :
-                   i === 1 ? <Medal className="w-4 h-4 text-slate-400" /> :
-                   <Award className="w-4 h-4 text-amber-700" />}
+          <Card ch={<div>
+            {/* Header info */}
+            <div className="px-4 pt-3 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                  <Flame className="w-3.5 h-3.5 text-amber-500"/>
                 </div>
-                <Av name={m.name} src={m.photo} sz="sm"/>
-                <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-500">{m.asrama}</p></div>
-                <div className="text-right"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-500"/><span className="font-bold text-slate-800 font-mono">{m.cur}</span><span className="text-xs text-slate-500">hari</span></div><p className="text-[10px] text-slate-400">terbaik: {m.best}h</p></div>
-                <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1"/>
-              </button>
-            ))}
-          </div>
-
-          {/* Footer — link ke Leaderboard 4 Pilar */}
-          <button
-            type="button"
-            onClick={()=>onGoTo("leaderboard")}
-            className="w-full flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-50/60 transition-colors group"
-          >
-            <div className="flex items-center gap-1.5">
-              <Trophy className="w-3.5 h-3.5"/>
-              <span>Lihat Ranking 4 Pilar Lengkap</span>
+                <div>
+                  <p className="text-xs font-bold text-slate-700 leading-tight">Konsistensi Presensi Beruntun</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Apresiasi musyrif teladan jamaah</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono shrink-0">
+                Top {streakTop.length}
+              </span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"/>
-          </button>
-        </div>}/>
-      </div>
 
-      {/* Perlu perhatian - Clickable to open detail */}
-      {alfaRank.length > 0 && (
+            {/* Daftar streak - klik buka detail individu */}
+            <div className="divide-y divide-slate-50">
+              {streakTop.map((m,i)=>(
+                <button
+                  key={m.id}
+                  onClick={()=>setDetailMusyrif(m)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-6 flex items-center justify-center shrink-0">
+                    {i === 0 ? <Crown className="w-4 h-4 text-amber-500" /> :
+                     i === 1 ? <Medal className="w-4 h-4 text-slate-400" /> :
+                     i === 2 ? <Award className="w-4 h-4 text-amber-700" /> :
+                     <span className="text-xs font-bold text-slate-400 font-mono">{i + 1}</span>}
+                  </div>
+                  <Av name={m.name} src={m.photo} sz="sm"/>
+                  <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-500">{m.asrama}</p></div>
+                  <div className="text-right"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-500"/><span className="font-bold text-slate-800 font-mono">{m.cur}</span><span className="text-xs text-slate-500">hari</span></div><p className="text-[10px] text-slate-400">terbaik: {m.best}h</p></div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1"/>
+                </button>
+              ))}
+            </div>
+
+            {/* Footer — link ke Leaderboard 4 Pilar */}
+            <button
+              type="button"
+              onClick={()=>onGoTo("leaderboard")}
+              className="w-full flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-50/60 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                <Trophy className="w-3.5 h-3.5"/>
+                <span>Buka Papan Peringkat 4 Pilar Terpisah</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"/>
+            </button>
+          </div>}/>
+        </div>
+      )}
+
+      {/* Perlu perhatian - HANYA TAMPIL SETELAH LOGIN (Pamong / Koor) */}
+      {authUser && alfaRank.length > 0 && (
         <div>
-          <Label ch="Catatan Kehadiran Perlu Perhatian"/>
+          <div className="flex items-center justify-between px-1 mb-1">
+            <Label ch="Catatan Kehadiran Perlu Perhatian"/>
+            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-mono">
+              Internal Saja
+            </span>
+          </div>
           <Card ch={<div className="divide-y divide-slate-50">
             {alfaRank.map(m=>(
               <button 
@@ -4731,6 +5008,8 @@ function LoginModal({
   };
 
   const ROLE_LABELS: Record<string, string> = {
+    wadir4: "Wakil Direktur IV",
+    kaur_kis: "Kaur KIS",
     koordinator_musyrif: "Koord. Musyrif",
     pamong: "Pamong Asrama",
     koordinator_gedung: "Koord. Asrama",
@@ -4970,11 +5249,16 @@ function LoginModal({
             </div>
           )}
 
-          {/* Error Alert */}
+          {/* Error Alert with recovery hint */}
           {errorMsg && (
-            <div className="w-full mt-4 bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-start gap-2.5 text-rose-700 text-left animate-in fade-in zoom-in-95 duration-200">
-              <ShieldAlert className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5"/>
-              <p className="text-xs text-rose-600 leading-relaxed font-medium">{errorMsg}</p>
+            <div className="w-full mt-4 bg-rose-50 border border-rose-200 rounded-2xl p-3 flex flex-col gap-1.5 text-left animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-start gap-2 text-rose-700">
+                <ShieldAlert className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5"/>
+                <p className="text-xs text-rose-600 leading-relaxed font-medium">{errorMsg}</p>
+              </div>
+              <p className="text-[11px] text-amber-700 bg-amber-50/80 p-2 rounded-xl border border-amber-200/60 leading-relaxed">
+                💡 <b>Petunjuk:</b> Jika email Anda sudah resmi namun belum terdeteksi, silakan klik tombol <b>"Pulihkan Data"</b> di pojok kanan bawah, lalu coba login kembali.
+              </p>
             </div>
           )}
 
@@ -5032,6 +5316,32 @@ const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v5";
 const SYNC_TABLE_AUTH_USERS = "AuthUsers";
 
 const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
+  // ─── PIMPINAN & DIREKSI MADRASAH (MONITORING / OVERSIGHT) ───
+  {
+    id: "wadir4",
+    name: "Ahmad Salim, S.E.I., Lc.",
+    role: "wadir4",
+    asrama: "Semua Asrama",
+    kamar: "Direksi Madrasah",
+    kelas: "Seluruh Tingkat",
+    tingkat: "Semua Tingkat",
+    pamong: "Direksi Madrasah",
+    email: "ahmad.salim@muallimin.sch.id",
+    phone: "6281226310736"
+  },
+  {
+    id: "kaurkis",
+    name: "Muhammad Shaleh, S.Pd.I., M.S.I.",
+    role: "kaur_kis",
+    asrama: "Semua Asrama",
+    kamar: "Kantor KIS",
+    kelas: "Seluruh Tingkat",
+    tingkat: "Semua Tingkat",
+    pamong: "Pimpinan Asrama",
+    email: "muhammad.shaleh@muallimin.sch.id",
+    phone: "6281578968855"
+  },
+
   // ─── KOORDINATOR MUSYRIF (SUPER ADMIN / PIMPINAN) ───
   { 
     id: "k1", 
@@ -5998,7 +6308,7 @@ export default function App() {
   const handleSyncAllOfficialData = async () => {
     if (authUser?.role !== "koordinator_musyrif") return;
     const ok = await appConfirm(
-      "Sinkronkan seluruh 56 data Musyrif dan 9 Pamong resmi ke Google Sheets sekarang? Ini akan memperbarui seluruh email & nomor WA di Google Sheets.",
+      "Sinkronkan seluruh data Pimpinan (Wadir IV & Kaur KIS), 56 Musyrif, dan 9 Pamong resmi ke Google Sheets sekarang? Ini akan memperbarui seluruh email & nomor WA di Google Sheets.",
       "Sinkronisasi Data Master",
       { type: "info", confirmText: "Ya, Sinkronkan", cancelText: "Batal" }
     );
@@ -6006,11 +6316,11 @@ export default function App() {
       DEFAULT_ALL_PERSONNEL.forEach(p => {
         googleSyncService.enqueue("Musyrif", p, "upsert");
       });
-      const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong").map(p => ({
+      const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong" || p.role === "kaur_kis" || p.role === "wadir4").map(p => ({
         id: p.id,
         name: p.name,
         email: p.email,
-        role: "pamong" as Role,
+        role: p.role as Role,
         asrama: p.asrama
       }));
       pamongAuths.forEach(pa => {
@@ -6018,7 +6328,7 @@ export default function App() {
       });
       googleSyncService.flushQueue();
       setMusyrifList(DEFAULT_ALL_PERSONNEL);
-      showToast("Data master resmi (56 Musyrif & 9 Pamong) berhasil dikirim dan disinkronkan ke Google Sheets!", "success");
+      showToast("Data master resmi (Pimpinan, Musyrif & Pamong) berhasil dikirim dan disinkronkan ke Google Sheets!", "success");
     }
   };
 
@@ -6027,15 +6337,15 @@ export default function App() {
     DEFAULT_ALL_PERSONNEL.forEach(p => {
       googleSyncService.enqueue("Musyrif", p, "upsert");
     });
-    const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong").map(p => ({
-      id: p.id, name: p.name, email: p.email, role: "pamong" as Role, asrama: p.asrama
+    const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong" || p.role === "kaur_kis" || p.role === "wadir4").map(p => ({
+      id: p.id, name: p.name, email: p.email, role: p.role as Role, asrama: p.asrama
     }));
     pamongAuths.forEach(pa => {
       googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, pa, "upsert");
     });
     googleSyncService.flushQueue();
     setMusyrifList(DEFAULT_ALL_PERSONNEL);
-    showToast("Data master Musyrif & Pamong berhasil dipulihkan!", "success");
+    showToast("Data master Pimpinan, Musyrif & Pamong berhasil dipulihkan!", "success");
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
@@ -6566,6 +6876,9 @@ export default function App() {
                 musyrifList={musyrifList}
                 izinList={izinList}
                 santriSakitList={santriSakitList}
+                logbookData={logbookData}
+                mutabaahData={mutabaahData}
+                kegiatanRecords={kegiatanRecords}
               />
             </motion.div>
           )}

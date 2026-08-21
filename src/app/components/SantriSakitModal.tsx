@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Plus, HeartPulse, Bed, Stethoscope, Building2, Home, CheckCircle2, 
   Trash2, AlertCircle, Search, Filter, Share2, Calendar, User, Phone,
-  ChevronLeft, Sparkles, Send, Edit3, UserCheck
+  ChevronLeft, Sparkles, Send, Edit3, UserCheck, Copy, Check
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -57,6 +57,7 @@ export function SantriSakitModal({
   onDeleteSantriSakit,
   isPage = false
 }: SantriSakitModalProps) {
+  const isPublic = !authUser;
   const isKoor = authUser?.role === "koordinator_musyrif";
   const isPamong = authUser?.role === "pamong";
   const isMusyrif = authUser?.role === "musyrif";
@@ -71,6 +72,7 @@ export function SantriSakitModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCatatanText, setEditCatatanText] = useState<string>("");
   const [editingRecord, setEditingRecord] = useState<SantriSakitRecord | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const activeMusyrifList = useMemo(() => {
     return musyrifList.filter(m => !m.role || m.role === "musyrif");
@@ -87,7 +89,7 @@ export function SantriSakitModal({
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [formKelas, setFormKelas] = useState(defaultMusyrif?.kelas || "");
-  const [formKamar, setFormKamar] = useState(defaultMusyrif?.kamar || "");
+  const [formKamar, setFormKamar] = useState("");
   const [formKeluhan, setFormKeluhan] = useState("");
   const [formLokasi, setFormLokasi] = useState<"kamar" | "uks" | "rs_pku" | "pulang">("kamar");
   const [formCatatan, setFormCatatan] = useState("");
@@ -113,8 +115,9 @@ export function SantriSakitModal({
     setFormMusyrifId(defaultMusyrif?.id || "");
     setFormDate(format(new Date(), "yyyy-MM-dd"));
     setFormNama("");
+    setSelectedStudentId("");
     setFormKelas(defaultMusyrif?.kelas || "1 A");
-    setFormKamar(defaultMusyrif?.kamar || "101");
+    setFormKamar("");
     setFormKeluhan("");
     setFormLokasi("kamar");
     setFormCatatan("");
@@ -128,11 +131,101 @@ export function SantriSakitModal({
     setFormDate(rec.date);
     setFormNama(rec.namaSantri);
     setFormKelas(rec.kelasSantri);
-    setFormKamar(rec.kamar);
+    setFormKamar(rec.kamar || "");
     setFormKeluhan(rec.keluhan);
     setFormLokasi(rec.lokasiPerawatan);
     setFormCatatan(rec.catatanTindakan || "");
     setShowAddForm(true);
+  };
+
+  const getGedungOrAsramaName = (asramaName?: string) => {
+    if (!asramaName) return "-";
+    if (asramaName.includes("Gedung A")) return "A";
+    if (asramaName.includes("Gedung B")) return "B";
+    if (asramaName.includes("Gedung C")) return "C";
+    if (asramaName.includes("Gedung D")) return "D";
+    return asramaName;
+  };
+
+  const generateWAFormat = (item: SantriSakitRecord | SantriSakitRecord[]) => {
+    const list = Array.isArray(item) ? item : [item];
+    if (list.length === 0) return "";
+
+    const parsedDate = list[0]?.date ? new Date(list[0].date) : new Date();
+    const dateFormatted = format(parsedDate, "EEEE dd/MM/yy", { locale: id });
+    const asramaTitle = list[0]?.asrama?.includes("Sedayu") ? "Asrama Sedayu" : (list[0]?.asrama || "Asrama");
+
+    let text = `بسم الله الرحمن الرحيم\nالسلام عليكم ورحمة الله وبركاته\n\n`;
+    text += `Izin melaporkan ananda yang sakit di ${asramaTitle} *(${dateFormatted})*\n\n`;
+
+    if (list.length === 1) {
+      const s = list[0];
+      text += `Nama     : ${s.namaSantri}\n`;
+      text += `Kelas      : ${s.kelasSantri}\n`;
+      text += `Kamar    : ${s.kamar || "-"}\n`;
+      text += `Keluhan  : ${s.keluhan}\n`;
+      text += `Gedung  : ${getGedungOrAsramaName(s.asrama)}\n`;
+      if (s.lokasiPerawatan === "uks") {
+        text += `Lokasi    : Poskestren\n`;
+      } else if (s.lokasiPerawatan === "rs_pku") {
+        text += `Lokasi    : RS PKU Jogja\n`;
+      } else if (s.lokasiPerawatan === "pulang") {
+        text += `Lokasi    : Izin Pulang\n`;
+      }
+      if (s.catatanTindakan) {
+        text += `Tindakan: ${s.catatanTindakan}\n`;
+      }
+    } else {
+      // Multiple students (misal 1 kelas ada beberapa santri sakit)
+      list.forEach((s, idx) => {
+        text += `${idx + 1}. *${s.namaSantri}*\n`;
+        text += `    Kelas      : ${s.kelasSantri}\n`;
+        text += `    Kamar    : ${s.kamar || "-"}\n`;
+        text += `    Keluhan  : ${s.keluhan}\n`;
+        text += `    Gedung  : ${getGedungOrAsramaName(s.asrama)}\n`;
+        if (s.lokasiPerawatan === "uks") {
+          text += `    Lokasi    : Poskestren\n`;
+        } else if (s.lokasiPerawatan === "rs_pku") {
+          text += `    Lokasi    : RS PKU Jogja\n`;
+        } else if (s.lokasiPerawatan === "pulang") {
+          text += `    Lokasi    : Izin Pulang\n`;
+        }
+        if (s.catatanTindakan) {
+          text += `    Tindakan: ${s.catatanTindakan}\n`;
+        }
+        text += `\n`;
+      });
+    }
+
+    text += `\nSyukron umi dan team 🙏😊`;
+    return text;
+  };
+
+  const handleCopyWA = async (record: SantriSakitRecord) => {
+    const text = generateWAFormat(record);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedId(record.id);
+      setTimeout(() => setCopiedId(null), 2500);
+      triggerHaptic("light");
+      appAlert("Format laporan santri sakit berhasil disalin ke clipboard! Siap di-paste ke WhatsApp.", "Tersalin!", "success");
+    } catch {
+      appAlert("Gagal menyalin teks. Silakan coba lagi.", "Peringatan", "warning");
+    }
+  };
+
+  const handleShareSingleWA = (record: SantriSakitRecord) => {
+    const text = generateWAFormat(record);
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -152,7 +245,7 @@ export function SantriSakitModal({
       musyrifId: selectedM.id,
       musyrifName: selectedM.name,
       asrama: selectedM.asrama,
-      kamar: formKamar || selectedM.kamar,
+      kamar: formKamar.trim(),
       date: formDate,
       namaSantri: formNama.trim(),
       kelasSantri: formKelas,
@@ -165,7 +258,11 @@ export function SantriSakitModal({
 
     onSaveSantriSakit(recordToSave);
     triggerHaptic("medium");
-    appAlert(editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan.", "Berhasil", "success");
+    appAlert(
+      editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan. Anda dapat langsung menyalin laporan untuk dikirim ke WA.", 
+      "Berhasil Disimpan", 
+      "success"
+    );
     resetForm();
   };
 
@@ -200,7 +297,7 @@ export function SantriSakitModal({
   const getLocationBadge = (loc: string) => {
     switch (loc) {
       case "uks":
-        return <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5"><Stethoscope className="w-3.5 h-3.5 text-amber-600"/> UKS Madrasah</span>;
+        return <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5"><Stethoscope className="w-3.5 h-3.5 text-amber-600"/> Poskestren</span>;
       case "rs_pku":
         return <span className="bg-rose-50 text-rose-800 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-rose-600"/> RS PKU Jogja</span>;
       case "pulang":
@@ -211,23 +308,15 @@ export function SantriSakitModal({
   };
 
   const handleShareWA = () => {
-    const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
-    let text = `*LAPORAN SANTRI SAKIT ASRAMA MU'ALLIMIN*\n`;
-    text += `Tanggal: ${format(new Date(), "EEEE, dd MMMM yyyy", { locale: id })}\n`;
-    text += `Total Sedang Dirawat: ${active.length} Santri\n\n`;
+    const targetList = filteredList.filter(s => s.status === "dalam_perawatan");
+    const listToShare = targetList.length > 0 ? targetList : santriSakitList.filter(s => s.status === "dalam_perawatan");
     
-    if (active.length === 0) {
-      text += `Alhamdulillah seluruh santri dalam kondisi sehat wal afiat.`;
-    } else {
-      active.forEach((s, idx) => {
-        text += `${idx + 1}. *${s.namaSantri}* (Kls ${s.kelasSantri} - ${s.asrama} Kmr ${s.kamar})\n`;
-        text += `   • Keluhan: ${s.keluhan}\n`;
-        text += `   • Lokasi: ${s.lokasiPerawatan.toUpperCase()}\n`;
-        if (s.catatanTindakan) text += `   • Tindakan: ${s.catatanTindakan}\n`;
-        text += `   • Musyrif: ${s.musyrifName}\n\n`;
-      });
+    if (listToShare.length === 0) {
+      appAlert("Tidak ada santri yang sedang dirawat untuk dilaporkan.", "Info", "info");
+      return;
     }
-    text += `_Disampaikan melalui SIM Presensi & Kepengasuhan Mu'allimin_`;
+    
+    const text = generateWAFormat(listToShare);
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -267,26 +356,29 @@ export function SantriSakitModal({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {santriSakitList.length > 0 && (
             <button
               type="button"
               onClick={handleShareWA}
-              aria-label="Bagikan Laporan ke WhatsApp"
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-semibold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+              aria-label="Kirim Laporan ke WhatsApp"
+              title="Kirim laporan santri sakit langsung ke WhatsApp"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border border-emerald-200"
             >
               <Send className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Kirim WA</span>
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{showAddForm ? "Tutup Form" : "Catat Sakit"}</span>
-          </button>
+          {!isPublic && (
+            <button
+              type="button"
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-3 sm:px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="whitespace-nowrap">{showAddForm ? "Tutup" : "Catat Sakit"}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -426,7 +518,7 @@ export function SantriSakitModal({
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
               >
                 <option value="kamar">Kamar Asrama</option>
-                <option value="uks">UKS Madrasah</option>
+                <option value="uks">Poskestren (UKS)</option>
                 <option value="rs_pku">RS PKU Jogja</option>
                 <option value="pulang">Izin Pulang ke Rumah</option>
               </select>
@@ -462,7 +554,7 @@ export function SantriSakitModal({
             <label className="text-xs font-semibold text-slate-700 mb-1 block">Catatan Tindakan / Obat Diberikan (Opsional)</label>
             <input
               type="text"
-              placeholder="Contoh: Diberi paracetamol 500mg, kompres hangat, istirahat di UKS"
+              placeholder="Contoh: Diberi paracetamol 500mg, kompres hangat, istirahat di Poskestren"
               value={formCatatan}
               onChange={(e) => setFormCatatan(e.target.value)}
               className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
@@ -600,58 +692,73 @@ export function SantriSakitModal({
                       {getLocationBadge(item.lokasiPerawatan)}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                      {item.asrama} · Kamar {item.kamar} · Musyrif: {item.musyrifName}
+                      {item.asrama}{item.kamar ? ` · Kamar ${item.kamar}` : ""} · Musyrif: {item.musyrifName}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                  {item.status === "dalam_perawatan" ? (
-                    <button
-                      type="button"
-                      onClick={() => onUpdateStatus(item.id, "sembuh")}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Tandai Sembuh</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onUpdateStatus(item.id, "dalam_perawatan")}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all"
-                    >
-                      <HeartPulse className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Kembalikan Dirawat</span>
-                    </button>
+                <div className="flex items-center gap-1.5 sm:gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+                  {/* Tombol Kirim WA Satuan */}
+                  <button
+                    type="button"
+                    onClick={() => handleShareSingleWA(item)}
+                    title="Kirim laporan santri ini langsung ke WhatsApp"
+                    className="px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Kirim WA</span>
+                  </button>
+
+                  {!isPublic && (
+                    <>
+                      {item.status === "dalam_perawatan" ? (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateStatus(item.id, "sembuh")}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Tandai Sembuh</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateStatus(item.id, "dalam_perawatan")}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all"
+                        >
+                          <HeartPulse className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Kembalikan Dirawat</span>
+                        </button>
+                      )}
+
+                      {(() => {
+                        const canEditDelete = !isMusyrif || 
+                          item.musyrifId === authUser?.id || 
+                          item.musyrifId === authUser?.musyrifId;
+                        return canEditDelete ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(item)}
+                              title="Edit Data Santri Sakit"
+                              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => onDeleteSantriSakit(item.id)}
+                              aria-label="Hapus Catatan Medis"
+                              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : null;
+                      })()}
+                    </>
                   )}
-
-                  {(() => {
-                    const canEditDelete = !isMusyrif || 
-                      item.musyrifId === authUser?.id || 
-                      item.musyrifId === authUser?.musyrifId;
-                    return canEditDelete ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(item)}
-                          title="Edit Data Santri Sakit"
-                          className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onDeleteSantriSakit(item.id)}
-                          aria-label="Hapus Catatan Medis"
-                          className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    ) : null;
-                  })()}
                 </div>
               </div>
 
