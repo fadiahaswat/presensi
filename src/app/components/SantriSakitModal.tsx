@@ -63,7 +63,8 @@ export function SantriSakitModal({
   const isPamong = authUser?.role === "pamong";
   const isMusyrif = authUser?.role === "musyrif";
   const isKoorGedung = authUser?.role === "koordinator_gedung";
-  const isClassScoped = isMusyrif || isKoorGedung; // hanya bisa lihat santri kelasnya
+  const isMusyrifUser = isMusyrif || isKoorGedung;
+  const isClassScoped = isMusyrif || isKoorGedung; // hanya bisa lihat santri kelasnya/asramanya
   const isScopedRole = isPamong || isClassScoped;
   const userAsramaSakit = authUser?.asrama || "all";
   const [showAddForm, setShowAddForm] = useState(false);
@@ -76,12 +77,12 @@ export function SantriSakitModal({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const activeMusyrifList = useMemo(() => {
-    return musyrifList.filter(m => !m.role || m.role === "musyrif");
+    return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
   }, [musyrifList]);
 
   // Form State
-  const defaultMusyrif = isMusyrif 
-    ? (musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id)) || activeMusyrifList[0] || musyrifList[0])
+  const defaultMusyrif = isMusyrifUser 
+    ? (musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id) || (m.email && authUser?.email && m.email.toLowerCase() === authUser.email.toLowerCase())) || activeMusyrifList[0] || musyrifList[0])
     : (activeMusyrifList[0] || musyrifList[0]);
 
   const [formMusyrifId, setFormMusyrifId] = useState(defaultMusyrif?.id || "");
@@ -90,10 +91,18 @@ export function SantriSakitModal({
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [formKelas, setFormKelas] = useState(defaultMusyrif?.kelas || "");
-  const [formKamar, setFormKamar] = useState("");
+  const [formKamar, setFormKamar] = useState(""); // Default kamar selalu kosong
   const [formKeluhan, setFormKeluhan] = useState("");
   const [formLokasi, setFormLokasi] = useState<"kamar" | "uks" | "rs_pku" | "pulang">("kamar");
   const [formCatatan, setFormCatatan] = useState("");
+
+  useEffect(() => {
+    if (defaultMusyrif && !editingRecord) {
+      setFormMusyrifId(defaultMusyrif.id);
+      setFormKelas(defaultMusyrif.kelas || "");
+      setFormKamar(""); // Default kosong, musyrif isi manual
+    }
+  }, [defaultMusyrif, editingRecord]);
 
   const currentMusyrifObj = useMemo(() => {
     return musyrifList.find(m => m.id === formMusyrifId) || defaultMusyrif;
@@ -101,29 +110,54 @@ export function SantriSakitModal({
 
   // Scoped students of this musyrif's class
   const classStudents = useMemo(() => {
-    if (!currentMusyrifObj) return [];
-    return getSantriForMusyrif(currentMusyrifObj.kelas, currentMusyrifObj.tingkat);
+    if (!currentMusyrifObj?.kelas) return [];
+    return getSantriForMusyrif(undefined, undefined, currentMusyrifObj.kelas);
   }, [currentMusyrifObj]);
 
+  // Real-time per-letter suggestion search
   const santriSuggestions = useMemo(() => {
-    if (!formNama.trim() || formNama.trim().length < 2) return [];
-    // Prioritize students from musyrif's class, then fallback to search
-    const results = searchSantri(formNama, 10);
-    return results;
-  }, [formNama]);
+    const q = formNama.trim().toLowerCase();
+    if (!q) {
+      return classStudents.slice(0, 20);
+    }
+    // Filter matching students in current musyrif's class first
+    const inClassMatches = classStudents.filter(s => 
+      s.nama.toLowerCase().includes(q) ||
+      (s.nis && s.nis.includes(q)) ||
+      (s.nisn && s.nisn.includes(q))
+    );
+    // Broader search in database
+    const broaderMatches = searchSantri(q, 20).filter(s => !inClassMatches.some(m => m.id === s.id));
+    return [...inClassMatches, ...broaderMatches].slice(0, 20);
+  }, [formNama, classStudents]);
+
+  const handleSelectSantri = (santri: SantriData) => {
+    setFormNama(santri.nama);
+    setFormKelas(santri.kelasLengkap);
+    setSelectedStudentId(santri.id);
+    setShowSuggestions(false);
+    // If admin or pamong selects a santri from another class, auto-match the musyrif of that class if not locked
+    if (!isMusyrifUser) {
+      const matchM = musyrifList.find(m => m.kelas && m.kelas.toLowerCase() === santri.kelasLengkap.toLowerCase());
+      if (matchM) {
+        setFormMusyrifId(matchM.id);
+      }
+    }
+  };
 
   const resetForm = () => {
     setFormMusyrifId(defaultMusyrif?.id || "");
     setFormDate(format(new Date(), "yyyy-MM-dd"));
     setFormNama("");
     setSelectedStudentId("");
-    setFormKelas(defaultMusyrif?.kelas || "1 A");
-    setFormKamar("");
+    setFormKelas(defaultMusyrif?.kelas || "");
+    setFormKamar(""); // Default kamar kosong
     setFormKeluhan("");
     setFormLokasi("kamar");
     setFormCatatan("");
     setEditingRecord(null);
     setShowAddForm(false);
+    setShowSuggestions(false);
   };
 
   const handleStartEdit = (rec: SantriSakitRecord) => {
@@ -137,6 +171,7 @@ export function SantriSakitModal({
     setFormLokasi(rec.lokasiPerawatan);
     setFormCatatan(rec.catatanTindakan || "");
     setShowAddForm(true);
+    setShowSuggestions(false);
   };
 
   const getGedungOrAsramaName = (asramaName?: string) => {
@@ -440,11 +475,7 @@ export function SantriSakitModal({
                   setSelectedStudentId(sid);
                   const found = classStudents.find(s => s.id === sid);
                   if (found) {
-                    setFormNama(found.nama);
-                    setFormKelas(found.kelasLengkap);
-                    if (currentMusyrifObj?.kamar) {
-                      setFormKamar(currentMusyrifObj.kamar);
-                    }
+                    handleSelectSantri(found);
                   }
                 }}
                 className="w-full text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl px-3 py-2.5 font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-xs"
@@ -463,49 +494,72 @@ export function SantriSakitModal({
             <div className="relative">
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-700 mb-0 block">Nama Lengkap Santri</label>
-                {classStudents.length > 0 && (
-                  <span className="text-[10px] text-slate-400">atau ketik manual / cari</span>
+                <span className="text-[10px] text-emerald-600 font-medium">Ketik nama untuk cari</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="Ketik nama atau NIS santri..."
+                  value={formNama}
+                  onChange={(e) => {
+                    setFormNama(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                />
+                {formNama && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormNama("");
+                      setSelectedStudentId("");
+                      setShowSuggestions(true);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 )}
               </div>
-              <input
-                type="text"
-                required
-                placeholder="Ketik nama atau NIS santri..."
-                value={formNama}
-                onChange={(e) => {
-                  setFormNama(e.target.value);
-                  setShowSuggestions(true);
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-              />
+
               {showSuggestions && santriSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
-                  {santriSuggestions.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setFormNama(s.nama);
-                        setFormKelas(s.kelasLengkap);
-                        setShowSuggestions(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 flex items-center justify-between transition-colors"
-                    >
-                      <div>
-                        <p className="font-bold text-slate-800">{s.nama}</p>
-                        <p className="text-[10px] text-slate-400">NIS: {s.nis || "-"} • {s.kabupaten || s.provinsi}</p>
-                      </div>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                        {s.kelasLengkap}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowSuggestions(false)} 
+                  />
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-56 overflow-y-auto divide-y divide-slate-100">
+                    <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium sticky top-0">
+                      <span>Ditemukan {santriSuggestions.length} santri</span>
+                      <span>Klik untuk pilih</span>
+                    </div>
+                    {santriSuggestions.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => handleSelectSantri(s)}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <div>
+                          <p className="font-bold text-slate-800">{s.nama}</p>
+                          <p className="text-[10px] text-slate-400">NIS: {s.nis || "-"} • {s.kabupaten || s.provinsi || s.asalMts || ""}</p>
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0 ml-2">
+                          {s.kelasLengkap}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Kelas / Tingkat</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 block">Kelas / Tingkat</label>
+                <span className="text-[10px] text-emerald-600 font-medium">Terisi otomatis</span>
+              </div>
               <input
                 type="text"
                 required
@@ -519,7 +573,10 @@ export function SantriSakitModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Kamar Asrama</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 block">Kamar Asrama</label>
+                <span className="text-[10px] text-rose-500 font-medium">Diisi manual</span>
+              </div>
               <input
                 type="text"
                 placeholder="Contoh: Kamar 104"
@@ -542,15 +599,33 @@ export function SantriSakitModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">Musyrif Pendamping</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 block">Musyrif Pendamping</label>
+                {isMusyrifUser && (
+                  <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded font-semibold flex items-center gap-0.5">
+                    Terkunci
+                  </span>
+                )}
+              </div>
               <select
                 value={formMusyrifId}
-                onChange={(e) => setFormMusyrifId(e.target.value)}
-                disabled={isMusyrif}
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
+                onChange={(e) => {
+                  const newMid = e.target.value;
+                  setFormMusyrifId(newMid);
+                  const mObj = musyrifList.find(m => m.id === newMid);
+                  if (mObj) {
+                    setFormKelas(mObj.kelas || "");
+                  }
+                }}
+                disabled={isMusyrifUser}
+                className={`w-full text-xs rounded-xl px-3 py-2.5 font-medium border outline-none cursor-pointer ${
+                  isMusyrifUser 
+                    ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" 
+                    : "bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                }`}
               >
                 {activeMusyrifList.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.asrama}{m.kamar ? ` - Kmr ${m.kamar}` : ""})</option>
+                  <option key={m.id} value={m.id}>{m.name} ({m.asrama}{m.kelas ? ` • ${m.kelas}` : ""})</option>
                 ))}
               </select>
             </div>
