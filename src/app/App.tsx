@@ -748,7 +748,7 @@ function PageDashboard({
       <div 
         className="rounded-[28px] overflow-hidden relative shadow-lg shadow-sky-950/15 ring-1 ring-white/20"
         style={{
-          background: "linear-gradient(135deg, #0C4E8C 0%, #0C81E4 50%, #17C3D4 100%)",
+          background: "linear-gradient(135deg, #0C4E8C 0%, #0C81E4 100%)",
           minHeight: 195
         }}
       >
