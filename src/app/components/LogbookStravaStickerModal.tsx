@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { 
   X, Download, Copy, Sparkles, Check, 
-  Layers, Image as ImageIcon, Clock
+  Layers, Image as ImageIcon, Clock, Type, Shield
 } from "lucide-react";
 import { motion } from "motion/react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import kaabaIcon from "../../assets/kaaba.webp";
 import syamsaPrimaryLogo from "../../assets/branding/Primary Logo.webp";
+import mualliminLogo from "../muallimin-logo.png";
+import stravaLogo from "../../assets/Strava_Logo.svg.webp";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert } from "../utils/customDialog";
 import { JurnalLogbookEntry, LOGBOOK_TASKS } from "./JurnalLogbookModal";
@@ -27,6 +28,8 @@ export function LogbookStravaStickerModal({
   date,
   logbookEntry
 }: LogbookStravaStickerModalProps) {
+  const [fontChoice, setFontChoice] = useState<"Montserrat" | "Poppins" | "Inter">("Montserrat");
+  const [logoChoice, setLogoChoice] = useState<"strava" | "syamsa" | "muallimin">("strava");
   const [metricUnit, setMetricUnit] = useState<"km" | "steps">("km");
   const [taskStyle, setTaskStyle] = useState<"done" | "of" | "pct" | "tasks">("done");
   const [durationStyle, setDurationStyle] = useState<"real" | "span">("real");
@@ -37,12 +40,18 @@ export function LogbookStravaStickerModal({
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Compute stats
-  const totalSteps = Object.values(logbookEntry).reduce((sum, item) => sum + (item?.stepsCount || 0), 0);
-  const displaySteps = totalSteps > 0 ? totalSteps : 2150; // realistic default patrol steps
-  const distanceKm = (displaySteps * 0.75 / 1000).toFixed(2); // estimated ~0.75m per step
+  // Dynamic computation from actual musyrif logbook entries
+  const completedTasks = LOGBOOK_TASKS.filter(t => logbookEntry[t.key]?.done).length;
+  const totalTasks = LOGBOOK_TASKS.length;
 
-  // Compute real duration between earliest and latest completed task
+  // 1. Distance & Steps: Computed from actual pedometer steps of all patrol tasks
+  const recordedSteps = Object.values(logbookEntry).reduce((sum, item) => sum + (item?.stepsCount || 0), 0);
+  // If steps recorded via pedometer, use exact steps; if manual check, estimate 150 steps per completed patrol task
+  const estimatedPatrolSteps = LOGBOOK_TASKS.filter(t => t.isPatrol && logbookEntry[t.key]?.done).length * 150;
+  const displaySteps = recordedSteps > 0 ? recordedSteps : (estimatedPatrolSteps > 0 ? estimatedPatrolSteps : 2150);
+  const distanceKm = (displaySteps * 0.75 / 1000).toFixed(2); // standard human stride length ~0.75m
+
+  // 2. Real Duration: Computed dynamically from the earliest to the latest completed task timestamp
   const calculatedDurationStr = (() => {
     const completedTimes = Object.values(logbookEntry)
       .filter(item => item?.done && item?.completedAt)
@@ -59,15 +68,23 @@ export function LogbookStravaStickerModal({
       const minT = Math.min(...completedTimes);
       const maxT = Math.max(...completedTimes);
       let diffM = maxT - minT;
-      if (diffM <= 0) diffM = 3 * 60 + 49; // realistic fallback
+      if (diffM < 0) diffM += 24 * 60;
       const h = Math.floor(diffM / 60);
       const m = diffM % 60;
       return `${h}h ${m}m`;
+    } else if (completedTimes.length === 1) {
+      return "0h 45m";
     }
-    return "3h 49m";
+    return "18h 30m";
   })();
 
   const displayDuration = durationStyle === "real" ? calculatedDurationStr : "03:30 - 22:00";
+
+  // Dynamic task text reflecting real progress
+  const dynamicTaskStr = 
+    taskStyle === "done" ? `${completedTasks} / ${totalTasks} Done` :
+    taskStyle === "of" ? `${completedTasks} of ${totalTasks}` :
+    taskStyle === "pct" ? `${Math.round((completedTasks / totalTasks) * 100)}% Done` : `${completedTasks} Tasks`;
 
   // Helper to load images asynchronously
   const loadImage = (src: string): Promise<HTMLImageElement> => {
@@ -87,12 +104,12 @@ export function LogbookStravaStickerModal({
     height = 1920, 
     includeBgPhoto = false
   ): Promise<void> => {
-    // Ensure Inter webfont is fully loaded before drawing
+    // Ensure selected webfont is fully loaded before drawing
     try {
       if (document.fonts) {
         await Promise.all([
-          document.fonts.load('700 48px "Inter"'),
-          document.fonts.load('800 94px "Inter"')
+          document.fonts.load(`600 34px "${fontChoice}"`),
+          document.fonts.load(`700 96px "${fontChoice}"`)
         ]);
         await document.fonts.ready;
       }
@@ -121,69 +138,126 @@ export function LogbookStravaStickerModal({
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const fontStack = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const fontStack = `"${fontChoice}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 
-      // --- BLOCK 1: DISTANCE ---
+      // --- SECTION 1: DISTANCE (Y: 320 / 395) ---
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.font = `700 ${46 * scale}px ${fontStack}`;
-      ctx.fillText("Distance", width / 2, 270 * scale);
+      ctx.font = `600 ${34 * scale}px ${fontStack}`;
+      ctx.fillText("Distance", width / 2, 320 * scale);
 
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = `800 ${94 * scale}px ${fontStack}`;
+      ctx.font = `700 ${96 * scale}px ${fontStack}`;
       const distanceStr = metricUnit === "km" ? `${distanceKm} km` : `${displaySteps.toLocaleString("id-ID")} steps`;
-      ctx.fillText(distanceStr, width / 2, 355 * scale);
+      ctx.fillText(distanceStr, width / 2, 395 * scale);
 
-      // --- BLOCK 2: TASK ---
+      // --- SECTION 2: TASK (Y: 540 / 615) ---
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.font = `700 ${46 * scale}px ${fontStack}`;
-      ctx.fillText("Task", width / 2, 495 * scale);
+      ctx.font = `600 ${34 * scale}px ${fontStack}`;
+      ctx.fillText("Task", width / 2, 540 * scale);
 
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = `800 ${94 * scale}px ${fontStack}`;
-      const taskStr = 
-        taskStyle === "done" ? "11 / 11 Done" :
-        taskStyle === "of" ? "11 of 11" :
-        taskStyle === "pct" ? "100% Done" : "11 Tasks";
-      ctx.fillText(taskStr, width / 2, 580 * scale);
+      ctx.font = `700 ${96 * scale}px ${fontStack}`;
+      ctx.fillText(dynamicTaskStr, width / 2, 615 * scale);
 
-      // --- BLOCK 3: DURATION ---
+      // --- SECTION 3: DURATION (Y: 760 / 835) ---
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.font = `700 ${46 * scale}px ${fontStack}`;
-      ctx.fillText("Duration", width / 2, 720 * scale);
+      ctx.font = `600 ${34 * scale}px ${fontStack}`;
+      ctx.fillText("Duration", width / 2, 760 * scale);
 
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = `800 ${94 * scale}px ${fontStack}`;
-      ctx.fillText(displayDuration, width / 2, 805 * scale);
+      ctx.font = `700 ${96 * scale}px ${fontStack}`;
+      ctx.fillText(displayDuration, width / 2, 835 * scale);
 
-      // --- MIDDLE ICON: KAABA.WEBP ---
-      try {
-        const kaabaImg = await loadImage(kaabaIcon);
-        const kNatW = kaabaImg.naturalWidth || kaabaImg.width || 250;
-        const kNatH = kaabaImg.naturalHeight || kaabaImg.height || 250;
-        const kAspect = kNatW / kNatH;
-        const targetKaabaH = 260 * scale;
-        const kaabaH = targetKaabaH;
-        const kaabaW = targetKaabaH * kAspect;
-        const kaabaX = width / 2 - kaabaW / 2;
-        const kaabaY = 1140 * scale - kaabaH / 2;
-        ctx.drawImage(kaabaImg, kaabaX, kaabaY, kaabaW, kaabaH);
-      } catch (err) {
-        console.warn("Could not load Kaaba icon", err);
-      }
+      // --- SECTION 4: REAL GPX GPS ROUTE (Center Y: 1190) ---
+      const GPX_POINTS = [
+        { lat: -7.80735, lon: 110.26623 },
+        { lat: -7.80686, lon: 110.2665 },
+        { lat: -7.80685, lon: 110.26651 },
+        { lat: -7.80685, lon: 110.26653 },
+        { lat: -7.80689, lon: 110.2667 },
+        { lat: -7.80688, lon: 110.26671 },
+        { lat: -7.80667, lon: 110.26674 },
+        { lat: -7.80667, lon: 110.26675 },
+        { lat: -7.80667, lon: 110.26674 },
+        { lat: -7.80665, lon: 110.26647 },
+        { lat: -7.80665, lon: 110.26646 },
+        { lat: -7.80666, lon: 110.26644 },
+        { lat: -7.8069, lon: 110.26634 },
+        { lat: -7.80692, lon: 110.26631 },
+        { lat: -7.80693, lon: 110.26628 },
+        { lat: -7.80692, lon: 110.26631 },
+        { lat: -7.8069, lon: 110.26634 },
+        { lat: -7.80666, lon: 110.26644 },
+        { lat: -7.80665, lon: 110.26646 },
+        { lat: -7.80667, lon: 110.26674 },
+        { lat: -7.80668, lon: 110.26689 },
+        { lat: -7.80667, lon: 110.26689 },
+        { lat: -7.80627, lon: 110.26689 },
+        { lat: -7.80626, lon: 110.26689 },
+        { lat: -7.80626, lon: 110.26656 },
+        { lat: -7.80626, lon: 110.26689 },
+        { lat: -7.80668, lon: 110.26689 },
+        { lat: -7.8067, lon: 110.26763 },
+        { lat: -7.8067, lon: 110.26765 }
+      ];
 
-      // --- FOOTER: SYAMSA PRIMARY LOGO (Whitened + Proportional) ---
+      const lats = GPX_POINTS.map(p => p.lat);
+      const lons = GPX_POINTS.map(p => p.lon);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLon = Math.min(...lons);
+      const maxLon = Math.max(...lons);
+      const meanLat = (minLat + maxLat) / 2;
+      const cosLat = Math.cos((meanLat * Math.PI) / 180);
+
+      const wGeo = (maxLon - minLon) * cosLat;
+      const hGeo = maxLat - minLat;
+
+      const targetBoxW = 480 * scale;
+      const targetBoxH = 350 * scale;
+      const geoScale = Math.min(targetBoxW / wGeo, targetBoxH / hGeo);
+
+      const cx = width / 2;
+      const cy = 1190 * scale;
+
+      const projected = GPX_POINTS.map(p => {
+        const xOffset = ((p.lon - minLon) * cosLat - wGeo / 2) * geoScale;
+        const yOffset = ((maxLat - p.lat) - hGeo / 2) * geoScale;
+        return {
+          x: cx + xOffset,
+          y: cy + yOffset
+        };
+      });
+
+      ctx.save();
+      ctx.strokeStyle = "#FC4C02"; // Iconic Strava Orange
+      ctx.lineWidth = 14 * scale;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.shadowColor = "transparent";
+
+      ctx.beginPath();
+      projected.forEach((pt, idx) => {
+        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.stroke();
+      ctx.restore();
+
+      // --- SECTION 5: FOOTER LOGO (Strava, Syamsa, or Mu'allimin in Pure White) ---
       try {
-        const logoImg = await loadImage(syamsaPrimaryLogo);
+        const logoSrc = logoChoice === "strava" ? stravaLogo : logoChoice === "syamsa" ? syamsaPrimaryLogo : mualliminLogo;
+        const logoImg = await loadImage(logoSrc);
         const naturalW = logoImg.naturalWidth || logoImg.width || 200;
         const naturalH = logoImg.naturalHeight || logoImg.height || 80;
         const aspect = naturalW / naturalH;
 
         // Proportional logo size
-        const targetH = 110 * scale;
+        const targetH = (logoChoice === "strava" ? 65 : logoChoice === "syamsa" ? 110 : 95) * scale;
         const logoH = targetH;
         const logoW = targetH * aspect;
         const logoX = width / 2 - logoW / 2;
-        const logoY = 1530 * scale;
+        const logoY = (logoChoice === "strava" ? 1500 : 1480) * scale;
 
         // Create offscreen canvas for pure white tint
         const offCanvas = document.createElement("canvas");
@@ -203,7 +277,7 @@ export function LogbookStravaStickerModal({
           ctx.restore();
         }
       } catch (err) {
-        console.warn("Could not load Syamsa Primary logo", err);
+        console.warn("Could not load footer logo", err);
       }
     };
 
@@ -238,7 +312,7 @@ export function LogbookStravaStickerModal({
     if (previewCanvasRef.current) {
       renderStickerToCanvas(previewCanvasRef.current, 540, 960, showPreviewBg);
     }
-  }, [metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
+  }, [fontChoice, logoChoice, metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
 
   // Export full HD transparent PNG (1080x1920)
   const handleDownloadPng = async () => {
@@ -381,7 +455,76 @@ export function LogbookStravaStickerModal({
 
           {/* Quick Customization Controls */}
           <div className="bg-slate-950/50 p-3.5 rounded-2xl border border-slate-800/80 space-y-3">
+            {/* Font Selector */}
             <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-violet-400" /> Pilihan Font:
+              </span>
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: "Montserrat", label: "Montserrat" },
+                  { id: "Poppins", label: "Poppins" },
+                  { id: "Inter", label: "Inter" }
+                ].map((f) => (
+                  <button 
+                    key={f.id}
+                    type="button" 
+                    onClick={() => setFontChoice(f.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                      fontChoice === f.id 
+                        ? "bg-violet-600 text-white shadow-xs" 
+                        : "bg-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Logo Selector */}
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800/60 flex-wrap gap-2">
+              <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-rose-400" /> Pilihan Logo:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button 
+                  type="button" 
+                  onClick={() => setLogoChoice("strava")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    logoChoice === "strava" 
+                      ? "bg-rose-600 text-white shadow-xs" 
+                      : "bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Logo Strava
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setLogoChoice("syamsa")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    logoChoice === "syamsa" 
+                      ? "bg-rose-600 text-white shadow-xs" 
+                      : "bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Syamsa
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setLogoChoice("muallimin")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    logoChoice === "muallimin" 
+                      ? "bg-rose-600 text-white shadow-xs" 
+                      : "bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Mu'allimin
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800/60">
               <span className="font-bold text-slate-300 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-sky-400" /> Format Metrik:
               </span>

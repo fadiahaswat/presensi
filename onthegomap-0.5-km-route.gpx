@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gpx version="1.1" creator="https://onthegomap.com" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>0.5km route</name>
+    <link href="https://onthegomap.com">
+      <text>On The Go Map</text>
+    </link>
+    <time>2026-08-22T13:51:15.227Z</time>
+    <copyright author="On The Go Map, OpenStreetMap Contributors">
+      <year>2026</year>
+    </copyright>
+  </metadata>
+  <trk>
+    <name>0.5km route</name>
+    <trkseg>
+      <trkpt lat="-7.80735" lon="110.26623">
+        <ele>75.3</ele>
+      </trkpt>
+      <trkpt lat="-7.80686" lon="110.2665">
+        <ele>75.7</ele>
+      </trkpt>
+      <trkpt lat="-7.80685" lon="110.26651">
+        <ele>75.7</ele>
+      </trkpt>
+      <trkpt lat="-7.80685" lon="110.26653">
+        <ele>75.7</ele>
+      </trkpt>
+      <trkpt lat="-7.80689" lon="110.2667">
+        <ele>75.7</ele>
+      </trkpt>
+      <trkpt lat="-7.80688" lon="110.26671">
+        <ele>75.7</ele>
+      </trkpt>
+      <trkpt lat="-7.80667" lon="110.26674">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80667" lon="110.26675">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80667" lon="110.26674">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80665" lon="110.26647">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80665" lon="110.26646">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80666" lon="110.26644">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.8069" lon="110.26634">
+        <ele>75.8</ele>
+      </trkpt>
+      <trkpt lat="-7.80692" lon="110.26631">
+        <ele>75.8</ele>
+      </trkpt>
+      <trkpt lat="-7.80693" lon="110.26628">
+        <ele>75.8</ele>
+      </trkpt>
+      <trkpt lat="-7.80692" lon="110.26631">
+        <ele>75.8</ele>
+      </trkpt>
+      <trkpt lat="-7.8069" lon="110.26634">
+        <ele>75.8</ele>
+      </trkpt>
+      <trkpt lat="-7.80666" lon="110.26644">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80665" lon="110.26646">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80667" lon="110.26674">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80668" lon="110.26689">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80667" lon="110.26689">
+        <ele>76</ele>
+      </trkpt>
+      <trkpt lat="-7.80627" lon="110.26689">
+        <ele>76.5</ele>
+      </trkpt>
+      <trkpt lat="-7.80626" lon="110.26689">
+        <ele>76.5</ele>
+      </trkpt>
+      <trkpt lat="-7.80626" lon="110.26656">
+        <ele>76.4</ele>
+      </trkpt>
+      <trkpt lat="-7.80626" lon="110.26689">
+        <ele>76.5</ele>
+      </trkpt>
+      <trkpt lat="-7.80668" lon="110.26689">
+        <ele>76.1</ele>
+      </trkpt>
+      <trkpt lat="-7.8067" lon="110.26763">
+        <ele>78.2</ele>
+      </trkpt>
+      <trkpt lat="-7.8067" lon="110.26765">
+        <ele>78.2</ele>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
