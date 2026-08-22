@@ -439,87 +439,91 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
       {/* ───────────────────────────────────────────────────────────── */}
       {activeTab === "kalender" && (
         <div className="space-y-4 sm:space-y-5">
-          {/* Month Selector Bar */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200/70 flex items-center justify-center shrink-0">
-                <CalendarIcon className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                    {activeMonthData.label}
-                  </h2>
-                  <span className="bg-emerald-50 text-emerald-800 font-bold text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full border border-emerald-200 font-mono">
-                    Semester {activeMonthData.semester} ({activeMonthData.semester === 1 ? "Ganjil" : "Genap"})
-                  </span>
+          {/* Combined Month Selector & Color Legend Card */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+            {/* Top row: Icon + Month Title + Nav / Dropdown */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+                  <CalendarIcon className="w-5 h-5" />
                 </div>
-                <div className="flex items-center gap-2.5 text-xs text-slate-500 font-medium mt-1">
-                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                    <strong>{activeMonthData.weeksEff}</strong> Minggu Efektif
-                  </span>
-                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                    <strong>{activeMonthData.daysEff}</strong> Hari Efektif
-                  </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                      {activeMonthData.label}
+                    </h2>
+                    <span className="bg-emerald-50 text-emerald-800 font-bold text-[10px] px-2 py-0.2 rounded-full border border-emerald-200 font-mono">
+                      Semester {activeMonthData.semester} ({activeMonthData.semester === 1 ? "Ganjil" : "Genap"})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium mt-0.5">
+                    <span className="font-mono text-slate-500">
+                      <strong>{activeMonthData.weeksEff}</strong> Minggu Efektif
+                    </span>
+                    <span>·</span>
+                    <span className="font-mono text-slate-500">
+                      <strong>{activeMonthData.daysEff}</strong> Hari Efektif
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Quick Month Dropdown Select & Prev/Next */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-200/80 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setCurrentMonthIndex((prev) => Math.max(0, prev - 1))}
-                  disabled={currentMonthIndex === 0}
-                  className="w-8 h-8 rounded-xl bg-white disabled:opacity-30 disabled:hover:bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center shadow-2xs transition active:scale-95"
-                  title="Bulan Sebelumnya"
+              {/* Quick Month Dropdown Select & Prev/Next */}
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <div className="flex items-center gap-1 bg-slate-50/80 p-1 rounded-2xl border border-slate-100/80">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentMonthIndex((prev) => Math.max(0, prev - 1))}
+                    disabled={currentMonthIndex === 0}
+                    className="w-8 h-8 rounded-xl bg-white disabled:opacity-30 text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-2xs transition active:scale-95"
+                    title="Bulan Sebelumnya"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentMonthIndex((prev) => Math.min(MONTHS_TA.length - 1, prev + 1))}
+                    disabled={currentMonthIndex === MONTHS_TA.length - 1}
+                    className="w-8 h-8 rounded-xl bg-white disabled:opacity-30 text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-2xs transition active:scale-95"
+                    title="Bulan Berikutnya"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <select
+                  value={currentMonthIndex}
+                  onChange={(e) => setCurrentMonthIndex(Number(e.target.value))}
+                  className="px-3 py-1.5 bg-slate-50/80 border border-slate-100/80 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs cursor-pointer"
                 >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentMonthIndex((prev) => Math.min(MONTHS_TA.length - 1, prev + 1))}
-                  disabled={currentMonthIndex === MONTHS_TA.length - 1}
-                  className="w-8 h-8 rounded-xl bg-white disabled:opacity-30 disabled:hover:bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center shadow-2xs transition active:scale-95"
-                  title="Bulan Berikutnya"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                  {MONTHS_TA.map((m, idx) => (
+                    <option key={m.label} value={idx}>
+                      {m.label} (Sem. {m.semester})
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
 
-              <select
-                value={currentMonthIndex}
-                onChange={(e) => setCurrentMonthIndex(Number(e.target.value))}
-                className="px-3.5 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs cursor-pointer"
-              >
-                {MONTHS_TA.map((m, idx) => (
-                  <option key={m.label} value={idx}>
-                    {m.label} (Sem. {m.semester})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Color Legend */}
-          <div className="bg-slate-50/90 border border-slate-200/70 rounded-2xl p-3 flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-slate-700">
-            <span className="font-bold text-slate-900 text-xs mr-1">Keterangan Warna:</span>
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200/60 shadow-2xs">
-              <span className="w-3 h-3 rounded-md bg-rose-500 shadow-2xs" />
-              <span className="text-[11px] font-medium">Libur Nasional / Semester / Hari Raya</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200/60 shadow-2xs">
-              <span className="w-3 h-3 rounded-md bg-amber-400 shadow-2xs" />
-              <span className="text-[11px] font-medium">Asesmen / Ujian / TKA / ASAS</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200/60 shadow-2xs">
-              <span className="w-3 h-3 rounded-md bg-emerald-500 shadow-2xs" />
-              <span className="text-[11px] font-medium">Libur Perpulangan Awal Bulan</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-slate-200/60 shadow-2xs">
-              <span className="w-3 h-3 rounded-md bg-blue-500 shadow-2xs" />
-              <span className="text-[11px] font-medium">Awal Semester / Upacara / Rapor</span>
+            {/* Integrated Color Legend Row */}
+            <div className="bg-slate-50/80 border border-slate-100/80 rounded-2xl p-2.5 flex flex-wrap items-center gap-2 text-xs text-slate-700">
+              <span className="font-bold text-slate-800 text-[11px] font-mono mr-1">Keterangan Warna:</span>
+              <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-100 shadow-2xs">
+                <span className="w-2.5 h-2.5 rounded-sm bg-rose-500" />
+                <span className="text-[10.5px] font-medium text-slate-600">Libur Nasional / Semester / Hari Raya</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-100 shadow-2xs">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                <span className="text-[10.5px] font-medium text-slate-600">Asesmen / Ujian / TKA / ASAS</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-100 shadow-2xs">
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                <span className="text-[10.5px] font-medium text-slate-600">Libur Perpulangan Awal Bulan</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-100 shadow-2xs">
+                <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
+                <span className="text-[10.5px] font-medium text-slate-600">Awal Semester / Upacara / Rapor</span>
+              </div>
             </div>
           </div>
 

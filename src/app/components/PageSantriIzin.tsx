@@ -561,199 +561,203 @@ _Pesan resmi dari Sistem Perizinan Terpadu Seluruh Asrama Mu'allimin Yogyakarta_
         </div>
       </div>
 
-      {/* ── UNIFIED INTERACTIVE METRIC & FILTER TILES ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setScopeFilter("hari_ini");
-            setActiveTab("daftar");
-            triggerHaptic("light");
-          }}
-          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
-            scopeFilter === "hari_ini" && activeTab === "daftar"
-              ? "bg-blue-50/90 border-blue-300 ring-blue-500/30 text-blue-950 font-bold"
-              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-            scopeFilter === "hari_ini" && activeTab === "daftar" ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
-          }`}>
-            <Calendar className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Hari Ini</p>
-            <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.hariIni}</p>
-          </div>
-        </button>
+      {/* ── UNIFIED METRICS & SEARCH/FILTER CONTAINER CARD ── */}
+      <div className="bg-white rounded-3xl p-3.5 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
+        {/* Interactive Metric Tiles Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setScopeFilter("hari_ini");
+              setActiveTab("daftar");
+              triggerHaptic("light");
+            }}
+            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
+              scopeFilter === "hari_ini" && activeTab === "daftar"
+                ? "bg-blue-50/90 border-blue-300 ring-blue-500/30 text-blue-950 font-bold"
+                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              scopeFilter === "hari_ini" && activeTab === "daftar" ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
+            }`}>
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Hari Ini</p>
+              <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.hariIni}</p>
+            </div>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setScopeFilter("pending");
-            setActiveTab("daftar");
-            triggerHaptic("light");
-          }}
-          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
-            scopeFilter === "pending" && activeTab === "daftar"
-              ? "bg-amber-50/90 border-amber-300 ring-amber-500/30 text-amber-950 font-bold"
-              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-            scopeFilter === "pending" && activeTab === "daftar" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700"
-          }`}>
-            <Clock className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Approval</p>
-            <p className="text-sm sm:text-base font-black text-amber-700 leading-tight font-mono">{stats.pending}</p>
-          </div>
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setScopeFilter("pending");
+              setActiveTab("daftar");
+              triggerHaptic("light");
+            }}
+            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
+              scopeFilter === "pending" && activeTab === "daftar"
+                ? "bg-amber-50/90 border-amber-300 ring-amber-500/30 text-amber-950 font-bold"
+                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              scopeFilter === "pending" && activeTab === "daftar" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700"
+            }`}>
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Approval</p>
+              <p className="text-sm sm:text-base font-black text-amber-700 leading-tight font-mono">{stats.pending}</p>
+            </div>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setScopeFilter("di_luar");
-            setActiveTab("daftar");
-            triggerHaptic("light");
-          }}
-          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
-            scopeFilter === "di_luar" && activeTab === "daftar"
-              ? "bg-sky-50/90 border-sky-300 ring-sky-500/30 text-sky-950 font-bold"
-              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-            scopeFilter === "di_luar" && activeTab === "daftar" ? "bg-sky-600 text-white" : "bg-sky-50 text-sky-700"
-          }`}>
-            <ShieldCheck className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Di Luar</p>
-            <p className="text-sm sm:text-base font-black text-sky-800 leading-tight font-mono">{stats.diLuar}</p>
-          </div>
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setScopeFilter("di_luar");
+              setActiveTab("daftar");
+              triggerHaptic("light");
+            }}
+            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
+              scopeFilter === "di_luar" && activeTab === "daftar"
+                ? "bg-sky-50/90 border-sky-300 ring-sky-500/30 text-sky-950 font-bold"
+                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              scopeFilter === "di_luar" && activeTab === "daftar" ? "bg-sky-600 text-white" : "bg-sky-50 text-sky-700"
+            }`}>
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Di Luar</p>
+              <p className="text-sm sm:text-base font-black text-sky-800 leading-tight font-mono">{stats.diLuar}</p>
+            </div>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setScopeFilter("terlambat");
-            setActiveTab("daftar");
-            triggerHaptic("light");
-          }}
-          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
-            scopeFilter === "terlambat" && activeTab === "daftar"
-              ? "bg-rose-50/90 border-rose-300 ring-rose-500/30 text-rose-950 font-bold"
-              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-            scopeFilter === "terlambat" && activeTab === "daftar" ? "bg-rose-600 text-white" : "bg-rose-50 text-rose-700"
-          }`}>
-            <AlertTriangle className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Terlambat</p>
-            <p className="text-sm sm:text-base font-black text-rose-700 leading-tight font-mono">{stats.terlambat}</p>
-          </div>
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setScopeFilter("terlambat");
+              setActiveTab("daftar");
+              triggerHaptic("light");
+            }}
+            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
+              scopeFilter === "terlambat" && activeTab === "daftar"
+                ? "bg-rose-50/90 border-rose-300 ring-rose-500/30 text-rose-950 font-bold"
+                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              scopeFilter === "terlambat" && activeTab === "daftar" ? "bg-rose-600 text-white" : "bg-rose-50 text-rose-700"
+            }`}>
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Terlambat</p>
+              <p className="text-sm sm:text-base font-black text-rose-700 leading-tight font-mono">{stats.terlambat}</p>
+            </div>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setScopeFilter("semua");
-            setActiveTab("daftar");
-            triggerHaptic("light");
-          }}
-          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 col-span-2 sm:col-span-1 ${
-            scopeFilter === "semua" && activeTab === "daftar"
-              ? "bg-violet-50/90 border-violet-300 ring-violet-500/30 text-violet-950 font-bold"
-              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-            scopeFilter === "semua" && activeTab === "daftar" ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-700"
-          }`}>
-            <FileCheck2 className="w-4 h-4" />
+          <button
+            type="button"
+            onClick={() => {
+              setScopeFilter("semua");
+              setActiveTab("daftar");
+              triggerHaptic("light");
+            }}
+            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 col-span-2 sm:col-span-1 ${
+              scopeFilter === "semua" && activeTab === "daftar"
+                ? "bg-violet-50/90 border-violet-300 ring-violet-500/30 text-violet-950 font-bold"
+                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              scopeFilter === "semua" && activeTab === "daftar" ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-700"
+            }`}>
+              <FileCheck2 className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Semua Arsip</p>
+              <p className="text-sm sm:text-base font-black text-violet-900 leading-tight font-mono">{stats.total}</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Integrated Search & Filter Toolbar inside Container */}
+        {activeTab === "daftar" && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-100">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari santri, NISN, kelas, nomor..."
+                className="w-full pl-9 pr-8 py-1.5 bg-slate-50/80 border border-slate-100/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
+              />
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div>
+              <select
+                value={filterAsrama}
+                onChange={(e) => setFilterAsrama(e.target.value)}
+                className="w-full py-1.5 px-3 bg-slate-50/80 border border-slate-100/80 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium cursor-pointer"
+              >
+                <option value="Semua">Semua Asrama</option>
+                {asramaList.map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={filterJenis}
+                onChange={(e) => setFilterJenis(e.target.value)}
+                className="w-full py-1.5 px-3 bg-slate-50/80 border border-slate-100/80 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium cursor-pointer"
+              >
+                <option value="all">Semua Jenis Izin</option>
+                <option value="keluar_biasa">Keluar Hari Ini</option>
+                <option value="rutin_sabtu_ahad">Rutin Akhir Pekan</option>
+                <option value="kesehatan_berobat">Ke Dokter / RS</option>
+                <option value="pulang_menginap">Pulang / Menginap</option>
+              </select>
+
+              {(searchQuery || filterAsrama !== "Semua" || filterJenis !== "all") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilterAsrama("Semua");
+                    setFilterJenis("all");
+                    triggerHaptic("light");
+                  }}
+                  className="px-2.5 py-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition shrink-0"
+                  title="Reset Filter"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Semua Arsip</p>
-            <p className="text-sm sm:text-base font-black text-violet-900 leading-tight font-mono">{stats.total}</p>
-          </div>
-        </button>
+        )}
       </div>
 
       {/* ═════════════════════ TAB 1: DAFTAR & RIWAYAT IZIN ═════════════════════ */}
       {activeTab === "daftar" && (
         <div className="space-y-3">
-          {/* Integrated Search & Filter Toolbar */}
-          <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari santri, NISN, kelas, nomor..."
-                  className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
-                />
-                {searchQuery && (
-                  <button 
-                    type="button" 
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <div>
-                <select
-                  value={filterAsrama}
-                  onChange={(e) => setFilterAsrama(e.target.value)}
-                  className="w-full py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
-                >
-                  <option value="Semua">Semua Asrama</option>
-                  {asramaList.map(a => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <select
-                  value={filterJenis}
-                  onChange={(e) => setFilterJenis(e.target.value)}
-                  className="w-full py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
-                >
-                  <option value="all">Semua Jenis Izin</option>
-                  <option value="keluar_biasa">Keluar Hari Ini</option>
-                  <option value="rutin_sabtu_ahad">Rutin Akhir Pekan</option>
-                  <option value="kesehatan_berobat">Ke Dokter / RS</option>
-                  <option value="pulang_menginap">Pulang / Menginap</option>
-                </select>
-
-                {(searchQuery || filterAsrama !== "Semua" || filterJenis !== "all") && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setFilterAsrama("Semua");
-                      setFilterJenis("all");
-                      triggerHaptic("light");
-                    }}
-                    className="px-2.5 py-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition shrink-0"
-                    title="Reset Filter"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
 
           {/* ════════════ SECTION: MENUNGGU PERSALURAN / APPROVAL ════════════ */}
           {(scopeFilter === "pending" || (scopeFilter === "hari_ini" && pendingApprovalList.length > 0)) && pendingApprovalList.length > 0 && (

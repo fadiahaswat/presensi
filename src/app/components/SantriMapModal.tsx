@@ -914,9 +914,9 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
           />
         ) : (
           <>
-            {/* ── Top 3 Kabupaten highlight ── */}
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between font-mono">
+            {/* ── Top 3 Kabupaten highlight inside white container card ── */}
+            <div className="bg-white rounded-3xl p-3.5 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between font-mono">
                 <span className="flex items-center gap-1.5">
                   <Medal className="w-3.5 h-3.5 text-amber-500" /> Top 3 Asal Terbanyak
                 </span>

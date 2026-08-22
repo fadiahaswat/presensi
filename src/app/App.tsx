@@ -2645,69 +2645,71 @@ function PageInputPrayer({
         </div>
       )}
 
-      {/* 2. Compact Progress & Quick Action Bar */}
+      {/* 2. Compact Progress, Quick Action & Search Container */}
       {!isFuture && (
-        <div className="bg-white rounded-2xl p-3 sm:p-3.5 shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-slate-500">
-                {isMusyrifOnly ? "Status Presensi Mandiri Anda" : "Progress Presensi"}
-              </span>
-              <span className="text-xs font-bold text-slate-700 font-mono">
-                {doneCount} / {musyrifList.length} Musyrif
-              </span>
+        <div className="bg-white rounded-3xl p-3.5 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-slate-700">
+                  {isMusyrifOnly ? "Status Presensi Mandiri Anda" : "Progress Presensi"}
+                </span>
+                <span className="text-xs font-bold text-slate-700 font-mono">
+                  {doneCount} / {musyrifList.length} Musyrif
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    isSubuh 
+                      ? "bg-gradient-to-r from-amber-400 to-amber-500" 
+                      : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                  }`}
+                  style={{ width: `${musyrifList.length > 0 ? (doneCount / musyrifList.length) * 100 : 0}%` }}
+                />
+              </div>
             </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-300 ${
-                  isSubuh 
-                    ? "bg-gradient-to-r from-amber-400 to-amber-500" 
-                    : "bg-gradient-to-r from-emerald-500 to-teal-500"
+
+            {!isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
+              <button
+                onClick={()=>setConfirmAll(slot)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 ${
+                  isSubuh
+                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
                 }`}
-                style={{ width: `${musyrifList.length > 0 ? (doneCount / musyrifList.length) * 100 : 0}%` }}
-              />
-            </div>
+              >
+                <Zap className="w-3.5 h-3.5"/> Semua Hadir
+              </button>
+            )}
+
+            {isNotYetTime && !isMusyrifOnly && (
+              <span className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 flex items-center gap-1.5 cursor-not-allowed">
+                <Lock className="w-3.5 h-3.5"/> Terkunci
+              </span>
+            )}
           </div>
 
-          {!isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
-            <button
-              onClick={()=>setConfirmAll(slot)}
-              className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs active:scale-95 ${
-                isSubuh
-                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5"/> Semua Hadir
-            </button>
-          )}
-
-          {isNotYetTime && !isMusyrifOnly && (
-            <span className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 flex items-center gap-1.5 cursor-not-allowed">
-              <Lock className="w-3.5 h-3.5"/> Terkunci
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* 3. Search Bar - Hide for Musyrif and Koord. Gedung */}
-      {!isMusyrifOrKoorGedung && (
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-          <input 
-            value={search} 
-            onChange={e=>setSearch(e.target.value)} 
-            placeholder="Cari nama musyrif..." 
-            className="w-full pl-10 pr-9 py-2 bg-white ring-1 ring-slate-200/80 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-slate-400 shadow-2xs"
-          />
-          {search && (
-            <button 
-              onClick={()=>setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all"
-              title="Hapus pencarian"
-            >
-              <X className="w-3 h-3"/>
-            </button>
+          {/* Integrated Search Bar inside container - Hide for Musyrif and Koord. Gedung */}
+          {!isMusyrifOrKoorGedung && (
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+              <input 
+                value={search} 
+                onChange={e=>setSearch(e.target.value)} 
+                placeholder="Cari nama musyrif..." 
+                className="w-full pl-9 pr-8 py-2 bg-slate-50/80 border border-slate-100/80 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:bg-white placeholder:text-slate-400 font-medium transition-all"
+              />
+              {search && (
+                <button 
+                  onClick={()=>setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-all"
+                  title="Hapus pencarian"
+                >
+                  <X className="w-3 h-3"/>
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
