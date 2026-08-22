@@ -1,12 +1,12 @@
 {
-  "name": "Presensi & Kepengasuhan Mu'allimin",
-  "short_name": "Presensi Musyrif",
-  "description": "Sistem Presensi, Jurnal Logbook Harian & Mutaba'ah Musyrif Madrasah Mu'allimin Muhammadiyah Yogyakarta",
+  "name": "SYAMSA - System Advisor Management and Student Attendance",
+  "short_name": "SYAMSA",
+  "description": "SYAMSA (System Advisor Management and Student Attendance) - Sistem Presensi, Jurnal Logbook Harian & Mutaba'ah Musyrif Madrasah Mu'allimin Muhammadiyah Yogyakarta",
   "start_url": "/presensi/",
   "scope": "/presensi/",
   "display": "standalone",
-  "background_color": "#064e3b",
-  "theme_color": "#059669",
+  "background_color": "#0C1F3D",
+  "theme_color": "#0C4E8C",
   "orientation": "portrait",
   "icons": [
     {

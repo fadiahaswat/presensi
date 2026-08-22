@@ -1,11 +1,34 @@
 
-  # Aplikasi Presensi Musyrif
+  # SYAMSA
+**System Advisor Management and Student Attendance**
 
-  This is a code bundle for Aplikasi Presensi Musyrif. The original project is available at https://www.figma.com/design/5D1f0JMJJ8oBvfg0waXOZx/Aplikasi-Presensi-Musyrif.
+Aplikasi Manajemen Kepengasuhan, Presensi Santri, Jurnal Logbook Harian & Mutaba'ah Musyrif untuk **Madrasah Mu'allimin Muhammadiyah Yogyakarta**.
 
-  ## Running the code
+---
 
-  Run `npm i` to install the dependencies.
+## 🌟 Fitur Utama
+- **Presensi Santri & Musyrif**: Pencatatan kehadiran ibadah (sholat berjamaah), asrama, dan kegiatan harian.
+- **Logbook & Jurnal Harian**: Dokumentasi pembinaan dan pemantauan santri.
+- **Mutaba'ah & Perizinan**: Integrasi data perizinan dan rekap riwayat kepengasuhan.
+- **Dukungan PWA (Progressive Web App)**: Dapat diinstal dan diakses cepat di perangkat mobile maupun desktop secara offline-ready.
 
-  Run `npm run dev` to start the development server.
+---
+
+## 🚀 Memulai Proyek (Development)
+
+1. **Instalasi Dependensi**:
+   ```bash
+   npm install
+   ```
+
+2. **Menjalankan Server Pengembangan**:
+   ```bash
+   npm run dev
+   ```
+
+3. **Build untuk Produksi**:
+   ```bash
+   npm run build
+   ```
+
   

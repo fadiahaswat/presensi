@@ -2,38 +2,75 @@
 
 :root {
   --font-size: 16px;
-  --background: #F0FDF4;
-  --foreground: #0F172A;
+  --background: #F4F8FF;
+  --foreground: #0C1F3D;
   --card: #FFFFFF;
-  --card-foreground: #0F172A;
+  --card-foreground: #0C1F3D;
   --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
-  --primary: #059669;
-  --primary-foreground: #FFFFFF;
-  --secondary: #D1FAE5;
-  --secondary-foreground: #065F46;
-  --muted: #F0FDF4;
-  --muted-foreground: #64748B;
-  --accent: #0FA7B5;
-  --accent-foreground: #FFFFFF;
-  --destructive: #E11D48;
-  --destructive-foreground: #FFFFFF;
-  --border: rgba(15, 23, 42, 0.08);
+  --popover-foreground: #0C1F3D;
+  --muted: #EEF3FB;
+  --muted-foreground: #5B7099;
+  --border: rgba(12, 78, 140, 0.1);
   --input: transparent;
   --input-background: #F8FAFC;
   --switch-background: #CBD5E1;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --ring: #0D81E4;
-  --chart-1: #0B3F71;
-  --chart-2: #0FA7B5;
-  --chart-3: #32E2A1;
-  --chart-4: #F59E0B;
-  --chart-5: #0D81E4;
+
+  /* Primary & Accent (SYAMSA Brand System) */
+  --primary: #0C81E4;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E0F2FE;
+  --secondary-foreground: #0C4E8C;
+  --accent: #17C3D4;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --ring: #17C3D4;
+
+  /* SYAMSA Brand Core */
+  --color-brand-deep: #0C4E8C;
+  --color-brand-blue: #0C81E4;
+  --color-brand-cyan: #17C3D4;
+  --color-brand-mint: #4FE7AF;
+
+  /* SYAMSA Status Presensi */
+  --color-status-hadir: #10B981;
+  --color-status-ya: #10B981;
+  --color-status-telat: #17C3D4;
+  --color-status-sakit: #F59E0B;
+  --color-status-izin: #3B82F6;
+  --color-status-pulang: #A855F7;
+  --color-status-alpa: #EF4444;
+  --color-status-tidak: #64748B;
+
+  /* SYAMSA Sesi Presensi */
+  --color-sesi-shubuh: #22C55E;
+  --color-sesi-sekolah: #17C3D4;
+  --color-sesi-ashar: #EAB308;
+  --color-sesi-maghrib: #FB923C;
+  --color-sesi-isya: #8B5CF6;
+
+  /* SYAMSA Feature Domains */
+  --color-domain-attendance: #10B981;
+  --color-domain-tahfizh: #F97316;
+  --color-domain-laporan: #3B82F6;
+  --color-domain-profil: #A855F7;
+
+  /* Charts */
+  --chart-1: #0C4E8C;
+  --chart-2: #0C81E4;
+  --chart-3: #17C3D4;
+  --chart-4: #4FE7AF;
+  --chart-5: #F59E0B;
+
+  /* Radius Scale */
   --radius: 1.25rem;
+  --radius-chip: 0.5rem;
+  --radius-control: 0.875rem;
+  --radius-panel: 1.5rem;
+
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
+  --sidebar-primary: #0C4E8C;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -42,40 +79,40 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: #0C1F3D;
+  --foreground: #F8FAFC;
+  --card: #132B52;
+  --card-foreground: #F8FAFC;
+  --popover: #132B52;
+  --popover-foreground: #F8FAFC;
+  --primary: #0C81E4;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1E3A6E;
+  --secondary-foreground: #93C5FD;
+  --muted: #1E3A6E;
+  --muted-foreground: #94A3B8;
+  --accent: #17C3D4;
+  --accent-foreground: #0C1F3D;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: #1E3A6E;
+  --ring: #17C3D4;
+
+  --chart-1: #38BDF8;
+  --chart-2: #2DD4BF;
+  --chart-3: #4ADE80;
+  --chart-4: #FBBF24;
+  --chart-5: #F472B6;
+
+  --sidebar: #0C1F3D;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #0C81E4;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1E3A6E;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #17C3D4;
 }
 
 @theme inline {
@@ -100,15 +137,47 @@
   --color-input-background: var(--input-background);
   --color-switch-background: var(--switch-background);
   --color-ring: var(--ring);
+
+  /* SYAMSA Theme Classes */
+  --color-brand-deep: var(--color-brand-deep);
+  --color-brand-blue: var(--color-brand-blue);
+  --color-brand-cyan: var(--color-brand-cyan);
+  --color-brand-mint: var(--color-brand-mint);
+
+  --color-status-hadir: var(--color-status-hadir);
+  --color-status-ya: var(--color-status-ya);
+  --color-status-telat: var(--color-status-telat);
+  --color-status-sakit: var(--color-status-sakit);
+  --color-status-izin: var(--color-status-izin);
+  --color-status-pulang: var(--color-status-pulang);
+  --color-status-alpa: var(--color-status-alpa);
+  --color-status-tidak: var(--color-status-tidak);
+
+  --color-sesi-shubuh: var(--color-sesi-shubuh);
+  --color-sesi-sekolah: var(--color-sesi-sekolah);
+  --color-sesi-ashar: var(--color-sesi-ashar);
+  --color-sesi-maghrib: var(--color-sesi-maghrib);
+  --color-sesi-isya: var(--color-sesi-isya);
+
+  --color-domain-attendance: var(--color-domain-attendance);
+  --color-domain-tahfizh: var(--color-domain-tahfizh);
+  --color-domain-laporan: var(--color-domain-laporan);
+  --color-domain-profil: var(--color-domain-profil);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-chip: var(--radius-chip);
+  --radius-control: var(--radius-control);
+  --radius-panel: var(--radius-panel);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);

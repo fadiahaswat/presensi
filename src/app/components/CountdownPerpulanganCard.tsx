@@ -169,10 +169,10 @@ export const CountdownPerpulanganCard: React.FC<CountdownPerpulanganCardProps> =
     ).padStart(2, "0")}`;
 
     return (
-      <div className="p-3 sm:p-3.5 bg-slate-900 text-white rounded-2xl border border-slate-800 flex items-center justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className="p-3 sm:p-3.5 bg-[#0C1F3D] text-white rounded-2xl border border-[#1E3A6E] flex items-center justify-between gap-3 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
-            <Calendar className={`w-4 h-4 ${isCurrentlyOngoing ? "text-rose-400 animate-pulse" : "text-emerald-400"}`} />
+          <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center shrink-0">
+            <Calendar className={`w-4 h-4 ${isCurrentlyOngoing ? "text-rose-400 animate-pulse" : "text-sky-300"}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-slate-300 text-xs font-semibold">
@@ -182,7 +182,7 @@ export const CountdownPerpulanganCard: React.FC<CountdownPerpulanganCardProps> =
             <div className="flex items-center gap-2 mt-0.5">
               <span
                 className={`font-mono text-sm sm:text-base font-black tracking-wider leading-none ${
-                  isCurrentlyOngoing ? "text-rose-400" : "text-emerald-400"
+                  isCurrentlyOngoing ? "text-rose-400" : "text-cyan-300"
                 }`}
               >
                 -{formattedCountdown}
@@ -194,7 +194,7 @@ export const CountdownPerpulanganCard: React.FC<CountdownPerpulanganCardProps> =
           type="button"
           onClick={onOpenFullCalendar}
           className={`px-3 py-2 rounded-xl text-white font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1 shrink-0 ${
-            isCurrentlyOngoing ? "bg-rose-600 hover:bg-rose-500" : "bg-emerald-600 hover:bg-emerald-500"
+            isCurrentlyOngoing ? "bg-rose-600 hover:bg-rose-500" : "bg-[#0C81E4] hover:bg-[#0C4E8C]"
           }`}
         >
           <span>Kalender</span>

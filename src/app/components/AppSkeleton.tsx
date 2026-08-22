@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "motion/react";
 import { Sparkles, RefreshCw } from "lucide-react";
-import mualliminLogo from "../muallimin-logo.png";
+import syamsaPrimaryLogo from "../../assets/branding/Primary Logo.webp";
 
 export function AppSkeleton() {
   return (
@@ -18,7 +18,7 @@ export function AppSkeleton() {
           {/* Brand Info */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-slate-200/80 animate-pulse flex items-center justify-center p-1 border border-slate-200">
-              <img src={mualliminLogo} alt="Logo" className="w-full h-full object-contain opacity-40 grayscale" />
+              <img src={syamsaPrimaryLogo} alt="Logo" className="w-full h-full object-contain opacity-40 grayscale" />
             </div>
             <div className="space-y-1.5">
               <div className="h-4 w-36 sm:w-48 bg-slate-200/80 rounded-md animate-pulse" />

@@ -20,7 +20,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, PieChart, Pie, Cell
 } from "recharts";
-import mualliminLogo from "./muallimin-logo.png";
+import syamsaPrimaryLogo from "../assets/branding/Primary Logo.webp";
 import { WhatsAppShareModal } from "./components/WhatsAppShareModal";
 import { IzinPengajuanModal, IzinRequest } from "./components/IzinPengajuanModal";
 import { PageSantriIzin } from "./components/PageSantriIzin";
@@ -462,8 +462,8 @@ function Card({ ch, cls="" }: { ch: React.ReactNode; cls?: string }) {
 function SectionHeader({ 
   title, 
   badge, 
-  badgeVariant = "emerald", 
-  indicatorColor = "bg-emerald-500",
+  badgeVariant = "blue", 
+  indicatorColor = "bg-[#0C81E4]",
   action,
   className = "mb-2.5" 
 }: { 
@@ -482,7 +482,7 @@ function SectionHeader({
     amber: "bg-amber-50 text-amber-700 border-amber-200/80",
     indigo: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
     slate: "bg-slate-100 text-slate-700 border-slate-200",
-    blue: "bg-blue-50 text-blue-700 border-blue-200/80",
+    blue: "bg-sky-50 text-sky-700 border-sky-200/80",
   };
 
   return (
@@ -494,7 +494,7 @@ function SectionHeader({
         </span>
       </div>
       {badge && (
-        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono border shrink-0 ${badgeStyles[badgeVariant] || badgeStyles.emerald}`}>
+        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono border shrink-0 ${badgeStyles[badgeVariant] || badgeStyles.blue}`}>
           {badge}
         </span>
       )}
@@ -503,7 +503,7 @@ function SectionHeader({
   );
 }
 
-function Label({ ch, cls="mb-2.5", indicatorColor="bg-emerald-500" }: { ch: React.ReactNode; cls?: string; indicatorColor?: string }) {
+function Label({ ch, cls="mb-2.5", indicatorColor="bg-[#0C81E4]" }: { ch: React.ReactNode; cls?: string; indicatorColor?: string }) {
   return (
     <div className={`flex items-center gap-2 px-1 ${cls}`}>
       <div className={`w-1.5 h-3.5 rounded-full ${indicatorColor} shrink-0`} />
@@ -734,21 +734,21 @@ function PageDashboard({
   // Overview donut data
   const allTodayPossible = total * 2;
   const todayHadir = sh + mh;
-  const todayBelum = mList.filter(m=>!todayRecs.find(r=>r.musyrifId===m.id)).length * 2;
+  const todayBelum = mList.filter(m=>!todayRecs.find(r=>r.musyrifId === m.id)).length * 2;
   const todayLain = allTodayPossible - todayHadir - todayBelum;
   const donutData = [
-    { name:"Hadir", value: todayHadir, color:"#059669" },
-    { name:"Lainnya", value: Math.max(0,todayLain), color:"#f59e0b" },
+    { name:"Hadir", value: todayHadir, color:"#0C81E4" },
+    { name:"Lainnya", value: Math.max(0,todayLain), color:"#17C3D4" },
     { name:"Belum", value: Math.max(0,todayBelum), color:"#e2e8f0" },
   ];
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Hero card - Soft Luxurious Emerald Gradient */}
+      {/* Hero card - SYAMSA Brand Deep Blue Gradient */}
       <div 
-        className="rounded-[28px] overflow-hidden relative shadow-lg shadow-emerald-950/10 ring-1 ring-emerald-400/20"
+        className="rounded-[28px] overflow-hidden relative shadow-lg shadow-sky-950/15 ring-1 ring-white/20"
         style={{
-          background: "radial-gradient(at 90% 10%, rgba(52, 211, 153, 0.18) 0px, transparent 65%), radial-gradient(at 10% 90%, rgba(5, 150, 105, 0.15) 0px, transparent 65%), linear-gradient(145deg, #064e3b 0%, #065f46 60%, #047857 100%)",
+          background: "linear-gradient(135deg, #0C4E8C 0%, #0C81E4 50%, #17C3D4 100%)",
           minHeight: 195
         }}
       >
@@ -761,25 +761,25 @@ function PageDashboard({
             <button
               type="button"
               onClick={onOpenKalenderHijriah}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/25 hover:bg-emerald-500/40 backdrop-blur-md border border-emerald-300/30 transition-all active:scale-95 text-left cursor-pointer group shadow-2xs shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/25 transition-all active:scale-95 text-left cursor-pointer group shadow-2xs shrink-0"
               title={`Kalender Hijriah: ${hijri.day} ${hijri.monthName} ${hijri.year} H`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-              <span className="text-emerald-100 text-[11px] font-mono font-bold group-hover:underline">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse" />
+              <span className="text-white text-[11px] font-mono font-bold group-hover:underline">
                 {hijri.day} {hijri.monthName}
               </span>
-              <Calendar className="w-3 h-3 text-emerald-200 opacity-80 group-hover:opacity-100" />
+              <Calendar className="w-3 h-3 text-cyan-100 opacity-90 group-hover:opacity-100" />
             </button>
 
             {nextPrayer ? (
               <button
                 type="button"
                 onClick={() => onGoTo("ibadah")}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer shadow-2xs group shrink-0"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/25 transition-all active:scale-95 cursor-pointer shadow-2xs group shrink-0"
                 title={`Jadwal Ibadah: ${nextPrayer.name} (${nextPrayer.time} WIB)`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${totalMinsLeft <= 30 ? "bg-amber-400" : "bg-emerald-300"}`} />
-                <span className="text-emerald-100 text-[11px] font-mono font-medium">
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${totalMinsLeft <= 30 ? "bg-amber-300" : "bg-cyan-300"}`} />
+                <span className="text-cyan-100 text-[11px] font-mono font-medium">
                   {nextPrayer.name}
                 </span>
                 <span className="text-white text-[11px] font-mono font-black tracking-tight">
@@ -790,7 +790,7 @@ function PageDashboard({
               <button
                 type="button"
                 onClick={() => onGoTo("ibadah")}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/25 transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
               >
                 <span className="text-white text-[11px] font-mono font-bold">Jadwal Ibadah</span>
               </button>
@@ -800,9 +800,9 @@ function PageDashboard({
           {/* Middle: Full-width Greeting */}
           <div>
             <h1 className="text-white text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight">
-              {authUser ? `Ahlan, Ustaz ${getMusyrifCallName(authUser.name)}!` : "Presensi Musyrif"}
+              {authUser ? `Ahlan, Ustaz ${getMusyrifCallName(authUser.name)}!` : "SYAMSA Presensi"}
             </h1>
-            <p className="text-emerald-200/90 text-xs sm:text-sm font-medium mt-0.5">
+            <p className="text-sky-100/90 text-xs sm:text-sm font-medium mt-0.5">
               {format(now, "EEEE, d MMMM yyyy", { locale: id })}
             </p>
           </div>
@@ -859,23 +859,24 @@ function PageDashboard({
                 activeTaskTitle = "Sisir Maghrib";
                 activeTaskKey = "sisirMaghrib";
                 activeTaskTime = "Sesi 17:30–18:40";
-              } else if (currentMinutesOfDay > 1120 && currentMinutesOfDay <= 1200) {
-                activeTaskTitle = "Ba'da Maghrib";
-                activeTaskKey = "bakdaMaghrib";
-                activeTaskTime = "Sesi 18:40–20:00";
-              } else if (currentMinutesOfDay > 1200 && currentMinutesOfDay <= 1290) {
+              } else if (currentMinutesOfDay > 1120 && currentMinutesOfDay <= 1180) {
+                activeTaskTitle = "Malam Asrama";
+                activeTaskKey = "malamAsrama";
+                activeTaskTime = "Sesi 18:40–19:40";
+              } else if (currentMinutesOfDay > 1180 && currentMinutesOfDay <= 1260) {
                 activeTaskTitle = "Belajar Malam";
                 activeTaskKey = "belajarMalam";
-                activeTaskTime = "Sesi 20:00–21:30";
+                activeTaskTime = "Sesi 19:40–21:00";
               } else {
-                activeTaskTitle = "Cek Tidur Malam";
-                activeTaskKey = "cekTidur";
-                activeTaskTime = "Sesi 21:30–22:30";
+                activeTaskTitle = "Tidur Malam";
+                activeTaskKey = "tidurMalam";
+                activeTaskTime = "Sesi 21:00–22:00";
               }
 
-              const todayLogKey = `${myId}_${today}`;
-              const myLog = (logbookData as any)?.[todayLogKey];
-              const logDoneCount = myLog ? Object.values(myLog.tasks || {}).filter(Boolean).length : 0;
+              // Check if user has completed logbook today
+              const todayIso = format(liveNow, "yyyy-MM-dd");
+              const todayLogs = (logbookData && logbookData[todayIso]) ? (logbookData[todayIso][myId] || {}) : {};
+              const logDoneCount = Object.keys(todayLogs).length;
               const isLogComplete = logDoneCount >= 11;
 
               return (
@@ -886,16 +887,16 @@ function PageDashboard({
                     onClick={() => onGoTo("subuh")}
                     className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between text-emerald-200 mb-1">
+                    <div className="flex items-center justify-between text-cyan-200 mb-1">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Sun className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Subuh</span>
                       </div>
-                      {subuhStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />}
+                      {subuhStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300 shrink-0" />}
                     </div>
                     <div>
                       <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
-                        subuhStatus === "hadir" ? "text-emerald-200" :
+                        subuhStatus === "hadir" ? "text-cyan-200" :
                         subuhStatus === "sakit" ? "text-amber-200" :
                         subuhStatus === "izin" ? "text-sky-200" :
                         subuhStatus === "alfa" ? "text-rose-300" : "text-white/80"
@@ -905,7 +906,7 @@ function PageDashboard({
                          subuhStatus === "izin" ? "Izin" :
                          subuhStatus === "alfa" ? "Alfa" : "Belum Presensi"}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-white/50 truncate font-mono mt-0.5">Presensi Saya</p>
+                      <p className="text-[9px] sm:text-[10px] text-white/60 truncate font-mono mt-0.5">Presensi Saya</p>
                     </div>
                   </button>
 
@@ -915,16 +916,16 @@ function PageDashboard({
                     onClick={() => onGoTo("maghrib")}
                     className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between text-emerald-200 mb-1">
+                    <div className="flex items-center justify-between text-cyan-200 mb-1">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Moon className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Maghrib</span>
                       </div>
-                      {maghribStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />}
+                      {maghribStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300 shrink-0" />}
                     </div>
                     <div>
                       <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
-                        maghribStatus === "hadir" ? "text-emerald-200" :
+                        maghribStatus === "hadir" ? "text-cyan-200" :
                         maghribStatus === "sakit" ? "text-amber-200" :
                         maghribStatus === "izin" ? "text-sky-200" :
                         maghribStatus === "alfa" ? "text-rose-300" : "text-white/80"
@@ -934,7 +935,7 @@ function PageDashboard({
                          maghribStatus === "izin" ? "Izin" :
                          maghribStatus === "alfa" ? "Alfa" : "Belum Presensi"}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-white/50 truncate font-mono mt-0.5">Presensi Saya</p>
+                      <p className="text-[9px] sm:text-[10px] text-white/60 truncate font-mono mt-0.5">Presensi Saya</p>
                     </div>
                   </button>
 
@@ -944,20 +945,20 @@ function PageDashboard({
                     onClick={() => onGoTo("logbook")}
                     className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between text-emerald-200 mb-1">
+                    <div className="flex items-center justify-between text-cyan-200 mb-1">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <ClipboardList className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Logbook</span>
                       </div>
-                      {isLogComplete && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300 shrink-0" />}
+                      {isLogComplete && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300 shrink-0" />}
                     </div>
                     <div>
                       <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
-                        isLogComplete ? "text-emerald-200" : logDoneCount > 0 ? "text-amber-200" : "text-white/80"
+                        isLogComplete ? "text-cyan-200" : logDoneCount > 0 ? "text-amber-200" : "text-white/80"
                       }`}>
                         {isLogComplete ? "✓ Lengkap" : logDoneCount > 0 ? `${logDoneCount}/11 Terisi` : "Belum Isi"}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-white/50 truncate font-mono mt-0.5">11 Tugas Harian</p>
+                      <p className="text-[9px] sm:text-[10px] text-white/60 truncate font-mono mt-0.5">11 Tugas Harian</p>
                     </div>
                   </button>
                 </div>
@@ -976,7 +977,7 @@ function PageDashboard({
                     key={s.label}
                     className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all"
                   >
-                    <div className="flex items-center gap-1.5 text-emerald-200 mb-1">
+                    <div className="flex items-center gap-1.5 text-cyan-200 mb-1">
                       {s.icon}
                       <span className="text-[10px] sm:text-[11px] font-semibold">{s.label}</span>
                     </div>
@@ -1098,12 +1099,12 @@ function PageDashboard({
                 onClick={() => onGoTo("maghrib")}
                 className={`group relative flex flex-col justify-between p-4 sm:p-5 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border ${
                   isMaghribLocked
-                    ? "bg-slate-800/95 border-emerald-500/30 text-slate-300"
-                    : "bg-emerald-700 hover:bg-emerald-800 border-emerald-600/50"
+                    ? "bg-[#0C1F3D]/95 border-sky-500/30 text-slate-300"
+                    : "bg-[#0C4E8C] hover:bg-[#0A3E70] border-sky-500/40"
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isMaghribLocked ? "bg-emerald-500/20 text-emerald-300" : "bg-white/20 text-white"}`}>
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isMaghribLocked ? "bg-sky-500/20 text-sky-300" : "bg-white/20 text-white"}`}>
                     {isMaghribLocked ? <Lock className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
@@ -1118,12 +1119,12 @@ function PageDashboard({
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       isMaghribLocked
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
                         : authUser.role === "musyrif"
-                        ? (isMyMaghribHadir ? "bg-emerald-950/30 text-emerald-100" : "bg-teal-950/30 text-teal-100")
+                        ? (isMyMaghribHadir ? "bg-sky-950/40 text-sky-100" : "bg-cyan-950/40 text-cyan-100")
                         : belumM.length > 0
-                        ? "bg-teal-950/30 text-teal-100"
-                        : "bg-emerald-950/30 text-emerald-100"
+                        ? "bg-cyan-950/40 text-cyan-100"
+                        : "bg-sky-950/40 text-sky-100"
                     }`}>
                       {isMaghribLocked 
                         ? "🔒 Buka 17:00 WIB" 
@@ -7391,7 +7392,7 @@ export default function App() {
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-emerald-50/50 via-teal-50/30 to-amber-50/40 text-slate-800 flex flex-col font-sans selection:bg-emerald-500 selection:text-white relative" 
+      className="min-h-screen bg-[#F4F8FF] text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white relative" 
       style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -7407,16 +7408,16 @@ export default function App() {
           opacity: pullDistance > 10 || isRefreshing ? 1 : 0,
         }}
       >
-        <div className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-emerald-100 text-xs font-semibold text-slate-700">
+        <div className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-sky-100 text-xs font-semibold text-slate-700">
           {isRefreshing ? (
             <>
-              <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />
-              <span className="text-emerald-700">Memperbarui data...</span>
+              <RefreshCw className="w-4 h-4 text-sky-600 animate-spin" />
+              <span className="text-sky-700">Memperbarui data...</span>
             </>
           ) : pullDistance >= REFRESH_THRESHOLD ? (
             <>
-              <RefreshCw className="w-4 h-4 text-emerald-600 transition-transform duration-200 rotate-180" />
-              <span className="text-emerald-700 font-bold">Lepaskan untuk memuat ulang</span>
+              <RefreshCw className="w-4 h-4 text-sky-600 transition-transform duration-200 rotate-180" />
+              <span className="text-sky-700 font-bold">Lepaskan untuk memuat ulang</span>
             </>
           ) : (
             <>
@@ -7447,9 +7448,9 @@ export default function App() {
             exit="exit"
             className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-xl border flex items-center gap-2.5 max-w-[90vw] sm:max-w-sm w-auto backdrop-blur-md"
             style={{
-              backgroundColor: toast.type === "error" ? "rgba(254, 242, 242, 0.95)" : toast.type === "info" ? "rgba(240, 249, 255, 0.95)" : "rgba(236, 253, 245, 0.95)",
-              borderColor: toast.type === "error" ? "#fecaca" : toast.type === "info" ? "#bae6fd" : "#a7f3d0",
-              color: toast.type === "error" ? "#991b1b" : toast.type === "info" ? "#0369a1" : "#065f46"
+              backgroundColor: toast.type === "error" ? "rgba(254, 242, 242, 0.95)" : toast.type === "info" ? "rgba(240, 249, 255, 0.95)" : "rgba(240, 248, 255, 0.95)",
+              borderColor: toast.type === "error" ? "#fecaca" : toast.type === "info" ? "#bae6fd" : "#bfdbfe",
+              color: toast.type === "error" ? "#991b1b" : toast.type === "info" ? "#0369a1" : "#0c4e8c"
             }}
           >
             {toast.type === "error" ? (
@@ -7457,7 +7458,7 @@ export default function App() {
             ) : toast.type === "info" ? (
               <Info className="w-4 h-4 text-sky-600 flex-shrink-0" />
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-sky-600 flex-shrink-0" />
             )}
             <span className="text-xs font-semibold">{toast.message}</span>
           </motion.div>
@@ -7468,15 +7469,15 @@ export default function App() {
       <header className="w-full pt-5 sm:pt-6 pb-1">
         <div className="max-w-2xl mx-auto px-4 flex items-center justify-between gap-3">
           
-          {/* Pure Logo Mu'allimin - Direct, Containerless & Aligned with Halo */}
+          {/* Pure Logo SYAMSA Primary - Aligned with Hero Card */}
           <div 
-            className="cursor-pointer select-none flex items-center pl-5 sm:pl-6 active:scale-95 transition-transform" 
+            className="cursor-pointer select-none flex items-center active:scale-95 transition-transform" 
             onClick={()=>setPage("dashboard")}
           >
             <img 
-              src={mualliminLogo} 
-              alt="Logo Madrasah Mu'allimin" 
-              className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs"
+              src={syamsaPrimaryLogo} 
+              alt="Logo SYAMSA" 
+              className="h-10 sm:h-11 w-auto object-contain drop-shadow-xs"
             />
           </div>
 
@@ -7493,8 +7494,8 @@ export default function App() {
                 setPage("notifikasi");
               }}
               title="Pusat Notifikasi & Update Data"
-              className={`w-8 h-8 rounded-full relative bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 shadow-xs flex items-center justify-center transition-all active:scale-95 ${
-                page === "notifikasi" ? "bg-emerald-100 text-emerald-800 ring-2 ring-emerald-500/30" : ""
+              className={`w-8 h-8 rounded-full relative bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs flex items-center justify-center transition-all active:scale-95 ${
+                page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""
               }`}
             >
               <Bell className="w-4 h-4"/>
@@ -7528,7 +7529,7 @@ export default function App() {
               <button 
                 type="button"
                 onClick={()=>setShowLogin(true)} 
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-md shadow-emerald-600/25 active:scale-95 transition-all"
+                className="flex items-center gap-1.5 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-md shadow-sky-600/25 active:scale-95 transition-all"
               >
                 <LogIn className="w-3.5 h-3.5"/>
                 <span>Masuk</span>
@@ -7897,7 +7898,7 @@ export default function App() {
 
       {/* Floating Bottom Nav Dock - Role & Public Aware with Fluid Spring Pill */}
       <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-1 pointer-events-none flex justify-center">
-        <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-full shadow-[0_12px_36px_-8px_rgba(6,78,59,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 px-2 py-1.5 flex items-center justify-around border border-white/60">
+        <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-full shadow-[0_12px_36px_-8px_rgba(12,78,140,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 px-2 py-1.5 flex items-center justify-around border border-white/60">
           {navItems.map(nav=>{
             const active = page === nav.id;
             const badgeCount = nav.id === "subuh" ? pendingSubuh : nav.id === "maghrib" ? pendingMaghrib : 0;
@@ -7913,7 +7914,7 @@ export default function App() {
                 }} 
                 className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-full relative active:scale-90 select-none transition-colors duration-200 ${
                   active 
-                    ? (nav.id === "subuh" ? "text-amber-800 font-bold" : "text-emerald-800 font-bold") 
+                    ? (nav.id === "subuh" ? "text-amber-800 font-bold" : "text-[#0C81E4] font-bold") 
                     : "text-slate-400 hover:text-slate-600"
                 }`}
               >
@@ -7922,7 +7923,7 @@ export default function App() {
                     layoutId="activeNavPill"
                     transition={springSmooth}
                     className={`absolute inset-0 rounded-full ${
-                      nav.id === "subuh" ? "bg-amber-100/80 shadow-2xs" : "bg-emerald-100/80 shadow-2xs"
+                      nav.id === "subuh" ? "bg-amber-100/80 shadow-2xs" : "bg-sky-100/80 shadow-2xs"
                     }`}
                   />
                 )}

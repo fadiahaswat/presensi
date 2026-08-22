@@ -149,6 +149,26 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   const [alasanDetail, setAlasanDetail] = useState<string>("");
   const [tujuanLokasi, setTujuanLokasi] = useState<string>("");
   const [rekomendasiPoskestren, setRekomendasiPoskestren] = useState<string>("");
+  const [isPoskestrenApproved, setIsPoskestrenApproved] = useState<boolean>(false);
+
+  // Cek apakah perizinan memerlukan rekomendasi / persetujuan Dokter Poskestren (RS PKU / Faskes / Pulang / Sakit)
+  const isPoskestrenRequired = useMemo(() => {
+    if (jenisIzin === "kesehatan_berobat" || jenisIzin === "pulang_menginap" || jenisIzin === "rutin_sabtu_ahad") {
+      return true;
+    }
+    const q = `${keperluan} ${tujuanLokasi}`.toLowerCase();
+    return (
+      q.includes("pku") ||
+      q.includes("rs") ||
+      q.includes("faskes") ||
+      q.includes("klinik") ||
+      q.includes("puskesmas") ||
+      q.includes("dokter") ||
+      q.includes("pulang") ||
+      q.includes("sakit") ||
+      q.includes("rawat")
+    );
+  }, [jenisIzin, keperluan, tujuanLokasi]);
 
   // Step 4: Wali & Penjemput
   const [asramaForm, setAsramaForm] = useState<string>(authUser?.asrama || asramaList[0] || "Asrama 1");
@@ -413,6 +433,15 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       return;
     }
 
+    if (isPoskestrenRequired && !isPoskestrenApproved) {
+      appAlert(
+        "Persetujuan Poskestren Diperlukan",
+        "Perizinan ke RS PKU / Faskes dan Pulang ke Rumah wajib mendapatkan rekomendasi/persetujuan dari Dokter Poskestren. Silakan centang konfirmasi dokter atau hubungi dr. Kartini Aprilia (wa.me/6281225760883)."
+      );
+      setFormStep(4);
+      return;
+    }
+
     const namaSantri = selectedSantri ? selectedSantri.nama : santriQuery.trim();
     const nisn = selectedSantri ? selectedSantri.nisn : "-";
     const kelas = selectedSantri ? selectedSantri.kelasLengkap : "Kelas Asrama";
@@ -494,6 +523,14 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
 
   // WhatsApp Message Generator (Format Laporan Resmi Satpam)
   const generateWhatsAppMessage = (item: SantriIzinRecord) => {
+    if (String(item.statusApproval || "") !== "approved") {
+      appAlert(
+        "Izin Belum Di-ACC",
+        `Laporan WhatsApp belum dapat dikirimkan karena perizinan santri "${item.namaSantri}" masih berstatus [${String(item.statusApproval || "PENDING").toUpperCase()}]. Harap tunggu persetujuan resmi dari Pamong/Musyrif.`
+      );
+      return;
+    }
+
     let dateHeaderStr = "";
     try {
       const refDate = item.tglKeluarRencana ? new Date(`${item.tglKeluarRencana}T00:00:00`) : new Date();
@@ -1012,30 +1049,34 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                           </div>
 
                           <div className="flex items-center gap-1.5 sm:gap-2 self-start sm:self-auto shrink-0 flex-wrap">
-                            {/* Tombol Kirim WA Satuan */}
-                            <button
-                              type="button"
-                              onClick={() => generateWhatsAppMessage(item)}
-                              title="Kirim laporan santri ini langsung ke WhatsApp Satpam"
-                              className="px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Kirim WA</span>
-                            </button>
+                            {/* Tombol Kirim WA Satuan (Hanya jika Approved) */}
+                            {item.statusApproval === "approved" && (
+                              <button
+                                type="button"
+                                onClick={() => generateWhatsAppMessage(item)}
+                                title="Kirim laporan santri ini langsung ke WhatsApp Satpam"
+                                className="px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Kirim WA</span>
+                              </button>
+                            )}
 
-                            {/* Tombol Kartu Digital */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                triggerHaptic("light");
-                                setSelectedIzin(item);
-                                setActiveTab("kartu");
-                              }}
-                              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
-                            >
-                              <QrCode className="w-3.5 h-3.5" />
-                              <span>Kartu Izin</span>
-                            </button>
+                            {/* Tombol Kartu Digital (Hanya jika Approved) */}
+                            {item.statusApproval === "approved" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic("light");
+                                  setSelectedIzin(item);
+                                  setActiveTab("kartu");
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                                <span>Kartu Izin</span>
+                              </button>
+                            )}
 
                             {/* Delete button if authorized */}
                             {(isKoorMusyrif || authUser?.name === item.disetujuiOleh || authUser?.id === item.disetujuiOleh) && (
@@ -1644,6 +1685,83 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   </div>
                 </div>
 
+                {/* ── POSKESTREN APPROVAL & DR. KARTINI APRILIA WA CONTACT (Wajib untuk RS PKU / Faskes & Pulang) ── */}
+                {isPoskestrenRequired && (
+                  <div className="p-4 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <Stethoscope className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h5 className="font-bold text-slate-900 text-xs sm:text-sm">
+                            Verifikasi Dokter Poskestren
+                          </h5>
+                          <span className="text-[10px] font-extrabold bg-rose-600 text-white px-2 py-0.2 rounded-full uppercase tracking-wider font-mono shadow-2xs">
+                            Wajib SOP
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          Perizinan santri ke RS PKU / Faskes / Klinik atau Pulang ke Rumah <strong>wajib disetujui</strong> oleh Dokter Poskestren.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Checkbox Persetujuan Dokter */}
+                    <label className={`flex items-start gap-3 p-3 bg-white rounded-xl border-2 cursor-pointer transition-all ${
+                      isPoskestrenApproved 
+                        ? "border-emerald-600 bg-emerald-50/40 ring-1 ring-emerald-500/20" 
+                        : "border-slate-200 hover:border-emerald-300"
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={isPoskestrenApproved}
+                        onChange={(e) => {
+                          setIsPoskestrenApproved(e.target.checked);
+                          if (e.target.checked && !rekomendasiPoskestren) {
+                            setRekomendasiPoskestren("Telah dikonfirmasi & disetujui Dokter Poskestren (dr. Kartini Aprilia)");
+                          }
+                          triggerHaptic("light");
+                        }}
+                        className="w-4 h-4 mt-0.5 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-900 block">
+                          Sudah disetujui / direkomendasikan oleh Dokter Poskestren <span className="text-rose-500">*</span>
+                        </span>
+                        <span className="text-slate-500 text-[11px]">
+                          Saya menyatakan bahwa perizinan medis/pulang ini telah disetujui oleh dokter Poskestren.
+                        </span>
+                      </div>
+                    </label>
+
+                    {/* Quick WhatsApp Consultation to dr. Kartini Aprilia */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-emerald-200/80">
+                      <div className="text-[11px] text-emerald-950 font-medium">
+                        Belum ada konfirmasi dokter Poskestren?
+                      </div>
+                      <a
+                        href={`https://wa.me/6281225760883?text=${encodeURIComponent(
+                          `Assalamu'alaikum dr. Kartini Aprilia, mohon konfirmasi/rekomendasi perizinan santri:\n\n` +
+                          `• Nama: ${selectedSantri?.nama || santriQuery || "-"}\n` +
+                          `• Kelas/Asrama: ${selectedSantri?.kelasLengkap || "-"} / ${asramaForm} (${kamarForm})\n` +
+                          `• Keperluan: ${keperluan || "-"}\n` +
+                          `• Tempat Tujuan: ${tujuanLokasi || "-"}\n` +
+                          `• Jadwal: ${tglKeluar} (${jamKeluar}) s/d ${tglKembali} (${jamKembali})\n\n` +
+                          `Apakah perizinan ini telah disetujui/direkomendasikan, Dok? Terima kasih.`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-2xs active:scale-95 transition"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Hubungi dr. Kartini Aprilia</span>
+                        <ExternalLink className="w-3 h-3 opacity-80" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 {/* Step 3 Footer */}
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                   <button
@@ -1657,13 +1775,13 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
 
                   <button
                     type="button"
-                    disabled={!keperluan.trim() || !tujuanLokasi.trim()}
+                    disabled={!keperluan.trim() || !tujuanLokasi.trim() || (isPoskestrenRequired && !isPoskestrenApproved)}
                     onClick={() => {
                       triggerHaptic("light");
                       setFormStep(4);
                     }}
                     className={`px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 ${
-                      keperluan.trim() && tujuanLokasi.trim()
+                      keperluan.trim() && tujuanLokasi.trim() && (!isPoskestrenRequired || isPoskestrenApproved)
                         ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"
                         : "bg-blue-300 text-white cursor-not-allowed"
                     }`}
@@ -1772,6 +1890,38 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   </div>
                 )}
 
+                {/* Poskestren Warning / Checkbox inside Step 4 Review if required */}
+                {isPoskestrenRequired && (
+                  <div className="p-3.5 bg-emerald-50/90 border border-emerald-300 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-emerald-950 flex items-center gap-1.5">
+                        <Stethoscope className="w-4 h-4 text-emerald-700" />
+                        Status Rekomendasi Dokter Poskestren:
+                      </span>
+                      {isPoskestrenApproved ? (
+                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <Check className="w-3 h-3 stroke-[3]" /> Terverifikasi
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-md">
+                          Belum Dicentang
+                        </span>
+                      )}
+                    </div>
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isPoskestrenApproved}
+                        onChange={(e) => setIsPoskestrenApproved(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-xs text-slate-700 font-medium">
+                        Saya mengonfirmasi bahwa izin RS PKU/Pulang ini telah disetujui dokter Poskestren (dr. Kartini Aprilia).
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 {/* Ringkasan Surat Perizinan Box */}
                 <div className="p-4 bg-slate-50/90 border border-slate-200/80 rounded-2xl space-y-2.5">
                   <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
@@ -1820,7 +1970,12 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
 
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-600/25 transition active:scale-95"
+                    disabled={isPoskestrenRequired && !isPoskestrenApproved}
+                    className={`px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 ${
+                      !isPoskestrenRequired || isPoskestrenApproved
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25"
+                        : "bg-blue-300 text-white cursor-not-allowed"
+                    }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Kirim & Terbitkan Izin</span>
@@ -1941,112 +2096,143 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
       {/* ═════════════════════ TAB 4: KARTU DIGITAL RESMI ═════════════════════ */}
       {activeTab === "kartu" && selectedIzin && (
         <div className="max-w-xl mx-auto space-y-4">
-          <div className="bg-white text-slate-900 rounded-2xl p-6 shadow-sm ring-1 ring-slate-200/80 border-t-4 border-t-blue-700 relative overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b-2 border-blue-800 pb-3 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-blue-800 flex items-center justify-center text-white font-black text-lg shadow-2xs">
-                  M
-                </div>
-                <div>
-                  <h4 className="font-black text-blue-950 text-xs sm:text-sm uppercase tracking-wide">
-                    Madrasah Mu'allimiin Muhammadiyah
-                  </h4>
-                  <p className="text-[10px] font-bold text-blue-800">
-                    SURAT PERIZINAN KELUAR / PULANG ASRAMA
-                  </p>
-                </div>
+          {selectedIzin.statusApproval !== "approved" ? (
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-amber-200 shadow-sm text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+                <Clock className="w-7 h-7" />
               </div>
-              <div className="text-right">
-                <span className="text-[10px] font-mono bg-blue-50 text-blue-900 px-2 py-0.5 rounded border border-blue-200/80 font-bold block">
-                  {selectedIzin.nomorSurat}
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded-md font-bold uppercase">
+                  Status: {selectedIzin.statusApproval.toUpperCase()}
                 </span>
+                <h4 className="text-base font-extrabold text-slate-900 pt-1">
+                  Kartu Tiket Izin Belum Diterbitkan
+                </h4>
+                <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+                  Permohonan izin untuk <strong>{selectedIzin.namaSantri}</strong> ({selectedIzin.nomorSurat}) masih menunggu persetujuan (ACC) dari Pamong / Musyrif yang berwenang. Tiket resmi dan tautan pesan WhatsApp baru akan aktif setelah disetujui sepenuhnya.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("daftar")}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition active:scale-95 shadow-sm"
+                >
+                  Kembali ke Daftar Perizinan
+                </button>
               </div>
             </div>
-
-            {/* Identitas */}
-            <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
-              <div className="col-span-2 space-y-2">
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Nama Lengkap Santri</p>
-                  <p className="font-extrabold text-slate-900 text-base">{selectedIzin.namaSantri}</p>
+          ) : (
+            <>
+              <div className="bg-white text-slate-900 rounded-2xl p-6 shadow-sm ring-1 ring-slate-200/80 border-t-4 border-t-blue-700 relative overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b-2 border-blue-800 pb-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-800 flex items-center justify-center text-white font-black text-lg shadow-2xs">
+                      M
+                    </div>
+                    <div>
+                      <h4 className="font-black text-blue-950 text-xs sm:text-sm uppercase tracking-wide">
+                        Madrasah Mu'allimiin Muhammadiyah
+                      </h4>
+                      <p className="text-[10px] font-bold text-blue-800">
+                        SURAT PERIZINAN KELUAR / PULANG ASRAMA
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-mono bg-blue-50 text-blue-900 px-2 py-0.5 rounded border border-blue-200/80 font-bold block">
+                      {selectedIzin.nomorSurat}
+                    </span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+
+                {/* Identitas */}
+                <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
+                  <div className="col-span-2 space-y-2">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">Nama Lengkap Santri</p>
+                      <p className="font-extrabold text-slate-900 text-base">{selectedIzin.namaSantri}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Kelas / NISN</p>
+                        <p className="font-bold text-slate-800">{selectedIzin.kelas} ({selectedIzin.nisn})</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Asrama / Kamar</p>
+                        <p className="font-bold text-slate-800">{selectedIzin.asrama} ({selectedIzin.kamar})</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center p-2 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
+                    <QrCode className="w-14 h-14 text-blue-900" />
+                    <span className="text-[8px] font-mono text-blue-800 font-bold mt-1">VERIFIKASI PKM</span>
+                  </div>
+                </div>
+
+                {/* Rincian Izin & Penjemput */}
+                <div className="bg-blue-50/60 border border-blue-200/70 rounded-xl p-3.5 mb-4 text-xs space-y-1 text-slate-800">
+                  <p><strong className="text-blue-950 font-semibold">Keperluan:</strong> {selectedIzin.keperluan}</p>
+                  <p><strong className="text-blue-950 font-semibold">Tujuan Lokasi:</strong> {selectedIzin.tujuanLokasi}</p>
+                  <p><strong className="text-blue-950 font-semibold">Penjemput:</strong> {selectedIzin.namaPenjemput || selectedIzin.namaWali || "-"} ({selectedIzin.hubunganPenjemput || "Orang Tua"})</p>
+                  {selectedIzin.rekomendasiPoskestren && (
+                    <p><strong className="text-rose-900 font-semibold">Rekomendasi Medis:</strong> {selectedIzin.rekomendasiPoskestren}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-blue-200 text-[11px] font-mono">
+                    <div>
+                      <span className="text-slate-500 block font-sans">Waktu Keluar:</span>
+                      <span className="font-bold text-slate-900">{selectedIzin.tglKeluarRencana} {selectedIzin.jamKeluarRencana} WIB</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block font-sans">Batas Kembali:</span>
+                      <span className="font-bold text-rose-700">{selectedIzin.tglKembaliRencana} {selectedIzin.jamKembaliRencana} WIB</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Signatures */}
+                <div className="grid grid-cols-2 gap-4 text-center text-xs pt-2 border-t border-slate-100">
                   <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Kelas / NISN</p>
-                    <p className="font-bold text-slate-800">{selectedIzin.kelas} ({selectedIzin.nisn})</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Pamong / Pemberi Izin</p>
+                    <div className="h-10 flex items-center justify-center">
+                      <span className="font-bold text-blue-900 border-b border-blue-800">
+                        {selectedIzin.disetujuiOleh || "Disetujui Online"}
+                      </span>
+                    </div>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Asrama / Kamar</p>
-                    <p className="font-bold text-slate-800">{selectedIzin.asrama} ({selectedIzin.kamar})</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Verifikasi Pos Gerbang</p>
+                    <div className="h-10 flex items-center justify-center">
+                      <span className="text-[11px] font-mono text-slate-500 italic">
+                        {selectedIzin.tglKeluarAktual ? `Check-out: ${format(new Date(selectedIzin.tglKeluarAktual), "dd/MM HH:mm")}` : "(Stempel Pos Gerbang)"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col items-center justify-center p-2 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
-                <QrCode className="w-14 h-14 text-blue-900" />
-                <span className="text-[8px] font-mono text-blue-800 font-bold mt-1">VERIFIKASI PKM</span>
+              {/* Actions */}
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 shadow-sm"
+                >
+                  <Printer className="w-4 h-4" /> Cetak Kartu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generateWhatsAppMessage(selectedIzin)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 shadow-sm shadow-blue-600/20"
+                >
+                  <Share2 className="w-4 h-4" /> Bagikan ke WhatsApp
+                </button>
               </div>
-            </div>
-
-            {/* Rincian Izin & Penjemput */}
-            <div className="bg-blue-50/60 border border-blue-200/70 rounded-xl p-3.5 mb-4 text-xs space-y-1 text-slate-800">
-              <p><strong className="text-blue-950 font-semibold">Keperluan:</strong> {selectedIzin.keperluan}</p>
-              <p><strong className="text-blue-950 font-semibold">Tujuan Lokasi:</strong> {selectedIzin.tujuanLokasi}</p>
-              <p><strong className="text-blue-950 font-semibold">Penjemput:</strong> {selectedIzin.namaPenjemput || selectedIzin.namaWali || "-"} ({selectedIzin.hubunganPenjemput || "Orang Tua"})</p>
-              {selectedIzin.rekomendasiPoskestren && (
-                <p><strong className="text-rose-900 font-semibold">Rekomendasi Medis:</strong> {selectedIzin.rekomendasiPoskestren}</p>
-              )}
-              <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-blue-200 text-[11px] font-mono">
-                <div>
-                  <span className="text-slate-500 block font-sans">Waktu Keluar:</span>
-                  <span className="font-bold text-slate-900">{selectedIzin.tglKeluarRencana} {selectedIzin.jamKeluarRencana} WIB</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block font-sans">Batas Kembali:</span>
-                  <span className="font-bold text-rose-700">{selectedIzin.tglKembaliRencana} {selectedIzin.jamKembaliRencana} WIB</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Signatures */}
-            <div className="grid grid-cols-2 gap-4 text-center text-xs pt-2 border-t border-slate-100">
-              <div>
-                <p className="text-[10px] text-slate-400 font-medium">Pamong / Pemberi Izin</p>
-                <div className="h-10 flex items-center justify-center">
-                  <span className="font-bold text-blue-900 border-b border-blue-800">
-                    {selectedIzin.disetujuiOleh || "Disetujui Online"}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 font-medium">Verifikasi Pos Gerbang</p>
-                <div className="h-10 flex items-center justify-center">
-                  <span className="text-[11px] font-mono text-slate-500 italic">
-                    {selectedIzin.tglKeluarAktual ? `Check-out: ${format(new Date(selectedIzin.tglKeluarAktual), "dd/MM HH:mm")}` : "(Stempel Pos Gerbang)"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 shadow-sm"
-            >
-              <Printer className="w-4 h-4" /> Cetak Kartu
-            </button>
-            <button
-              type="button"
-              onClick={() => generateWhatsAppMessage(selectedIzin)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 shadow-sm shadow-blue-600/20"
-            >
-              <Share2 className="w-4 h-4" /> Bagikan ke WhatsApp
-            </button>
-          </div>
+            </>
+          )}
         </div>
       )}
 
@@ -2054,13 +2240,23 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
       {lastSubmittedIzin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4 text-center">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto shadow-sm">
-              <Check className="w-6 h-6 stroke-[3]" />
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto shadow-sm ${
+              lastSubmittedIzin.statusApproval === "approved" 
+                ? "bg-emerald-100 text-emerald-700" 
+                : "bg-amber-100 text-amber-700"
+            }`}>
+              {lastSubmittedIzin.statusApproval === "approved" ? (
+                <Check className="w-6 h-6 stroke-[3]" />
+              ) : (
+                <Clock className="w-6 h-6" />
+              )}
             </div>
 
             <div>
               <h4 className="font-extrabold text-slate-900 text-base">
-                Izin Santri Berhasil Diterbitkan!
+                {lastSubmittedIzin.statusApproval === "approved"
+                  ? "Izin Santri Berhasil Diterbitkan!"
+                  : "Permohonan Izin Berhasil Diajukan!"}
               </h4>
               <p className="text-xs text-slate-500 mt-1">
                 Nomor Surat: <strong className="text-blue-700 font-mono">{lastSubmittedIzin.nomorSurat}</strong> untuk santri <strong>{lastSubmittedIzin.namaSantri}</strong>.
@@ -2068,36 +2264,61 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
             </div>
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 text-left space-y-1 font-mono">
-              <p>Status: <strong className="text-emerald-700">{lastSubmittedIzin.statusApproval.toUpperCase()}</strong></p>
+              <p>
+                Status:{" "}
+                <strong className={lastSubmittedIzin.statusApproval === "approved" ? "text-emerald-700" : "text-amber-700"}>
+                  {lastSubmittedIzin.statusApproval.toUpperCase()}
+                </strong>
+                {lastSubmittedIzin.statusApproval !== "approved" && (
+                  <span className="text-[10px] text-amber-800 font-sans block mt-0.5">
+                    ⏳ Menunggu persetujuan (ACC) Pamong Asrama / Koordinator
+                  </span>
+                )}
+              </p>
               <p>Keluar: <strong>{lastSubmittedIzin.tglKeluarRencana} {lastSubmittedIzin.jamKeluarRencana} WIB</strong></p>
               <p>Kembali: <strong className="text-rose-700">{lastSubmittedIzin.tglKembaliRencana} {lastSubmittedIzin.jamKembaliRencana} WIB</strong></p>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  generateWhatsAppMessage(lastSubmittedIzin);
-                  setLastSubmittedIzin(null);
-                }}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Kirim WhatsApp ke Wali</span>
-              </button>
+              {lastSubmittedIzin.statusApproval === "approved" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      generateWhatsAppMessage(lastSubmittedIzin);
+                      setLastSubmittedIzin(null);
+                    }}
+                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Kirim WhatsApp</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedIzin(lastSubmittedIzin);
-                  setActiveTab("kartu");
-                  setLastSubmittedIzin(null);
-                }}
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
-              >
-                <QrCode className="w-4 h-4" />
-                <span>Buka Kartu Izin</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedIzin(lastSubmittedIzin);
+                      setActiveTab("kartu");
+                      setLastSubmittedIzin(null);
+                    }}
+                    className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>Buka Kartu Izin</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("daftar");
+                    setLastSubmittedIzin(null);
+                  }}
+                  className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
+                >
+                  <span>Lihat di Daftar Pengajuan</span>
+                </button>
+              )}
             </div>
 
             <button

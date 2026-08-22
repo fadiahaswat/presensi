@@ -29,61 +29,62 @@ export const CloudSyncBadge: React.FC<{ onClick?: () => void }> = ({ onClick }) 
   switch (syncState.status) {
     case "syncing":
       return (
-        <div
+        <button
+          type="button"
           onClick={onClick}
-          className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-700 border border-sky-500/25 cursor-pointer shadow-xs hover:bg-sky-500/20 transition-all active:scale-95 select-none"
+          className="w-8 h-8 rounded-full relative bg-sky-50/90 backdrop-blur-xl border border-sky-200/80 text-sky-600 shadow-xs flex items-center justify-center hover:bg-sky-100 transition-all active:scale-95 select-none"
           title="Menyimpan dan menyinkronkan data ke Google Sheet / Database..."
         >
-          <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-600 shrink-0" />
-          <span className="hidden sm:inline">Menyimpan...</span>
-        </div>
+          <RefreshCw className="w-4 h-4 animate-spin text-sky-600 shrink-0" />
+        </button>
       );
     case "pending":
       return (
-        <div
+        <button
+          type="button"
           onClick={onClick}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-800 border border-amber-500/30 cursor-pointer shadow-xs hover:bg-amber-500/25 transition-all active:scale-95 select-none"
+          className="w-8 h-8 rounded-full relative bg-amber-50/90 backdrop-blur-xl border border-amber-200/80 text-amber-700 shadow-xs flex items-center justify-center hover:bg-amber-100 transition-all active:scale-95 select-none"
           title={`${syncState.pendingCount} data sedang antre proses kirim ke Google Sheet`}
         >
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
-          <Cloud className="w-3.5 h-3.5 shrink-0 text-amber-700" />
-          <span className="text-[11px] font-bold">{syncState.pendingCount} Antre</span>
-        </div>
+          <Cloud className="w-4 h-4 shrink-0 text-amber-700" />
+          <span className="absolute -top-1 -right-1 min-w-[15px] h-3.5 px-1 rounded-full bg-amber-500 text-white text-[8px] font-black flex items-center justify-center shadow-xs">
+            {syncState.pendingCount}
+          </span>
+        </button>
       );
     case "offline":
       return (
-        <div
+        <button
+          type="button"
           onClick={onClick}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-700 border border-rose-500/30 cursor-pointer shadow-xs hover:bg-rose-500/25 transition-all active:scale-95 select-none"
+          className="w-8 h-8 rounded-full relative bg-slate-100/90 backdrop-blur-xl border border-slate-200/80 text-slate-600 shadow-xs flex items-center justify-center hover:bg-slate-200 transition-all active:scale-95 select-none"
           title="Mode Offline — Data tersimpan aman di perangkat dan otomatis terkirim saat online"
         >
-          <WifiOff className="w-3.5 h-3.5 shrink-0 text-rose-600" />
-          <span className="hidden sm:inline text-[11px] font-bold">Offline</span>
-        </div>
+          <WifiOff className="w-4 h-4 shrink-0 text-slate-500" />
+        </button>
       );
     case "error":
       return (
-        <div
+        <button
+          type="button"
           onClick={onClick}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-700 border border-rose-500/30 cursor-pointer shadow-xs hover:bg-rose-500/25 transition-all active:scale-95 select-none"
+          className="w-8 h-8 rounded-full relative bg-rose-50/90 backdrop-blur-xl border border-rose-200/80 text-rose-600 shadow-xs flex items-center justify-center hover:bg-rose-100 transition-all active:scale-95 select-none"
           title={syncState.errorMessage || "Gagal sinkron — Klik untuk coba lagi"}
         >
-          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
-          <span className="hidden sm:inline text-[11px] font-bold">Gagal Kirim</span>
-        </div>
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+        </button>
       );
     case "synced":
     default:
       return (
-        <div
+        <button
+          type="button"
           onClick={onClick}
-          className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 hover:bg-emerald-500/25 cursor-pointer shadow-xs transition-all active:scale-95 select-none"
+          className="w-8 h-8 rounded-full relative bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 shadow-xs flex items-center justify-center transition-all active:scale-95 select-none"
           title="Data tersimpan aman & realtime di Database Google Sheet"
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-          <Cloud className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
-          <span className="hidden sm:inline text-[11px] font-bold">Tersimpan</span>
-        </div>
+          <Cloud className="w-4 h-4 shrink-0 text-emerald-600" />
+        </button>
       );
   }
 };
