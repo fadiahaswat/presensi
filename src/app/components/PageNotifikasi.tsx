@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { 
   ChevronLeft, Bell, AlertTriangle, CheckCircle2, Clock, 
   HeartPulse, FileCheck2, Calendar, UserCheck, 
@@ -53,97 +53,95 @@ interface PageNotifikasiProps {
   onOpenCloudSync?: () => void;
 }
 
-const STORAGE_KEY_READ_NOTIFS = "presensi_notification_reads_v7";
+export const STORAGE_KEY_READ_NOTIFS = "presensi_notification_reads_v8";
 
-export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
-  onBack,
+export function getReadNotificationMap(): Record<string, boolean> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_READ_NOTIFS);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function markNotificationsAsRead(ids: string[]): Record<string, boolean> {
+  const current = getReadNotificationMap();
+  ids.forEach(id => {
+    current[id] = true;
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(current));
+    window.dispatchEvent(new Event("presensi_notif_read_updated"));
+  } catch {}
+  return current;
+}
+
+export function buildSystemNotificationItems({
   authUser,
-  musyrifList,
-  recordsMap,
-  santriSakitList,
-  santriIzinList,
-  izinList,
-  kegiatanRecords,
+  musyrifList = [],
+  recordsMap = {},
+  santriSakitList = [],
+  santriIzinList = [],
+  izinList = [],
+  kegiatanRecords = [],
   logbookData = {},
   mutabaahData = {},
-  now,
-  onGoTo,
-  onOpenSantriSakit,
-  onOpenSantriIzin,
-  onOpenIzinMusyrif,
-  onOpenKegiatan,
-  onOpenLogbook,
-  onOpenMutabaah,
-  onOpenAlarm,
-  onOpenCloudSync
-}) => {
-  const [activeTab, setActiveTab] = useState<NotificationCategory>("all");
-  const [readIds, setReadIds] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_READ_NOTIFS);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const todayStr = useMemo(() => format(now, "yyyy-MM-dd"), [now]);
+  now = new Date(),
+  onGoTo = () => {},
+  onOpenSantriSakit = () => {},
+  onOpenSantriIzin = () => {},
+  onOpenIzinMusyrif = () => {},
+  onOpenKegiatan = () => {},
+  onOpenLogbook = () => {},
+  onOpenMutabaah = () => {}
+}: {
+  authUser: any;
+  musyrifList?: any[];
+  recordsMap?: Record<string, any>;
+  santriSakitList?: SantriSakitRecord[];
+  santriIzinList?: SantriIzinRecord[];
+  izinList?: IzinRequest[];
+  kegiatanRecords?: KegiatanRecord[];
+  logbookData?: Record<string, any>;
+  mutabaahData?: Record<string, any>;
+  now?: Date;
+  onGoTo?: (page: any) => void;
+  onOpenSantriSakit?: () => void;
+  onOpenSantriIzin?: () => void;
+  onOpenIzinMusyrif?: () => void;
+  onOpenKegiatan?: () => void;
+  onOpenLogbook?: () => void;
+  onOpenMutabaah?: () => void;
+}): SystemNotificationItem[] {
+  const items: SystemNotificationItem[] = [];
+  const todayStr = format(now, "yyyy-MM-dd");
   const currentHour = now.getHours();
 
-  // Mark all as read
-  const handleMarkAllAsRead = (ids: string[]) => {
-    triggerHaptic("medium");
-    const updated = { ...readIds };
-    ids.forEach(id => {
-      updated[id] = true;
-    });
-    setReadIds(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(updated));
-    } catch {}
-  };
+  const role = authUser?.role;
+  const isMusyrif = role === "musyrif";
+  const isKoordinatorGedung = role === "koordinator_gedung";
+  const isPamong = role === "pamong";
+  const isKoordinatorMusyrif = role === "koordinator_musyrif";
+  const isKaurKis = role === "kaur_kis";
+  const isWadir4 = role === "wadir4";
 
-  const handleItemClick = (item: SystemNotificationItem) => {
-    triggerHaptic("light");
-    if (!readIds[item.id]) {
-      const updated = { ...readIds, [item.id]: true };
-      setReadIds(updated);
-      try {
-        localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(updated));
-      } catch {}
-    }
-    item.onAction();
-  };
+  const userMusyrifProfile = (musyrifList || []).find(m => m.id === authUser?.musyrifId || m.name === authUser?.name);
+  const userAsrama = authUser?.asrama || userMusyrifProfile?.asrama || "";
+  const pamongAsramas = isPamong ? getPamongAssignedAsramas(authUser) : [];
 
-  // Compile Dynamic Individual Notifications by Specific Role
-  const notifications = useMemo(() => {
-    const items: SystemNotificationItem[] = [];
+  const safeMusyrifList = Array.isArray(musyrifList) ? musyrifList : [];
+  const safeSantriSakit = Array.isArray(santriSakitList) ? santriSakitList : [];
+  const safeSantriIzin = Array.isArray(santriIzinList) ? santriIzinList : [];
+  const safeIzin = Array.isArray(izinList) ? izinList : [];
+  const safeKegiatan = Array.isArray(kegiatanRecords) ? kegiatanRecords : [];
 
-    const role = authUser?.role;
-    const isMusyrif = role === "musyrif";
-    const isKoordinatorGedung = role === "koordinator_gedung";
-    const isPamong = role === "pamong";
-    const isKoordinatorMusyrif = role === "koordinator_musyrif";
-    const isKaurKis = role === "kaur_kis";
-    const isWadir4 = role === "wadir4";
-
-    const userMusyrifProfile = (musyrifList || []).find(m => m.id === authUser?.musyrifId || m.name === authUser?.name);
-    const userAsrama = authUser?.asrama || userMusyrifProfile?.asrama || "";
-    const pamongAsramas = isPamong ? getPamongAssignedAsramas(authUser) : [];
-
-    const safeMusyrifList = Array.isArray(musyrifList) ? musyrifList : [];
-    const safeSantriSakit = Array.isArray(santriSakitList) ? santriSakitList : [];
-    const safeSantriIzin = Array.isArray(santriIzinList) ? santriIzinList : [];
-    const safeIzin = Array.isArray(izinList) ? izinList : [];
-    const safeKegiatan = Array.isArray(kegiatanRecords) ? kegiatanRecords : [];
-
-    const scopedMusyrifs = isMusyrif
-      ? safeMusyrifList.filter(m => isFieldMusyrif(m) && (m.id === userMusyrifProfile?.id || (m.asrama === userAsrama && m.asrama)))
-      : isKoordinatorGedung
-      ? safeMusyrifList.filter(m => isFieldMusyrif(m) && (m.asrama === userAsrama || m.tingkat === userMusyrifProfile?.tingkat))
-      : isPamong
-      ? safeMusyrifList.filter(m => isFieldMusyrif(m) && (pamongAsramas.includes(m.asrama) || m.asrama === userAsrama))
-      : safeMusyrifList.filter(isFieldMusyrif);
+  const scopedMusyrifs = isMusyrif
+    ? safeMusyrifList.filter(m => isFieldMusyrif(m) && (m.id === userMusyrifProfile?.id || (m.asrama === userAsrama && m.asrama)))
+    : isKoordinatorGedung
+    ? safeMusyrifList.filter(m => isFieldMusyrif(m) && (m.asrama === userAsrama || m.tingkat === userMusyrifProfile?.tingkat))
+    : isPamong
+    ? safeMusyrifList.filter(m => isFieldMusyrif(m) && (pamongAsramas.includes(m.asrama) || m.asrama === userAsrama))
+    : safeMusyrifList.filter(isFieldMusyrif);
 
     // ─────────────────────────────────────────────────────────────────────────
     // 1. ROLE: MUSYRIF BIASA
@@ -619,12 +617,88 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
     }
 
     return items;
+}
+
+export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
+  onBack,
+  authUser,
+  musyrifList = [],
+  recordsMap = {},
+  santriSakitList = [],
+  santriIzinList = [],
+  izinList = [],
+  kegiatanRecords = [],
+  logbookData = {},
+  mutabaahData = {},
+  now = new Date(),
+  onGoTo,
+  onOpenSantriSakit,
+  onOpenSantriIzin,
+  onOpenIzinMusyrif,
+  onOpenKegiatan,
+  onOpenLogbook,
+  onOpenMutabaah,
+  onOpenAlarm,
+  onOpenCloudSync
+}) => {
+  const [activeTab, setActiveTab] = useState<NotificationCategory>("all");
+  const [readIds, setReadIds] = useState<Record<string, boolean>>(() => getReadNotificationMap());
+
+  useEffect(() => {
+    const handleSync = () => {
+      setReadIds(getReadNotificationMap());
+    };
+    window.addEventListener("presensi_notif_read_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("presensi_notif_read_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  // Compile Dynamic Individual Notifications by Specific Role
+  const notifications = useMemo(() => {
+    return buildSystemNotificationItems({
+      authUser,
+      musyrifList,
+      recordsMap,
+      santriSakitList,
+      santriIzinList,
+      izinList,
+      kegiatanRecords,
+      logbookData,
+      mutabaahData,
+      now,
+      onGoTo,
+      onOpenSantriSakit,
+      onOpenSantriIzin,
+      onOpenIzinMusyrif,
+      onOpenKegiatan,
+      onOpenLogbook,
+      onOpenMutabaah
+    });
   }, [
-    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList, 
-    izinList, kegiatanRecords, logbookData, mutabaahData, todayStr, currentHour, now,
-    onGoTo, onOpenSantriSakit, onOpenSantriIzin, onOpenIzinMusyrif, 
+    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList,
+    izinList, kegiatanRecords, logbookData, mutabaahData, now,
+    onGoTo, onOpenSantriSakit, onOpenSantriIzin, onOpenIzinMusyrif,
     onOpenKegiatan, onOpenLogbook, onOpenMutabaah
   ]);
+
+  // Mark all as read
+  const handleMarkAllAsRead = (ids: string[]) => {
+    triggerHaptic("medium");
+    const updated = markNotificationsAsRead(ids);
+    setReadIds(updated);
+  };
+
+  const handleItemClick = (item: SystemNotificationItem) => {
+    triggerHaptic("light");
+    if (!readIds[item.id]) {
+      const updated = markNotificationsAsRead([item.id]);
+      setReadIds(updated);
+    }
+    item.onAction();
+  };
 
   // Filtered Notifications based on selected tab
   const filteredNotifications = useMemo(() => {
@@ -640,33 +714,35 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
   }, [notifications, readIds]);
 
   return (
-    <div className="w-full pb-28">
-      {/* Seamless Containerless Header — Matching Dashboard & Other Pages */}
-      <div className="max-w-2xl mx-auto px-4 pt-4 sm:pt-6 pb-2">
+    <div className="flex flex-col gap-3 sm:gap-4 pb-20">
+      {/* 1. Unified Master Header Card */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+        {/* Top row: back button + bell icon + title + actions */}
         <div className="flex items-center justify-between gap-3">
-          
-          {/* Left Title & Circular Back Button */}
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={onBack}
-              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 shadow-xs flex items-center justify-center transition-all shrink-0 active:scale-95"
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs flex items-center justify-center transition-all shrink-0 active:scale-95"
               title="Kembali ke Dasbor"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+              <Bell className="w-5 h-5"/>
+            </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight whitespace-nowrap">
+                <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
                   Pusat Notifikasi
-                </h1>
+                </h2>
                 {unreadCount > 0 && (
-                  <span className="px-2 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white shrink-0 shadow-2xs">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0 font-mono">
                     {unreadCount} Baru
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500 font-medium truncate">
+              <p className="text-[11px] text-slate-400 font-medium truncate">
                 {authUser ? `${authUser.name.split(" ")[0]} (${authUser.role.replace(/_/g, " ")})` : "Update data keasramaan"}
               </p>
             </div>
@@ -674,12 +750,11 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
 
           {/* Right Action Floating Controls */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Mark All Read Button */}
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={() => handleMarkAllAsRead(notifications.map(n => n.id))}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-emerald-50 text-emerald-800 shadow-2xs transition-all active:scale-95"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1 shadow-2xs active:scale-95 text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80"
                 title="Tandai semua sudah dibaca"
               >
                 <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -692,29 +767,31 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
               type="button"
               onClick={onOpenAlarm}
               title="Pengaturan Alarm & Notifikasi Shalat"
-              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-amber-50 hover:text-amber-700 text-slate-600 shadow-xs flex items-center justify-center transition-all active:scale-95"
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-amber-50 hover:text-amber-700 text-slate-600 shadow-2xs flex items-center justify-center transition-all active:scale-95"
             >
               <Volume2 className="w-4 h-4" />
             </button>
           </div>
-
         </div>
 
-        {/* Segmented Filter Control Container (Wadah) */}
-        <div className="mt-3.5 p-1 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs flex items-center gap-1 overflow-x-auto scrollbar-none">
+        {/* Integrated Segmented Filter Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100/80">
           <button
             type="button"
             onClick={() => {
               triggerHaptic("light");
               setActiveTab("all");
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === "all"
-                ? "bg-slate-900 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                ? "bg-white text-slate-900 shadow-xs ring-1 ring-slate-200/80"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
-            Semua ({notifications.length})
+            <span>Semua</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-mono font-bold">
+              {notifications.length}
+            </span>
           </button>
 
           {unreadCount > 0 && (
@@ -724,14 +801,19 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
                 triggerHaptic("light");
                 setActiveTab("unread");
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeTab === "unread"
-                  ? "bg-rose-600 text-white shadow-xs"
-                  : "text-rose-700 hover:bg-rose-50/80"
+                  ? "bg-rose-500 text-white shadow-xs"
+                  : "text-rose-600 hover:bg-rose-50/80"
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              <span>Belum Dibaca ({unreadCount})</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-200" />
+              <span>Belum Dibaca</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono font-bold ${
+                activeTab === "unread" ? "bg-rose-600 text-white" : "bg-rose-100 text-rose-800"
+              }`}>
+                {unreadCount}
+              </span>
             </button>
           )}
 
@@ -741,13 +823,13 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
               triggerHaptic("light");
               setActiveTab("presensi");
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === "presensi"
-                ? "bg-emerald-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
-            Presensi Shalat
+            <span>Presensi Shalat</span>
           </button>
 
           <button
@@ -756,13 +838,13 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
               triggerHaptic("light");
               setActiveTab("santri");
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === "santri"
-                ? "bg-sky-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                ? "bg-white text-sky-800 shadow-xs ring-1 ring-slate-200/80"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
-            Santri & Izin
+            <span>Santri & Izin</span>
           </button>
 
           <button
@@ -771,116 +853,107 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
               triggerHaptic("light");
               setActiveTab("asrama");
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === "asrama"
-                ? "bg-amber-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                ? "bg-white text-amber-800 shadow-xs ring-1 ring-slate-200/80"
+                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
-            Asrama & Rapat
+            <span>Asrama & Rapat</span>
           </button>
         </div>
       </div>
 
-      {/* Main Unified Feed Card */}
-      <main className="max-w-2xl mx-auto px-4 pt-2">
-        {filteredNotifications.length === 0 ? (
-          <div className="py-20 text-center bg-white/90 backdrop-blur-xl rounded-3xl border border-white/80 shadow-xs p-6">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2 shadow-inner">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <p className="font-bold text-slate-800 text-sm">Semua Sudah Terpantau</p>
-            <p className="text-xs text-slate-400 mt-0.5">Tidak ada notifikasi baru pada kategori ini.</p>
+      {/* 2. Main Unified Feed Card */}
+      {filteredNotifications.length === 0 ? (
+        <div className="py-16 text-center bg-white rounded-3xl ring-1 ring-slate-200/70 border border-slate-100/50 shadow-sm p-6">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2.5 shadow-2xs">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
-        ) : (
-          <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/80 shadow-xs divide-y divide-slate-100/90 overflow-hidden">
-            {filteredNotifications.map((item) => {
-              const isRead = !!readIds[item.id];
-              const isUrgent = item.priority === "urgent";
-              const isWarning = item.priority === "warning";
-              const isSuccess = item.priority === "success";
+          <p className="font-bold text-slate-800 text-sm">Semua Sudah Terpantau</p>
+          <p className="text-xs text-slate-400 mt-0.5">Tidak ada notifikasi baru pada kategori ini.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl ring-1 ring-slate-200/70 border border-slate-100/50 shadow-sm divide-y divide-slate-100 overflow-hidden">
+          {filteredNotifications.map((item) => {
+            const isRead = !!readIds[item.id];
+            const isUrgent = item.priority === "urgent";
+            const isWarning = item.priority === "warning";
+            const isSuccess = item.priority === "success";
 
-              return (
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                className={`group flex items-center gap-3 px-4 py-3 sm:py-3.5 transition-all cursor-pointer select-none ${
+                  !isRead
+                    ? "bg-white hover:bg-emerald-50/30"
+                    : "bg-slate-50/50 hover:bg-slate-50 opacity-75 hover:opacity-100"
+                }`}
+              >
+                {/* Left Icon Indicator */}
                 <div
-                  key={item.id}
-                  onClick={() => handleItemClick(item)}
-                  className={`group flex items-center gap-3.5 px-4 py-3.5 transition-colors cursor-pointer select-none ${
-                    !isRead
-                      ? "bg-white hover:bg-emerald-50/40"
-                      : "bg-slate-50/40 hover:bg-slate-50 opacity-80 hover:opacity-100"
+                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                    isUrgent
+                      ? "bg-rose-50 text-rose-600 border border-rose-200/60"
+                      : isWarning
+                      ? "bg-amber-50 text-amber-600 border border-amber-200/60"
+                      : isSuccess
+                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
+                      : "bg-sky-50 text-sky-600 border border-sky-200/60"
                   }`}
                 >
-                  {/* Left Subtle Icon Avatar */}
-                  <div
-                    className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
-                      isUrgent
-                        ? "bg-rose-50 text-rose-600"
-                        : isWarning
-                        ? "bg-amber-50 text-amber-600"
-                        : isSuccess
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-sky-50 text-sky-600"
-                    }`}
-                  >
-                    {item.category === "presensi" ? (
-                      <Clock className="w-4 h-4" />
-                    ) : item.category === "santri" ? (
-                      <HeartPulse className="w-4 h-4" />
-                    ) : item.category === "asrama" ? (
-                      <Building2 className="w-4 h-4" />
-                    ) : (
-                      <Sparkles className="w-4 h-4" />
-                    )}
-                  </div>
+                  {item.category === "presensi" ? (
+                    <Clock className="w-4 h-4" />
+                  ) : item.category === "santri" ? (
+                    <HeartPulse className="w-4 h-4" />
+                  ) : item.category === "asrama" ? (
+                    <Building2 className="w-4 h-4" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                </div>
 
-                  {/* Body Text */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                      <div className="flex items-center gap-1.5 truncate">
-                        {item.badgeText && (
-                          <span
-                            className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded-md ${
-                              isUrgent
-                                ? "bg-rose-50 text-rose-700 border border-rose-200/70"
-                                : isWarning
-                                ? "bg-amber-50 text-amber-700 border border-amber-200/70"
-                                : isSuccess
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70"
-                                : "bg-sky-50 text-sky-700 border border-sky-200/70"
-                            }`}
-                          >
-                            {item.badgeText}
-                          </span>
-                        )}
-                        <span className={`text-xs sm:text-sm font-bold truncate ${!isRead ? "text-slate-900" : "text-slate-700"}`}>
-                          {item.title}
+                {/* Body Text */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {item.badgeText && (
+                        <span
+                          className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 border ${
+                            isUrgent
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : isWarning
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : isSuccess
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-sky-50 text-sky-700 border-sky-200"
+                          }`}
+                        >
+                          {item.badgeText}
                         </span>
-                      </div>
-
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-1">
-                        {item.time}
+                      )}
+                      <span className={`text-xs sm:text-sm font-bold truncate ${!isRead ? "text-slate-800" : "text-slate-600"}`}>
+                        {item.title}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-500 truncate leading-snug">
-                      {item.message}
-                    </p>
+                    <span className="text-[10px] text-slate-400 font-mono font-medium shrink-0">
+                      {item.time}
+                    </span>
                   </div>
 
-                  {/* Right Indicator (Unread dot or chevron) */}
-                  <div className="shrink-0 flex items-center gap-1 pl-1">
-                    {!isRead ? (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs block animate-pulse" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
-                    )}
-                  </div>
+                  <p className="text-[11px] sm:text-xs text-slate-500 truncate leading-relaxed">
+                    {item.message}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
+
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

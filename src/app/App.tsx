@@ -24,7 +24,7 @@ import mualliminLogo from "./muallimin-logo.png";
 import { WhatsAppShareModal } from "./components/WhatsAppShareModal";
 import { IzinPengajuanModal, IzinRequest } from "./components/IzinPengajuanModal";
 import { PageSantriIzin } from "./components/PageSantriIzin";
-import { PageNotifikasi } from "./components/PageNotifikasi";
+import { PageNotifikasi, getReadNotificationMap, buildSystemNotificationItems } from "./components/PageNotifikasi";
 import { SantriIzinRecord } from "./types/izinSantri";
 import { AlarmNotificationManager } from "./components/AlarmNotificationManager";
 import { KegiatanAsramaModal, KegiatanRecord } from "./components/KegiatanAsramaModal";
@@ -54,7 +54,7 @@ import { checkAsramaGeofenceBrowser, GeofenceResult } from "./utils/geoUtils";
 import { CustomDialogModal } from "./components/CustomDialogModal";
 import { appAlert, appConfirm, appUndoToast } from "./utils/customDialog";
 import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAccess, isFieldMusyrif as checkFieldMusyrif, getPamongAssignedAsramas, canManageKegiatanAsrama } from "./utils/roleAccessUtils";
-import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStatusInCloud } from "./utils/izinSedayuSync";
+import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStatusInCloud, mapIzinSedayuToRecord } from "./utils/izinSedayuSync";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -459,8 +459,59 @@ function Card({ ch, cls="" }: { ch: React.ReactNode; cls?: string }) {
   return <div className={`bg-white rounded-[24px] shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 overflow-hidden ${cls}`}>{ch}</div>;
 }
 
-function Label({ ch }: { ch: React.ReactNode }) {
-  return <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 font-mono">{ch}</p>;
+function SectionHeader({ 
+  title, 
+  badge, 
+  badgeVariant = "emerald", 
+  indicatorColor = "bg-emerald-500",
+  action,
+  className = "mb-2.5" 
+}: { 
+  title: React.ReactNode; 
+  badge?: React.ReactNode; 
+  badgeVariant?: "emerald" | "purple" | "rose" | "teal" | "amber" | "indigo" | "slate" | "blue"; 
+  indicatorColor?: string;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  const badgeStyles: Record<string, string> = {
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+    purple: "bg-purple-50 text-purple-700 border-purple-200/80",
+    rose: "bg-rose-50 text-rose-700 border-rose-200/80",
+    teal: "bg-teal-50 text-teal-700 border-teal-200/80",
+    amber: "bg-amber-50 text-amber-700 border-amber-200/80",
+    indigo: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
+    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    blue: "bg-blue-50 text-blue-700 border-blue-200/80",
+  };
+
+  return (
+    <div className={`flex items-center justify-between px-1 ${className}`}>
+      <div className="flex items-center gap-2 min-w-0">
+        <div className={`w-1.5 h-3.5 rounded-full ${indicatorColor} shrink-0`} />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono truncate">
+          {title}
+        </span>
+      </div>
+      {badge && (
+        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono border shrink-0 ${badgeStyles[badgeVariant] || badgeStyles.emerald}`}>
+          {badge}
+        </span>
+      )}
+      {action}
+    </div>
+  );
+}
+
+function Label({ ch, cls="mb-2.5", indicatorColor="bg-emerald-500" }: { ch: React.ReactNode; cls?: string; indicatorColor?: string }) {
+  return (
+    <div className={`flex items-center gap-2 px-1 ${cls}`}>
+      <div className={`w-1.5 h-3.5 rounded-full ${indicatorColor} shrink-0`} />
+      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+        {ch}
+      </span>
+    </div>
+  );
 }
 
 // Use centralized role access utilities
@@ -1102,22 +1153,23 @@ function PageDashboard({
       {/* PUSAT LAYANAN & FITUR INOVASI KEASRAMAAN */}
       {/* ───────────────────────────────────────────────────────────────────── */}
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between px-1">
-          <Label ch={!authUser ? "Layanan & Fitur Terbuka" : (authUser.role === "musyrif" || authUser.role === "koordinator_gedung") ? "Layanan & Fitur Musyrif" : "Pusat Layanan & Manajemen Keasramaan"}/>
-          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full">
-            {!authUser 
-              ? "Akses Publik" 
-              : authUser.role === "wadir4"
-                ? "Wadir IV"
-                : authUser.role === "kaur_kis"
-                  ? "Kaur KIS"
-                  : authUser.role === "koordinator_musyrif"
-                    ? "Koord. Musyrif"
-                    : authUser.role === "pamong"
-                      ? "Pamong Asrama"
-                      : "Musyrif"}
-          </span>
-        </div>
+        <SectionHeader
+          title={!authUser ? "Layanan & Fitur Terbuka" : (authUser.role === "musyrif" || authUser.role === "koordinator_gedung") ? "Layanan & Fitur Musyrif" : "Pusat Layanan & Manajemen Keasramaan"}
+          badge={!authUser 
+            ? "Akses Publik" 
+            : authUser.role === "wadir4"
+              ? "Wadir IV"
+              : authUser.role === "kaur_kis"
+                ? "Kaur KIS"
+                : authUser.role === "koordinator_musyrif"
+                  ? "Koord. Musyrif"
+                  : authUser.role === "pamong"
+                    ? "Pamong Asrama"
+                    : "Musyrif"}
+          badgeVariant="emerald"
+          indicatorColor="bg-emerald-500"
+          className="mb-2"
+        />
 
         {/* 1. INTERACTIVE RICH WIDGET ROW (Izin Santri & Santri Sakit) - MUNCUL DI SEMUA ROLE */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1314,7 +1366,17 @@ function PageDashboard({
               return rawSakit;
             })();
 
-            const activeSakit = scopedSakit.slice(0, 2);
+            // Urutkan paling atas yang terbaru
+            const sortedSakit = [...scopedSakit].sort((a, b) => {
+              const timeA = a.createdAt || a.date || "";
+              const timeB = b.createdAt || b.date || "";
+              if (timeA && timeB && timeA !== timeB) return timeB.localeCompare(timeA);
+              return (b.id || "").localeCompare(a.id || "");
+            });
+
+            const activeSakit = sortedSakit.slice(0, 2);
+            const todayStrVal = todayStr();
+
             return (
               <div
                 onClick={() => onGoTo("santri-sakit")}
@@ -1340,22 +1402,32 @@ function PageDashboard({
 
                   {activeSakit.length > 0 ? (
                     <div className="space-y-1.5">
-                      {activeSakit.map(s => (
-                        <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{s.keluhan || "Gejala Sakit"} • {s.asrama}</p>
+                      {activeSakit.map(s => {
+                        const isNew = s.date === todayStrVal || (s.createdAt && s.createdAt.startsWith(todayStrVal));
+                        return (
+                          <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-slate-100/80 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
+                                {isNew && (
+                                  <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                                    Baru
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate">{s.keluhan || "Gejala Sakit"} • {s.asrama}</p>
+                            </div>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                              s.lokasiPerawatan === "rs_pku" ? "bg-rose-100 text-rose-800 font-bold" :
+                              s.lokasiPerawatan === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
+                              s.lokasiPerawatan === "pulang" ? "bg-purple-100 text-purple-800" :
+                              "bg-blue-100 text-blue-800"
+                            }`}>
+                              {s.lokasiPerawatan === "rs_pku" ? "PKU" : s.lokasiPerawatan === "uks" ? "Poskestren" : s.lokasiPerawatan === "pulang" ? "Pulang" : "Kamar"}
+                            </span>
                           </div>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                            s.lokasiPerawatan === "rs_pku" ? "bg-rose-100 text-rose-800 font-bold" :
-                            s.lokasiPerawatan === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
-                            s.lokasiPerawatan === "pulang" ? "bg-purple-100 text-purple-800" :
-                            "bg-blue-100 text-blue-800"
-                          }`}>
-                            {s.lokasiPerawatan === "rs_pku" ? "PKU" : s.lokasiPerawatan === "uks" ? "Poskestren" : s.lokasiPerawatan === "pulang" ? "Pulang" : "Kamar"}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="py-3 text-center text-slate-400 text-xs">
@@ -1689,12 +1761,7 @@ function PageDashboard({
           /* Pamong & Koordinator Dynamic Widgets & Clean Services Grid */
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-1.5 px-0.5">
-                <div className="w-1.5 h-3.5 rounded-full bg-emerald-600" />
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 font-mono">
-                  Layanan & Manajemen Keasramaan
-                </span>
-              </div>
+              <Label ch="Menu Layanan & Manajemen" indicatorColor="bg-emerald-600" cls="mb-2" />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
                 {/* 1. Kirim WA - Emerald Green */}
                 <button
@@ -1894,169 +1961,179 @@ function PageDashboard({
 
       {/* High-Utility Compact Asrama Command Matrix for Pamong / Public */}
       {(!authUser || hasFullAccess(authUser)) && (
-        <Card ch={<div>
-          {/* Header & Filter Tabs */}
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-                <Users className="w-3.5 h-3.5"/>
+        <div>
+          <SectionHeader
+            title="Matriks Presensi Asrama"
+            badge={`Hari ini · ${ASRAMAS.length} Asrama`}
+            badgeVariant="teal"
+            indicatorColor="bg-teal-500"
+            className="mb-2"
+          />
+          <Card ch={<div>
+            {/* Header & Filter Tabs */}
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center flex-shrink-0 border border-teal-200/60">
+                  <Users className="w-4 h-4"/>
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-slate-800 leading-tight">Matriks Presensi Asrama</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Hari ini · {ASRAMAS.length} Unit Asrama</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-sm text-slate-800 leading-tight">Matriks Presensi Asrama</p>
-                <p className="text-[10px] text-slate-500 font-mono">Hari ini · {ASRAMAS.length} Unit Asrama</p>
-              </div>
-            </div>
 
-            {/* Campus Filter Pills */}
-            <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
-              {[
-                { id: "all", label: "Semua", count: 8 },
-                { id: "sparman", label: "S. Parman", count: 5 },
-                { id: "sedayu", label: "Sedayu", count: 3 }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setAsramaCampus(tab.id as any)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                    asramaCampus === tab.id
-                      ? "bg-white text-emerald-800 shadow-2xs font-bold"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Compact Matrix Table */}
-          <div className="divide-y divide-slate-50">
-            {ASRAMAS.filter(a => {
-              if (asramaCampus === "sparman") return !a.toLowerCase().includes("sedayu");
-              if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
-              return true;
-            }).map(a => {
-              const ins = mList.filter(m => m.asrama === a);
-              const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
-              const sh2 = rs.filter(r => r.subuh === "hadir").length;
-              const mh2 = rs.filter(r => r.maghrib === "hadir").length;
-              const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
-              const isExpanded = expandedAsrama === a;
-
-              return (
-                <div key={a} className="transition-colors">
-                  <div 
-                    onClick={() => setExpandedAsrama(isExpanded ? null : a)}
-                    className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 cursor-pointer select-none"
+              {/* Campus Filter Pills */}
+              <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
+                {[
+                  { id: "all", label: "Semua", count: 8 },
+                  { id: "sparman", label: "S. Parman", count: 5 },
+                  { id: "sedayu", label: "Sedayu", count: 3 }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setAsramaCampus(tab.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                      asramaCampus === tab.id
+                        ? "bg-white text-emerald-800 shadow-2xs font-bold"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
                   >
-                    {/* Asrama info */}
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-slate-300"
-                      }`}/>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate leading-tight">{a}</p>
-                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">{ins.length} musyrif</p>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Compact Matrix Table */}
+            <div className="divide-y divide-slate-50">
+              {ASRAMAS.filter(a => {
+                if (asramaCampus === "sparman") return !a.toLowerCase().includes("sedayu");
+                if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
+                return true;
+              }).map(a => {
+                const ins = mList.filter(m => m.asrama === a);
+                const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
+                const sh2 = rs.filter(r => r.subuh === "hadir").length;
+                const mh2 = rs.filter(r => r.maghrib === "hadir").length;
+                const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
+                const isExpanded = expandedAsrama === a;
+
+                return (
+                  <div key={a} className="transition-colors">
+                    <div 
+                      onClick={() => setExpandedAsrama(isExpanded ? null : a)}
+                      className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 cursor-pointer select-none"
+                    >
+                      {/* Asrama info */}
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                          pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-slate-300"
+                        }`}/>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate leading-tight">{a}</p>
+                          <p className="text-[10px] text-slate-500 font-mono mt-0.5">{ins.length} musyrif</p>
+                        </div>
+                      </div>
+
+                      {/* Subuh & Maghrib Pills */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                          sh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          sh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
+                        }`}>
+                          S: {sh2}/{ins.length}
+                        </span>
+
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                          mh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          mh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
+                        }`}>
+                          M: {mh2}/{ins.length}
+                        </span>
+
+                        <span className={`w-11 text-right text-xs font-extrabold font-mono ${
+                          pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"
+                        }`}>
+                          {pct}%
+                        </span>
+
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180 text-emerald-600" : ""}`}/>
                       </div>
                     </div>
 
-                    {/* Subuh & Maghrib Pills */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
-                        sh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                        sh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
-                      }`}>
-                        S: {sh2}/{ins.length}
-                      </span>
-
-                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
-                        mh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                        mh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
-                      }`}>
-                        M: {mh2}/{ins.length}
-                      </span>
-
-                      <span className={`w-11 text-right text-xs font-extrabold font-mono ${
-                        pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"
-                      }`}>
-                        {pct}%
-                      </span>
-
-                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180 text-emerald-600" : ""}`}/>
-                    </div>
-                  </div>
-
-                  {/* Expanded Musyrif Roster & Quick Actions */}
-                  {isExpanded && (
-                    <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 space-y-2 animate-in fade-in duration-150">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Daftar Musyrif ({ins.length})</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {ins.map(m => {
-                          const rec = todayRecs.find(r => r.musyrifId === m.id);
-                          return (
-                            <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Av name={m.name} src={m.photo} sz="xs"/>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-semibold text-slate-800 truncate">{m.name}</p>
-                                  <p className="text-[10px] text-slate-500 truncate">{m.kelas}</p>
+                    {/* Expanded Musyrif Roster & Quick Actions */}
+                    {isExpanded && (
+                      <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 space-y-2 animate-in fade-in duration-150">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Daftar Musyrif ({ins.length})</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {ins.map(m => {
+                            const rec = todayRecs.find(r => r.musyrifId === m.id);
+                            return (
+                              <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Av name={m.name} src={m.photo} sz="xs"/>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-slate-800 truncate">{m.name}</p>
+                                    <p className="text-[10px] text-slate-500 truncate">{m.kelas}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                    rec?.subuh === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                                  }`}>S:{rec?.subuh ? S[rec.subuh].short : "–"}</span>
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                    rec?.maghrib === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                                  }`}>M:{rec?.maghrib ? S[rec.maghrib].short : "–"}</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
-                                  rec?.subuh === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                                }`}>S:{rec?.subuh ? S[rec.subuh].short : "–"}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
-                                  rec?.maghrib === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                                }`}>M:{rec?.maghrib ? S[rec.maghrib].short : "–"}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {authUser && authUser.role !== "musyrif" && (
-                        <div className="pt-2 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5"/>
-                            <span>Buka Form Presensi {a}</span>
-                          </button>
+                            );
+                          })}
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>}/>
+                        {authUser && authUser.role !== "musyrif" && (
+                          <div className="pt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => onGoTo(now.getHours() < 12 ? "subuh" : "maghrib")}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5"/>
+                              <span>Buka Form Presensi {a}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>}/>
+        </div>
       )}
 
       {/* Streak leaderboard Top 5 — HANYA TAMPIL SETELAH LOGIN (Internal Musyrif/Pamong/Koor) */}
       {authUser && (
         <div>
-          <div className="flex items-center justify-between px-1 mb-2">
-            <Label ch="Top 5 Streak Shalat Beruntun"/>
-            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono">
-              Konsistensi Jamaah
-            </span>
-          </div>
+          <SectionHeader
+            title="Top 5 Streak Shalat Beruntun"
+            badge="Konsistensi Jamaah"
+            badgeVariant="purple"
+            indicatorColor="bg-purple-500"
+            className="mb-2"
+          />
           <Card ch={<div>
             {/* Header info */}
             <div className="px-4 pt-3 pb-2.5 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                  <Flame className="w-3.5 h-3.5 text-amber-500"/>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center border border-purple-200/60">
+                  <Flame className="w-4 h-4 text-amber-500"/>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-700 leading-tight">Konsistensi Presensi Beruntun</p>
+                  <p className="text-sm font-bold text-slate-800 leading-tight">Konsistensi Presensi Beruntun</p>
                   <p className="text-[10px] text-slate-400 font-mono">Apresiasi musyrif teladan jamaah</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full font-mono shrink-0">
+              <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full font-mono shrink-0">
                 Top {streakTop.length}
               </span>
             </div>
@@ -2102,12 +2179,13 @@ function PageDashboard({
       {/* Perlu perhatian - HANYA TAMPIL SETELAH LOGIN (Pamong / Koor) */}
       {authUser && alfaRank.length > 0 && (
         <div>
-          <div className="flex items-center justify-between px-1 mb-1">
-            <Label ch="Catatan Kehadiran Perlu Perhatian"/>
-            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-mono">
-              Internal Saja
-            </span>
-          </div>
+          <SectionHeader
+            title="Catatan Kehadiran Perlu Perhatian"
+            badge="Internal Saja"
+            badgeVariant="rose"
+            indicatorColor="bg-rose-500"
+            className="mb-2"
+          />
           <Card ch={<div className="divide-y divide-slate-50">
             {alfaRank.map(m=>(
               <button 
@@ -2879,76 +2957,93 @@ function PageRekap({
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      {/* 1. Hero Header Card — Rekap Presensi */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-teal-900 rounded-3xl p-5 sm:p-6 text-white shadow-lg shadow-emerald-800/30 border border-white/10">
-        {/* Decorative background circles */}
-        <div className="absolute -top-6 -right-6 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-8 -left-4 w-24 h-24 bg-white/5 rounded-full pointer-events-none" />
-
-        {/* Top row: badge + cetak button */}
-        <div className="flex items-start justify-between gap-3 mb-4 relative">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-white/15 text-emerald-100 px-2.5 py-1 rounded-full font-mono">
-              📊 Laporan
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight mt-2">
-              Rekap Presensi
-            </h2>
-            <p className="text-sm text-emerald-200/80 mt-0.5 font-medium">
-              {format(viewMonth, "MMMM yyyy", {locale: id})} · {fMusyrif.length} musyrif
-            </p>
+      {/* 1. Unified Master Header Card like Halaman Presensi & Riwayat */}
+      <div className="bg-white rounded-3xl p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+        {/* Top title & Cetak PDF action button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+              <TrendingUp className="w-5 h-5"/>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                Rekap Presensi
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium truncate">
+                {format(viewMonth, "MMMM yyyy", {locale: id})} · {fMusyrif.length} Musyrif Terdata
+              </p>
+            </div>
           </div>
+
           <button
             type="button"
             onClick={()=>exportPDF(records,viewMonth,filterAsrama,musyrifListAll)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-white/15 hover:bg-white/25 text-white border border-white/20 transition-all active:scale-95 flex-shrink-0 backdrop-blur-sm"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80"
           >
-            <Printer className="w-3.5 h-3.5"/>
+            <Printer className="w-3.5 h-3.5 text-emerald-600"/>
             <span>Cetak PDF</span>
           </button>
         </div>
 
-        {/* Month navigator */}
-        <div className="flex items-center justify-between bg-black/20 backdrop-blur-sm rounded-2xl px-3 py-2 mb-4 border border-white/10">
+        {/* Integrated Month Navigation Row */}
+        <div className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-1.5 border border-slate-100/80">
           <button
             type="button"
             onClick={()=>setViewMonth(subMonths(viewMonth,1))}
-            className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-all"
+            title="Bulan sebelumnya"
+            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
           >
             <ChevronLeft className="w-4 h-4"/>
           </button>
-          <span className="text-sm font-bold font-mono">
-            {format(viewMonth, "MMMM yyyy", {locale: id})}
-          </span>
+          <div className="text-center px-2">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-800 font-mono leading-tight">
+              {format(viewMonth, "MMMM yyyy", {locale: id})}
+            </p>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+              {days.length} Hari Aktif Bulan Ini
+            </p>
+          </div>
           <button
             type="button"
             onClick={()=>setViewMonth(addMonths(viewMonth,1))}
-            className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-all"
+            title="Bulan berikutnya"
+            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
           >
             <ChevronRight className="w-4 h-4"/>
           </button>
         </div>
 
-        {/* Rate cards — Subuh & Maghrib */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/15">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Sun className="w-3.5 h-3.5 text-amber-300"/>
-              <span className="text-[11px] font-semibold text-emerald-100">Subuh</span>
+        {/* Integrated Rate Summary Cards — Subuh & Maghrib */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-2xl p-3 border border-slate-100 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5 text-amber-700">
+                <Sun className="w-3.5 h-3.5 text-amber-500"/>
+                <span className="text-xs font-bold">Subuh</span>
+              </div>
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-1.5 py-0.2 rounded font-mono">
+                Pagi
+              </span>
             </div>
-            <p className="text-2xl font-extrabold font-mono tracking-tight">{rate("subuh")}%</p>
-            <div className="w-full bg-black/20 h-1 rounded-full mt-2.5 overflow-hidden">
-              <div className="bg-amber-300 h-full rounded-full transition-all duration-700" style={{width:`${rate("subuh")}%`}}/>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{rate("subuh")}%</p>
+            <div className="w-full bg-slate-200/80 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div className="bg-amber-500 h-full rounded-full transition-all duration-700" style={{width:`${rate("subuh")}%`}}/>
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/15">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Moon className="w-3.5 h-3.5 text-teal-200"/>
-              <span className="text-[11px] font-semibold text-emerald-100">Maghrib</span>
+
+          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-2xl p-3 border border-slate-100 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5 text-emerald-700">
+                <Moon className="w-3.5 h-3.5 text-emerald-600"/>
+                <span className="text-xs font-bold">Maghrib</span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.2 rounded font-mono">
+                Petang
+              </span>
             </div>
-            <p className="text-2xl font-extrabold font-mono tracking-tight">{rate("maghrib")}%</p>
-            <div className="w-full bg-black/20 h-1 rounded-full mt-2.5 overflow-hidden">
-              <div className="bg-teal-300 h-full rounded-full transition-all duration-700" style={{width:`${rate("maghrib")}%`}}/>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{rate("maghrib")}%</p>
+            <div className="w-full bg-slate-200/80 h-1.5 rounded-full mt-2 overflow-hidden">
+              <div className="bg-emerald-600 h-full rounded-full transition-all duration-700" style={{width:`${rate("maghrib")}%`}}/>
             </div>
           </div>
         </div>
@@ -3459,33 +3554,115 @@ function PageRiwayat({
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      {/* 1. Balanced Header with Compact Switcher */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[10px] font-bold text-teal-700 bg-teal-100/70 border border-teal-200/50 px-2 py-0.5 rounded-lg font-mono tracking-wide uppercase">
-              Riwayat & Rekapitulasi
-            </span>
+      {/* 1. Unified Master Header Card like Halaman Presensi */}
+      <div className="bg-white rounded-3xl p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
+        {/* Top title & Action button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-teal-600 text-white shadow-teal-600/25">
+              <Calendar className="w-5 h-5"/>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                {isPersonalMusyrif ? "Riwayat Saya" : "Riwayat Musyrif"}
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium truncate">
+                {isPersonalMusyrif ? "Rekapan lengkap sholat, logbook, amalan & izin" : "Detail presensi, logbook, amalan, izin & agenda"}
+              </p>
+            </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-tight whitespace-nowrap">
-            {isPersonalMusyrif ? "Riwayat Saya" : "Riwayat Musyrif"}
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5 truncate">
-            {isPersonalMusyrif ? "Rekapan lengkap sholat, logbook, amalan yaumiyah, izin & agenda" : "Detail presensi, logbook, amalan, izin & agenda per musyrif"}
-          </p>
+
+          {/* Action Button: Pilih Musyrif */}
+          {!isPersonalMusyrif && (
+            <button 
+              type="button"
+              onClick={() => setShowMusyrifPicker(true)} 
+              className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-teal-700 ring-teal-200 bg-teal-50 hover:bg-teal-100/80"
+            >
+              <Users className="w-3.5 h-3.5 text-teal-600"/>
+              <span>Pilih Musyrif</span>
+              <ChevronDown className="w-3 h-3 text-teal-600/70"/>
+            </button>
+          )}
         </div>
 
-        {/* Action Button: Pilih Musyrif */}
-        {!isPersonalMusyrif && (
-          <button 
-            onClick={()=>setShowMusyrifPicker(true)} 
-            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-emerald-700 shadow-xs transition-all active:scale-95 flex-shrink-0"
+        {/* Integrated Multi-Category Horizontal Tab Selector */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100/80">
+          <button
+            onClick={() => setActiveTab("sholat")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "sholat"
+                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+            }`}
           >
-            <Users className="w-3.5 h-3.5 text-emerald-600"/>
-            <span>Pilih Musyrif</span>
-            <ChevronDown className="w-3 h-3 text-slate-400"/>
+            <Sun className={`w-3.5 h-3.5 ${activeTab === "sholat" ? "text-emerald-600" : "text-slate-400"}`} />
+            <span>Shalat & Presensi</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
+              {pct}%
+            </span>
           </button>
-        )}
+
+          <button
+            onClick={() => setActiveTab("logbook")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "logbook"
+                ? "bg-white text-indigo-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+            }`}
+          >
+            <ClipboardList className={`w-3.5 h-3.5 ${activeTab === "logbook" ? "text-indigo-600" : "text-slate-400"}`} />
+            <span>Jurnal Logbook</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-mono">
+              {logbookMonthStats.totalTasksDone} Tugas
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("mutabaah")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "mutabaah"
+                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+            }`}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${activeTab === "mutabaah" ? "text-emerald-600" : "text-slate-400"}`} />
+            <span>Mutaba'ah Yaumiyah</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
+              {mutabaahMonthStats.totalPoints} Poin
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("izin")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "izin"
+                ? "bg-white text-blue-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+            }`}
+          >
+            <FileCheck2 className={`w-3.5 h-3.5 ${activeTab === "izin" ? "text-blue-600" : "text-slate-400"}`} />
+            <span>Pengajuan Izin</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 font-mono">
+              {izinStats.total}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("kegiatan")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "kegiatan"
+                ? "bg-white text-teal-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+            }`}
+          >
+            <Building2 className={`w-3.5 h-3.5 ${activeTab === "kegiatan" ? "text-teal-600" : "text-slate-400"}`} />
+            <span>Rapat & Agenda</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 font-mono">
+              {kegiatanStats.hadir} Hadir
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Executive Musyrif Profile Hero Card */}
@@ -3556,84 +3733,6 @@ function PageRiwayat({
             </a>
           )}
         </div>
-      </div>
-
-      {/* 3. Multi-Category Horizontal Tab Selector */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/70">
-        <button
-          onClick={() => setActiveTab("sholat")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === "sholat"
-              ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          }`}
-        >
-          <Sun className={`w-3.5 h-3.5 ${activeTab === "sholat" ? "text-emerald-600" : "text-slate-400"}`} />
-          <span>Shalat & Presensi</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
-            {pct}%
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("logbook")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === "logbook"
-              ? "bg-white text-indigo-800 shadow-xs ring-1 ring-slate-200/80 font-black"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          }`}
-        >
-          <ClipboardList className={`w-3.5 h-3.5 ${activeTab === "logbook" ? "text-indigo-600" : "text-slate-400"}`} />
-          <span>Jurnal Logbook</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-mono">
-            {logbookMonthStats.totalTasksDone} Tugas
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("mutabaah")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === "mutabaah"
-              ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          }`}
-        >
-          <Sparkles className={`w-3.5 h-3.5 ${activeTab === "mutabaah" ? "text-emerald-600" : "text-slate-400"}`} />
-          <span>Mutaba'ah Yaumiyah</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
-            {mutabaahMonthStats.totalPoints} Poin
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("izin")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === "izin"
-              ? "bg-white text-blue-800 shadow-xs ring-1 ring-slate-200/80 font-black"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          }`}
-        >
-          <FileCheck2 className={`w-3.5 h-3.5 ${activeTab === "izin" ? "text-blue-600" : "text-slate-400"}`} />
-          <span>Pengajuan Izin</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 font-mono">
-            {izinStats.total}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("kegiatan")}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === "kegiatan"
-              ? "bg-white text-teal-800 shadow-xs ring-1 ring-slate-200/80 font-black"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          }`}
-        >
-          <Building2 className={`w-3.5 h-3.5 ${activeTab === "kegiatan" ? "text-teal-600" : "text-slate-400"}`} />
-          <span>Rapat & Agenda</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 font-mono">
-            {kegiatanStats.hadir} Hadir
-          </span>
-        </button>
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
@@ -4921,65 +5020,99 @@ function PageIbadah({
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button 
-              onClick={onBack} 
-              className="w-10 h-10 rounded-2xl bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs flex-shrink-0"
-              title="Kembali ke Dasbor"
-            >
-              <ChevronLeft className="w-5 h-5"/>
-            </button>
-          )}
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Jadwal Ibadah</h2>
-            <p className="text-sm text-slate-400 mt-0.5">{hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah</p>
+    <div className="flex flex-col gap-3 sm:gap-4 pb-16">
+      {/* 1. Unified Master Header Card */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+        {/* Top Row: Back button + Icon + Title + Calendar links */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {onBack && (
+              <button 
+                onClick={onBack} 
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs flex items-center justify-center transition-all shrink-0 active:scale-95"
+                title="Kembali ke Dasbor"
+              >
+                <ChevronLeft className="w-4 h-4"/>
+              </button>
+            )}
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+              <Clock className="w-5 h-5"/>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                Jadwal Ibadah
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium truncate">
+                {hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenKalenderHijriah && (
+              <button
+                type="button"
+                onClick={onOpenKalenderHijriah}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
+                title="Buka Kalender Hijriah"
+              >
+                <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="hidden sm:inline">Kalender Hijriah</span>
+              </button>
+            )}
+            {onOpenKalenderPendidikan && (
+              <button
+                type="button"
+                onClick={onOpenKalenderPendidikan}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 ring-1 ring-teal-200/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
+                title="Buka Kalender Pendidikan"
+              >
+                <Calendar className="w-3.5 h-3.5 text-teal-700" />
+                <span className="hidden sm:inline">Kaldik</span>
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {onOpenKalenderHijriah && (
-            <button
-              type="button"
-              onClick={onOpenKalenderHijriah}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-bold transition-all active:scale-95 shadow-xs shrink-0"
+        {/* Integrated Segmented Tabs */}
+        <div className="flex p-1 bg-slate-50/80 rounded-2xl gap-1 border border-slate-100/80">
+          {([["jadwal","Jadwal Sholat"],["kiblat","Arah Kiblat"]] as const).map(([t,l])=>(
+            <button 
+              key={t} 
+              onClick={()=>setTab(t)} 
+              className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                tab===t
+                  ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                  : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+              }`}
             >
-              <Calendar className="w-4 h-4 text-emerald-700" />
-              <span className="hidden sm:inline">Kalender Hijriah</span>
+              {l}
             </button>
-          )}
-          {onOpenKalenderPendidikan && (
-            <button
-              type="button"
-              onClick={onOpenKalenderPendidikan}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-2xl text-xs font-bold transition-all active:scale-95 shadow-xs shrink-0"
-            >
-              <Calendar className="w-4 h-4 text-teal-700" />
-              <span className="hidden sm:inline">Kalender Pendidikan</span>
-            </button>
-          )}
+          ))}
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex p-1 bg-slate-100 rounded-2xl gap-1">
-        {([["jadwal","Jadwal Sholat"],["kiblat","Arah Kiblat"]] as const).map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${tab===t?"bg-white text-emerald-600 shadow-sm":"text-slate-500 hover:text-slate-700"}`}>{l}</button>
-        ))}
+        {/* Integrated Location Row */}
+        <div className="px-3.5 py-2.5 bg-slate-50/80 rounded-2xl border border-slate-100/80 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin className="w-4 h-4 text-emerald-600 flex-shrink-0"/>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-800 truncate">{loc.name}</p>
+              <p className="text-[10px] text-slate-400 font-mono truncate">{loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}°</p>
+            </div>
+          </div>
+          <button 
+            onClick={getLoc} 
+            disabled={locLoading} 
+            className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200/80 px-2.5 py-1 rounded-xl hover:bg-emerald-100 transition-all disabled:opacity-50 active:scale-95 shrink-0"
+          >
+            {locLoading?<RefreshCw className="w-3 h-3 animate-spin"/>:<Navigation className="w-3 h-3"/>}
+            <span>Lokasiku</span>
+          </button>
+        </div>
       </div>
 
       {/* ── TAB: JADWAL ── */}
       {tab==="jadwal"&&<>
-        {/* Location */}
-        <Card ch={<div className="px-4 py-3 flex items-center gap-3">
-          <MapPin className="w-4 h-4 text-emerald-500 flex-shrink-0"/>
-          <div className="flex-1"><p className="text-sm font-semibold text-slate-700">{loc.name}</p><p className="text-xs text-slate-400 font-mono">{loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}°</p></div>
-          <button onClick={getLoc} disabled={locLoading} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50">
-            {locLoading?<RefreshCw className="w-3.5 h-3.5 animate-spin"/>:<Navigation className="w-3.5 h-3.5"/>}Lokasiku
-          </button>
-        </div>}/>
 
         {/* Next prayer countdown */}
         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl px-5 py-4 flex items-center gap-4 text-white shadow-lg shadow-emerald-500/20">
@@ -5013,13 +5146,6 @@ function PageIbadah({
 
       {/* ── TAB: KIBLAT ── */}
       {tab==="kiblat"&&<>
-        <Card ch={<div className="px-4 py-3 flex items-center gap-3">
-          <MapPin className="w-4 h-4 text-emerald-500 flex-shrink-0"/>
-          <div className="flex-1"><p className="text-sm font-semibold text-slate-700">{loc.name}</p><p className="text-xs text-slate-400 font-mono">{loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}°</p></div>
-          <button onClick={getLoc} disabled={locLoading} className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50">
-            {locLoading?<RefreshCw className="w-3.5 h-3.5 animate-spin"/>:<Navigation className="w-3.5 h-3.5"/>}Lokasiku
-          </button>
-        </div>}/>
 
         <Card ch={<div className="py-8 flex flex-col items-center gap-6">
           <div className="relative">
@@ -6093,19 +6219,75 @@ export default function App() {
     const unsubData = googleSyncService.subscribeDataUpdates((tableName, cloudRecords, isFullReplace) => {
       const tbl = tableName.toLowerCase();
 
-      // Full replace: always set state directly from Sheet (even if empty [])
-      // This wipes stale localStorage cache when Sheet is empty
+      // Full replace: merge cleanly with local state without wiping un-synced data
       if (isFullReplace) {
-        if (tbl === "records" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          setRecords(cloudRecords);
-        } else if (tbl === "izin" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          setIzinList(cloudRecords);
-        } else if (tbl === "kegiatan" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          setKegiatanRecords(cloudRecords);
-        } else if (tbl === "santrisakit" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          setSantriSakitList(cloudRecords);
-        } else if ((tbl === "dataperizinansantri" || tbl === "santriizin") && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          setSantriIzinList(cloudRecords);
+        if (tbl === "records" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date);
+          setRecords(prev => {
+            const map = new Map<string, AttendanceRecord>();
+            prev.filter(r => Boolean(r && r.musyrifId && r.date)).forEach(r => map.set(`${r.musyrifId}_${r.date}`, r));
+            validCloud.forEach((cr: any) => {
+              const key = `${cr.musyrifId}_${cr.date}`;
+              map.set(key, { ...(map.get(key) || {}), ...cr });
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        } else if (tbl === "izin" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.id);
+          setIzinList(prev => {
+            const map = new Map<string, IzinRequest>();
+            prev.filter(i => Boolean(i && i.id)).forEach(i => map.set(i.id, i));
+            validCloud.forEach((cr: any) => {
+              map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_IZIN, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        } else if (tbl === "kegiatan" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.id);
+          setKegiatanRecords(prev => {
+            const map = new Map<string, KegiatanRecord>();
+            prev.filter(k => Boolean(k && k.id)).forEach(k => map.set(k.id, k));
+            validCloud.forEach((cr: any) => {
+              map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_KEGIATAN, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        } else if (tbl === "santrisakit" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.id);
+          setSantriSakitList(prev => {
+            const map = new Map<string, SantriSakitRecord>();
+            prev.filter(s => Boolean(s && s.id)).forEach(s => map.set(s.id, s));
+            validCloud.forEach((cr: any) => {
+              map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        } else if ((tbl === "dataperizinansantri" || tbl === "santriizin" || tbl === "dataperizinan") && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.namaSantri && cr.namaSantri.trim() !== "");
+          if (validCloud.length > 0) {
+            setSantriIzinList(prev => {
+              const map = new Map<string, SantriIzinRecord>();
+              prev.filter(x => Boolean(x?.namaSantri && x.namaSantri.trim())).forEach(item => map.set(item.nomorSurat || item.id, item));
+              validCloud.forEach((cr: any) => {
+                const mapped = mapIzinSedayuToRecord(cr);
+                const key = mapped.nomorSurat || mapped.id;
+                map.set(key, { ...(map.get(key) || {}), ...mapped });
+              });
+              const merged = Array.from(map.values()).sort(
+                (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+              );
+              try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(merged)); } catch {}
+              return merged;
+            });
+          }
         } else if (tbl === "santri" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           setSantriList(prev => {
             const map = new Map<string, SantriData>();
@@ -6136,24 +6318,28 @@ export default function App() {
               return m;
             })));
           }
-        } else if (tbl === "logbook" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          const next: LogbookStorage = {};
-          cloudRecords.forEach((cr: any) => {
-            if (cr.musyrifId && cr.date) {
+        } else if (tbl === "logbook" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date);
+          setLogbookData(prev => {
+            const next: LogbookStorage = { ...prev };
+            validCloud.forEach((cr: any) => {
               if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
-              next[cr.musyrifId][cr.date] = cr;
-            }
+              next[cr.musyrifId][cr.date] = { ...(next[cr.musyrifId][cr.date] || {}), ...cr };
+            });
+            try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
+            return next;
           });
-          setLogbookData(next);
-        } else if (tbl === "mutabaah" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
-          const next: MutabaahStorage = {};
-          cloudRecords.forEach((cr: any) => {
-            if (cr.musyrifId && cr.date) {
+        } else if (tbl === "mutabaah" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date);
+          setMutabaahData(prev => {
+            const next: MutabaahStorage = { ...prev };
+            validCloud.forEach((cr: any) => {
               if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
-              next[cr.musyrifId][cr.date] = cr;
-            }
+              next[cr.musyrifId][cr.date] = { ...(next[cr.musyrifId][cr.date] || {}), ...cr };
+            });
+            try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(next)); } catch {}
+            return next;
           });
-          setMutabaahData(next);
         }
         return;
       }
@@ -6205,15 +6391,25 @@ export default function App() {
           });
           return Array.from(map.values());
         });
-      } else if (tbl === "dataperizinansantri" || tbl === "santriizin") {
+      } else if (tbl === "dataperizinansantri" || tbl === "santriizin" || tbl === "dataperizinan") {
         setSantriIzinList(prev => {
           const map = new Map<string, SantriIzinRecord>();
-          prev.forEach(s => map.set(s.id, s));
+          prev.filter(x => Boolean(x?.namaSantri && x.namaSantri.trim())).forEach(s => map.set(s.nomorSurat || s.id, s));
           cloudRecords.forEach(cr => {
-            if (cr.is_deleted) map.delete(cr.id);
-            else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+            const mapped = mapIzinSedayuToRecord(cr);
+            const key = mapped.nomorSurat || mapped.id;
+            if (cr.is_deleted) {
+              map.delete(key);
+              map.delete(cr.id);
+            } else if (mapped.namaSantri && mapped.namaSantri.trim()) {
+              map.set(key, { ...(map.get(key) || {}), ...mapped });
+            }
           });
-          return Array.from(map.values());
+          const updated = Array.from(map.values()).sort(
+            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
+          try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(updated)); } catch {}
+          return updated;
         });
       } else if (tbl === "santri") {
         setSantriList(prev => {
@@ -6976,9 +7172,8 @@ export default function App() {
 
     setSantriIzinList(prev => [newRecord, ...prev]);
 
-    // Push ke Database Presensi via googleSyncService & cloud bridge
-    googleSyncService.enqueue("SantriIzin", newRecord, "upsert");
-    createIzinSedayuInCloud(newRecord);
+    // Push ke Database Presensi via googleSyncService with immediate sync
+    googleSyncService.enqueue("SantriIzin", newRecord, "upsert", true);
     showToast(`Izin ${newRecord.namaSantri} (${idUnik}) berhasil diterbitkan & tersimpan di Database!`, "success");
   };
 
@@ -6995,16 +7190,8 @@ export default function App() {
           updatedAt: new Date().toISOString()
         };
 
-        // Push update status ke Database Presensi & cloud bridge
-        googleSyncService.enqueue("SantriIzin", updated, "upsert");
-        updateIzinSedayuStatusInCloud(
-          item.nomorSurat || item.id,
-          approved ? "APPROVED" : "REJECTED",
-          catatan || "Disetujui oleh Pamong / Ustadz",
-          authUser?.name || "Pamong Asrama",
-          (authUser as any)?.email,
-          authUser?.role
-        );
+        // Push update status ke Database Presensi with immediate sync
+        googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
         return updated;
       }
       return item;
@@ -7025,13 +7212,7 @@ export default function App() {
             petugasPKMKeluar: petugasName,
             updatedAt: now.toISOString()
           };
-          googleSyncService.enqueue("SantriIzin", updated, "upsert");
-          updateIzinSedayuStatusInCloud(
-            item.nomorSurat || item.id,
-            "CHECKED_OUT",
-            `Check-out gerbang oleh ${petugasName}`,
-            petugasName
-          );
+          googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
           showToast(`Check-Out gerbang: ${item.namaSantri} tercatat KELUAR`, "info");
         } else {
           const batasKembali = new Date(`${item.tglKembaliRencana}T${item.jamKembaliRencana}:00`);
@@ -7044,15 +7225,7 @@ export default function App() {
             petugasPKMKembali: petugasName,
             updatedAt: now.toISOString()
           };
-          googleSyncService.enqueue("SantriIzin", updated, "upsert");
-          updateIzinSedayuStatusInCloud(
-            item.nomorSurat || item.id,
-            "RETURNED",
-            isLate 
-              ? `Santri telah kembali (TERLAMBAT) — diverifikasi oleh ${petugasName}`
-              : `Santri telah kembali — diverifikasi oleh ${petugasName}`,
-            petugasName
-          );
+          googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
           showToast(
             isLate 
               ? `Check-In gerbang: ${item.namaSantri} tercatat KEMBALI (TERLAMBAT)` 
@@ -7068,7 +7241,7 @@ export default function App() {
 
   const handleDeleteSantriIzin = (id: string) => {
     setSantriIzinList(prev => prev.filter(item => item.id !== id && item.nomorSurat !== id));
-    googleSyncService.enqueue("SantriIzin", { id }, "delete");
+    googleSyncService.enqueue("SantriIzin", { id }, "delete", true);
     showToast("Data perizinan santri dihapus", "info");
   };
 
@@ -7103,44 +7276,40 @@ export default function App() {
     return map;
   }, [records]);
 
+  // Notification state synchronization for Header Bell badge
+  const [notifReadVersion, setNotifReadVersion] = useState(0);
+
+  useEffect(() => {
+    const handleNotifUpdate = () => setNotifReadVersion(v => v + 1);
+    window.addEventListener("presensi_notif_read_updated", handleNotifUpdate);
+    window.addEventListener("storage", handleNotifUpdate);
+    return () => {
+      window.removeEventListener("presensi_notif_read_updated", handleNotifUpdate);
+      window.removeEventListener("storage", handleNotifUpdate);
+    };
+  }, []);
+
   // Notification count calculation for Header Bell badge
   const notificationBadgeCount = useMemo(() => {
-    let count = 0;
-    const today = format(now, "yyyy-MM-dd");
-    const hour = now.getHours();
-
-    const safeSantriSakit = Array.isArray(santriSakitList) ? santriSakitList : [];
-    const safeSantriIzin = Array.isArray(santriIzinList) ? santriIzinList : [];
-    const safeIzin = Array.isArray(izinList) ? izinList : [];
-
-    if (authUser?.role === "musyrif" && checkFieldMusyrif(authUser)) {
-      const myProfile = (musyrifList || []).find(m => m.id === authUser.musyrifId || m.name === authUser.name);
-      if (myProfile && checkFieldMusyrif(myProfile)) {
-        const rec = recordsMap[`${myProfile.id}_${today}`];
-        if (hour >= 4 && hour <= 12 && !rec?.subuh) count++;
-        if (hour >= 17 && hour <= 22 && !rec?.maghrib) count++;
-      }
-      const myAsramaSakit = safeSantriSakit.filter(s => s && s.status === "dalam_perawatan" && (s.asrama === authUser.asrama || s.musyrifId === authUser.musyrifId));
-      if (myAsramaSakit.length > 0) count += Math.min(myAsramaSakit.length, 3);
-      const myPendingIzin = safeSantriIzin.filter(i => i && (i.statusApproval === "pending_musyrif" || (i as any).status === "pending_musyrif") && i.asrama === authUser.asrama);
-      count += myPendingIzin.length;
-    } else if (authUser?.role === "pamong") {
-      const pamongAsramas = getPamongAssignedAsramas(authUser);
-      const pendingPamongIzin = safeSantriIzin.filter(i => i && (i.statusApproval === "pending_pamong" || (i as any).status === "pending_pamong") && (pamongAsramas.includes(i.asrama) || i.asrama === authUser.asrama));
-      count += pendingPamongIzin.length;
-      const pendingMusyrifIzin = safeIzin.filter(i => i && i.status === "pending" && (pamongAsramas.includes(i.asrama) || i.asrama === authUser.asrama));
-      count += pendingMusyrifIzin.length;
-      const asramaSakit = safeSantriSakit.filter(s => s && s.status === "dalam_perawatan" && (pamongAsramas.includes(s.asrama) || s.asrama === authUser.asrama));
-      if (asramaSakit.length > 0) count += Math.min(asramaSakit.length, 2);
-    } else if (authUser) {
-      const pendingSantriIzin = safeSantriIzin.filter(i => i && (i.statusApproval === "pending_pamong" || i.statusApproval === "pending_wadir" || String(i.statusApproval || "").startsWith("pending")));
-      const pendingMusyrifIzin = safeIzin.filter(i => i && i.status === "pending");
-      count += pendingSantriIzin.length + pendingMusyrifIzin.length;
-      const activeSakit = safeSantriSakit.filter(s => s && s.status === "dalam_perawatan" && (s.lokasiPerawatan === "rs_pku" || s.lokasiPerawatan === "uks"));
-      if (activeSakit.length > 0) count += 1;
-    }
-    return count;
-  }, [authUser, musyrifList, recordsMap, santriSakitList, santriIzinList, izinList, now]);
+    if (!authUser) return 0;
+    const allNotifs = buildSystemNotificationItems({
+      authUser,
+      musyrifList,
+      recordsMap,
+      santriSakitList,
+      santriIzinList,
+      izinList,
+      kegiatanRecords,
+      logbookData,
+      mutabaahData,
+      now,
+    });
+    const readMap = getReadNotificationMap();
+    return allNotifs.filter(n => !readMap[n.id]).length;
+  }, [
+    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList, 
+    izinList, kegiatanRecords, logbookData, mutabaahData, now, notifReadVersion
+  ]);
 
   const pendingIzinCount = izinList.filter(i => i.status === "pending").length;
   const todayRecs = records.filter(r=>r.date===todayStr());
@@ -7532,6 +7701,7 @@ export default function App() {
                 onClose={() => setPage("dashboard")}
                 authUser={authUser}
                 musyrifList={musyrifList}
+                santriList={santriList}
                 santriSakitList={santriSakitList}
                 onSaveSantriSakit={handleSaveSantriSakit}
                 onUpdateStatus={handleUpdateStatusSantriSakit}
@@ -7561,6 +7731,7 @@ export default function App() {
                 authUser={authUser}
                 musyrifList={musyrifList}
                 asramaList={ASRAMAS}
+                santriList={santriList}
                 santriIzinList={santriIzinList}
                 onSaveSantriIzin={handleSaveSantriIzin}
                 onApproveSantriIzin={handleApproveSantriIzin}
@@ -7679,7 +7850,7 @@ export default function App() {
                 onRequestChange={handleRequestSantriChange}
                 onApproveRequest={handleApproveSantriRequest}
                 onRejectRequest={handleRejectSantriRequest}
-                onSelectSantriForIzin={() => setPage("izin")}
+                onSelectSantriForIzin={() => setPage("izin-santri")}
                 onSelectSantriForSakit={() => setPage("santri-sakit")}
               />
             </motion.div>
@@ -7875,6 +8046,7 @@ export default function App() {
             onClose={() => setShowSantriSakit(false)}
             authUser={authUser}
             musyrifList={musyrifList}
+            santriList={santriList}
             santriSakitList={santriSakitList}
             onSaveSantriSakit={handleSaveSantriSakit}
             onUpdateStatus={handleUpdateStatusSantriSakit}

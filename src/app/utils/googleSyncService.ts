@@ -62,15 +62,7 @@ class GoogleSyncService {
       const savedQueue = localStorage.getItem(QUEUE_KEY);
       if (savedQueue) {
         const parsed: SyncQueueItem[] = JSON.parse(savedQueue);
-        const forbiddenIds = new Set(["k2", "m8b", "m50", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6"]);
-        this.queue = Array.isArray(parsed) ? parsed.filter(q => {
-          if (!q || !q.id) return false;
-          if (forbiddenIds.has(q.id)) return false;
-          const recName = (q.record?.name || "").toLowerCase();
-          if (recName.includes("testing") || recName.includes("test ")) return false;
-          if (q.id.startsWith("m_178705") || q.id.startsWith("m_178710") || q.id.startsWith("m_178703")) return false;
-          return true;
-        }) : [];
+        this.queue = Array.isArray(parsed) ? parsed.filter(q => Boolean(q && q.id && q.table)) : [];
       }
     } catch (_) {}
 
@@ -254,6 +246,13 @@ class GoogleSyncService {
   }
 
   /**
+   * Alias for flushQueue to support manual trigger buttons
+   */
+  public async flush(): Promise<boolean> {
+    return this.flushQueue();
+  }
+
+  /**
    * Flush Queue (Send all pending outbox records in 1 multi-table request)
    */
   public async flushQueue(): Promise<boolean> {
@@ -402,13 +401,24 @@ class GoogleSyncService {
     try {
       localStorage.removeItem(QUEUE_KEY);
       localStorage.removeItem(LAST_SYNC_KEY);
+      localStorage.removeItem("presensi_attendance_records_v5");
       localStorage.removeItem("presensi_attendance_records_v2");
+      localStorage.removeItem("presensi_izin_requests_v5");
       localStorage.removeItem("presensi_izin_requests_v2");
+      localStorage.removeItem("presensi_kegiatan_asrama_v5");
       localStorage.removeItem("presensi_kegiatan_asrama_v2");
+      localStorage.removeItem("presensi_jurnal_logbook_v5");
       localStorage.removeItem("presensi_jurnal_logbook_v2");
+      localStorage.removeItem("presensi_mutabaah_yaumiyah_v5");
       localStorage.removeItem("presensi_mutabaah_yaumiyah_v2");
+      localStorage.removeItem("presensi_santri_sakit_v5");
       localStorage.removeItem("presensi_santri_sakit_v2");
+      localStorage.removeItem("presensi_santri_izin_v5");
+      localStorage.removeItem("presensi_santri_master_v10");
+      localStorage.removeItem("presensi_santri_change_requests_v1");
+      localStorage.removeItem("presensi_musyrif_master_v5");
       localStorage.removeItem("presensi_musyrif_master_v2");
+      localStorage.removeItem("presensi_auth_users_master_v5");
       localStorage.removeItem("presensi_sunnah_fasts");
       localStorage.removeItem("presensi_gas_url");
     } catch (_) {}

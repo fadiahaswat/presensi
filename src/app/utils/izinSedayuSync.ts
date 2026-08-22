@@ -214,16 +214,19 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
     const json = await res.json();
     if (json && json.data && Array.isArray(json.data)) {
       const mapped = json.data
+        .filter((r: any) => !r.is_deleted)
         .map((r: any) => mapIzinSedayuToRecord(r))
         .filter((x: SantriIzinRecord) => Boolean(x.namaSantri && x.namaSantri.trim() !== ""));
 
-      try {
-        localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(mapped));
-        if (json.meta?.lastModified) {
-          localStorage.setItem(STORAGE_KEY_LAST_FETCH, String(json.meta.lastModified));
-        }
-      } catch (_) {}
-      return mapped;
+      if (mapped.length > 0) {
+        try {
+          localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(mapped));
+          if (json.meta?.lastModified) {
+            localStorage.setItem(STORAGE_KEY_LAST_FETCH, String(json.meta.lastModified));
+          }
+        } catch (_) {}
+        return mapped;
+      }
     }
   } catch (err: any) {
     clearTimeout(timeoutId);

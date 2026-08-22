@@ -7,7 +7,7 @@ import {
   ExternalLink, FileText, AlertTriangle, UserCheck, KeyRound, Sparkles,
   Award, School, ChevronRight, HelpCircle, Download, CheckCheck,
   Stethoscope, Moon, Heart, Navigation, ToggleLeft, ToggleRight,
-  Zap, CalendarDays, ThumbsUp
+  Zap, CalendarDays, ThumbsUp, MessageSquare, Trash2
 } from "lucide-react";
 import { format, addDays, nextSaturday, nextSunday } from "date-fns";
 import { id } from "date-fns/locale";
@@ -40,6 +40,7 @@ interface PageSantriIzinProps {
   authUser: AuthUser | null;
   musyrifList: Musyrif[];
   asramaList: string[];
+  santriList?: SantriData[];
   santriIzinList: SantriIzinRecord[];
   onSaveSantriIzin: (record: Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt">) => void;
   onUpdateSantriIzin?: (record: SantriIzinRecord) => void;
@@ -69,6 +70,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   authUser,
   musyrifList,
   asramaList,
+  santriList = ALL_SANTRI_DATA,
   santriIzinList,
   onSaveSantriIzin,
   onUpdateSantriIzin,
@@ -76,7 +78,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   onPKMTap,
   onDeleteSantriIzin
 }) => {
-  const isPamongOrAdmin = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung" || authUser?.role === "admin";
+  const isKoorMusyrif = authUser?.role === "koordinator_musyrif" || authUser?.role === "admin";
+  const isPamongOrAdmin = authUser?.role === "pamong" || isKoorMusyrif || authUser?.role === "koordinator_gedung";
   const isMusyrif = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
   const isPKM = authUser?.role === "keamanan" || authUser?.role === "admin" || isPamongOrAdmin;
 
@@ -133,22 +136,23 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
 
   // Santri binaan cepat (Quick santri chips for logged in Musyrif)
   const myAssignedSantri = useMemo(() => {
-    if (!authUser?.asrama) return ALL_SANTRI_DATA.slice(0, 6);
-    const matched = ALL_SANTRI_DATA.filter(s => s.asrama === authUser.asrama || (authUser.kamar && s.kamar === authUser.kamar));
-    return matched.length > 0 ? matched.slice(0, 8) : ALL_SANTRI_DATA.slice(0, 6);
-  }, [authUser]);
+    const list = santriList || ALL_SANTRI_DATA;
+    if (!authUser?.asrama) return list.slice(0, 6);
+    const matched = list.filter(s => s.asrama === authUser.asrama || (authUser.kamar && s.kamar === authUser.kamar));
+    return matched.length > 0 ? matched.slice(0, 8) : list.slice(0, 6);
+  }, [authUser, santriList]);
 
   // Autocomplete search santri
   useEffect(() => {
     if (santriQuery.trim().length >= 2) {
-      const results = searchSantri(santriQuery, 8);
+      const results = searchSantri(santriQuery, 8, santriList);
       setSantriSearchResults(results);
       setShowSantriDropdown(true);
     } else {
       setSantriSearchResults([]);
       setShowSantriDropdown(false);
     }
-  }, [santriQuery]);
+  }, [santriQuery, santriList]);
 
   const handleSelectSantri = (s: SantriData, autoAdvance: boolean = false) => {
     setSelectedSantri(s);
@@ -264,11 +268,21 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
 
   // Stats calculation
   const stats = useMemo(() => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
     const total = santriIzinList.length;
     const pending = santriIzinList.filter(i => String(i?.statusApproval || "").startsWith("pending")).length;
     const diLuar = santriIzinList.filter(i => String(i?.statusApproval || "") === "approved" && i?.statusPKM === "di_luar").length;
     const terlambat = santriIzinList.filter(i => i?.statusPKM === "terlambat").length;
-    return { total, pending, diLuar, terlambat };
+    const hariIni = santriIzinList.filter(i => {
+      const st = String(i?.statusApproval || "");
+      if (st !== "approved") return false;
+      return (
+        i.tglKeluarRencana === todayStr ||
+        i.tglKembaliRencana === todayStr ||
+        (i.tglKeluarRencana <= todayStr && i.tglKembaliRencana >= todayStr)
+      );
+    }).length;
+    return { total, pending, diLuar, terlambat, hariIni };
   }, [santriIzinList]);
 
   // ── 1. DEDICATED LIST: PENDING APPROVAL (Butuh Persetujuan Ustadz / Pamong) ──
@@ -325,6 +339,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
         return stApproval === "approved" && stPKM === "di_luar";
       } else if (scopeFilter === "terlambat") {
         return stPKM === "terlambat";
+      } else if (scopeFilter === "pending") {
+        return false; // Rendered via pending list
       } else {
         // "semua"
         return stApproval === "approved" || stApproval === "rejected";
@@ -517,193 +533,171 @@ _Pesan resmi dari Sistem Perizinan Terpadu Seluruh Asrama Mu'allimin Yogyakarta_
             type="button"
             onClick={() => {
               triggerHaptic("light");
+              setActiveTab(activeTab === "pkm" ? "daftar" : "pkm");
+              setSelectedIzin(null);
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+              activeTab === "pkm"
+                ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Pos Keamanan ({pkmActiveList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic("light");
               setActiveTab("ajukan");
               setSelectedIzin(null);
             }}
             className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Ajukan Izin Baru</span>
+            <span>+ Ajukan Izin Baru</span>
           </button>
         </div>
       </div>
 
-      {/* ── STATS SUMMARY CARDS (Multi-Color Variety with Quick Filter click) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div 
-          onClick={() => { setScopeFilter("semua"); setActiveTab("daftar"); triggerHaptic("light"); }}
-          className={`bg-white p-3 rounded-2xl border transition-all cursor-pointer ring-1 shadow-xs flex items-center gap-3 ${
-            scopeFilter === "semua" && activeTab === "daftar" ? "ring-violet-400 border-violet-200 bg-violet-50/20" : "ring-slate-200/60 border-slate-100 hover:border-slate-300"
+      {/* ── UNIFIED INTERACTIVE METRIC & FILTER TILES ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setScopeFilter("hari_ini");
+            setActiveTab("daftar");
+            triggerHaptic("light");
+          }}
+          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
+            scopeFilter === "hari_ini" && activeTab === "daftar"
+              ? "bg-blue-50/90 border-blue-300 ring-blue-500/30 text-blue-950 font-bold"
+              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center shrink-0">
-            <FileCheck2 className="w-4 h-4" />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+            scopeFilter === "hari_ini" && activeTab === "daftar" ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700"
+          }`}>
+            <Calendar className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Izin</p>
-            <p className="text-sm sm:text-base font-black text-slate-800 leading-tight font-mono">{stats.total}</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Hari Ini</p>
+            <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.hariIni}</p>
           </div>
-        </div>
+        </button>
 
-        <div 
-          onClick={() => { setActiveTab("daftar"); triggerHaptic("light"); }}
-          className={`bg-white p-3 rounded-2xl border transition-all cursor-pointer ring-1 shadow-xs flex items-center gap-3 ${
-            stats.pending > 0 && activeTab === "daftar" ? "ring-amber-400 border-amber-200 bg-amber-50/30" : "ring-slate-200/60 border-slate-100 hover:border-slate-300"
+        <button
+          type="button"
+          onClick={() => {
+            setScopeFilter("pending");
+            setActiveTab("daftar");
+            triggerHaptic("light");
+          }}
+          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
+            scopeFilter === "pending" && activeTab === "daftar"
+              ? "bg-amber-50/90 border-amber-300 ring-amber-500/30 text-amber-950 font-bold"
+              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+            scopeFilter === "pending" && activeTab === "daftar" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700"
+          }`}>
             <Clock className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Menunggu Approval</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Approval</p>
             <p className="text-sm sm:text-base font-black text-amber-700 leading-tight font-mono">{stats.pending}</p>
           </div>
-        </div>
+        </button>
 
-        <div 
-          onClick={() => { setScopeFilter("di_luar"); setActiveTab("daftar"); triggerHaptic("light"); }}
-          className={`bg-white p-3 rounded-2xl border transition-all cursor-pointer ring-1 shadow-xs flex items-center gap-3 ${
-            scopeFilter === "di_luar" && activeTab === "daftar" ? "ring-sky-400 border-sky-200 bg-sky-50/30" : "ring-slate-200/60 border-slate-100 hover:border-slate-300"
+        <button
+          type="button"
+          onClick={() => {
+            setScopeFilter("di_luar");
+            setActiveTab("daftar");
+            triggerHaptic("light");
+          }}
+          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
+            scopeFilter === "di_luar" && activeTab === "daftar"
+              ? "bg-sky-50/90 border-sky-300 ring-sky-500/30 text-sky-950 font-bold"
+              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+            scopeFilter === "di_luar" && activeTab === "daftar" ? "bg-sky-600 text-white" : "bg-sky-50 text-sky-700"
+          }`}>
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Santri di Luar</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Di Luar</p>
             <p className="text-sm sm:text-base font-black text-sky-800 leading-tight font-mono">{stats.diLuar}</p>
           </div>
-        </div>
+        </button>
 
-        <div 
-          onClick={() => { setScopeFilter("terlambat"); setActiveTab("daftar"); triggerHaptic("light"); }}
-          className={`bg-white p-3 rounded-2xl border transition-all cursor-pointer ring-1 shadow-xs flex items-center gap-3 ${
-            scopeFilter === "terlambat" && activeTab === "daftar" ? "ring-rose-400 border-rose-200 bg-rose-50/30" : "ring-slate-200/60 border-slate-100 hover:border-slate-300"
+        <button
+          type="button"
+          onClick={() => {
+            setScopeFilter("terlambat");
+            setActiveTab("daftar");
+            triggerHaptic("light");
+          }}
+          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 ${
+            scopeFilter === "terlambat" && activeTab === "daftar"
+              ? "bg-rose-50/90 border-rose-300 ring-rose-500/30 text-rose-950 font-bold"
+              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
           }`}
         >
-          <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+            scopeFilter === "terlambat" && activeTab === "daftar" ? "bg-rose-600 text-white" : "bg-rose-50 text-rose-700"
+          }`}>
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Terlambat Kembali</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Terlambat</p>
             <p className="text-sm sm:text-base font-black text-rose-700 leading-tight font-mono">{stats.terlambat}</p>
           </div>
-        </div>
-      </div>
+        </button>
 
-      {/* ── SEGMENTED NAVIGATION TABS ── */}
-      <div className="p-1 rounded-2xl bg-slate-100/90 border border-slate-200/70 grid grid-cols-3 sm:grid-cols-4 gap-1">
         <button
           type="button"
           onClick={() => {
-            triggerHaptic("light");
+            setScopeFilter("semua");
             setActiveTab("daftar");
-            setSelectedIzin(null);
-          }}
-          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all relative flex items-center justify-center gap-1.5 ${
-            activeTab === "daftar"
-              ? "bg-white text-blue-900 shadow-xs border border-slate-200/60"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Daftar Izin ({mainApprovedList.length + pendingApprovalList.length})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
             triggerHaptic("light");
-            setActiveTab("ajukan");
-            setSelectedIzin(null);
           }}
-          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all relative flex items-center justify-center gap-1.5 ${
-            activeTab === "ajukan"
-              ? "bg-white text-blue-900 shadow-xs border border-slate-200/60"
-              : "text-slate-600 hover:text-slate-900"
+          className={`p-3 rounded-2xl border text-left transition-all ring-1 shadow-xs flex items-center gap-2.5 col-span-2 sm:col-span-1 ${
+            scopeFilter === "semua" && activeTab === "daftar"
+              ? "bg-violet-50/90 border-violet-300 ring-violet-500/30 text-violet-950 font-bold"
+              : "bg-white border-slate-200/80 ring-slate-100 text-slate-700 hover:border-slate-300"
           }`}
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Formulir Cepat</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            triggerHaptic("light");
-            setActiveTab("pkm");
-            setSelectedIzin(null);
-          }}
-          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all relative flex items-center justify-center gap-1.5 ${
-            activeTab === "pkm"
-              ? "bg-white text-blue-900 shadow-xs border border-slate-200/60"
-              : "text-slate-600 hover:text-slate-900"
-          }`}
-        >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Pos Keamanan ({pkmActiveList.length})</span>
-        </button>
-
-        {selectedIzin ? (
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              setActiveTab("kartu");
-            }}
-            className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all relative flex items-center justify-center gap-1.5 ${
-              activeTab === "kartu"
-                ? "bg-white text-blue-900 shadow-xs border border-slate-200/60"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>Kartu Digital</span>
-          </button>
-        ) : (
-          <div className="hidden sm:flex items-center justify-center py-2 px-2.5 text-[11px] text-slate-400 font-medium font-mono">
-            {santriIzinList.length} Arsip
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+            scopeFilter === "semua" && activeTab === "daftar" ? "bg-violet-600 text-white" : "bg-violet-50 text-violet-700"
+          }`}>
+            <FileCheck2 className="w-4 h-4" />
           </div>
-        )}
+          <div>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Semua Arsip</p>
+            <p className="text-sm sm:text-base font-black text-violet-900 leading-tight font-mono">{stats.total}</p>
+          </div>
+        </button>
       </div>
 
       {/* ═════════════════════ TAB 1: DAFTAR & RIWAYAT IZIN ═════════════════════ */}
       {activeTab === "daftar" && (
         <div className="space-y-3">
-          {/* Filter Bar */}
-          <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-100 ring-1 ring-slate-200/60 shadow-xs space-y-2.5">
-            <div className="flex items-center justify-between px-0.5">
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-3 rounded-full bg-blue-600" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono">
-                  Pencarian & Filter
-                </span>
-              </div>
-              {(searchQuery || filterAsrama !== "Semua" || filterJenis !== "all") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setFilterAsrama("Semua");
-                    setFilterJenis("all");
-                    triggerHaptic("light");
-                  }}
-                  className="text-[11px] font-bold text-rose-600 hover:underline"
-                >
-                  Reset Filter
-                </button>
-              )}
-            </div>
-
+          {/* Integrated Search & Filter Toolbar */}
+          <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="relative sm:col-span-1">
+              <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari nama santri, NISN, no surat..."
-                  className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
+                  placeholder="Cari santri, NISN, kelas, nomor..."
+                  className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
                 />
                 {searchQuery && (
                   <button 
@@ -720,34 +714,50 @@ _Pesan resmi dari Sistem Perizinan Terpadu Seluruh Asrama Mu'allimin Yogyakarta_
                 <select
                   value={filterAsrama}
                   onChange={(e) => setFilterAsrama(e.target.value)}
-                  className="w-full py-1.5 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
+                  className="w-full py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
                 >
-                  <option value="Semua">Semua Unit Asrama</option>
+                  <option value="Semua">Semua Asrama</option>
                   {asramaList.map(a => (
                     <option key={a} value={a}>{a}</option>
                   ))}
                 </select>
               </div>
 
-              <div>
+              <div className="flex items-center gap-2">
                 <select
                   value={filterJenis}
                   onChange={(e) => setFilterJenis(e.target.value)}
-                  className="w-full py-1.5 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
+                  className="w-full py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium"
                 >
-                  <option value="all">Semua Kategori Izin</option>
+                  <option value="all">Semua Jenis Izin</option>
                   <option value="keluar_biasa">Keluar Hari Ini</option>
                   <option value="rutin_sabtu_ahad">Rutin Akhir Pekan</option>
                   <option value="kesehatan_berobat">Ke Dokter / RS</option>
                   <option value="pulang_menginap">Pulang / Menginap</option>
                 </select>
+
+                {(searchQuery || filterAsrama !== "Semua" || filterJenis !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterAsrama("Semua");
+                      setFilterJenis("all");
+                      triggerHaptic("light");
+                    }}
+                    className="px-2.5 py-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition shrink-0"
+                    title="Reset Filter"
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* ════════════ SECTION 1: MENUNGGU APPROVAL (DEDICATED TOP SECTION) ════════════ */}
-          {pendingApprovalList.length > 0 && (
-            <div className="bg-amber-50/50 border border-amber-200/80 rounded-2xl p-3.5 sm:p-4 space-y-3">
+          {/* ════════════ SECTION: MENUNGGU PERSALURAN / APPROVAL ════════════ */}
+          {(scopeFilter === "pending" || (scopeFilter === "hari_ini" && pendingApprovalList.length > 0)) && pendingApprovalList.length > 0 && (
+            <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3.5 sm:p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-2xs shrink-0">
@@ -847,182 +857,167 @@ _Pesan resmi dari Sistem Perizinan Terpadu Seluruh Asrama Mu'allimin Yogyakarta_
             </div>
           )}
 
-          {/* ════════════ SECTION 2: PERIZINAN DISETUJUI (DEFAULT: HARI INI) ════════════ */}
-          <div className="space-y-3">
-            {/* Scope Filter Switcher */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                  <span>Daftar Perizinan Santri</span>
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  {scopeFilter === "hari_ini" ? "Menampilkan santri yang berizin pada hari ini" : "Menampilkan seluruh arsip data perizinan"}
-                </p>
-              </div>
-
-              {/* Scope Pills */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-                {[
-                  { id: "hari_ini", label: "📅 Hari Ini (Default)" },
-                  { id: "semua", label: "📋 Semua Disetujui" },
-                  { id: "di_luar", label: "🚶 Sedang di Luar" },
-                  { id: "terlambat", label: "⚠️ Terlambat" }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setScopeFilter(tab.id as any);
-                      triggerHaptic("light");
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                      scopeFilter === tab.id
-                        ? "bg-blue-600 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+          {/* If on Pending view with 0 items */}
+          {scopeFilter === "pending" && pendingApprovalList.length === 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-2 shadow-xs">
+              <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500" />
+              <p className="text-sm font-bold text-slate-700">Semua Pengajuan Telah Diverifikasi</p>
+              <p className="text-xs text-slate-400">Tidak ada pengajuan izin santri yang menunggu persetujuan saat ini.</p>
             </div>
+          )}
 
-            {/* Results Grid */}
-            {mainApprovedList.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 ring-1 ring-slate-200/60 p-8 text-center space-y-2 shadow-xs">
-                <FileText className="w-10 h-10 mx-auto text-slate-300" />
-                <p className="text-sm font-bold text-slate-700">
-                  {scopeFilter === "hari_ini" ? "Tidak Ada Santri Berizin Aktif Hari Ini" : "Tidak Ada Data Perizinan"}
-                </p>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  {scopeFilter === "hari_ini" ? (
-                    <span>
-                      Santri belum memiliki jadwal izin hari ini. Klik tombol <button onClick={() => setScopeFilter("semua")} className="text-blue-600 font-bold underline">Semua Disetujui</button> untuk melihat arsip lengkap.
-                    </span>
-                  ) : "Silakan sesuaikan filter pencarian di atas."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {mainApprovedList.map((item) => {
-                  const stAppr = String(item?.statusApproval || "");
-                  const isApproved = stAppr === "approved";
-                  const isRejected = stAppr === "rejected";
+          {/* ════════════ SECTION: MAIN LIST (HARI INI / SEDANG DI LUAR / TERLAMBAT / SEMUA) ════════════ */}
+          {scopeFilter !== "pending" && (
+            <div className="space-y-3">
+              {/* Results Grid */}
+              {mainApprovedList.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-2.5 shadow-xs">
+                  <FileText className="w-10 h-10 mx-auto text-slate-300" />
+                  <p className="text-sm font-bold text-slate-700">
+                    {scopeFilter === "hari_ini" ? "Tidak Ada Santri Berizin Aktif Hari Ini" : "Tidak Ada Data Perizinan"}
+                  </p>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    {scopeFilter === "hari_ini" ? (
+                      <span>
+                        Belum ada santri yang memiliki jadwal izin pada hari ini. Klik <button onClick={() => setScopeFilter("semua")} className="text-blue-600 font-bold underline">Semua Arsip</button> untuk melihat seluruh data.
+                      </span>
+                    ) : "Silakan sesuaikan kata kunci pencarian atau filter di atas."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {mainApprovedList.map((item) => {
+                    const stAppr = String(item?.statusApproval || "");
+                    const isApproved = stAppr === "approved";
+                    const isRejected = stAppr === "rejected";
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-white rounded-2xl border border-slate-100 ring-1 ring-slate-200/60 p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between gap-3"
-                    >
-                      <div>
-                        {/* Header Item */}
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div>
-                            <span className="text-[10px] font-mono text-blue-800 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/80 font-bold">
-                              {item.nomorSurat}
-                            </span>
-                            <h3 className="font-bold text-slate-900 text-sm sm:text-base mt-1 leading-tight">
-                              {item.namaSantri}
-                            </h3>
-                            <p className="text-[11px] text-slate-500 font-medium">
-                              {item.kelas} · {item.asrama} ({item.kamar})
-                            </p>
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between gap-3"
+                      >
+                        <div>
+                          {/* Header Item */}
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <span className="text-[10px] font-mono text-blue-800 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200/80 font-bold">
+                                {item.nomorSurat}
+                              </span>
+                              <h3 className="font-bold text-slate-900 text-sm sm:text-base mt-1 leading-tight">
+                                {item.namaSantri}
+                              </h3>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {item.kelas} · {item.asrama} ({item.kamar})
+                              </p>
+                            </div>
+
+                            {/* Badges */}
+                            <div className="flex flex-col items-end gap-1">
+                              {isApproved && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-full flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3" /> Disetujui
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200/80 rounded-full flex items-center gap-1">
+                                  <Ban className="w-3 h-3" /> Ditolak
+                                </span>
+                              )}
+
+                              {isApproved && (
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-mono font-bold ${
+                                  item.statusPKM === "di_luar" 
+                                    ? "bg-sky-100 text-sky-800 border border-sky-200"
+                                    : item.statusPKM === "kembali"
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                    : item.statusPKM === "terlambat"
+                                    ? "bg-rose-100 text-rose-800 border border-rose-200 animate-pulse"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}>
+                                  {item.statusPKM === "di_luar" ? "🚪 Di Luar Kampus" : item.statusPKM === "kembali" ? "✅ Kembali" : item.statusPKM === "terlambat" ? "⚠️ Terlambat" : "🕒 Belum Keluar"}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Badges */}
-                          <div className="flex flex-col items-end gap-1">
-                            {isApproved && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-full flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> Disetujui
+                          {/* Body Information */}
+                          <div className="bg-slate-50 rounded-xl p-2.5 text-xs text-slate-700 space-y-1 border border-slate-100">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400 font-medium">Jenis Izin:</span>
+                              <span className="font-bold text-slate-800">
+                                {item.jenisIzin === "keluar_biasa" && "Keluar Biasa (Hari Sama)"}
+                                {item.jenisIzin === "rutin_sabtu_ahad" && "Rutin Akhir Pekan"}
+                                {item.jenisIzin === "kesehatan_berobat" && "Berobat / Medis"}
+                                {item.jenisIzin === "pulang_menginap" && "Pulang / Menginap"}
                               </span>
-                            )}
-                            {isRejected && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200/80 rounded-full flex items-center gap-1">
-                                <Ban className="w-3 h-3" /> Ditolak
-                              </span>
+                            </div>
+
+                            <p><strong className="text-slate-400 font-medium">Keperluan:</strong> <span className="font-medium text-slate-800">{item.keperluan}</span></p>
+                            <p><strong className="text-slate-400 font-medium">Tujuan:</strong> <span className="font-medium text-slate-800">{item.tujuanLokasi}</span></p>
+                            
+                            {item.namaPenjemput && (
+                              <p><strong className="text-slate-400 font-medium">Penjemput:</strong> <span className="font-medium text-slate-800">{item.namaPenjemput} ({item.hubunganPenjemput || "Orang Tua"})</span></p>
                             )}
 
-                            {isApproved && (
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-mono font-bold ${
-                                item.statusPKM === "di_luar"
-                                  ? "bg-sky-100 text-sky-900 border border-sky-200"
-                                  : item.statusPKM === "terlambat"
-                                  ? "bg-rose-50 text-rose-800 border border-rose-200/80 font-black"
-                                  : "bg-slate-100 text-slate-600"
-                              }`}>
-                                PKM: {item.statusPKM.replace("_", " ").toUpperCase()}
+                            <div className="pt-1 mt-1 border-t border-slate-200/80 flex items-center justify-between text-[11px] font-mono">
+                              <span className="text-slate-400">Jadwal:</span>
+                              <span className="font-bold text-slate-800">
+                                {item.tglKeluarRencana} ({item.jamKeluarRencana}) s/d {item.tglKembaliRencana} ({item.jamKembaliRencana})
                               </span>
-                            )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Detail Pill */}
-                        <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-200/60 text-xs space-y-1 text-slate-700">
-                          <p><strong className="text-slate-500 font-semibold">Keperluan:</strong> {item.keperluan}</p>
-                          <p><strong className="text-slate-500 font-semibold">Tujuan:</strong> {item.tujuanLokasi}</p>
-                          {item.namaPenjemput && (
-                            <p><strong className="text-slate-500 font-semibold">Penjemput:</strong> {item.namaPenjemput} ({item.hubunganPenjemput || "Orang Tua"})</p>
+                        {/* Actions Footer */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                triggerHaptic("light");
+                                setSelectedIzin(item);
+                                setActiveTab("kartu");
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-bold flex items-center gap-1 hover:bg-blue-100 transition"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Kartu</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => generateWhatsAppMessage(item)}
+                              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold flex items-center gap-1 hover:bg-emerald-100 transition"
+                              title="Kirim Surat via WhatsApp"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Kirim WA</span>
+                            </button>
+                          </div>
+
+                          {/* Koordinator / Creator Delete Action */}
+                          {(isKoorMusyrif || authUser?.name === item.disetujuiOleh || authUser?.id === item.disetujuiOleh) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                appConfirm("Hapus Perizinan", `Hapus arsip izin ${item.namaSantri}?`).then(ok => {
+                                  if (ok) onDeleteSantriIzin(item.id);
+                                });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
+                              title="Hapus Data Izin"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
-                          <div className="grid grid-cols-2 gap-2 text-[11px] pt-1.5 mt-1 border-t border-slate-200/60 font-mono">
-                            <div>
-                              <span className="text-slate-400 block font-sans">Waktu Keluar:</span>
-                              <span className="font-semibold text-slate-800">{item.tglKeluarRencana} {item.jamKeluarRencana}</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400 block font-sans">Batas Kembali:</span>
-                              <span className="font-semibold text-slate-800">{item.tglKembaliRencana} {item.jamKembaliRencana}</span>
-                            </div>
-                          </div>
                         </div>
                       </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              triggerHaptic("light");
-                              setSelectedIzin(item);
-                              setActiveTab("kartu");
-                            }}
-                            className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200/60 rounded-xl text-xs font-bold flex items-center gap-1 transition active:scale-95"
-                          >
-                            <QrCode className="w-3.5 h-3.5" />
-                            Kartu Izin
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => generateWhatsAppMessage(item)}
-                            className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200/60 rounded-xl text-xs transition active:scale-95"
-                            title="Bagikan ke WhatsApp"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        {onDeleteSantriIzin && isPamongOrAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              appConfirm("Hapus Perizinan", `Hapus arsip izin santri ${item.namaSantri}?`).then((ok) => {
-                                if (ok) onDeleteSantriIzin(item.id);
-                              });
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 transition"
-                            title="Hapus"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

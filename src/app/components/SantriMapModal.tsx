@@ -831,54 +831,77 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
   };
 
   const content = (
-    <div className="flex flex-col min-h-0 gap-0">
+    <div className="flex flex-col min-h-0 gap-3.5">
 
-      {/* ── Brand UI Header ── */}
-      <div className={`relative overflow-hidden flex items-center justify-between gap-3 p-4 sm:p-5 shrink-0 ${
-        isPage
-          ? "bg-white rounded-3xl border border-slate-200/80 shadow-xs mb-4"
-          : "bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white"
-      }`}>
-        {!isPage && (
-          <>
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none" />
-            <div className="absolute bottom-0 right-20 w-24 h-24 bg-white/5 rounded-full pointer-events-none" />
-          </>
-        )}
-        <div className="relative flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
-            isPage
-              ? "bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-emerald-600/20"
-              : "bg-white/20 text-white border border-white/20"
-          }`}>
-            <MapPin className="w-5 h-5" />
+      {/* ── 1. Unified Master Header Card ── */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5 shrink-0">
+        {/* Top Row: Icon + Title + Close Button */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+                Peta Sebaran Santri
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium truncate">
+                Distribusi santri Mu'allimiin TP 2026/2027 ({totalSantri.toLocaleString("id-ID")} Santri)
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className={`font-black text-base sm:text-lg leading-tight tracking-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-              Peta Sebaran Santri
-            </h2>
-            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500 font-medium" : "text-emerald-100 font-medium"}`}>
-              Distribusi santri Mu'allimiin TP 2026/2027 ({totalSantri.toLocaleString("id-ID")} Santri)
-            </p>
-          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 shadow-2xs flex items-center justify-center transition-all active:scale-95 shrink-0 cursor-pointer"
+              title="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className={`relative w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-90 shrink-0 cursor-pointer ${
-              isPage
-                ? "bg-slate-100 hover:bg-slate-200 text-slate-600 shadow-2xs"
-                : "bg-white/15 hover:bg-white/25 text-white border border-white/20"
-            }`}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+
+        {/* Integrated Brand Stats Row */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { icon: <Users className="w-3.5 h-3.5 text-emerald-700" />, label: "Total Santri", value: totalSantri.toLocaleString("id-ID"), bg: "bg-slate-50/80 border-slate-100/80 text-slate-800" },
+            { icon: <Globe className="w-3.5 h-3.5 text-teal-700" />, label: "Provinsi", value: provinsiStats.length, bg: "bg-slate-50/80 border-slate-100/80 text-slate-800" },
+            { icon: <Building2 className="w-3.5 h-3.5 text-sky-700" />, label: "Kab/Kota", value: kabupatenStats.length, bg: "bg-slate-50/80 border-slate-100/80 text-slate-800" },
+          ].map(stat => (
+            <div key={stat.label} className={`rounded-2xl border p-2.5 flex flex-col items-center gap-0.5 ${stat.bg}`}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white shadow-2xs border border-slate-100">
+                {stat.icon}
+              </div>
+              <span className="text-base sm:text-lg font-black font-mono leading-none mt-1">{stat.value}</span>
+              <span className="text-[10px] font-bold text-slate-400 text-center leading-tight font-mono">{stat.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Integrated Navigation Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100/80">
+          {(["peta", "provinsi", "kabupaten"] as const).map(tab => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => { setActiveTab(tab); setSearch(""); setShowAll(false); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === tab
+                  ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                  : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+              }`}
+            >
+              {tab === "peta" && <><MapIcon className="w-3.5 h-3.5" /> <span>Peta Indonesia</span></>}
+              {tab === "provinsi" && <><MapPin className="w-3.5 h-3.5" /> <span>Per Provinsi</span></>}
+              {tab === "kabupaten" && <><Building2 className="w-3.5 h-3.5" /> <span>Per Kab/Kota</span></>}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Scrollable Body ── */}
-      <div className={`flex-1 overflow-y-auto flex flex-col gap-4 ${isPage ? "" : "p-4 sm:p-5"}`}>
+      <div className={`flex-1 overflow-y-auto flex flex-col gap-3.5 ${isPage ? "" : "p-4 sm:p-5"}`}>
 
         {/* If user clicked a region, show the drill-down santri list */}
         {selectedRegionDetail ? (
@@ -891,26 +914,9 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
           />
         ) : (
           <>
-            {/* ── Brand Stats Row ── */}
-            <div className="grid grid-cols-3 gap-2.5">
-              {[
-                { icon: <Users className="w-4 h-4 text-emerald-700" />, label: "Total Santri", value: totalSantri.toLocaleString("id-ID"), bg: "bg-emerald-50/80 border-emerald-200/80 text-emerald-900" },
-                { icon: <Globe className="w-4 h-4 text-teal-700" />, label: "Provinsi", value: provinsiStats.length, bg: "bg-teal-50/80 border-teal-200/80 text-teal-900" },
-                { icon: <Building2 className="w-4 h-4 text-sky-700" />, label: "Kab/Kota", value: kabupatenStats.length, bg: "bg-sky-50/80 border-sky-200/80 text-sky-900" },
-              ].map(stat => (
-                <div key={stat.label} className={`rounded-2xl border p-3 flex flex-col items-center gap-1 ${stat.bg} shadow-2xs`}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-white shadow-xs border border-white/60">
-                    {stat.icon}
-                  </div>
-                  <span className="text-xl font-black leading-none mt-0.5">{stat.value}</span>
-                  <span className="text-[10px] font-bold text-slate-500 text-center leading-tight">{stat.label}</span>
-                </div>
-              ))}
-            </div>
-
             {/* ── Top 3 Kabupaten highlight ── */}
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between font-mono">
                 <span className="flex items-center gap-1.5">
                   <Medal className="w-3.5 h-3.5 text-amber-500" /> Top 3 Asal Terbanyak
                 </span>
@@ -939,26 +945,6 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
                   );
                 })}
               </div>
-            </div>
-
-            {/* ── Brand Navigation Tabs ── */}
-            <div className="bg-slate-100/90 rounded-2xl p-1 flex gap-1 shrink-0 shadow-inner border border-slate-200/60">
-              {(["peta", "provinsi", "kabupaten"] as const).map(tab => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => { setActiveTab(tab); setSearch(""); setShowAll(false); }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                    activeTab === tab
-                      ? "bg-emerald-700 text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {tab === "peta" && <><MapIcon className="w-3.5 h-3.5" /> <span>Peta Indonesia</span></>}
-                  {tab === "provinsi" && <><MapPin className="w-3.5 h-3.5" /> <span>Per Provinsi</span></>}
-                  {tab === "kabupaten" && <><Building2 className="w-3.5 h-3.5" /> <span>Per Kab/Kota</span></>}
-                </button>
-              ))}
             </div>
 
             {/* ── Tab Content: Peta Interaktif Indonesia ── */}

@@ -567,48 +567,39 @@ export function DataSantriModal({
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[92vh] overflow-hidden"}`}>
-      {/* ─── HEADER BAR ─── */}
-      <div className={`px-4 py-3 sm:px-5 sm:py-4 ${
-        isPage 
-          ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" 
-          : "bg-slate-900 text-white rounded-t-3xl"
+      {/* ─── 1. CARD 1: HEADER, TABS & STATISTICAL METRICS ─── */}
+      <div className={`bg-white rounded-3xl border border-slate-200/70 shadow-xs flex flex-col p-4 sm:p-5 gap-3.5 ${
+        !isPage ? "rounded-t-3xl" : ""
       }`}>
+        {/* Row 1: Header (Back Button, Title & Badges, Action Buttons) */}
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={onClose}
             aria-label="Kembali ke Dasbor"
-            className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 shrink-0 ${
-              isPage 
-                ? "bg-slate-100 hover:bg-slate-200 text-slate-600" 
-                : "bg-white/10 hover:bg-white/20 text-white"
-            }`}
+            className="w-9 h-9 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-95 shrink-0"
           >
             {isPage ? <ChevronLeft className="w-4 h-4" /> : <X className="w-4 h-4" />}
           </button>
 
-          {/* Title + badges */}
+          {/* Title + Badges */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className={`font-black text-sm sm:text-base leading-tight whitespace-nowrap ${isPage ? "text-slate-900" : "text-white"}`}>
+              <h2 className="font-black text-sm sm:text-base leading-tight whitespace-nowrap text-slate-900">
                 Database Santri
               </h2>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 ${
-                isPage 
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200" 
-                  : "bg-white/15 text-emerald-200"
-              }`}>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 bg-emerald-50 text-emerald-800 border border-emerald-200">
                 {stats.activeCount.toLocaleString("id-ID")} santri
               </span>
               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
                 isKoorMusyrif
-                  ? (isPage ? "bg-teal-50 text-teal-700 border border-teal-200/60" : "bg-teal-500/20 text-teal-200")
-                  : (isPage ? "bg-amber-50 text-amber-800 border border-amber-200/60" : "bg-amber-500/20 text-amber-200")
+                  ? "bg-teal-50 text-teal-700 border border-teal-200/60"
+                  : "bg-amber-50 text-amber-800 border border-amber-200/60"
               }`}>
                 {scopeBadgeLabel}
               </span>
             </div>
-            <p className={`text-[11px] mt-0.5 truncate ${isPage ? "text-slate-400" : "text-slate-400"}`}>
+            <p className="text-[11px] mt-0.5 truncate text-slate-400">
               {isKoorMusyrif 
                 ? "Master biodata, mutasi kelas & kelola permohonan santri" 
                 : "Daftar santri binaan. Untuk edit/pindah/hapus, ajukan permohonan ke Koordinator."}
@@ -631,11 +622,7 @@ export function DataSantriModal({
             <button
               type="button"
               onClick={handleExportCSV}
-              className={`h-8 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 whitespace-nowrap ${
-                isPage
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                  : "bg-white/10 hover:bg-white/20 text-white"
-              }`}
+              className="h-8 px-2.5 rounded-xl text-xs font-semibold transition-all bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 active:scale-95 whitespace-nowrap"
               title="Unduh CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -645,11 +632,7 @@ export function DataSantriModal({
             <button
               type="button"
               onClick={() => setShowPetaSebaran(true)}
-              className={`h-8 px-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 whitespace-nowrap ${
-                isPage
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : "bg-emerald-600/80 hover:bg-emerald-600 text-white"
-              }`}
+              className="h-8 px-2.5 rounded-xl text-xs font-semibold transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 active:scale-95 whitespace-nowrap"
               title="Peta Sebaran"
             >
               <Globe className="w-3.5 h-3.5" />
@@ -667,9 +650,7 @@ export function DataSantriModal({
                   );
                   if (ok) onResetSantri();
                 }}
-                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                  isPage ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" : "text-slate-400 hover:text-rose-300 hover:bg-white/10"
-                }`}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                 title="Pulihkan data master"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -677,41 +658,198 @@ export function DataSantriModal({
             )}
           </div>
         </div>
+
+        {/* Row 2: Integrated Segmented Tab Switcher */}
+        <div className="bg-slate-100/90 p-1 rounded-2xl flex gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveMainTab("database")}
+            className={`flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeMainTab === "database"
+                ? "bg-white text-emerald-800 shadow-2xs"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span>Daftar Santri ({scopedSantriList.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMainTab("requests")}
+            className={`flex-1 py-1.5 sm:py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 relative ${
+              activeMainTab === "requests"
+                ? "bg-white text-emerald-800 shadow-2xs"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Inbox className="w-4 h-4" />
+            <span>{isKoorMusyrif ? "Kelola Permohonan" : "Status Pengajuan"}</span>
+            {pendingRequestsCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
+                {pendingRequestsCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Row 3: Ringkasan Metrik Statistik */}
+        {activeMainTab === "database" && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+            {/* Santri Aktif */}
+            <div className="bg-emerald-50/70 border border-emerald-100/80 rounded-2xl p-2.5 sm:p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-emerald-700 font-semibold truncate leading-tight">Santri Aktif</p>
+                <p className="text-base sm:text-lg font-black text-emerald-900 font-mono leading-none mt-0.5">
+                  {stats.activeCount.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+
+            {/* MTs */}
+            <div className="bg-teal-50/70 border border-teal-100/80 rounded-2xl p-2.5 sm:p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                <School className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-teal-700 font-semibold truncate leading-tight">MTs (Kls 1-3)</p>
+                <p className="text-base sm:text-lg font-black text-teal-900 font-mono leading-none mt-0.5">
+                  {stats.byJenjang.MTs.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+
+            {/* MA */}
+            <div className="bg-sky-50/70 border border-sky-100/80 rounded-2xl p-2.5 sm:p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-sky-700 font-semibold truncate leading-tight">MA (Kls 4-6)</p>
+                <p className="text-base sm:text-lg font-black text-sky-900 font-mono leading-none mt-0.5">
+                  {stats.byJenjang.MA.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+
+            {/* Tersaring */}
+            <div className="bg-amber-50/70 border border-amber-100/80 rounded-2xl p-2.5 sm:p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-amber-700 font-semibold truncate leading-tight">Tersaring</p>
+                <p className="text-base sm:text-lg font-black text-amber-900 font-mono leading-none mt-0.5">
+                  {filteredSantri.length.toLocaleString("id-ID")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ─── MAIN TABS FOR KOORDINATOR (Database vs Permohonan) ─── */}
-      <div className="bg-slate-100/90 p-1 rounded-2xl flex gap-1 shrink-0">
-        <button
-          type="button"
-          onClick={() => setActiveMainTab("database")}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeMainTab === "database"
-              ? "bg-white text-emerald-800 shadow-2xs"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          <GraduationCap className="w-4 h-4" />
-          <span>Daftar Santri ({scopedSantriList.length})</span>
-        </button>
+      {/* ─── 2. CARD 2: PENCARIAN & FILTER KONTROL ─── */}
+      {activeMainTab === "database" && (
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3.5">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari Nama, NIS, NISN, Kelas, Kota/Kabupaten, Asal Sekolah, Ortu..."
+                className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-800 transition-all placeholder:text-slate-400"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center absolute right-2.5 top-1/2 -translate-y-1/2 text-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-        <button
-          type="button"
-          onClick={() => setActiveMainTab("requests")}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 relative ${
-            activeMainTab === "requests"
-              ? "bg-white text-emerald-800 shadow-2xs"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          <Inbox className="w-4 h-4" />
-          <span>{isKoorMusyrif ? "Kelola Permohonan" : "Status Pengajuan"}</span>
-          {pendingRequestsCount > 0 && (
-            <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
-              {pendingRequestsCount}
-            </span>
-          )}
-        </button>
-      </div>
+            {/* Class Picker */}
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedClass}
+                onChange={(e) => {
+                  setSelectedClass(e.target.value);
+                  if (e.target.value !== "all") setSelectedTingkat("all");
+                }}
+                className="w-full sm:w-auto px-3.5 py-2.5 text-xs font-semibold bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-700 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value="all">Semua Kelas ({scopedSantriList.length})</option>
+                {LIST_ALL_KELAS_GROUPED.map(grp => (
+                  <optgroup key={grp.tingkat} label={grp.label}>
+                    {grp.kelas.map(k => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Filter Pills (Status & Tingkat) */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            {/* Row 1: Status Filters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Status:</span>
+              {[
+                { id: "aktif", label: `Aktif (${stats.activeCount})` },
+                { id: "bersaudara", label: `Bersaudara (${stats.siblingsCount})`, icon: Heart },
+                { id: "all", label: `Semua (${stats.total})` },
+                { id: "non_aktif", label: `Non-Aktif (${stats.inactiveCount})` }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setFilterStatus(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+                    filterStatus === tab.id
+                      ? tab.id === "bersaudara"
+                        ? "bg-purple-600 text-white shadow-2xs"
+                        : "bg-emerald-700 text-white shadow-2xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {tab.icon && <tab.icon className="w-3 h-3" />}
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Row 2: Tingkat Filters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Tingkat:</span>
+              {["all", "Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTingkat(t);
+                    setSelectedClass("all");
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                    selectedTingkat === t && selectedClass === "all"
+                      ? "bg-slate-800 text-white"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60"
+                  }`}
+                >
+                  {t === "all" ? "Semua Tingkat" : t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── TAB CONTENT: REQUESTS LIST ─── */}
       {activeMainTab === "requests" && (
@@ -860,164 +998,9 @@ export function DataSantriModal({
         </div>
       )}
 
-      {/* ─── TAB CONTENT: DATABASE SANTRI ─── */}
-      {activeMainTab === "database" && (
-        <>
-          {/* ─── STATISTICAL METRIC CARDS ─── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
-            {/* Total Aktif */}
-            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-emerald-200/70 shadow-2xs flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] text-slate-500 font-medium truncate">Santri Aktif</p>
-                <p className="text-lg sm:text-xl font-black text-emerald-800 font-mono leading-none mt-0.5">
-                  {stats.activeCount.toLocaleString("id-ID")}
-                </p>
-              </div>
-            </div>
-
-            {/* Tingkat MTs */}
-            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-teal-200/70 shadow-2xs flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center shrink-0">
-                <School className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] text-slate-500 font-medium truncate">MTs (Kls 1-3)</p>
-                <p className="text-lg sm:text-xl font-black text-teal-800 font-mono leading-none mt-0.5">
-                  {stats.byJenjang.MTs.toLocaleString("id-ID")}
-                </p>
-              </div>
-            </div>
-
-            {/* Tingkat MA */}
-            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-sky-200/70 shadow-2xs flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center shrink-0">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] text-slate-500 font-medium truncate">MA (Kls 4-6)</p>
-                <p className="text-lg sm:text-xl font-black text-sky-800 font-mono leading-none mt-0.5">
-                  {stats.byJenjang.MA.toLocaleString("id-ID")}
-                </p>
-              </div>
-            </div>
-
-            {/* Hasil Filter */}
-            <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-amber-200/70 shadow-2xs flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center shrink-0">
-                <Layers className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] text-slate-500 font-medium truncate">Tersaring</p>
-                <p className="text-lg sm:text-xl font-black text-amber-800 font-mono leading-none mt-0.5">
-                  {filteredSantri.length.toLocaleString("id-ID")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* ─── SEARCH & FILTER CONTROLS ─── */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/70 shadow-xs space-y-3.5">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari Nama, NIS, NISN, Kelas, Kota/Kabupaten, Asal Sekolah, Ortu..."
-                  className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200/80 rounded-2xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-slate-800 transition-all placeholder:text-slate-400"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center absolute right-2.5 top-1/2 -translate-y-1/2 text-xs"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Class Picker */}
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedClass}
-                  onChange={(e) => {
-                    setSelectedClass(e.target.value);
-                    if (e.target.value !== "all") setSelectedTingkat("all");
-                  }}
-                  className="px-3.5 py-2.5 text-xs font-semibold bg-slate-50 border border-slate-200/80 rounded-2xl text-slate-700 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                >
-                  <option value="all">Semua Kelas ({scopedSantriList.length})</option>
-                  {LIST_ALL_KELAS_GROUPED.map(grp => (
-                    <optgroup key={grp.tingkat} label={grp.label}>
-                      {grp.kelas.map(k => (
-                        <option key={k} value={k}>{k}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Filter Pills */}
-            <div className="space-y-2 pt-1 border-t border-slate-100">
-              {/* Row 1: Status Filters */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Status:</span>
-                {[
-                  { id: "aktif", label: `Aktif (${stats.activeCount})` },
-                  { id: "bersaudara", label: `Bersaudara (${stats.siblingsCount})`, icon: Heart },
-                  { id: "all", label: `Semua (${stats.total})` },
-                  { id: "non_aktif", label: `Non-Aktif (${stats.inactiveCount})` }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setFilterStatus(tab.id as any)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
-                      filterStatus === tab.id
-                        ? tab.id === "bersaudara"
-                          ? "bg-purple-600 text-white shadow-2xs"
-                          : "bg-emerald-700 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {tab.icon && <tab.icon className="w-3 h-3" />}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Row 2: Tingkat Filters */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Tingkat:</span>
-                {["all", "Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6"].map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTingkat(t);
-                      setSelectedClass("all");
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                      selectedTingkat === t && selectedClass === "all"
-                        ? "bg-slate-800 text-white"
-                        : "bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/60"
-                    }`}
-                  >
-                    {t === "all" ? "Semua Tingkat" : t}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* ─── SANTRI TABLE VIEW (Desktop) / CARD VIEW (Mobile) ─── */}
-          <div className="bg-white rounded-3xl border border-slate-200/70 shadow-xs overflow-hidden">
+      {activeMainTab === "database" && (
+        <div className="bg-white rounded-3xl border border-slate-200/70 shadow-xs overflow-hidden">
             {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -1311,8 +1294,7 @@ export function DataSantriModal({
               </div>
             )}
           </div>
-        </>
-      )}
+        )}
 
       {/* ─── SANTRI DETAIL MODAL POPUP ─── */}
       <AnimatePresence>
@@ -1477,6 +1459,36 @@ export function DataSantriModal({
                     <ArrowRightLeft className="w-3.5 h-3.5" />
                     <span>{isKoorMusyrif ? "Mutasi Kelas" : "Ajukan Mutasi"}</span>
                   </button>
+
+                  {onSelectSantriForIzin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = selectedSantri;
+                        setSelectedSantri(null);
+                        onSelectSantriForIzin(s);
+                      }}
+                      className="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Ajukan Izin</span>
+                    </button>
+                  )}
+
+                  {onSelectSantriForSakit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = selectedSantri;
+                        setSelectedSantri(null);
+                        onSelectSantriForSakit(s);
+                      }}
+                      className="px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1"
+                    >
+                      <Heart className="w-3.5 h-3.5" />
+                      <span>Catat Sakit</span>
+                    </button>
+                  )}
                 </div>
 
                 <button

@@ -70504,12 +70504,13 @@ export const ALL_SANTRI_DATA: SantriData[] = [
   }
 ];
 
-export function searchSantri(query: string, limit: number = 10): SantriData[] {
+export function searchSantri(query: string, limit: number = 10, dataset: SantriData[] = ALL_SANTRI_DATA): SantriData[] {
   if (!query || query.trim().length === 0) return [];
   const q = query.toLowerCase().trim();
   const results: SantriData[] = [];
-  for (let i = 0; i < ALL_SANTRI_DATA.length; i++) {
-    const s = ALL_SANTRI_DATA[i];
+  const source = dataset || ALL_SANTRI_DATA;
+  for (let i = 0; i < source.length; i++) {
+    const s = source[i];
     if (
       s.nama.toLowerCase().includes(q) ||
       s.nisn.includes(q) ||
@@ -70523,8 +70524,9 @@ export function searchSantri(query: string, limit: number = 10): SantriData[] {
   return results;
 }
 
-export function getSantriForMusyrif(asrama?: string, kamar?: string, kelas?: string): SantriData[] {
-  return ALL_SANTRI_DATA.filter(s => {
+export function getSantriForMusyrif(asrama?: string, kamar?: string, kelas?: string, dataset: SantriData[] = ALL_SANTRI_DATA): SantriData[] {
+  const source = dataset || ALL_SANTRI_DATA;
+  return source.filter(s => {
     if (kelas && s.kelasLengkap.toLowerCase() === kelas.toLowerCase()) return true;
     if (asrama && (s as any).asrama === asrama) {
       if (kamar) return (s as any).kamar === kamar;

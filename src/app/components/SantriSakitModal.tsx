@@ -41,6 +41,7 @@ interface SantriSakitModalProps {
   onClose: () => void;
   authUser: any;
   musyrifList: Musyrif[];
+  santriList?: SantriData[];
   santriSakitList: SantriSakitRecord[];
   onSaveSantriSakit: (record: SantriSakitRecord) => void;
   onUpdateStatus: (id: string, newStatus: "dalam_perawatan" | "sembuh") => void;
@@ -52,6 +53,7 @@ export function SantriSakitModal({
   onClose,
   authUser,
   musyrifList,
+  santriList,
   santriSakitList,
   onSaveSantriSakit,
   onUpdateStatus,
@@ -111,8 +113,8 @@ export function SantriSakitModal({
   // Scoped students of this musyrif's class
   const classStudents = useMemo(() => {
     if (!currentMusyrifObj?.kelas) return [];
-    return getSantriForMusyrif(undefined, undefined, currentMusyrifObj.kelas);
-  }, [currentMusyrifObj]);
+    return getSantriForMusyrif(undefined, undefined, currentMusyrifObj.kelas, santriList);
+  }, [currentMusyrifObj, santriList]);
 
   // Real-time per-letter suggestion search
   const santriSuggestions = useMemo(() => {
@@ -127,9 +129,9 @@ export function SantriSakitModal({
       (s.nisn && s.nisn.includes(q))
     );
     // Broader search in database
-    const broaderMatches = searchSantri(q, 20).filter(s => !inClassMatches.some(m => m.id === s.id));
+    const broaderMatches = searchSantri(q, 20, santriList).filter(s => !inClassMatches.some(m => m.id === s.id));
     return [...inClassMatches, ...broaderMatches].slice(0, 20);
-  }, [formNama, classStudents]);
+  }, [formNama, classStudents, santriList]);
 
   const handleSelectSantri = (santri: SantriData) => {
     setFormNama(santri.nama);
@@ -306,33 +308,40 @@ export function SantriSakitModal({
   const pamongAsramas = useMemo(() => authUser ? getPamongAssignedAsramas(authUser) : [], [authUser]);
   const isSuperAdmin = authUser?.role === "koordinator_musyrif" || authUser?.role === "kaur_kis" || authUser?.role === "wadir4" || authUser?.role === "admin";
 
-  const filteredList = santriSakitList.filter(item => {
-    // Role-based scoping
-    if (isPamong) {
-      if (pamongAsramas.length > 0) {
-        if (!pamongAsramas.includes(item.asrama) && !pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) return false;
-      } else if (authUser?.asrama && item.asrama !== authUser.asrama) {
-        return false;
+  const filteredList = useMemo(() => {
+    return santriSakitList.filter(item => {
+      // Role-based scoping
+      if (isPamong) {
+        if (pamongAsramas.length > 0) {
+          if (!pamongAsramas.includes(item.asrama) && !pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) return false;
+        } else if (authUser?.asrama && item.asrama !== authUser.asrama) {
+          return false;
+        }
+      } else if (isKoorGedung) {
+        if (authUser?.asrama && item.asrama !== authUser.asrama) return false;
+      } else if (isMusyrif) {
+        const isMyRoomOrClass = item.musyrifId === (authUser?.musyrifId || authUser?.id) || 
+          (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
+          (authUser?.kamar && item.kamar === authUser.kamar);
+        if (!isMyRoomOrClass) return false;
       }
-    } else if (isKoorGedung) {
-      if (authUser?.asrama && item.asrama !== authUser.asrama) return false;
-    } else if (isMusyrif) {
-      const isMyRoomOrClass = item.musyrifId === (authUser?.musyrifId || authUser?.id) || 
-        (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
-        (authUser?.kamar && item.kamar === authUser.kamar);
-      if (!isMyRoomOrClass) return false;
-    }
-    // superadmin & public → semua santri sakit
+      // superadmin & public → semua santri sakit
 
-    const matchAsrama = filterAsrama === "all" || item.asrama === filterAsrama;
-    const matchStatus = filterStatus === "all" || item.status === filterStatus;
-    const q = searchQuery.toLowerCase();
-    const matchSearch = searchQuery === "" || 
-      (item.namaSantri || "").toLowerCase().includes(q) ||
-      (item.keluhan || "").toLowerCase().includes(q) ||
-      (item.kamar || "").toLowerCase().includes(q);
-    return matchAsrama && matchStatus && matchSearch;
-  });
+      const matchAsrama = filterAsrama === "all" || item.asrama === filterAsrama;
+      const matchStatus = filterStatus === "all" || item.status === filterStatus;
+      const q = searchQuery.toLowerCase();
+      const matchSearch = searchQuery === "" || 
+        (item.namaSantri || "").toLowerCase().includes(q) ||
+        (item.keluhan || "").toLowerCase().includes(q) ||
+        (item.kamar || "").toLowerCase().includes(q);
+      return matchAsrama && matchStatus && matchSearch;
+    }).sort((a, b) => {
+      const timeA = a.createdAt || a.date || "";
+      const timeB = b.createdAt || b.date || "";
+      if (timeA && timeB && timeA !== timeB) return timeB.localeCompare(timeA);
+      return (b.id || "").localeCompare(a.id || "");
+    });
+  }, [santriSakitList, isPamong, pamongAsramas, authUser, isKoorGedung, isMusyrif, filterAsrama, filterStatus, searchQuery]);
 
   const activeSickCount = (() => {
     const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
@@ -455,40 +464,6 @@ export function SantriSakitModal({
               </button>
             )}
           </div>
-
-          {/* Quick Select Santri Dropdown for Musyrif's Class */}
-          {classStudents.length > 0 && (
-            <div className="p-3 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/80 rounded-2xl space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Pilih Santri Binaan ({currentMusyrifObj?.kelas || ""} • {classStudents.length} Santri)</span>
-                </label>
-                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-100 dark:bg-emerald-900 px-2 py-0.5 rounded-full">
-                  1-Klik Otomatis
-                </span>
-              </div>
-              <select
-                value={selectedStudentId}
-                onChange={(e) => {
-                  const sid = e.target.value;
-                  setSelectedStudentId(sid);
-                  const found = classStudents.find(s => s.id === sid);
-                  if (found) {
-                    handleSelectSantri(found);
-                  }
-                }}
-                className="w-full text-xs bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 rounded-xl px-3 py-2.5 font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-xs"
-              >
-                <option value="">-- Klik untuk Pilih Santri ({classStudents.length} Orang) --</option>
-                {classStudents.map((s, idx) => (
-                  <option key={s.id} value={s.id}>
-                    {idx + 1}. {s.nama} (NIS: {s.nis || "-"} • Kelas {s.kelasLengkap})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
@@ -779,6 +754,11 @@ export function SantriSakitModal({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-bold text-slate-900 text-sm">{item.namaSantri}</h4>
+                      {(item.date === format(new Date(), "yyyy-MM-dd") || (item.createdAt && item.createdAt.startsWith(format(new Date(), "yyyy-MM-dd")))) && (
+                        <span className="bg-rose-600 text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider shadow-2xs animate-pulse flex items-center gap-0.5">
+                          Baru
+                        </span>
+                      )}
                       <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono font-semibold">
                         Kelas {item.kelasSantri}
                       </span>

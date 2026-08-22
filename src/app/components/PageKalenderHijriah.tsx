@@ -110,152 +110,149 @@ export const PageKalenderHijriah: React.FC<PageKalenderHijriahProps> = ({
 
   return (
     <div className="space-y-3.5 max-w-7xl mx-auto pb-10">
-      {/* Top Header Card */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+      {/* 1. Unified Master Header Card */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+        {/* Top Row: Back button + KHGT Icon + Title + Kriteria button */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs flex items-center justify-center transition-all shrink-0 active:scale-95"
+              title="Kembali ke Dasbor"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+              <CalendarIcon className="w-5 h-5"/>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  KHGT Majelis Tarjih
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">PP Muhammadiyah</span>
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate mt-0.5">
+                Kalender Hijriah Global
+              </h2>
+            </div>
+          </div>
+
           <button
             type="button"
-            onClick={onBack}
-            className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
-            title="Kembali ke Dasbor"
+            onClick={() => setShowKHGTInfo(!showKHGTInfo)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all shadow-2xs shrink-0 active:scale-95 ${
+              showKHGTInfo
+                ? "bg-emerald-700 text-white ring-emerald-800"
+                : "text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80"
+            }`}
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Kriteria KHGT</span>
+            <span className="sm:hidden">Kriteria</span>
+          </button>
+        </div>
+
+        {/* Collapsible Info Banner if expanded */}
+        {showKHGTInfo && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-emerald-950 text-xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <p className="font-extrabold text-xs text-emerald-900 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
+                Prinsip Kalender Hijriah Global Tunggal (KHGT) Muhammadiyah
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowKHGTInfo(false)}
+                className="text-emerald-700 hover:text-emerald-900 font-bold text-xs"
+              >
+                Tutup
+              </button>
+            </div>
+            <p className="leading-relaxed text-slate-700 text-[11.5px]">
+              Berdasarkan keputusan <strong>Munas Tarjih ke-32 Pekalongan</strong> dan <strong>Keputusan PP Muhammadiyah No. 120/KEP/I.0/B/2024</strong>, Muhammadiyah resmi memberlakukan KHGT mulai <strong>1 Muharram 1446 H (7 Juli 2024 M)</strong>.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-0.5">
+              <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
+                <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">1. Kesatuan Matla&apos; Global</p>
+                <p className="text-[10.5px] text-slate-600">Satu hari satu tanggal di seluruh penjuru dunia dengan parameter kesepakatan Istanbul 2016.</p>
+              </div>
+              <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
+                <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">2. Kepastian Kalender Jauh Hari</p>
+                <p className="text-[10.5px] text-slate-600">Awal Ramadan, Syawal, & Dzulhijjah dapat dihitung pasti bertahun-tahun sebelumnya.</p>
+              </div>
+              <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
+                <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">3. Keselarasan Ibadah Global</p>
+                <p className="text-[10.5px] text-slate-600">Puasa Arafah (9 Dzulhijjah) selaras secara global dengan hari wukuf di padang Arafah.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Integrated Hijri Month Navigator */}
+        <div className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-1.5 border border-slate-100/80">
+          <button
+            type="button"
+            onClick={handlePrevMonth}
+            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 text-slate-600 flex items-center justify-center active:scale-95 transition-all flex-shrink-0"
+            title="Bulan Sebelumnya"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80 text-[10px] font-bold font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                KHGT Majelis Tarjih
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">PP Muhammadiyah</span>
-            </div>
-            <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5 mt-0.5">
-              <CalendarIcon className="w-4 h-4 text-emerald-600 shrink-0" />
-              Kalender Hijriah Global Tunggal
-            </h2>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowKHGTInfo(!showKHGTInfo)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs self-start sm:self-auto ${
-            showKHGTInfo
-              ? "bg-emerald-700 text-white border-emerald-800"
-              : "bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100"
-          }`}
-        >
-          <Info className="w-3.5 h-3.5" />
-          <span>Kriteria KHGT</span>
-        </button>
-      </div>
-
-      {/* Info Banner KHGT Collapsible */}
-      {showKHGTInfo && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50/50 border border-emerald-200/90 text-emerald-950 text-xs space-y-2.5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <p className="font-extrabold text-xs text-emerald-900 flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
-              Prinsip Kalender Hijriah Global Tunggal (KHGT) Muhammadiyah
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowKHGTInfo(false)}
-              className="text-emerald-700 hover:text-emerald-900 font-bold text-xs"
-            >
-              Tutup
-            </button>
-          </div>
-          <p className="leading-relaxed text-slate-700 text-[11.5px]">
-            Berdasarkan keputusan <strong>Munas Tarjih ke-32 Pekalongan</strong> dan <strong>Keputusan PP Muhammadiyah No. 120/KEP/I.0/B/2024</strong>, Muhammadiyah resmi memberlakukan KHGT mulai <strong>1 Muharram 1446 H (7 Juli 2024 M)</strong>.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-0.5">
-            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
-              <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">1. Kesatuan Matla&apos; Global</p>
-              <p className="text-[10.5px] text-slate-600">Satu hari satu tanggal di seluruh penjuru dunia dengan parameter kesepakatan Istanbul 2016.</p>
-            </div>
-            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
-              <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">2. Kepastian Kalender Jauh Hari</p>
-              <p className="text-[10.5px] text-slate-600">Awal Ramadan, Syawal, & Dzulhijjah dapat dihitung pasti bertahun-tahun sebelumnya.</p>
-            </div>
-            <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-100 shadow-2xs">
-              <p className="font-bold text-emerald-900 mb-0.5 text-[11px]">3. Keselarasan Ibadah Global</p>
-              <p className="text-[10.5px] text-slate-600">Puasa Arafah (9 Dzulhijjah) selaras secara global dengan hari wukuf di padang Arafah.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Month Navigator & Filters Bar */}
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Month Title & Gregorian Range */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
-            <Moon className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="font-black text-base sm:text-lg text-slate-900 tracking-tight leading-tight">
+          
+          <div className="text-center px-2">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-800 font-mono leading-tight">
               {HIJRI_MONTHS[selectedMonth - 1]} {selectedYear} H
-            </h3>
+            </p>
             {daysInMonth.length > 0 && (
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
                 {format(daysInMonth[0].gregorianDate, "d MMM yyyy", { locale: id })} — {format(daysInMonth[daysInMonth.length - 1].gregorianDate, "d MMM yyyy", { locale: id })}
               </p>
             )}
           </div>
-        </div>
 
-        {/* Navigation & Filter Buttons Row */}
-        <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-            {[
-              { id: "all", label: "Semua" },
-              { id: "sunnah", label: "Puasa Sunnah" },
-              { id: "event", label: "Hari Besar" },
-              { id: "haram", label: "Haram Puasa" },
-            ].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setFilterType(f.id as any)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${
-                  filterType === f.id
-                    ? "bg-slate-900 text-white shadow-2xs"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/70"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Nav Controls */}
           <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
-              onClick={handlePrevMonth}
-              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-2xs transition-all flex items-center justify-center"
-              title="Bulan Sebelumnya"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
               onClick={handleGoToday}
-              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] active:scale-95 shadow-2xs transition-all"
+              className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs active:scale-95 shadow-2xs transition-all font-mono"
             >
               Hari Ini
             </button>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 active:scale-95 shadow-2xs transition-all flex items-center justify-center"
+              className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 text-slate-600 flex items-center justify-center active:scale-95 transition-all flex-shrink-0"
               title="Bulan Berikutnya"
             >
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+        </div>
+
+        {/* Integrated Filter Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100/80">
+          {[
+            { id: "all", label: "Semua" },
+            { id: "sunnah", label: "Puasa Sunnah" },
+            { id: "event", label: "Hari Besar" },
+            { id: "haram", label: "Haram Puasa" },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilterType(f.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                filterType === f.id
+                  ? "bg-white text-slate-900 shadow-xs ring-1 ring-slate-200/80"
+                  : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
 
