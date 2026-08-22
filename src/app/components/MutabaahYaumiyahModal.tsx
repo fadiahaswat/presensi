@@ -19,6 +19,7 @@ export interface MutabaahEntry {
   dzikirPetang: boolean;
   puasaSunnah: boolean;
   muthalaah: boolean;
+  updatedAt?: string;
 }
 
 export type MutabaahStorage = Record<string, Record<string, MutabaahEntry>>; // musyrifId -> date -> entry
@@ -109,7 +110,8 @@ export function MutabaahYaumiyahModal({
     }
     const updated: MutabaahEntry = {
       ...entry,
-      [field]: !entry[field]
+      [field]: !entry[field],
+      updatedAt: new Date().toISOString()
     };
     setEntry(updated);
     // Instant Auto-Save & Cloud Sync
@@ -130,7 +132,8 @@ export function MutabaahYaumiyahModal({
       dzikirPagi: done,
       dzikirPetang: done,
       puasaSunnah: done,
-      muthalaah: done
+      muthalaah: done,
+      updatedAt: new Date().toISOString()
     };
     setEntry(updated);
     onSaveMutabaah(selectedMusyrifId, selectedDate, updated);
@@ -160,7 +163,7 @@ export function MutabaahYaumiyahModal({
       appAlert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
       return;
     }
-    onSaveMutabaah(selectedMusyrifId, selectedDate, entry);
+    onSaveMutabaah(selectedMusyrifId, selectedDate, { ...entry, updatedAt: new Date().toISOString() });
     setSavedSuccess(true);
     triggerHaptic("medium");
     setTimeout(() => setSavedSuccess(false), 2000);
