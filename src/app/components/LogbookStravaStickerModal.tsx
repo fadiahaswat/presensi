@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { 
   X, Download, Copy, Sparkles, Check, 
-  Layers, Image as ImageIcon, Clock, Type, Shield
+  Layers, Image as ImageIcon, Clock, Shield
 } from "lucide-react";
 import { motion } from "motion/react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import syamsaPrimaryLogo from "../../assets/branding/Primary Logo.webp";
-import mualliminLogo from "../muallimin-logo.png";
 import stravaLogo from "../../assets/Strava_Logo.svg.webp";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert } from "../utils/customDialog";
@@ -28,8 +27,7 @@ export function LogbookStravaStickerModal({
   date,
   logbookEntry
 }: LogbookStravaStickerModalProps) {
-  const [fontChoice, setFontChoice] = useState<"Montserrat" | "Poppins" | "Inter">("Montserrat");
-  const [logoChoice, setLogoChoice] = useState<"strava" | "syamsa" | "muallimin">("strava");
+  const [logoChoice, setLogoChoice] = useState<"syamsa" | "strava">("syamsa");
   const [metricUnit, setMetricUnit] = useState<"km" | "steps">("km");
   const [taskStyle, setTaskStyle] = useState<"done" | "of" | "pct" | "tasks">("done");
   const [durationStyle, setDurationStyle] = useState<"real" | "span">("real");
@@ -104,12 +102,12 @@ export function LogbookStravaStickerModal({
     height = 1920, 
     includeBgPhoto = false
   ): Promise<void> => {
-    // Ensure selected webfont is fully loaded before drawing
+    // Ensure Montserrat webfont is fully loaded before drawing
     try {
       if (document.fonts) {
         await Promise.all([
-          document.fonts.load(`600 34px "${fontChoice}"`),
-          document.fonts.load(`700 96px "${fontChoice}"`)
+          document.fonts.load('600 34px "Montserrat"'),
+          document.fonts.load('700 96px "Montserrat"')
         ]);
         await document.fonts.ready;
       }
@@ -138,7 +136,7 @@ export function LogbookStravaStickerModal({
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const fontStack = `"${fontChoice}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      const fontStack = '"Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
       // --- SECTION 1: DISTANCE (Y: 320 / 395) ---
       ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
@@ -244,20 +242,20 @@ export function LogbookStravaStickerModal({
       ctx.stroke();
       ctx.restore();
 
-      // --- SECTION 5: FOOTER LOGO (Strava, Syamsa, or Mu'allimin in Pure White) ---
+      // --- SECTION 5: FOOTER LOGO (Syamsa or Strava in Pure White) ---
       try {
-        const logoSrc = logoChoice === "strava" ? stravaLogo : logoChoice === "syamsa" ? syamsaPrimaryLogo : mualliminLogo;
+        const logoSrc = logoChoice === "syamsa" ? syamsaPrimaryLogo : stravaLogo;
         const logoImg = await loadImage(logoSrc);
         const naturalW = logoImg.naturalWidth || logoImg.width || 200;
         const naturalH = logoImg.naturalHeight || logoImg.height || 80;
         const aspect = naturalW / naturalH;
 
         // Proportional logo size
-        const targetH = (logoChoice === "strava" ? 65 : logoChoice === "syamsa" ? 110 : 95) * scale;
+        const targetH = (logoChoice === "syamsa" ? 110 : 65) * scale;
         const logoH = targetH;
         const logoW = targetH * aspect;
         const logoX = width / 2 - logoW / 2;
-        const logoY = (logoChoice === "strava" ? 1500 : 1480) * scale;
+        const logoY = (logoChoice === "syamsa" ? 1480 : 1500) * scale;
 
         // Create offscreen canvas for pure white tint
         const offCanvas = document.createElement("canvas");
@@ -312,7 +310,7 @@ export function LogbookStravaStickerModal({
     if (previewCanvasRef.current) {
       renderStickerToCanvas(previewCanvasRef.current, 540, 960, showPreviewBg);
     }
-  }, [fontChoice, logoChoice, metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
+  }, [logoChoice, metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
 
   // Export full HD transparent PNG (1080x1920)
   const handleDownloadPng = async () => {
@@ -334,39 +332,45 @@ export function LogbookStravaStickerModal({
       link.click();
       URL.revokeObjectURL(url);
       
-      triggerHaptic("success");
-      appAlert("Stiker PNG transparan berhasil diunduh! Buka Instagram / WhatsApp Story dan gunakan fitur 'Add Sticker / Tempel Foto' di atas fotomu.", "Berhasil Diunduh", "success");
+      appAlert("Berhasil!", "Stiker PNG transparan berhasil diunduh.", "success");
     }, "image/png");
   };
 
-  // Copy PNG to Clipboard (Transparent Alpha)
+  // Copy PNG Blob directly to Clipboard
   const handleCopyToClipboard = async () => {
-    setIsGenerating(true);
-    triggerHaptic("light");
+    try {
+      setIsGenerating(true);
+      triggerHaptic("medium");
+      const exportCanvas = document.createElement("canvas");
+      await renderStickerToCanvas(exportCanvas, 1080, 1920, false);
 
-    const exportCanvas = document.createElement("canvas");
-    await renderStickerToCanvas(exportCanvas, 1080, 1920, false);
-
-    exportCanvas.toBlob(async (blob) => {
-      setIsGenerating(false);
-      if (!blob) return;
-
-      try {
-        if (navigator.clipboard && window.ClipboardItem) {
-          const item = new ClipboardItem({ "image/png": blob });
-          await navigator.clipboard.write([item]);
-          setCopiedSuccess(true);
-          triggerHaptic("success");
-          setTimeout(() => setCopiedSuccess(false), 3000);
-          appAlert("Gambar stiker transparan berhasil disalin ke Clipboard! Buka Instagram Story atau WhatsApp, lalu pilih 'Paste / Tempel'.", "Tersalin!", "success");
-        } else {
-          handleDownloadPng();
+      exportCanvas.toBlob(async (blob) => {
+        if (!blob) {
+          setIsGenerating(false);
+          return;
         }
-      } catch (err) {
-        // Fallback to direct download
-        handleDownloadPng();
-      }
-    }, "image/png");
+
+        try {
+          if (navigator.clipboard && navigator.clipboard.write) {
+            await navigator.clipboard.write([
+              new ClipboardItem({ "image/png": blob })
+            ]);
+            setCopiedSuccess(true);
+            setTimeout(() => setCopiedSuccess(false), 2500);
+            appAlert("Tersalin!", "Stiker transparan siap langsung di-paste ke Instagram/WA Story!", "success");
+          } else {
+            handleDownloadPng();
+          }
+        } catch {
+          handleDownloadPng();
+        } finally {
+          setIsGenerating(false);
+        }
+      }, "image/png");
+    } catch {
+      setIsGenerating(false);
+      handleDownloadPng();
+    }
   };
 
   // Handle Photo Background Upload for Preview
@@ -382,23 +386,23 @@ export function LogbookStravaStickerModal({
   };
 
   return (
-    <motion.div 
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+    <motion.div
       variants={modalBackdropVariants}
-      initial="initial"
-      animate="animate"
+      initial="hidden"
+      animate="visible"
       exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md"
       onClick={onClose}
     >
       <motion.div 
-        className="bg-slate-900 text-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-800 flex flex-col my-auto max-h-[95vh]"
+        className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
         variants={modalContentVariants}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-950/60">
+        {/* Modal Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400 font-black">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 text-white">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -455,39 +459,23 @@ export function LogbookStravaStickerModal({
 
           {/* Quick Customization Controls */}
           <div className="bg-slate-950/50 p-3.5 rounded-2xl border border-slate-800/80 space-y-3">
-            {/* Font Selector */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                <Type className="w-3.5 h-3.5 text-violet-400" /> Pilihan Font:
-              </span>
-              <div className="flex items-center gap-1.5">
-                {[
-                  { id: "Montserrat", label: "Montserrat" },
-                  { id: "Poppins", label: "Poppins" },
-                  { id: "Inter", label: "Inter" }
-                ].map((f) => (
-                  <button 
-                    key={f.id}
-                    type="button" 
-                    onClick={() => setFontChoice(f.id as any)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                      fontChoice === f.id 
-                        ? "bg-violet-600 text-white shadow-xs" 
-                        : "bg-slate-800 text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Logo Selector */}
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800/60 flex-wrap gap-2">
+            <div className="flex items-center justify-between text-xs flex-wrap gap-2">
               <span className="font-bold text-slate-300 flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-rose-400" /> Pilihan Logo:
               </span>
               <div className="flex items-center gap-1.5 flex-wrap">
+                <button 
+                  type="button" 
+                  onClick={() => setLogoChoice("syamsa")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    logoChoice === "syamsa" 
+                      ? "bg-rose-600 text-white shadow-xs" 
+                      : "bg-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Logo Syamsa (Default)
+                </button>
                 <button 
                   type="button" 
                   onClick={() => setLogoChoice("strava")}
@@ -498,28 +486,6 @@ export function LogbookStravaStickerModal({
                   }`}
                 >
                   Logo Strava
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setLogoChoice("syamsa")}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    logoChoice === "syamsa" 
-                      ? "bg-rose-600 text-white shadow-xs" 
-                      : "bg-slate-800 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Syamsa
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setLogoChoice("muallimin")}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    logoChoice === "muallimin" 
-                      ? "bg-rose-600 text-white shadow-xs" 
-                      : "bg-slate-800 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Mu'allimin
                 </button>
               </div>
             </div>
