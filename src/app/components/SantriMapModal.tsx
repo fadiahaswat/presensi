@@ -838,7 +838,7 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
         {/* Top Row: Icon + Title + Close Button */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
               <MapPin className="w-5 h-5" />
             </div>
             <div className="min-w-0">

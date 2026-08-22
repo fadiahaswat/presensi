@@ -612,7 +612,7 @@ export function DataSantriModal({
               <button
                 type="button"
                 onClick={handleOpenAddForm}
-                className="h-8 px-3 rounded-xl text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 active:scale-95 whitespace-nowrap shadow-2xs"
+                className="h-8 px-3 rounded-xl text-xs font-bold transition-all bg-[#0C81E4] hover:bg-[#0C4E8C] text-white flex items-center gap-1 active:scale-95 whitespace-nowrap shadow-2xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Tambah</span>
@@ -632,10 +632,10 @@ export function DataSantriModal({
             <button
               type="button"
               onClick={() => setShowPetaSebaran(true)}
-              className="h-8 px-2.5 rounded-xl text-xs font-semibold transition-all bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 active:scale-95 whitespace-nowrap"
+              className="h-8 px-2.5 rounded-xl text-xs font-semibold transition-all bg-sky-50 text-[#0C4E8C] hover:bg-sky-100 border border-sky-200 flex items-center gap-1 active:scale-95 whitespace-nowrap"
               title="Peta Sebaran"
             >
-              <Globe className="w-3.5 h-3.5" />
+              <Globe className="w-3.5 h-3.5 text-[#0C81E4]" />
               <span className="hidden sm:inline">Peta</span>
             </button>
 
@@ -1691,7 +1691,7 @@ export function DataSantriModal({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-[#0C81E4] hover:bg-[#0C4E8C] rounded-xl shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
                   >
                     <Save className="w-4 h-4" />
                     <span>{isKoorMusyrif ? (editingSantri ? "Simpan Perubahan" : "Tambahkan Santri") : "Kirim Permohonan"}</span>

@@ -251,7 +251,7 @@ export const KalenderHijriahModal: React.FC<KalenderHijriahModalProps> = ({
               <button
                 type="button"
                 onClick={handleGoToday}
-                className="ml-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs active:scale-95 shadow-xs transition-all"
+                className="ml-1 px-3 py-1.5 rounded-xl bg-[#0C81E4] hover:bg-[#0C4E8C] text-white font-semibold text-xs active:scale-95 shadow-xs transition-all"
               >
                 Hari Ini
               </button>
@@ -340,9 +340,9 @@ export const KalenderHijriahModal: React.FC<KalenderHijriahModalProps> = ({
                       }}
                       className={`relative min-h-[64px] sm:min-h-[76px] p-1.5 sm:p-2 rounded-2xl text-left transition-all flex flex-col justify-between border ${
                         isSelected
-                          ? "bg-emerald-600 text-white ring-4 ring-emerald-500/25 border-emerald-600 shadow-md scale-[1.02] z-10"
+                          ? "bg-[#0C81E4] text-white ring-4 ring-sky-500/25 border-[#0C81E4] shadow-md scale-[1.02] z-10"
                           : d.isToday
-                          ? "bg-emerald-50 text-slate-900 border-emerald-400 ring-2 ring-emerald-300 shadow-xs"
+                          ? "bg-sky-50 text-slate-900 border-sky-400 ring-2 ring-sky-300 shadow-xs"
                           : isHaram
                           ? "bg-rose-50/70 border-rose-200 text-slate-900 hover:bg-rose-100/70"
                           : isSunnah || isAyyamulBidh

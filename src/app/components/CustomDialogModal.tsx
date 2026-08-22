@@ -82,13 +82,13 @@ export function CustomDialogModal() {
       case "warning":
         return <AlertTriangle className="w-8 h-8 text-amber-500" />;
       case "success":
-        return <CheckCircle2 className="w-8 h-8 text-emerald-500" />;
+        return <CheckCircle2 className="w-8 h-8 text-[#10B981]" />;
       case "info":
       default:
         return isConfirm ? (
-          <HelpCircle className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          <HelpCircle className="w-8 h-8 text-[#0C81E4] dark:text-sky-400" />
         ) : (
-          <Info className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          <Info className="w-8 h-8 text-[#0C81E4] dark:text-sky-400" />
         );
     }
   };
@@ -103,7 +103,7 @@ export function CustomDialogModal() {
         return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200";
       case "info":
       default:
-        return "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-100";
+        return "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800/50 text-[#0C4E8C] dark:text-sky-200";
     }
   };
 
@@ -117,7 +117,7 @@ export function CustomDialogModal() {
         return "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20";
       case "info":
       default:
-        return "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-600/20";
+        return "bg-[#0C81E4] hover:bg-[#0C4E8C] text-white shadow-sky-600/20";
     }
   };
 
@@ -176,7 +176,7 @@ export function CustomDialogModal() {
                       placeholder={activeDialog.promptPlaceholder || "Ketik di sini..."}
                       value={promptInput}
                       onChange={(e) => setPromptInput(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C81E4]"
                     />
                   </div>
                 )}

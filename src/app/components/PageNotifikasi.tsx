@@ -971,7 +971,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
               <Bell className="w-5 h-5"/>
             </div>
             <div className="min-w-0">
@@ -997,10 +997,10 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
               <button
                 type="button"
                 onClick={() => handleMarkAllAsRead(notifications.map(n => n.id))}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1 shadow-2xs active:scale-95 text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1 shadow-2xs active:scale-95 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
                 title="Tandai semua sudah dibaca"
               >
-                <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <CheckCheck className="w-3.5 h-3.5 text-[#0C81E4]" />
                 <span className="hidden sm:inline">Tandai Dibaca</span>
               </button>
             )}
@@ -1068,7 +1068,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === "presensi"
-                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80"
+                ? "bg-white text-[#0C4E8C] shadow-xs ring-1 ring-slate-200/80"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
@@ -1083,7 +1083,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === "santri"
-                ? "bg-white text-sky-800 shadow-xs ring-1 ring-slate-200/80"
+                ? "bg-white text-[#0C81E4] shadow-xs ring-1 ring-slate-200/80"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
@@ -1110,7 +1110,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
       {/* 2. Main Unified Feed Card */}
       {filteredNotifications.length === 0 ? (
         <div className="py-16 text-center bg-white rounded-3xl ring-1 ring-slate-200/70 border border-slate-100/50 shadow-sm p-6">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2.5 shadow-2xs">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 text-[#0C81E4] flex items-center justify-center mx-auto mb-2.5 shadow-2xs">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <p className="font-bold text-slate-800 text-sm">Semua Sudah Terpantau</p>

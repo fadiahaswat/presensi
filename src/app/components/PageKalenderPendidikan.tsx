@@ -330,7 +330,7 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
               <CalendarIcon className="w-5 h-5"/>
             </div>
             <div className="min-w-0">
@@ -372,7 +372,7 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
             onClick={() => setActiveTab("kalender")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === "kalender"
-                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                ? "bg-white text-[#0C4E8C] shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
@@ -385,7 +385,7 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
             onClick={() => setActiveTab("perpulangan")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === "perpulangan"
-                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                ? "bg-white text-[#0C4E8C] shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
@@ -398,7 +398,7 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
             onClick={() => setActiveTab("agenda")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === "agenda"
-                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                ? "bg-white text-[#0C4E8C] shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >
@@ -411,7 +411,7 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
             onClick={() => setActiveTab("maklumat")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
               activeTab === "maklumat"
-                ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                ? "bg-white text-[#0C4E8C] shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
             }`}
           >

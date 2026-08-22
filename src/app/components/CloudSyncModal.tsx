@@ -316,7 +316,7 @@ export const CloudSyncModal: React.FC<{
                 <button
                   onClick={handleExecuteInject}
                   disabled={isInjecting}
-                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#0C81E4] hover:bg-[#0C4E8C] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                   <span>{isInjecting ? "Menginjeksi Data..." : "Inject / Pulihkan Master Musyrif & Pamong"}</span>

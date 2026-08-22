@@ -425,17 +425,20 @@ export function SantriSakitModal({
               onClick={handleShareWA}
               aria-label="Kirim Laporan ke WhatsApp"
               title="Kirim laporan santri sakit langsung ke WhatsApp"
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border border-emerald-200"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-[#0C4E8C] font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border border-sky-200"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-3.5 h-3.5 text-[#0C81E4]" />
               <span className="hidden sm:inline">Kirim WA</span>
             </button>
           )}
           {!isPublic && (
             <button
               type="button"
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="px-3 sm:px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0"
+              onClick={() => {
+                setShowAddForm(!showAddForm);
+                if (editingRecord) setEditingRecord(null);
+              }}
+              className="px-3 sm:px-3.5 py-2 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span className="whitespace-nowrap">{showAddForm ? "Tutup" : "Catat Sakit"}</span>
@@ -788,7 +791,7 @@ export function SantriSakitModal({
                         <button
                           type="button"
                           onClick={() => onUpdateStatus(item.id, "sembuh")}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
+                          className="px-3 py-1.5 rounded-xl bg-[#0C81E4] hover:bg-[#0C4E8C] text-white text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>Tandai Sembuh</span>

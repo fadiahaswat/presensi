@@ -190,7 +190,7 @@ export function LeaderboardModal({
             onClick={() => setSelectedPillar(p.id as any)}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               selectedPillar === p.id 
-                ? "bg-emerald-600 text-white shadow-xs" 
+                ? "bg-[#0C81E4] text-white shadow-xs" 
                 : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
@@ -386,7 +386,7 @@ export function LeaderboardModal({
                   setSelectedDetailMusyrif(null);
                   onSelectMusyrif?.(mId, "raport");
                 }}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white font-bold text-xs rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5"
               >
                 <Award className="w-3.5 h-3.5" />
                 <span>Lihat Raport</span>

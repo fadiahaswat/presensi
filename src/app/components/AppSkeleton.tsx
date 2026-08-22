@@ -29,7 +29,7 @@ export function AppSkeleton() {
           {/* Right Header Badges */}
           <div className="flex items-center gap-2">
             <div className="h-7 w-20 sm:w-28 bg-slate-200/70 rounded-full animate-pulse hidden xs:block" />
-            <div className="h-8 w-24 bg-emerald-100/70 rounded-xl animate-pulse" />
+            <div className="h-8 w-24 bg-sky-100/70 rounded-xl animate-pulse" />
           </div>
         </div>
       </header>
@@ -37,15 +37,15 @@ export function AppSkeleton() {
       {/* Main Skeleton Content */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-5">
         {/* Syncing Indicator Banner */}
-        <div className="bg-emerald-50/80 border border-emerald-200/70 rounded-2xl p-3.5 flex items-center justify-between gap-3 animate-pulse">
+        <div className="bg-sky-50/90 border border-sky-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 animate-pulse">
           <div className="flex items-center gap-2.5">
-            <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />
+            <RefreshCw className="w-4 h-4 text-[#0C81E4] animate-spin" />
             <div>
-              <p className="text-xs font-bold text-emerald-900 leading-tight">Menghubungkan & Menyinkronkan Data</p>
-              <p className="text-[11px] text-emerald-700/80">Mengambil database presensi & kepengasuhan terbaru...</p>
+              <p className="text-xs font-bold text-[#0C1F3D] leading-tight">Menghubungkan & Menyinkronkan Data</p>
+              <p className="text-[11px] text-sky-700/80">Mengambil database presensi & kepengasuhan terbaru...</p>
             </div>
           </div>
-          <span className="text-[10px] font-mono font-bold bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] font-mono font-bold bg-sky-200/70 text-[#0C4E8C] px-2 py-0.5 rounded-full">
             Cloud Sync
           </span>
         </div>

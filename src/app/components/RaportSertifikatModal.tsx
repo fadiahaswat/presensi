@@ -153,7 +153,7 @@ export function RaportSertifikatModal({
       <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${
         isPage 
           ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" 
-          : "bg-emerald-800 text-white rounded-t-3xl sm:rounded-t-[28px]"
+          : "bg-[#0C4E8C] text-white rounded-t-3xl sm:rounded-t-[28px]"
       }`}>
         <div className="flex items-center gap-3">
           <button 

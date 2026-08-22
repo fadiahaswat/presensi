@@ -2477,7 +2477,7 @@ function PageInputPrayer({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 ${
-              isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-emerald-600 text-white shadow-emerald-600/25"
+              isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-[#0C4E8C] text-white shadow-sky-950/25"
             }`}>
               {isSubuh ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
             </div>
@@ -2503,11 +2503,11 @@ function PageInputPrayer({
               onClick={() => onSwitchSlot(otherSlot)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 ${
                 isSubuh 
-                  ? "text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80" 
+                  ? "text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80" 
                   : "text-amber-700 ring-amber-200 bg-amber-50 hover:bg-amber-100/80"
               }`}
             >
-              {isSubuh ? <Moon className="w-3.5 h-3.5 text-emerald-600"/> : <Sun className="w-3.5 h-3.5 text-amber-500"/>}
+              {isSubuh ? <Moon className="w-3.5 h-3.5 text-[#0C4E8C]"/> : <Sun className="w-3.5 h-3.5 text-amber-500"/>}
               <span>Ke {isSubuh ? "Maghrib" : "Subuh"}</span>
             </button>
           )}
@@ -2570,7 +2570,7 @@ function PageInputPrayer({
                 onClick={() => setSelAsrama(a)}
                 className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
                   activeAsrama === a
-                    ? (isSubuh ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25" : "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25")
+                    ? (isSubuh ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25" : "bg-[#0C81E4] text-white shadow-sm shadow-sky-600/25")
                     : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                 }`}
               >
@@ -2585,7 +2585,7 @@ function PageInputPrayer({
       {isMusyrifOrKoorGedung && (
         <div className={`rounded-2xl p-3.5 border flex items-center justify-between gap-3 text-xs ${
           isCheckingGps ? "bg-slate-50 border-slate-200 text-slate-600" :
-          gpsResult?.isInRange ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
+          gpsResult?.isInRange ? "bg-sky-50 border-sky-200 text-[#0C4E8C]" :
           "bg-rose-50 border-rose-200 text-rose-800"
         }`}>
           <div className="flex items-center gap-2.5">
@@ -2965,7 +2965,7 @@ function PageRekap({
         {/* Top title & Cetak PDF action button */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
               <TrendingUp className="w-5 h-5"/>
             </div>
             <div className="min-w-0">
@@ -2981,9 +2981,9 @@ function PageRekap({
           <button
             type="button"
             onClick={()=>exportPDF(records,viewMonth,filterAsrama,musyrifListAll)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-emerald-700 ring-emerald-200 bg-emerald-50 hover:bg-emerald-100/80"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
           >
-            <Printer className="w-3.5 h-3.5 text-emerald-600"/>
+            <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
             <span>Cetak PDF</span>
           </button>
         </div>
@@ -3036,17 +3036,17 @@ function PageRekap({
 
           <div className="bg-slate-50/80 hover:bg-slate-50 rounded-2xl p-3 border border-slate-100 transition-colors">
             <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-1.5 text-emerald-700">
-                <Moon className="w-3.5 h-3.5 text-emerald-600"/>
+              <div className="flex items-center gap-1.5 text-sky-800">
+                <Moon className="w-3.5 h-3.5 text-[#0C4E8C]"/>
                 <span className="text-xs font-bold">Maghrib</span>
               </div>
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.2 rounded font-mono">
+              <span className="text-[10px] font-bold text-[#0C4E8C] bg-sky-100/70 px-1.5 py-0.2 rounded font-mono">
                 Petang
               </span>
             </div>
             <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{rate("maghrib")}%</p>
             <div className="w-full bg-slate-200/80 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-emerald-600 h-full rounded-full transition-all duration-700" style={{width:`${rate("maghrib")}%`}}/>
+              <div className="bg-[#0C4E8C] h-full rounded-full transition-all duration-700" style={{width:`${rate("maghrib")}%`}}/>
             </div>
           </div>
         </div>
@@ -3073,7 +3073,7 @@ function PageRekap({
                 onClick={() => setChartSlotFilter(tab.id as any)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${
                   chartSlotFilter === tab.id
-                    ? "bg-white text-emerald-800 shadow-2xs font-bold"
+                    ? "bg-white text-[#0C4E8C] shadow-2xs font-bold"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
@@ -3091,7 +3091,7 @@ function PageRekap({
               <Bar dataKey="subuh" name="subuh" fill="#f59e0b" radius={[4,4,0,0]}/>
             )}
             {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
-              <Bar dataKey="maghrib" name="maghrib" fill="#059669" radius={[4,4,0,0]}/>
+              <Bar dataKey="maghrib" name="maghrib" fill="#0C4E8C" radius={[4,4,0,0]}/>
             )}
           </BarChart>
         </ResponsiveContainer>
@@ -3101,7 +3101,7 @@ function PageRekap({
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500"/><span className="text-[10px] text-slate-500 font-medium">Subuh</span></div>
           )}
           {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-emerald-600"/><span className="text-[10px] text-slate-500 font-medium">Maghrib</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0C4E8C]"/><span className="text-[10px] text-slate-500 font-medium">Maghrib</span></div>
           )}
         </div>
       </div>}/>
@@ -3813,15 +3813,15 @@ function PageRiwayat({
                 </div>
               </div>
 
-              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <div className="bg-sky-50/70 border border-sky-200/80 rounded-2xl p-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#0C81E4] text-white flex items-center justify-center shadow-xs shrink-0">
                   <Award className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-none">
-                    {streak.best} <span className="text-xs font-normal font-sans text-emerald-800">hari</span>
+                  <p className="text-base sm:text-lg font-black text-[#0C4E8C] font-mono leading-none">
+                    {streak.best} <span className="text-xs font-normal font-sans text-sky-800">hari</span>
                   </p>
-                  <p className="text-[11px] text-emerald-700/90 font-medium mt-1">Streak terbaik</p>
+                  <p className="text-[11px] text-sky-700/90 font-medium mt-1">Streak terbaik</p>
                 </div>
               </div>
             </div>
@@ -3833,7 +3833,7 @@ function PageRiwayat({
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren 3 Bulan Terakhir</span>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-600"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#0C4E8C]"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={110}>
@@ -3842,7 +3842,7 @@ function PageRiwayat({
                 <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`} width={28}/>
                 <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
                 <Bar dataKey="subuh"   name="subuh"   fill="#f59e0b" radius={[4,4,0,0]}/>
-                <Bar dataKey="maghrib" name="maghrib"  fill="#059669" radius={[4,4,0,0]}/>
+                <Bar dataKey="maghrib" name="maghrib"  fill="#0C4E8C" radius={[4,4,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
           </div>}/>
@@ -5038,7 +5038,7 @@ function PageIbadah({
                 <ChevronLeft className="w-4 h-4"/>
               </button>
             )}
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-emerald-600 text-white shadow-emerald-600/25">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
               <Clock className="w-5 h-5"/>
             </div>
             <div className="min-w-0">
@@ -5056,10 +5056,10 @@ function PageIbadah({
               <button
                 type="button"
                 onClick={onOpenKalenderHijriah}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-[#0C4E8C] ring-1 ring-sky-200/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
                 title="Buka Kalender Hijriah"
               >
-                <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                <Calendar className="w-3.5 h-3.5 text-[#0C81E4]" />
                 <span className="hidden sm:inline">Kalender Hijriah</span>
               </button>
             )}

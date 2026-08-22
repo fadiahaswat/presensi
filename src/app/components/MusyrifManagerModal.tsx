@@ -253,7 +253,7 @@ export function MusyrifManagerModal({
                 type="button"
                 onClick={onSyncAllOfficialData}
                 title="Perbarui seluruh 56 Musyrif & 9 Pamong ke Google Sheets"
-                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 active:scale-95"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all bg-[#0C81E4] hover:bg-[#0C4E8C] text-white shadow-xs flex items-center gap-1.5 active:scale-95"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>Sync ke Sheet</span>
@@ -272,7 +272,7 @@ export function MusyrifManagerModal({
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   activeTab === "daftar"
-                    ? (isPage ? "bg-white text-emerald-800 shadow-xs" : "bg-white text-slate-900 shadow-xs")
+                    ? (isPage ? "bg-white text-[#0C4E8C] shadow-xs" : "bg-white text-slate-900 shadow-xs")
                     : (isPage ? "text-slate-600 hover:text-slate-900" : "text-white/80 hover:text-white")
                 }`}
               >
@@ -286,7 +286,7 @@ export function MusyrifManagerModal({
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   activeTab === "tambah"
-                    ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-emerald-500 text-white shadow-xs")
+                    ? (isPage ? "bg-[#0C81E4] text-white shadow-xs" : "bg-[#0C81E4] text-white shadow-xs")
                     : (isPage ? "text-slate-600 hover:text-slate-900" : "text-white/80 hover:text-white")
                 }`}
               >
@@ -487,7 +487,7 @@ export function MusyrifManagerModal({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{editingMusyrif ? "Simpan Perubahan" : "Simpan Data Personel"}</span>

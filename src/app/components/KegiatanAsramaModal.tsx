@@ -234,7 +234,7 @@ export function KegiatanAsramaModal({
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "input" 
-                  ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs") 
+                  ? (isPage ? "bg-[#0C81E4] text-white shadow-xs" : "bg-white text-[#0C4E8C] shadow-xs") 
                   : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
               }`}
             >
@@ -246,7 +246,7 @@ export function KegiatanAsramaModal({
             onClick={() => setActiveTab("riwayat")}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               activeTab === "riwayat" 
-                ? (isPage ? "bg-emerald-600 text-white shadow-xs" : "bg-white text-emerald-900 shadow-xs") 
+                ? (isPage ? "bg-[#0C81E4] text-white shadow-xs" : "bg-white text-[#0C4E8C] shadow-xs") 
                 : (isPage ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-white/10 text-white hover:bg-white/20")
             }`}
           >
@@ -424,7 +424,7 @@ export function KegiatanAsramaModal({
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-6 py-2.5 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
               >
                 <Check className="w-4 h-4" />
                 <span>Simpan Presensi Agenda</span>
