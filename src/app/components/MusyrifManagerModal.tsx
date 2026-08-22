@@ -230,16 +230,9 @@ export function MusyrifManagerModal({
               {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
             </button>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                  Master Personel & Hak Akses
-                </h2>
-                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full font-mono ${
-                  isPage ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-white/15 text-emerald-200 border border-white/20"
-                }`}>
-                  {musyrifList.length} Personel
-                </span>
-              </div>
+              <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+                Master Personel & Hak Akses
+              </h2>
               <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>
                 Kelola Musyrif, Pamong, Koordinator & Hak Akses Role
               </p>
@@ -253,10 +246,10 @@ export function MusyrifManagerModal({
                 type="button"
                 onClick={onSyncAllOfficialData}
                 title="Perbarui seluruh 56 Musyrif & 9 Pamong ke Google Sheets"
-                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all bg-[#0C81E4] hover:bg-[#0C4E8C] text-white shadow-xs flex items-center gap-1.5 active:scale-95"
+                className="px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all bg-sky-50 hover:bg-sky-100 text-[#0C4E8C] border border-sky-200/80 shadow-2xs flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Sync ke Sheet</span>
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Sync Sheet</span>
               </button>
             )}
             

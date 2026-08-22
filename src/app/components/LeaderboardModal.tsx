@@ -160,14 +160,9 @@ export function LeaderboardModal({
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Papan Peringkat & Musyrif Teladan
-              </h2>
-              <span className="bg-amber-100 text-amber-900 border border-amber-200 text-xs px-2.5 py-0.5 rounded-full font-mono font-bold">
-                4 Pilar Evaluasi
-              </span>
-            </div>
+            <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+              Papan Peringkat & Musyrif Teladan
+            </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
               Presensi Shalat, Jurnal Logbook, Agenda Asrama, & Mutaba'ah
             </p>

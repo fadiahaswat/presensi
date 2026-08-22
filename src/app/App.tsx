@@ -21,6 +21,7 @@ import {
   LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, PieChart, Pie, Cell
 } from "recharts";
 import syamsaPrimaryLogo from "../assets/branding/Primary Logo.webp";
+import syamsaLogomark from "../assets/branding/Logomark.webp";
 import { getReadNotificationMap, buildSystemNotificationItems } from "./utils/notificationUtils";
 import { SantriIzinRecord } from "./types/izinSantri";
 import { AlarmNotificationManager } from "./components/AlarmNotificationManager";
@@ -785,16 +786,37 @@ function PageDashboard({
     <div className="flex flex-col gap-5">
       {/* Hero card - SYAMSA Brand Deep Blue Gradient */}
       <div 
-        className="rounded-[28px] overflow-hidden relative shadow-lg shadow-sky-950/15 ring-1 ring-white/20"
+        className="rounded-[32px] overflow-hidden relative shadow-lg shadow-sky-950/15 ring-1 ring-white/20"
         style={{
           background: "linear-gradient(135deg, #0C4E8C 0%, #0C81E4 100%)",
-          minHeight: 195
+          minHeight: 235
         }}
       >
-        <div className="absolute inset-0 opacity-15">
-          <svg width="100%" height="100%"><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="white"/></pattern><rect width="100%" height="100%" fill="url(#dots)"/></svg>
+        {/* Gradient-Masked Dot Pattern (Left to Right Fade - Clean separation from Supergraphic) */}
+        <div 
+          className="absolute inset-0 opacity-15 pointer-events-none z-0"
+          style={{
+            maskImage: "linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 35%, rgba(0,0,0,0) 65%)",
+            WebkitMaskImage: "linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 35%, rgba(0,0,0,0) 65%)"
+          }}
+        >
+          <svg width="100%" height="100%">
+            <pattern id="hero-dots" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.2" fill="white" />
+            </pattern>
+            <rect width="100%" height="100%" fill="url(#hero-dots)" />
+          </svg>
         </div>
-        <div className="relative p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4">
+
+        {/* Syamsa Logomark Supergraphic Watermark (Pure White - Soft & Subtle on Right Side) */}
+        <div className="absolute -right-8 -bottom-10 sm:-right-10 sm:-bottom-14 pointer-events-none select-none opacity-[0.08] z-0">
+          <img
+            src={syamsaLogomark}
+            alt=""
+            className="w-60 h-60 sm:w-80 sm:h-80 object-contain brightness-0 invert rotate-[-10deg]"
+          />
+        </div>
+        <div className="relative z-10 p-5 sm:p-7 flex flex-col justify-between gap-5 sm:gap-6 min-h-[235px]">
           {/* Top Row: Hijri Date (Left) & Prayer Countdown (Right) - Simplified & Non-wrapping */}
           <div className="flex items-center justify-between gap-2 w-full">
             <button
@@ -924,9 +946,9 @@ function PageDashboard({
                   <button
                     type="button"
                     onClick={() => onGoTo("subuh")}
-                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95 flex flex-col justify-between"
+                    className="bg-white/18 hover:bg-white/25 backdrop-blur-xl rounded-2xl p-2.5 sm:p-3.5 border border-white/30 shadow-sm shadow-sky-950/10 transition-all text-left group active:scale-95 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between text-cyan-200 mb-1">
+                    <div className="flex items-center justify-between text-cyan-200 mb-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Sun className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Subuh</span>
@@ -935,17 +957,17 @@ function PageDashboard({
                     </div>
                     <div>
                       <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
-                        subuhStatus === "hadir" ? "text-cyan-200" :
+                        subuhStatus === "hadir" ? "text-cyan-100" :
                         subuhStatus === "sakit" ? "text-amber-200" :
                         subuhStatus === "izin" ? "text-sky-200" :
-                        subuhStatus === "alfa" ? "text-rose-300" : "text-white/80"
+                        subuhStatus === "alfa" ? "text-rose-300" : "text-white/90"
                       }`}>
                         {subuhStatus === "hadir" ? "✓ Hadir" :
                          subuhStatus === "sakit" ? "Sakit" :
                          subuhStatus === "izin" ? "Izin" :
                          subuhStatus === "alfa" ? "Alfa" : "Belum Presensi"}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-white/60 truncate font-mono mt-0.5">Presensi Saya</p>
+                      <p className="text-[9px] sm:text-[10px] text-white/70 truncate font-mono mt-0.5">Presensi Saya</p>
                     </div>
                   </button>
 
@@ -953,9 +975,9 @@ function PageDashboard({
                   <button
                     type="button"
                     onClick={() => onGoTo("maghrib")}
-                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95 flex flex-col justify-between"
+                    className="bg-white/18 hover:bg-white/25 backdrop-blur-xl rounded-2xl p-2.5 sm:p-3.5 border border-white/30 shadow-sm shadow-sky-950/10 transition-all text-left group active:scale-95 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between text-cyan-200 mb-1">
+                    <div className="flex items-center justify-between text-cyan-200 mb-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Moon className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Maghrib</span>
@@ -964,17 +986,17 @@ function PageDashboard({
                     </div>
                     <div>
                       <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
-                        maghribStatus === "hadir" ? "text-cyan-200" :
+                        maghribStatus === "hadir" ? "text-cyan-100" :
                         maghribStatus === "sakit" ? "text-amber-200" :
                         maghribStatus === "izin" ? "text-sky-200" :
-                        maghribStatus === "alfa" ? "text-rose-300" : "text-white/80"
+                        maghribStatus === "alfa" ? "text-rose-300" : "text-white/90"
                       }`}>
                         {maghribStatus === "hadir" ? "✓ Hadir" :
                          maghribStatus === "sakit" ? "Sakit" :
                          maghribStatus === "izin" ? "Izin" :
                          maghribStatus === "alfa" ? "Alfa" : "Belum Presensi"}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-white/60 truncate font-mono mt-0.5">Presensi Saya</p>
+                      <p className="text-[9px] sm:text-[10px] text-white/70 truncate font-mono mt-0.5">Presensi Saya</p>
                     </div>
                   </button>
 
@@ -982,9 +1004,9 @@ function PageDashboard({
                   <button
                     type="button"
                     onClick={() => onGoTo("logbook")}
-                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all text-left group active:scale-95 flex flex-col justify-between"
+                    className="bg-white/18 hover:bg-white/25 backdrop-blur-xl rounded-2xl p-2.5 sm:p-3.5 border border-white/30 shadow-sm shadow-sky-950/10 transition-all text-left group active:scale-95 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between text-cyan-200 mb-1">
+                    <div className="flex items-center justify-between text-cyan-200 mb-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <ClipboardList className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Logbook</span>
@@ -993,11 +1015,11 @@ function PageDashboard({
                     </div>
                     <div>
                       <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
-                        isLogComplete ? "text-cyan-200" : logDoneCount > 0 ? "text-amber-200" : "text-white/80"
+                        isLogComplete ? "text-cyan-100" : logDoneCount > 0 ? "text-amber-200" : "text-white/90"
                       }`}>
                         {isLogComplete ? "✓ Lengkap" : logDoneCount > 0 ? `${logDoneCount}/11 Terisi` : "Belum Isi"}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-white/60 truncate font-mono mt-0.5">11 Tugas Harian</p>
+                      <p className="text-[9px] sm:text-[10px] text-white/70 truncate font-mono mt-0.5">11 Tugas Harian</p>
                     </div>
                   </button>
                 </div>
@@ -1014,9 +1036,9 @@ function PageDashboard({
                 ].map((s) => (
                   <div
                     key={s.label}
-                    className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/15 shadow-2xs transition-all"
+                    className="bg-white/18 hover:bg-white/25 backdrop-blur-xl rounded-2xl p-2.5 sm:p-3.5 border border-white/30 shadow-sm shadow-sky-950/10 transition-all"
                   >
-                    <div className="flex items-center gap-1.5 text-cyan-200 mb-1">
+                    <div className="flex items-center gap-1.5 text-cyan-200 mb-1.5">
                       {s.icon}
                       <span className="text-[10px] sm:text-[11px] font-semibold">{s.label}</span>
                     </div>
@@ -7498,12 +7520,20 @@ export default function App() {
 
   return (
     <div 
-      className="min-h-screen bg-[#F4F8FF] text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white relative" 
+      className="min-h-screen bg-[#F4F8FF] text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white relative overflow-x-hidden" 
       style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      {/* ── Ambient Corner Supergraphics (Syamsa Brand Watermarks) ── */}
+      <div className="fixed -top-16 -right-16 w-80 h-80 sm:w-96 sm:h-96 pointer-events-none select-none opacity-[0.035] text-sky-950 z-0 rotate-12">
+        <img src={syamsaLogomark} alt="" className="w-full h-full object-contain" />
+      </div>
+      <div className="fixed -bottom-20 -left-20 w-72 h-72 sm:w-88 sm:h-88 pointer-events-none select-none opacity-[0.025] text-sky-950 z-0 -rotate-12">
+        <img src={syamsaLogomark} alt="" className="w-full h-full object-contain" />
+      </div>
+
       <CustomDialogModal />
 
       {/* Pull to Refresh Animated Indicator */}
@@ -7716,26 +7746,10 @@ export default function App() {
               />
             </motion.div>
           )}
-          {page==="subuh" && (
-            <motion.div key="subuh" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+          {(page==="subuh" || page==="maghrib") && (
+            <motion.div key="presensi-input" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <PageInputPrayer 
-                slot="subuh" 
-                authUser={authUser} 
-                records={records} 
-                onMark={handleMark} 
-                onMarkAll={handleMarkAll} 
-                onResetMark={handleResetMark}
-                onLogin={()=>setShowLogin(true)} 
-                onSwitchSlot={(s)=>setPage(s)} 
-                showToast={showToast}
-                musyrifListAll={musyrifList}
-              />
-            </motion.div>
-          )}
-          {page==="maghrib" && (
-            <motion.div key="maghrib" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageInputPrayer 
-                slot="maghrib" 
+                slot={page} 
                 authUser={authUser} 
                 records={records} 
                 onMark={handleMark} 

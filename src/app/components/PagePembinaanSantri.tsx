@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { triggerHaptic } from "../utils/animations";
 import { searchSantri, SantriData, ALL_SANTRI_DATA } from "../data/santriData";
 import { appAlert, appConfirm } from "../utils/customDialog";
+import syamsaLogomark from "../../assets/branding/Logomark.webp";
 
 export type JenisCatatan = "pelanggaran" | "prestasi";
 export type TingkatPelanggaran = "ringan" | "sedang" | "berat" | "prestasi";
@@ -403,42 +404,37 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
   return (
     <div className="space-y-4 w-full">
       {/* ── TOP HEADER CARD ── */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-xs ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+      <div className="bg-white/90 backdrop-blur-xl p-3.5 sm:p-4 rounded-2xl border border-white/80 shadow-sm ring-1 ring-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={() => {
               triggerHaptic("light");
               onBack();
             }}
-            className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
+            className="w-9 h-9 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
             title="Kembali ke Dasbor"
           >
             <ChevronLeft className="w-5 h-5 text-slate-600" />
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                Lembar Pembinaan Santri
-              </h2>
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full font-mono">
-                Disiplin & Reward
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Seluruh Asrama · Pencatatan poin pelanggaran, Surat Peringatan (SP), konseling & apresiasi santri
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+              Lembar Pembinaan
+            </h2>
+            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+              Madrasah Mu'allimin · Tata tertib, poin pelanggaran, SP & reward
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
               triggerHaptic("light");
               setActiveTab(activeTab === "panduan" ? "daftar" : "panduan");
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all whitespace-nowrap ${
               activeTab === "panduan"
                 ? "bg-slate-900 text-white border-slate-900 shadow-xs"
                 : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
@@ -454,19 +450,18 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
               triggerHaptic("light");
               setActiveTab(activeTab === "tambah" ? "daftar" : "tambah");
             }}
-            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs shadow-amber-600/20 active:scale-95 transition-all"
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-amber-600/20 active:scale-95 transition-all whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Catat Kasus / Apresiasi</span>
+            <span>+ Catat Kasus</span>
           </button>
         </div>
       </div>
 
-      {/* ── UNIFIED METRICS & SEARCH/FILTER CONTAINER CARD ── */}
-      <div className="bg-white rounded-3xl p-3.5 sm:p-4 shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
-        {/* Interactive Metric Tiles Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {/* Tile 1: Semua */}
+      {/* ── UNIFIED FILTER BAR & SEARCH CONTAINER ── */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-2.5">
+        {/* Ringkas Metric Chips / Tab Navigation */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <button
             type="button"
             onClick={() => {
@@ -474,24 +469,16 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
               setActiveTab("daftar");
               triggerHaptic("light");
             }}
-            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
-              scopeFilter === "semua" && activeTab === "daftar"
-                ? "bg-amber-50/90 border-amber-300 ring-amber-500/30 text-amber-950 font-bold"
-                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border ${
+              activeTab === "daftar" && scopeFilter === "semua"
+                ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
             }`}
           >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              scopeFilter === "semua" && activeTab === "daftar" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700"
-            }`}>
-              <FileText className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Semua Data</p>
-              <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.totalRecords}</p>
-            </div>
+            <FileText className="w-3.5 h-3.5" />
+            <span>Semua ({stats.totalRecords})</span>
           </button>
 
-          {/* Tile 2: Perlu Tindakan */}
           <button
             type="button"
             onClick={() => {
@@ -499,24 +486,16 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
               setActiveTab("daftar");
               triggerHaptic("light");
             }}
-            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
-              scopeFilter === "perlu_tindakan" && activeTab === "daftar"
-                ? "bg-amber-50/90 border-amber-300 ring-amber-500/30 text-amber-950 font-bold"
-                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border ${
+              activeTab === "daftar" && scopeFilter === "perlu_tindakan"
+                ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                : "bg-amber-50/80 hover:bg-amber-100 text-amber-900 border-amber-200/80"
             }`}
           >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              scopeFilter === "perlu_tindakan" && activeTab === "daftar" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-700"
-            }`}>
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Perlu Tindakan</p>
-              <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.pendingCount}</p>
-            </div>
+            <Clock className="w-3.5 h-3.5" />
+            <span>Tindakan ({stats.pendingCount})</span>
           </button>
 
-          {/* Tile 3: Pelanggaran */}
           <button
             type="button"
             onClick={() => {
@@ -524,24 +503,16 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
               setActiveTab("daftar");
               triggerHaptic("light");
             }}
-            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
-              scopeFilter === "pelanggaran" && activeTab === "daftar"
-                ? "bg-rose-50/90 border-rose-300 ring-rose-500/30 text-rose-950 font-bold"
-                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border ${
+              activeTab === "daftar" && scopeFilter === "pelanggaran"
+                ? "bg-rose-600 text-white border-rose-600 shadow-2xs"
+                : "bg-rose-50/80 hover:bg-rose-100 text-rose-900 border-rose-200/80"
             }`}
           >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              scopeFilter === "pelanggaran" && activeTab === "daftar" ? "bg-rose-600 text-white" : "bg-rose-50 text-rose-700"
-            }`}>
-              <TrendingDown className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Pelanggaran</p>
-              <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.pelanggaranCount}</p>
-            </div>
+            <TrendingDown className="w-3.5 h-3.5" />
+            <span>Pelanggaran ({stats.pelanggaranCount})</span>
           </button>
 
-          {/* Tile 4: Prestasi / Reward */}
           <button
             type="button"
             onClick={() => {
@@ -549,142 +520,86 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
               setActiveTab("daftar");
               triggerHaptic("light");
             }}
-            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
-              scopeFilter === "prestasi" && activeTab === "daftar"
-                ? "bg-emerald-50/90 border-emerald-300 ring-emerald-500/30 text-emerald-950 font-bold"
-                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border ${
+              activeTab === "daftar" && scopeFilter === "prestasi"
+                ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+                : "bg-emerald-50/80 hover:bg-emerald-100 text-emerald-900 border-emerald-200/80"
             }`}
           >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              scopeFilter === "prestasi" && activeTab === "daftar" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700"
-            }`}>
-              <Award className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Apresiasi</p>
-              <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.prestasiCount}</p>
-            </div>
+            <Award className="w-3.5 h-3.5" />
+            <span>Apresiasi ({stats.prestasiCount})</span>
           </button>
 
-          {/* Tile 5: Rekap SP Tracker */}
           <button
             type="button"
             onClick={() => {
               setActiveTab("rekap");
               triggerHaptic("light");
             }}
-            className={`col-span-2 sm:col-span-1 p-2.5 sm:p-3 rounded-2xl border text-left transition-all ring-1 shadow-2xs flex items-center gap-2.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 border ${
               activeTab === "rekap"
-                ? "bg-purple-50/90 border-purple-300 ring-purple-500/30 text-purple-950 font-bold"
-                : "bg-slate-50/80 border-slate-200/60 ring-slate-100 text-slate-700 hover:bg-white"
+                ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                : "bg-purple-50/80 hover:bg-purple-100 text-purple-900 border-purple-200/80"
             }`}
           >
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              activeTab === "rekap" ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-700"
-            }`}>
-              <BarChart2 className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Status SP</p>
-              <p className="text-sm sm:text-base font-black leading-tight font-mono">{stats.spCount} Santri</p>
-            </div>
+            <BarChart2 className="w-3.5 h-3.5" />
+            <span>Status SP ({stats.spCount})</span>
           </button>
         </div>
 
-        {/* Tab Navigation Pills & Action Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("daftar");
-                triggerHaptic("light");
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                activeTab === "daftar"
-                  ? "bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Daftar Kasus ({filteredRecords.length})</span>
-            </button>
+        {/* Integrated Search & Filter Row */}
+        {activeTab === "daftar" && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-100">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama santri, kelas, kasus..."
+                className="w-full pl-9 pr-8 py-1.5 bg-slate-50/80 border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all outline-none font-medium"
+              />
+              {searchQuery && (
+                <button 
+                  type="button" 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("tambah");
-                triggerHaptic("light");
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                activeTab === "tambah"
-                  ? "bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Form Catat Kasus</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("rekap");
-                triggerHaptic("light");
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                activeTab === "rekap"
-                  ? "bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Akumulasi Poin & SP</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("panduan");
-                triggerHaptic("light");
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
-                activeTab === "panduan"
-                  ? "bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Kamus Aturan</span>
-            </button>
-          </div>
-
-          {/* Quick Filters for Daftar Tab */}
-          {activeTab === "daftar" && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Cari santri / kasus..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-              </div>
-
+            <div>
               <select
                 value={filterAsrama}
-                onChange={e => setFilterAsrama(e.target.value)}
-                className="px-2.5 py-1.5 bg-slate-50 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none"
+                onChange={(e) => setFilterAsrama(e.target.value)}
+                className="w-full py-1.5 px-3 bg-slate-50/80 border border-slate-200/80 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all outline-none font-medium cursor-pointer"
               >
-                {ASRAMA_OPTIONS.map(a => (
+                <option value="Semua">Semua Asrama</option>
+                {ASRAMA_OPTIONS.filter(a => a !== "Semua").map(a => (
                   <option key={a} value={a}>{a}</option>
                 ))}
               </select>
             </div>
-          )}
-        </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={filterKategori}
+                onChange={(e) => setFilterKategori(e.target.value)}
+                className="w-full py-1.5 px-3 bg-slate-50/80 border border-slate-200/80 rounded-xl text-xs text-slate-700 focus:bg-white focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all outline-none font-medium cursor-pointer"
+              >
+                <option value="all">Semua Kategori</option>
+                <option value="kedisiplinan">Kedisiplinan</option>
+                <option value="ibadah">Ibadah & Halaqah</option>
+                <option value="kebersihan_kerapian">Kebersihan</option>
+                <option value="akhlak_adab">Akhlak & Adab</option>
+                <option value="akademik_bahasa">Bahasa & Akademik</option>
+                <option value="prestasi_khidmah">Prestasi & Khidmah</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── TAB 1: DAFTAR CATATAN KASUS & REWARD ── */}

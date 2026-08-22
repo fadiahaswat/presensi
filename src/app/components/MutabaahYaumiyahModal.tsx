@@ -231,16 +231,9 @@ export function MutabaahYaumiyahModal({
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Mutaba'ah Yaumiyah Ibadah
-              </h2>
-              <span className={`text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${
-                isMusyrifUser ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-amber-50 text-amber-800 border border-amber-200"
-              }`}>
-                {isMusyrifUser ? "Evaluasi Diri" : "Pantauan Pamong"}
-              </span>
-            </div>
+            <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+              Mutaba'ah Yaumiyah Ibadah
+            </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>
               Pencatatan amalan sunnah, tilawah Al-Qur'an & dzikir harian
             </p>

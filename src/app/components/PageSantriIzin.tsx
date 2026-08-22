@@ -16,6 +16,7 @@ import { triggerHaptic } from "../utils/animations";
 import { ALL_SANTRI_DATA, searchSantri, SantriData } from "../data/santriData";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { SantriIzinRecord, JenisIzinSantri, StatusApprovalSantri, StatusPKM } from "../types/izinSantri";
+import syamsaLogomark from "../../assets/branding/Logomark.webp";
 
 interface Musyrif {
   id: string;
@@ -595,25 +596,20 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
   return (
     <div className="space-y-4 w-full">
       {/* ── TOP HEADER CARD ── */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white/90 backdrop-blur-xl p-3.5 sm:p-4 rounded-2xl border border-white/80 shadow-sm ring-1 ring-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onBack}
-            className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
+            className="w-9 h-9 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs shrink-0"
             title="Kembali ke Dasbor"
           >
             <ChevronLeft className="w-5 h-5 text-slate-600" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                Perizinan Santri Asrama
-              </h2>
-              <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded-full font-mono">
-                SOP Terpadu
-              </span>
-            </div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+              Perizinan Santri Asrama
+            </h2>
             <p className="text-[11px] text-slate-500 mt-0.5">
               Seluruh Asrama · Layanan izin keluar, berobat medis, pulang & pos gerbang (PKM)
             </p>

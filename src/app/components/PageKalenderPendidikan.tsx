@@ -333,22 +333,14 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
               <CalendarIcon className="w-5 h-5"/>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div>
                 <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
                   Kalender Pendidikan
                 </h1>
-                {canScrud && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.2 rounded-full font-mono shrink-0">
-                    <ShieldCheck className="w-3 h-3 text-amber-600" />
-                    Admin
-                  </span>
-                )}
+                <p className="text-[11px] text-slate-400 font-medium truncate">
+                  TA 2026/2027 • Madrasah Mu'allimin Muhammadiyah Yogyakarta
+                </p>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium truncate">
-                TA 2026/2027 • Madrasah Mu'allimin Muhammadiyah Yogyakarta
-              </p>
-            </div>
           </div>
 
           {/* Action Buttons for Admin */}

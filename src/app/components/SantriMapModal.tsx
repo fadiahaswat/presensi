@@ -915,14 +915,14 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
         ) : (
           <>
             {/* ── Top 3 Kabupaten highlight inside white container card ── */}
-            <div className="bg-white rounded-3xl p-3.5 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between font-mono">
-                <span className="flex items-center gap-1.5">
+            <div className="bg-white rounded-2xl p-2.5 sm:p-3 shadow-xs ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[10px] font-bold font-mono text-slate-400">
+                <span className="flex items-center gap-1 text-slate-700">
                   <Medal className="w-3.5 h-3.5 text-amber-500" /> Top 3 Asal Terbanyak
                 </span>
-                <span className="text-[10px] text-emerald-600 font-bold">Sentuh untuk lihat nama</span>
-              </p>
-              <div className="grid grid-cols-3 gap-2">
+                <span className="text-[9px] text-emerald-600">Sentuh untuk lihat nama</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {top3.map((item, i) => {
                   const colors = getRegionColor(item.provinsi);
                   const pct = ((item.count / totalSantri) * 100).toFixed(1);
@@ -932,14 +932,16 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
                       key={item.kabupaten}
                       type="button"
                       onClick={() => handleSelectRegion("kabupaten", item.kabupaten, item.kabupaten)}
-                      className={`rounded-2xl border p-2.5 flex flex-col text-left gap-1 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer hover:shadow-xs ${colors.bg} ${colors.border}`}
+                      className={`rounded-xl border p-2 flex flex-col text-left gap-0.5 transition-all hover:scale-[1.01] active:scale-95 cursor-pointer shadow-2xs ${colors.bg} ${colors.border}`}
                     >
-                      <span className="text-lg leading-none">{medals[i]}</span>
-                      <p className="text-[11px] font-black text-slate-900 leading-tight line-clamp-2">{item.kabupaten}</p>
-                      <p className={`text-[10px] font-semibold leading-tight ${colors.text} truncate`}>{item.provinsi}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs">{medals[i]}</span>
+                        <span className="text-[9px] text-slate-400 font-bold font-mono">{pct}%</span>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight truncate">{item.kabupaten}</p>
                       <div className="flex items-center justify-between mt-0.5">
-                        <span className={`text-xs font-black ${colors.text}`}>{item.count}</span>
-                        <span className="text-[10px] text-slate-400 font-bold">{pct}%</span>
+                        <span className={`text-[9px] font-medium ${colors.text} truncate`}>{item.provinsi}</span>
+                        <span className={`text-[11px] font-black font-mono ${colors.text}`}>{item.count}</span>
                       </div>
                     </button>
                   );

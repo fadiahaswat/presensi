@@ -183,16 +183,9 @@ export function PamongManagerModal({
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Master Data Pamong
-              </h2>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full font-mono ${
-                isPage ? "bg-indigo-100 text-indigo-800" : "bg-white/20 text-indigo-100"
-              }`}>
-                {pamongList.length} Pamong
-              </span>
-            </div>
+            <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+              Master Data Pamong
+            </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-indigo-100/90"}`}>
               Manajemen data pamong asrama (Search, Create, Read, Update, Delete)
             </p>

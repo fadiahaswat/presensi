@@ -582,23 +582,11 @@ export function DataSantriModal({
             {isPage ? <ChevronLeft className="w-4 h-4" /> : <X className="w-4 h-4" />}
           </button>
 
-          {/* Title + Badges */}
+          {/* Title */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="font-black text-sm sm:text-base leading-tight whitespace-nowrap text-slate-900">
-                Database Santri
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 bg-emerald-50 text-emerald-800 border border-emerald-200">
-                {stats.activeCount.toLocaleString("id-ID")} santri
-              </span>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
-                isKoorMusyrif
-                  ? "bg-teal-50 text-teal-700 border border-teal-200/60"
-                  : "bg-amber-50 text-amber-800 border border-amber-200/60"
-              }`}>
-                {scopeBadgeLabel}
-              </span>
-            </div>
+            <h2 className="font-black text-sm sm:text-base leading-tight whitespace-nowrap text-slate-900">
+              Database Santri
+            </h2>
             <p className="text-[11px] mt-0.5 truncate text-slate-400">
               {isKoorMusyrif 
                 ? "Master biodata, mutasi kelas & kelola permohonan santri" 

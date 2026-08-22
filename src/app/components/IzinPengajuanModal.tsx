@@ -274,16 +274,9 @@ export function IzinPengajuanModal({
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Layanan Izin & Dispensasi
-              </h2>
-              {pendingCount > 0 && (
-                <span className="bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold px-2 py-0.5 rounded-full font-mono">
-                  {pendingCount} Menunggu
-                </span>
-              )}
-            </div>
+            <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+              Layanan Izin & Dispensasi
+            </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
               Pengajuan izin resmi santri & persetujuan Pamong Asrama
             </p>

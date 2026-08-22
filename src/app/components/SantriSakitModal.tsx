@@ -402,16 +402,9 @@ export function SantriSakitModal({
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-                Pantauan Santri Sakit
-              </h2>
-              {activeSickCount > 0 && (
-                <span className="bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold px-2 py-0.5 rounded-full font-mono">
-                  {activeSickCount} Dirawat
-                </span>
-              )}
-            </div>
+            <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+              Pantauan Santri Sakit
+            </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-slate-300"}`}>
               Pencatatan medis santri & tindak lanjut asrama
             </p>
