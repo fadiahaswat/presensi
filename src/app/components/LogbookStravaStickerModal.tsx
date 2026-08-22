@@ -10,7 +10,7 @@ import syamsaPrimaryLogo from "../../assets/branding/Primary Logo.webp";
 import stravaLogo from "../../assets/Strava_Logo.svg.webp";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert } from "../utils/customDialog";
-import { JurnalLogbookEntry, LOGBOOK_TASKS } from "./JurnalLogbookModal";
+import { JurnalLogbookEntry, LOGBOOK_TASKS, getLogbookTasksForDate } from "./JurnalLogbookModal";
 
 interface LogbookStravaStickerModalProps {
   onClose: () => void;
@@ -38,15 +38,22 @@ export function LogbookStravaStickerModal({
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Dynamic computation from actual musyrif logbook entries
-  const completedTasks = LOGBOOK_TASKS.filter(t => logbookEntry[t.key]?.done).length;
-  const totalTasks = LOGBOOK_TASKS.length;
+  // Dynamic computation from actual musyrif logbook entries for this date
+  const activeDateTasks = useMemo(() => {
+    const subMap = {
+      bakdaSubuh: (logbookEntry.bakdaSubuh?.subChoice || "tahfizh") as "tahfizh" | "piket"
+    };
+    return getLogbookTasksForDate(date, subMap);
+  }, [date, logbookEntry]);
+
+  const completedTasks = activeDateTasks.filter(t => logbookEntry[t.key]?.done).length;
+  const totalTasks = activeDateTasks.length;
 
   // 1. Distance & Steps: Computed from actual pedometer steps of all patrol tasks
   const recordedSteps = Object.values(logbookEntry).reduce((sum, item) => sum + (item?.stepsCount || 0), 0);
-  // If steps recorded via pedometer, use exact steps; if manual check, estimate 150 steps per completed patrol task
-  const estimatedPatrolSteps = LOGBOOK_TASKS.filter(t => t.isPatrol && logbookEntry[t.key]?.done).length * 150;
-  const displaySteps = recordedSteps > 0 ? recordedSteps : (estimatedPatrolSteps > 0 ? estimatedPatrolSteps : 2150);
+  // If steps recorded via pedometer, use exact steps; if manual check, estimate 200 steps per completed patrol task
+  const estimatedPatrolSteps = activeDateTasks.filter(t => t.isPatrol && logbookEntry[t.key]?.done).length * 200;
+  const displaySteps = recordedSteps > 0 ? recordedSteps : (estimatedPatrolSteps > 0 ? estimatedPatrolSteps : 2200);
   const distanceKm = (displaySteps * 0.75 / 1000).toFixed(2); // standard human stride length ~0.75m
 
   // 2. Real Duration: Computed dynamically from the earliest to the latest completed task timestamp

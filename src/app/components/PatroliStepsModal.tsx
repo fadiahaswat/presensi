@@ -22,11 +22,11 @@ export function PatroliStepsModal({
   onClose,
   taskTitle,
   taskIcon,
-  targetSteps = 150,
+  targetSteps = 200,
   initialSteps = 0,
   onConfirmSteps
 }: PatroliStepsModalProps) {
-  const effectiveTargetSteps = Math.max(150, targetSteps);
+  const effectiveTargetSteps = Math.max(200, targetSteps);
 
   const [hasStarted, setHasStarted] = useState(initialSteps > 0);
   const [isActive, setIsActive] = useState(false);
@@ -158,7 +158,7 @@ export function PatroliStepsModal({
                   PATROLI MUSYRIF
                 </span>
                 <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
-                  MIN 150 LKG
+                  MIN 200 LKG
                 </span>
               </div>
               <h3 className="font-extrabold text-sm text-slate-100 leading-tight truncate max-w-[200px]">

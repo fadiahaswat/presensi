@@ -32,6 +32,7 @@ import type { SantriSakitRecord } from "./components/SantriSakitModal";
 import type { Pamong } from "./components/PamongManagerModal";
 import type { IzinRequest } from "./components/IzinPengajuanModal";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
+import { LogbookGalleryWidget } from "./components/LogbookGalleryWidget";
 import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { SantriChangeRequest } from "./types/santriRequest";
 import { CloudSyncBadge } from "./components/CloudSyncBadge";
@@ -883,55 +884,68 @@ function PageDashboard({
               const currentMinute = liveNow.getMinutes();
               const currentMinutesOfDay = currentHour * 60 + currentMinute;
 
-              // Find active or next logbook task
+              // Find active or next logbook task (Day-Aware)
+              const dayOfWeek = liveNow.getDay(); // 0 = Ahad, 5 = Jumat, 4 = Kamis, 1 = Senin, 2 = Selasa, 3 = Rabu, 6 = Sabtu
               let activeTaskTitle = "Logbook Harian";
               let activeTaskKey = "tahajjud";
-              let activeTaskTime = "11 Tugas";
+              let activeTaskTime = "Agenda Harian";
 
               if (currentMinutesOfDay >= 210 && currentMinutesOfDay <= 270) {
                 activeTaskTitle = "Tahajjud Pagi";
                 activeTaskKey = "tahajjud";
-                activeTaskTime = "Sesi 03:30–04:30";
+                activeTaskTime = "03:30–04:30 WIB";
               } else if (currentMinutesOfDay > 270 && currentMinutesOfDay <= 360) {
-                activeTaskTitle = "Ba'da Subuh";
+                activeTaskTitle = dayOfWeek === 0 ? "Muhadatsah Pagi" : "Tahfizh / Piket";
                 activeTaskKey = "bakdaSubuh";
-                activeTaskTime = "Sesi 05:15–06:00";
+                activeTaskTime = "05:15–06:00 WIB";
               } else if (currentMinutesOfDay > 360 && currentMinutesOfDay <= 410) {
                 activeTaskTitle = "Cek Santri Sakit";
                 activeTaskKey = "cekSakit";
-                activeTaskTime = "Sesi 06:00–06:45";
+                activeTaskTime = "06:00–06:45 WIB";
               } else if (currentMinutesOfDay > 410 && currentMinutesOfDay <= 450) {
-                activeTaskTitle = "Sisir Sekolah";
-                activeTaskKey = "sisirSekolah";
-                activeTaskTime = "Sesi 06:45–07:15";
-              } else if (currentMinutesOfDay > 450 && currentMinutesOfDay <= 840) {
+                activeTaskTitle = dayOfWeek === 0 ? "Kerja Bakti Asrama" : "Sisir Sekolah";
+                activeTaskKey = dayOfWeek === 0 ? "kerjaBakti" : "sisirSekolah";
+                activeTaskTime = dayOfWeek === 0 ? "06:00–07:15 WIB" : "06:45–07:15 WIB";
+              } else if (currentMinutesOfDay > 450 && currentMinutesOfDay <= (dayOfWeek === 5 ? 660 : 885)) {
                 activeTaskTitle = "Jaga Gerbang";
                 activeTaskKey = "jagaGerbang";
-                activeTaskTime = "Sesi 07:15–14:00";
-              } else if (currentMinutesOfDay > 840 && currentMinutesOfDay <= 960) {
+                activeTaskTime = "07:00–07:30 WIB";
+              } else if (dayOfWeek === 5 && currentMinutesOfDay > 660 && currentMinutesOfDay <= 720) {
+                activeTaskTitle = "Oprak Shalat Jum'at";
+                activeTaskKey = "oprakJumat";
+                activeTaskTime = "11:00–12:00 WIB";
+              } else if (currentMinutesOfDay > 885 && currentMinutesOfDay <= 960) {
                 activeTaskTitle = "Oprak Ashar";
                 activeTaskKey = "oprakAshar";
-                activeTaskTime = "Sesi 15:00–16:00";
+                activeTaskTime = "14:45–15:45 WIB";
               } else if (currentMinutesOfDay > 960 && currentMinutesOfDay <= 1050) {
-                activeTaskTitle = "Oprak Mandi";
+                activeTaskTitle = "Oprak Mandi Sore";
                 activeTaskKey = "oprakMandi";
-                activeTaskTime = "Sesi 16:30–17:30";
-              } else if (currentMinutesOfDay > 1050 && currentMinutesOfDay <= 1120) {
+                activeTaskTime = "16:45–17:30 WIB";
+              } else if (currentMinutesOfDay > 1050 && currentMinutesOfDay <= 1095) {
                 activeTaskTitle = "Sisir Maghrib";
                 activeTaskKey = "sisirMaghrib";
-                activeTaskTime = "Sesi 17:30–18:40";
-              } else if (currentMinutesOfDay > 1120 && currentMinutesOfDay <= 1180) {
-                activeTaskTitle = "Malam Asrama";
-                activeTaskKey = "malamAsrama";
-                activeTaskTime = "Sesi 18:40–19:40";
-              } else if (currentMinutesOfDay > 1180 && currentMinutesOfDay <= 1260) {
-                activeTaskTitle = "Belajar Malam";
+                activeTaskTime = "17:25–18:15 WIB";
+              } else if (currentMinutesOfDay > 1095 && currentMinutesOfDay <= 1150) {
+                if (dayOfWeek === 1 || dayOfWeek === 2) {
+                  activeTaskTitle = "Belajar Bahasa";
+                } else if (dayOfWeek === 3) {
+                  activeTaskTitle = "Cek Catatan Santri";
+                } else if (dayOfWeek === 4 || dayOfWeek === 5) {
+                  activeTaskTitle = "Tahsin Qur'an";
+                } else {
+                  activeTaskTitle = "Ba'da Maghrib";
+                }
+                activeTaskKey = "bakdaMaghrib";
+                activeTaskTime = "18:00–19:00 WIB";
+              } else if (currentMinutesOfDay > 1150 && currentMinutesOfDay <= 1260) {
+                activeTaskTitle = dayOfWeek === 4 ? "Baca Surat Al-Kahfi" : "Belajar Malam";
                 activeTaskKey = "belajarMalam";
-                activeTaskTime = "Sesi 19:40–21:00";
+                activeTaskTime = dayOfWeek === 4 ? "19:30–21:00 WIB" : "19:00–20:30 WIB";
               } else {
-                activeTaskTitle = "Tidur Malam";
-                activeTaskKey = "tidurMalam";
-                activeTaskTime = "Sesi 21:00–22:00";
+                activeTaskTitle = "Menyisir Jam Tidur";
+                activeTaskKey = "cekTidur";
+                activeTaskTime = "20:30–22:00 WIB";
               }
 
               // Check if user has completed logbook today
@@ -1210,6 +1224,15 @@ function PageDashboard({
           })()}
         </div>
       ) : null}
+
+      {/* 📸 WIDGET GALERI LOGBOOK ASRAMA (INSTAGRAM-STYLE) */}
+      <LogbookGalleryWidget
+        logbookData={logbookData}
+        musyrifList={musyrifList}
+        onOpenLogbook={() => {
+          onGoTo("logbook");
+        }}
+      />
 
       {/* ───────────────────────────────────────────────────────────────────── */}
       {/* PUSAT LAYANAN & FITUR INOVASI KEASRAMAAN */}
@@ -3558,7 +3581,7 @@ function PageRiwayat({
     let totalTasksDone = 0;
     let totalSteps = 0;
     let totalGpsVerified = 0;
-    const taskKeys = ["tahajjud","bakdaSubuh","cekSakit","sisirSekolah","jagaGerbang","oprakAshar","oprakMandi","sisirMaghrib","bakdaMaghrib","belajarMalam","cekTidur"] as const;
+    const taskKeys = ["tahajjud","bakdaSubuh","cekSakit","sisirSekolah","jagaGerbang","oprakJumat","kerjaBakti","oprakAshar","oprakMandi","sisirMaghrib","bakdaMaghrib","belajarMalam","cekTidur"] as const;
 
     logbookDatesThisMonth.forEach(d => {
       const dayEntry = musyrifLogbooks[d];
@@ -4294,8 +4317,8 @@ function PageRiwayat({
                           <h4 className="font-extrabold text-xs sm:text-sm text-slate-800">
                             {format(parseISO(dateStr), "EEEE, d MMMM yyyy", { locale: id })}
                           </h4>
-                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                            {dayDoneCount === 11 ? "✨ Seluruh 11 tugas harian selesai" : `${dayDoneCount} dari 11 tugas terlaksana`}
+                          <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                            {dayDoneCount === 11 ? "✨ Seluruh 11 tugas Melaksanakan" : `${dayDoneCount} Melaksanakan · ${11 - dayDoneCount} Tidak Melaksanakan`}
                           </p>
                         </div>
                       </div>
@@ -4336,12 +4359,12 @@ function PageRiwayat({
                             <div key={tDef.key} className="py-2.5 flex items-start justify-between gap-3 text-xs">
                               <div className="flex items-start gap-2.5 min-w-0">
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                                  isDone ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400"
+                                  isDone ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
                                 }`}>
-                                  {isDone ? <CheckCircle2 className="w-3.5 h-3.5"/> : <X className="w-3 h-3"/>}
+                                  {isDone ? <CheckCircle2 className="w-3.5 h-3.5"/> : <X className="w-3.5 h-3.5"/>}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className={`font-bold text-xs ${isDone ? "text-slate-900" : "text-slate-500"}`}>
+                                  <p className={`font-bold text-xs ${isDone ? "text-slate-900" : "text-slate-700"}`}>
                                     {tDef.title}
                                   </p>
                                   <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 flex-wrap">
@@ -4364,10 +4387,10 @@ function PageRiwayat({
                                 </div>
                               </div>
 
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${
-                                isDone ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 font-mono ${
+                                isDone ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80" : "bg-rose-50 text-rose-700 border border-rose-200/80"
                               }`}>
-                                {isDone ? "Terlaksana" : "Belum"}
+                                {isDone ? "Melaksanakan" : "Tidak Melaksanakan"}
                               </span>
                             </div>
                           );
@@ -7526,14 +7549,6 @@ export default function App() {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* ── Ambient Corner Supergraphics (Syamsa Brand Watermarks) ── */}
-      <div className="fixed -top-16 -right-16 w-80 h-80 sm:w-96 sm:h-96 pointer-events-none select-none opacity-[0.035] text-sky-950 z-0 rotate-12">
-        <img src={syamsaLogomark} alt="" className="w-full h-full object-contain" />
-      </div>
-      <div className="fixed -bottom-20 -left-20 w-72 h-72 sm:w-88 sm:h-88 pointer-events-none select-none opacity-[0.025] text-sky-950 z-0 -rotate-12">
-        <img src={syamsaLogomark} alt="" className="w-full h-full object-contain" />
-      </div>
-
       <CustomDialogModal />
 
       {/* Pull to Refresh Animated Indicator */}
@@ -7719,7 +7734,12 @@ export default function App() {
                 onOpenIzin={() => setShowIzin(true)}
                 onOpenAlarm={() => setShowAlarm(true)}
                 onOpenKegiatan={() => setShowKegiatan(true)}
-                onOpenLogbook={() => setShowLogbook(true)}
+                onOpenLogbook={() => {
+                  setTargetMusyrifId(undefined);
+                  setTargetDate(undefined);
+                  setTargetTaskKey(undefined);
+                  setPage("logbook");
+                }}
                 onOpenMutabaah={() => setShowMutabaah(true)}
                 onOpenSantriSakit={() => setShowSantriSakit(true)}
                 onOpenSantriIzin={() => setPage("izin-santri")}
@@ -8192,31 +8212,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 5. Jurnal Logbook Harian Musyrif Modal */}
-      <AnimatePresence>
-        {showLogbook && (
-          <JurnalLogbookModal
-            onClose={() => {
-              setShowLogbook(false);
-              setTargetMusyrifId(undefined);
-              setTargetDate(undefined);
-            }}
-            authUser={authUser}
-            musyrifList={musyrifList}
-            logbookData={logbookData}
-            initialMusyrifId={targetMusyrifId}
-            initialDate={targetDate}
-            onSaveLogbook={handleSaveLogbook}
-            onResetLogbook={handleResetLogbook}
-            onOpenSantriSakit={() => {
-              setShowLogbook(false);
-              setShowSantriSakit(true);
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* 6. Mutaba'ah Yaumiyah Modal */}
+      {/* 5. Mutaba'ah Yaumiyah Modal */}
       <AnimatePresence>
         {showMutabaah && (
           <MutabaahYaumiyahModal

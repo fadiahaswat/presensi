@@ -4,14 +4,15 @@ import {
   AlertCircle, ChevronRight, FileText, Sparkles, Building2, User, Eye, ShieldCheck,
   MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft, Lock,
   Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award,
-  Sunrise, Sunset, Star
+  Sunrise, Sunset, Star, Camera, Image as ImageIcon, Trash2, Maximize2
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "../utils/geoUtils";
 import { PatroliStepsModal } from "./PatroliStepsModal";
 import { LogbookStravaStickerModal } from "./LogbookStravaStickerModal";
+import { LiveCameraCaptureModal, CapturedPhotoResult } from "./LiveCameraCaptureModal";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
 
@@ -21,14 +22,21 @@ export interface LogbookTaskItem {
   notes?: string;
   stepsCount?: number;
   gpsVerified?: boolean;
+  subChoice?: "tahfizh" | "piket";
+  photoUrl?: string;
+  photoTakenAt?: string;
+  photoSource?: "camera" | "preset";
+  photoWatermark?: string;
 }
 
 export interface JurnalLogbookEntry {
   tahajjud: LogbookTaskItem;
   bakdaSubuh: LogbookTaskItem;
   cekSakit: LogbookTaskItem;
-  sisirSekolah: LogbookTaskItem;
-  jagaGerbang: LogbookTaskItem;
+  sisirSekolah?: LogbookTaskItem;
+  jagaGerbang?: LogbookTaskItem;
+  oprakJumat?: LogbookTaskItem;
+  kerjaBakti?: LogbookTaskItem;
   oprakAshar: LogbookTaskItem;
   oprakMandi: LogbookTaskItem;
   sisirMaghrib: LogbookTaskItem;
@@ -44,6 +52,9 @@ interface Musyrif {
   id: string;
   name: string;
   asrama: string;
+  role?: string;
+  kamar?: string;
+  email?: string;
 }
 
 interface JurnalLogbookModalProps {
@@ -74,12 +85,47 @@ export interface TaskDefinition {
   category: "Pagi" | "Siang" | "Sore" | "Malam";
   isPatrol?: boolean;
   targetSteps?: number;
+  allowSubChoice?: boolean;
+  photoRequirement?: "mandatory" | "optional";
 }
 
-export const LOGBOOK_TASKS: TaskDefinition[] = [
-  {
+/**
+ * Mendapatkan daftar tugas logbook dinamis berdasarkan hari dalam sepekan (Senin - Ahad).
+ * - Senin - Sabtu Subuh: Pilihan Tahfizh (standar) vs Piket Asrama (wajib patroli 200 langkah).
+ * - Senin & Selasa Maghrib: Pembelajaran Bahasa (wajib patroli 200 langkah).
+ * - Rabu Maghrib: Pengecekan Catatan Santri (standar).
+ * - Kamis Maghrib: Tahsin & Ba'da Isya: Baca Surat Al-Kahfi (wajib patroli 200 langkah).
+ * - Jumat 11:00: Mengoprak-oprak Shalat Jum'at (wajib patroli 200 langkah) & Maghrib Tahsin.
+ * - Ahad Subuh: Mendampingi Muhadatsah (wajib patroli 200 langkah).
+ * - Ahad 06:00 - 07:15: Mendampingi Kerja Bakti Asrama (wajib patroli 200 langkah).
+ */
+export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<string, "tahfizh" | "piket">): TaskDefinition[] {
+  let dayOfWeek = 1; // Default Senin
+  if (dateStr) {
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length === 3) {
+      dayOfWeek = new Date(parts[0], parts[1] - 1, parts[2]).getDay();
+    }
+  } else {
+    dayOfWeek = new Date().getDay();
+  }
+
+  const isAhad = dayOfWeek === 0;
+  const isSeninOrSelasa = dayOfWeek === 1 || dayOfWeek === 2;
+  const isRabu = dayOfWeek === 3;
+  const isKamis = dayOfWeek === 4;
+  const isJumat = dayOfWeek === 5;
+
+  const currentSubChoice = subChoiceMap?.["bakdaSubuh"] || "tahfizh";
+  const isSubuhPiket = currentSubChoice === "piket";
+
+  const tasks: TaskDefinition[] = [];
+  let num = 1;
+
+  // 1. Membangunkan Pagi & Shalat Tahajjud (Setiap Hari - Wajib Patroli 200 Lkg, Opsional Foto)
+  tasks.push({
     key: "tahajjud",
-    number: 1,
+    number: num++,
     title: "Membangunkan Pagi & Shalat Tahajjud",
     shortDesc: "Membangunkan santri di kamar untuk Qiyamul Lail & shalat malam",
     timeWindow: "03:30 – 04:30 WIB",
@@ -90,25 +136,54 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "moon",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 150
-  },
-  {
-    key: "bakdaSubuh",
-    number: 2,
-    title: "Pembelajaran Ba'da Shubuh / Piket Asrama",
-    shortDesc: "Halaqah Al-Qur'an ba'da subuh atau kontrol piket kebersihan pagi",
-    timeWindow: "05:15 – 06:00 WIB",
-    startHour: 5,
-    startMinute: 15,
-    endHour: 6,
-    endMinute: 0,
-    icon: "book",
-    category: "Pagi",
-    isPatrol: false
-  },
-  {
+    targetSteps: 200,
+    photoRequirement: "optional"
+  });
+
+  // 2. Sesi Ba'da Shubuh
+  if (isAhad) {
+    tasks.push({
+      key: "bakdaSubuh",
+      number: num++,
+      title: "Mendampingi Muhadatsah Pagi",
+      shortDesc: "Mendampingi latihan percakapan bahasa Arab/Inggris santri di asrama",
+      timeWindow: "05:15 – 06:15 WIB",
+      startHour: 5,
+      startMinute: 15,
+      endHour: 6,
+      endMinute: 15,
+      icon: "book",
+      category: "Pagi",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "optional"
+    });
+  } else {
+    tasks.push({
+      key: "bakdaSubuh",
+      number: num++,
+      title: isSubuhPiket ? "Piket Kebersihan Asrama Ba'da Subuh" : "Halaqah Tahfizh Ba'da Subuh",
+      shortDesc: isSubuhPiket
+        ? "Kontrol & penyisiran piket kebersihan pagi asrama (Wajib Patroli 200 Langkah)"
+        : "Mendampingi halaqah Al-Qur'an & setoran tahfizh santri ba'da Subuh",
+      timeWindow: "05:15 – 06:00 WIB",
+      startHour: 5,
+      startMinute: 15,
+      endHour: 6,
+      endMinute: 0,
+      icon: isSubuhPiket ? "sparkles" : "book",
+      category: "Pagi",
+      isPatrol: isSubuhPiket,
+      targetSteps: isSubuhPiket ? 200 : undefined,
+      allowSubChoice: true,
+      photoRequirement: isSubuhPiket ? "mandatory" : "optional"
+    });
+  }
+
+  // 3. Memeriksa Santri yang Sakit (Setiap Hari - Wajib Foto & Wajib Patroli)
+  tasks.push({
     key: "cekSakit",
-    number: 3,
+    number: num++,
     title: "Memeriksa Santri yang Sakit",
     shortDesc: "Pengecekan kamar santri yang sakit, pemberian obat / lapor pamong",
     timeWindow: "06:00 – 06:45 WIB",
@@ -119,41 +194,88 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "stethoscope",
     category: "Pagi",
     isPatrol: true,
-    targetSteps: 150
-  },
-  {
-    key: "sisirSekolah",
-    number: 4,
-    title: "Menyisir Kamar saat Berangkat Sekolah",
-    shortDesc: "Memastikan semua santri berangkat ke madrasah & kamar terkunci rapi",
-    timeWindow: "06:45 – 07:15 WIB",
-    startHour: 6,
-    startMinute: 45,
-    endHour: 7,
-    endMinute: 15,
-    icon: "door",
-    category: "Pagi",
-    isPatrol: true,
-    targetSteps: 150
-  },
-  {
-    key: "jagaGerbang",
-    number: 5,
-    title: "Menjaga Gerbang Asrama",
-    shortDesc: "Menjaga ketertiban keluar-masuk santri dan tamu asrama",
-    timeWindow: "07:00 – 07:30 WIB",
-    startHour: 7,
-    startMinute: 0,
-    endHour: 7,
-    endMinute: 30,
-    icon: "shield",
-    category: "Pagi",
-    isPatrol: true,
-    targetSteps: 150
-  },
-  {
+    targetSteps: 200,
+    photoRequirement: "mandatory"
+  });
+
+  // 4 & 5. Agenda Pagi: Kerja Bakti (Ahad) vs Berangkat Sekolah & Jaga Gerbang (Senin-Sabtu)
+  if (isAhad) {
+    tasks.push({
+      key: "kerjaBakti",
+      number: num++,
+      title: "Mendampingi Kerja Bakti Asrama",
+      shortDesc: "Mendampingi dan mengontrol kerja bakti gotong royong kebersihan akbar asrama & kamar",
+      timeWindow: "06:00 – 07:15 WIB",
+      startHour: 6,
+      startMinute: 0,
+      endHour: 7,
+      endMinute: 15,
+      icon: "sparkles",
+      category: "Pagi",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "mandatory"
+    });
+  } else {
+    tasks.push({
+      key: "sisirSekolah",
+      number: num++,
+      title: "Menyisir Kamar saat Berangkat Sekolah",
+      shortDesc: "Memastikan semua santri berangkat ke madrasah & kamar terkunci rapi",
+      timeWindow: "06:45 – 07:15 WIB",
+      startHour: 6,
+      startMinute: 45,
+      endHour: 7,
+      endMinute: 15,
+      icon: "door",
+      category: "Pagi",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "mandatory"
+    });
+
+    tasks.push({
+      key: "jagaGerbang",
+      number: num++,
+      title: "Menjaga Gerbang Asrama",
+      shortDesc: "Menjaga ketertiban keluar-masuk santri dan tamu asrama",
+      timeWindow: "07:00 – 07:30 WIB",
+      startHour: 7,
+      startMinute: 0,
+      endHour: 7,
+      endMinute: 30,
+      icon: "shield",
+      category: "Pagi",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "mandatory"
+    });
+  }
+
+  // Khusus Hari Jumat: Mengoprak-oprak Shalat Jum'at (11:00 - 12:00 WIB - Wajib Foto)
+  if (isJumat) {
+    tasks.push({
+      key: "oprakJumat",
+      number: num++,
+      title: "Mengoprak-oprak Shalat Jum'at",
+      shortDesc: "Menyisir kamar santri agar segera mandi, berpakaian muslim bersih, dan berangkat ke masjid",
+      timeWindow: "11:00 – 12:00 WIB",
+      startHour: 11,
+      startMinute: 0,
+      endHour: 12,
+      endMinute: 0,
+      icon: "sun",
+      category: "Siang",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "mandatory"
+    });
+  }
+
+  // 6. Menyisir Kamar untuk Shalat Ashar (Setiap Hari - Wajib Patroli 200 Lkg, Opsional Foto)
+  tasks.push({
     key: "oprakAshar",
-    number: 6,
+    number: num++,
     title: "Menyisir Kamar untuk Shalat Ashar",
     shortDesc: "Mengoprak-oprak santri di kamar untuk shalat Ashar (H-30 s/d H+15 adzan)",
     timeWindow: "14:45 – 15:45 WIB",
@@ -164,11 +286,14 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "sun",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 150
-  },
-  {
+    targetSteps: 200,
+    photoRequirement: "optional"
+  });
+
+  // 7. Mengoprak-oprak Mandi Sore (Setiap Hari - Wajib Foto & Patroli)
+  tasks.push({
     key: "oprakMandi",
-    number: 7,
+    number: num++,
     title: "Mengoprak-oprak Mandi Sore",
     shortDesc: "Memastikan santri tertib mandi sore, berpakaian rapi dan siap ke masjid",
     timeWindow: "16:45 – 17:30 WIB",
@@ -179,11 +304,14 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "sparkles",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 150
-  },
-  {
+    targetSteps: 200,
+    photoRequirement: "mandatory"
+  });
+
+  // 8. Menyisir Kamar Menjelang Maghrib (Setiap Hari - Wajib Patroli 200 Lkg, Opsional Foto)
+  tasks.push({
     key: "sisirMaghrib",
-    number: 8,
+    number: num++,
     title: "Menyisir Kamar Menjelang Maghrib",
     shortDesc: "Menyisir kamar santri jelang shalat Maghrib (H-30 s/d H+15 adzan)",
     timeWindow: "17:25 – 18:15 WIB",
@@ -194,40 +322,120 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "moon",
     category: "Sore",
     isPatrol: true,
-    targetSteps: 150
-  },
-  {
-    key: "bakdaMaghrib",
-    number: 9,
-    title: "Mendampingi Pembelajaran Ba'da Maghrib",
-    shortDesc: "Mendampingi tahsin, tilawah Qur'an, dan pembelajaran malam santri",
-    timeWindow: "18:00 – 19:00 WIB",
-    startHour: 18,
-    startMinute: 0,
-    endHour: 19,
-    endMinute: 0,
-    icon: "book",
-    category: "Malam",
-    isPatrol: false
-  },
-  {
-    key: "belajarMalam",
-    number: 10,
-    title: "Mendampingi Belajar Malam Mandiri",
-    shortDesc: "Mendampingi jam belajar malam santri dan kedisiplinan asrama",
-    timeWindow: "19:00 – 20:30 WIB",
-    startHour: 19,
-    startMinute: 0,
-    endHour: 20,
-    endMinute: 30,
-    icon: "graduation",
-    category: "Malam",
-    isPatrol: true,
-    targetSteps: 150
-  },
-  {
+    targetSteps: 200,
+    photoRequirement: "optional"
+  });
+
+  // 9. Agenda Ba'da Maghrib
+  if (isSeninOrSelasa) {
+    tasks.push({
+      key: "bakdaMaghrib",
+      number: num++,
+      title: "Mendampingi Pembelajaran Bahasa",
+      shortDesc: "Mendampingi dan mengontrol pembinaan kosa kata/mufradat & percakapan bahasa santri",
+      timeWindow: "18:00 – 19:00 WIB",
+      startHour: 18,
+      startMinute: 0,
+      endHour: 19,
+      endMinute: 0,
+      icon: "book",
+      category: "Malam",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "optional"
+    });
+  } else if (isRabu) {
+    tasks.push({
+      key: "bakdaMaghrib",
+      number: num++,
+      title: "Pengecekan Catatan Santri",
+      shortDesc: "Pemeriksaan kelengkapan buku catatan pelajaran dan kedisiplinan belajar santri",
+      timeWindow: "18:00 – 19:00 WIB",
+      startHour: 18,
+      startMinute: 0,
+      endHour: 19,
+      endMinute: 0,
+      icon: "book",
+      category: "Malam",
+      isPatrol: false,
+      photoRequirement: "optional"
+    });
+  } else if (isKamis || isJumat) {
+    tasks.push({
+      key: "bakdaMaghrib",
+      number: num++,
+      title: "Mendampingi Pembelajaran Tahsin Al-Qur'an",
+      shortDesc: "Mendampingi tahsin, talaqqi, dan perbaikan tajwid bacaan Al-Qur'an santri",
+      timeWindow: "18:00 – 19:00 WIB",
+      startHour: 18,
+      startMinute: 0,
+      endHour: 19,
+      endMinute: 0,
+      icon: "book",
+      category: "Malam",
+      isPatrol: false,
+      photoRequirement: "optional"
+    });
+  } else {
+    // Sabtu & Ahad
+    tasks.push({
+      key: "bakdaMaghrib",
+      number: num++,
+      title: "Mendampingi Pembelajaran Ba'da Maghrib",
+      shortDesc: "Mendampingi tahsin, tilawah Qur'an, dan pembelajaran malam santri",
+      timeWindow: "18:00 – 19:00 WIB",
+      startHour: 18,
+      startMinute: 0,
+      endHour: 19,
+      endMinute: 0,
+      icon: "book",
+      category: "Malam",
+      isPatrol: false,
+      photoRequirement: "optional"
+    });
+  }
+
+  // 10. Agenda Ba'da Isya / Belajar Malam
+  if (isKamis) {
+    tasks.push({
+      key: "belajarMalam",
+      number: num++,
+      title: "Mendampingi Pembacaan Surat Al-Kahfi",
+      shortDesc: "Menyisir dan mendampingi santri membaca Surat Al-Kahfi bersama di malam Jum'at",
+      timeWindow: "19:30 – 21:00 WIB",
+      startHour: 19,
+      startMinute: 30,
+      endHour: 21,
+      endMinute: 0,
+      icon: "book",
+      category: "Malam",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "optional"
+    });
+  } else {
+    tasks.push({
+      key: "belajarMalam",
+      number: num++,
+      title: "Mendampingi Belajar Malam Mandiri",
+      shortDesc: "Mendampingi jam belajar malam santri dan kedisiplinan asrama",
+      timeWindow: "19:00 – 20:30 WIB",
+      startHour: 19,
+      startMinute: 0,
+      endHour: 20,
+      endMinute: 30,
+      icon: "graduation",
+      category: "Malam",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "optional"
+    });
+  }
+
+  // 11. Menyisir Kamar untuk Tidur (Setiap Hari - Wajib Foto & Patroli)
+  tasks.push({
     key: "cekTidur",
-    number: 11,
+    number: num++,
     title: "Menyisir Kamar untuk Tidur",
     shortDesc: "Memastikan lampu kamar dimatikan, pintu terkunci, dan santri tidur tertib",
     timeWindow: "20:30 – 22:00 WIB",
@@ -238,9 +446,14 @@ export const LOGBOOK_TASKS: TaskDefinition[] = [
     icon: "bed",
     category: "Malam",
     isPatrol: true,
-    targetSteps: 150
-  }
-];
+    targetSteps: 200,
+    photoRequirement: "mandatory"
+  });
+
+  return tasks;
+}
+
+export const LOGBOOK_TASKS: TaskDefinition[] = getLogbookTasksForDate();
 
 export function getTaskIconComponent(icon: string) {
   switch (icon) {
@@ -259,10 +472,12 @@ export function getTaskIconComponent(icon: string) {
 
 const EMPTY_LOGBOOK: JurnalLogbookEntry = {
   tahajjud: { done: false },
-  bakdaSubuh: { done: false },
+  bakdaSubuh: { done: false, subChoice: "tahfizh" },
   cekSakit: { done: false },
   sisirSekolah: { done: false },
   jagaGerbang: { done: false },
+  oprakJumat: { done: false },
+  kerjaBakti: { done: false },
   oprakAshar: { done: false },
   oprakMandi: { done: false },
   sisirMaghrib: { done: false },
@@ -284,13 +499,17 @@ export function JurnalLogbookModal({
   initialDate,
   initialTaskKey
 }: JurnalLogbookModalProps) {
-  const isKoordinator = authUser?.role === "koordinator_musyrif";
+  const isKoordinatorMusyrif = authUser?.role === "koordinator_musyrif";
   const isKoorGedung = authUser?.role === "koordinator_gedung";
   const isPamong = authUser?.role === "pamong";
-  const isPamongOrKoord = isPamong || isKoordinator || isKoorGedung;
+  const isAdmin = authUser?.role === "admin";
+
+  // Yang berwenang bypass jadwal (masa depan, masa lalu, dan patroli langsung) HANYA Pamong, Koordinator Musyrif, atau Admin.
+  // Musyrif biasa dan Koordinator Gedung TIDAK BISA bypass!
+  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin;
 
   const activeMusyrifList = useMemo(() => {
-    if (isKoordinator) {
+    if (isKoordinatorMusyrif || isAdmin) {
       return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
     }
     if (isKoorGedung) {
@@ -300,7 +519,7 @@ export function JurnalLogbookModal({
       return musyrifList.filter(m => m.asrama === authUser.asrama);
     }
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
-  }, [musyrifList, authUser, isKoordinator, isKoorGedung, isPamong]);
+  }, [musyrifList, authUser, isKoordinatorMusyrif, isKoorGedung, isPamong, isAdmin]);
 
   // Find the musyrif record matching logged-in user (including Koordinator Gedung)
   const mySelfMusyrif = useMemo(() => {
@@ -345,13 +564,17 @@ export function JurnalLogbookModal({
   // Check if currently active selected musyrif is logged-in user himself
   const isEditingSelf = Boolean(
     mySelfMusyrif && selectedMusyrifId === mySelfMusyrif.id
-  ) || authUser?.role === "musyrif";
+  ) || authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
 
   const isMusyrifUser = isEditingSelf;
 
   // Active Patrol Modal Tracker State
   const [activePatrolTask, setActivePatrolTask] = useState<TaskDefinition | null>(null);
   const [showStravaSticker, setShowStravaSticker] = useState<boolean>(false);
+
+  // Active Live Camera Task State & Fullscreen Photo Preview
+  const [activeCameraTask, setActiveCameraTask] = useState<TaskDefinition | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string } | null>(null);
 
   // GPS Geofence Check State
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
@@ -370,6 +593,18 @@ export function JurnalLogbookModal({
     const existing = logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK;
     setFormState(existing);
   }, [logbookData, selectedMusyrifId, selectedDate]);
+
+  // SubChoice Map for dynamic tasks
+  const subChoiceMap = useMemo(() => {
+    return {
+      bakdaSubuh: (formState.bakdaSubuh?.subChoice || "tahfizh") as "tahfizh" | "piket"
+    };
+  }, [formState.bakdaSubuh?.subChoice]);
+
+  // Dynamic Tasks for Selected Date
+  const activeDateTasks = useMemo(() => {
+    return getLogbookTasksForDate(selectedDate, subChoiceMap);
+  }, [selectedDate, subChoiceMap]);
 
   // Reset logbook entries for selected date
   const handleResetLogbook = async () => {
@@ -415,21 +650,45 @@ export function JurnalLogbookModal({
     }
   }, [asramaTarget]);
 
-  // Handle task toggling with strict validations (Date, Geofence, Time window)
+  // SubChoice Change Handler (e.g. Tahfizh vs Piket on Subuh)
+  const handleSubChoiceChange = (key: "bakdaSubuh", choice: "tahfizh" | "piket") => {
+    const cur = formState[key] || { done: false };
+    if (cur.done && !isCanBypass) {
+      appAlert("Tugas telah diselesaikan, pilihan aktivitas tidak dapat diubah kembali.", "Tugas Selesai", "info");
+      return;
+    }
+    const updatedEntry: JurnalLogbookEntry = {
+      ...formState,
+      [key]: {
+        ...cur,
+        subChoice: choice
+      }
+    };
+    setFormState(updatedEntry);
+    onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+  };
+
+  // Handle task toggling with strict validations (Date, Geofence, Time window, Patrol)
   const toggleTask = (taskDef: TaskDefinition) => {
-    if (!isMusyrifUser && !isPamongOrKoord) return;
+    if (!isMusyrifUser && !isCanBypass) return;
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const isToday = selectedDate === todayStr;
+    const isFuture = selectedDate > todayStr;
+    const isPast = selectedDate < todayStr;
     
-    // 1. Must be today (for standard musyrif only)
-    if (!isToday && !isPamongOrKoord) {
-      appAlert("Pengisian dan pencentangan logbook hanya dapat dilakukan pada hari berjalan (tanggal hari ini). Tanggal selain hari ini telah terkunci.", "Waktu Terkunci", "warning");
+    // 1. Must be today (Strict: only Pamong/Admin can bypass)
+    if (isFuture && !isCanBypass) {
+      appAlert("Pengisian dan pencentangan logbook untuk tanggal masa depan tidak diizinkan. Silakan pilih tanggal hari ini.", "Tanggal Belum Tiba", "warning");
+      return;
+    }
+    if (isPast && !isCanBypass) {
+      appAlert("Pengisian dan pencentangan logbook untuk tanggal selain hari ini telah terkunci secara otomatis. Hanya Pamong yang berwenang mengubah catatan lampau.", "Waktu Terkunci", "warning");
       return;
     }
 
-    // 2. Must be in Asrama (Geofencing check if GPS available, for standard musyrif only)
-    if (gpsResult && !gpsResult.isInRange && !isPamongOrKoord) {
+    // 2. Must be in Asrama (Geofencing check if GPS available, for standard musyrif & koor gedung)
+    if (gpsResult && !gpsResult.isInRange && !isCanBypass) {
       appAlert(`Anda terdeteksi berada di luar area ${asramaTarget} (${gpsResult.distanceMeters}m dari radius valid). Pencatatan tugas logbook hanya diizinkan saat Anda berada di lingkungan asrama.`, "Di Luar Asrama", "warning");
       return;
     }
@@ -437,8 +696,29 @@ export function JurnalLogbookModal({
     const timeInfo = getTaskTimeStatus(taskDef);
     const cur = formState[taskDef.key] || { done: false };
 
-    // 3. Strict Locking for standard Musyrif only:
-    if (!isPamongOrKoord) {
+    // 3. Strict Patrol Enforcement (Must do patrol modal, cannot directly click check)
+    if (taskDef.isPatrol && !isCanBypass && !cur.done) {
+      if (timeInfo.status === "upcoming") {
+        appAlert(`Tugas "${taskDef.title}" belum masuk waktu pelaksanaan.\nJadwal tugas: ${taskDef.timeWindow}.\n\nSilakan mulai patroli saat jam tugas aktif tiba.`, "Belum Masuk Waktu", "info");
+        return;
+      }
+      if (timeInfo.status === "passed") {
+        appAlert(`Jadwal tugas "${taskDef.title}" (${taskDef.timeWindow}) telah BERAKHIR dan TERKUNCI secara otomatis oleh sistem.\n\nTugas yang tidak dilaksanakan pada jamnya tidak dapat dicentang susulan.`, "Jadwal Terkunci", "danger");
+        return;
+      }
+      setActivePatrolTask(taskDef);
+      return;
+    }
+
+    // 4. Strict Mandatory Photo Enforcement (Must take live photo first if mandatory)
+    if (taskDef.photoRequirement === "mandatory" && !cur.photoUrl && !cur.done && !isCanBypass) {
+      appAlert(`Tugas "${taskDef.title}" mewajibkan bukti foto kegiatan langsung dari kamera asrama.\n\nSilakan ambil foto langsung terlebih dahulu untuk menyelesaikan tugas ini.`, "Wajib Foto Dokumentasi", "warning");
+      setActiveCameraTask(taskDef);
+      return;
+    }
+
+    // 5. Strict Locking for standard Musyrif & Koor Gedung:
+    if (!isCanBypass) {
       if (cur.done) {
         appAlert(`Tugas "${taskDef.title}" telah diverifikasi selesai pada ${cur.completedAt || "-"} WIB.`, "Tugas Selesai", "info");
         return;
@@ -460,12 +740,53 @@ export function JurnalLogbookModal({
         ...cur,
         done: nextDone,
         completedAt: nextDone ? (cur.completedAt || format(new Date(), "HH:mm")) : undefined,
-        gpsVerified: nextDone ? (isPamongOrKoord ? true : (gpsResult?.isInRange ?? false)) : false
+        gpsVerified: nextDone ? (isCanBypass ? true : (gpsResult?.isInRange ?? false)) : false
       }
     };
     setFormState(updatedEntry);
     // Instant Auto-Save & Cloud Sync on toggle
     onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+  };
+
+  // Handle Photo Capture from Live Camera Modal
+  const handlePhotoCaptured = (result: CapturedPhotoResult) => {
+    if (!activeCameraTask) return;
+    const key = activeCameraTask.key;
+    const cur = formState[key] || { done: false };
+    const updatedEntry: JurnalLogbookEntry = {
+      ...formState,
+      [key]: {
+        ...cur,
+        photoUrl: result.dataUrl,
+        photoTakenAt: result.takenAt,
+        photoSource: result.source,
+        photoWatermark: result.watermarkText
+      }
+    };
+    setFormState(updatedEntry);
+    onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+    setActiveCameraTask(null);
+  };
+
+  // Handle Remove Photo
+  const handleRemovePhoto = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">) => {
+    appConfirm("Apakah Anda yakin ingin menghapus foto dokumentasi tugas ini?", "Hapus Foto", "danger").then(ok => {
+      if (!ok) return;
+      const cur = formState[key];
+      if (!cur) return;
+      const updatedEntry: JurnalLogbookEntry = {
+        ...formState,
+        [key]: {
+          ...cur,
+          photoUrl: undefined,
+          photoTakenAt: undefined,
+          photoSource: undefined,
+          photoWatermark: undefined
+        }
+      };
+      setFormState(updatedEntry);
+      onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+    });
   };
 
   // Handle note updates
@@ -504,9 +825,9 @@ export function JurnalLogbookModal({
   };
 
   // Summary Metrics
-  const completedTasks = LOGBOOK_TASKS.filter(t => formState[t.key]?.done).length;
-  const totalTasks = LOGBOOK_TASKS.length;
-  const scorePct = Math.round((completedTasks / totalTasks) * 100);
+  const completedTasks = activeDateTasks.filter(t => formState[t.key]?.done).length;
+  const totalTasks = activeDateTasks.length;
+  const scorePct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   // Time Window Helpers & Strict Status
   const getTaskTimeStatus = (task: TaskDefinition) => {
@@ -526,8 +847,8 @@ export function JurnalLogbookModal({
       return { 
         status: "past_date" as const, 
         isLocked: true,
-        label: "Tanggal Lewat", 
-        badgeClass: "bg-slate-100 text-slate-500 border border-slate-200" 
+        label: "🔴 Tidak Melaksanakan (Tanggal Lewat)", 
+        badgeClass: "bg-rose-50 text-rose-700 border border-rose-200 font-semibold" 
       };
     }
     if (isFutureDate) {
@@ -543,21 +864,21 @@ export function JurnalLogbookModal({
       return { 
         status: "active" as const, 
         isLocked: false,
-        label: "🟢 Waktu Tugas (Aktif)", 
+        label: "🟢 Waktu Aktif (Wajib Melaksanakan)", 
         badgeClass: "bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold animate-pulse" 
       };
     } else if (curTotal > endTotal) {
       return { 
         status: "passed" as const, 
         isLocked: true,
-        label: "🔒 Jadwal Terlewat (Terkunci)", 
+        label: "🔴 Tidak Melaksanakan (Jadwal Terlewat)", 
         badgeClass: "bg-rose-50 text-rose-700 border border-rose-200 font-semibold" 
       };
     } else {
       return { 
         status: "upcoming" as const, 
         isLocked: true,
-        label: "⏳ Belum Waktunya", 
+        label: "⏳ Menunggu Jam (Wajib Melaksanakan)", 
         badgeClass: "bg-amber-50 text-amber-800 border border-amber-200 font-semibold" 
       };
     }
@@ -567,7 +888,7 @@ export function JurnalLogbookModal({
   // For today: by default show active tasks OR completed tasks. User can toggle showAllScheduled to see the full list with locked indicators.
   const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
 
-  const filteredTasks = LOGBOOK_TASKS.filter(t => {
+  const filteredTasks = activeDateTasks.filter(t => {
     // Search Filter
     if (searchTaskQuery.trim()) {
       const q = searchTaskQuery.toLowerCase();
@@ -583,7 +904,7 @@ export function JurnalLogbookModal({
     }
 
     // Time status filtering when isToday and not explicitly showing all
-    if (isToday && !showAllScheduled && isMusyrifUser && !searchTaskQuery) {
+    if (isToday && !showAllScheduled && isMusyrifUser && !isCanBypass && !searchTaskQuery) {
       const taskData = formState[t.key] || { done: false };
       const timeInfo = getTaskTimeStatus(t);
       // Only show if active right now OR already marked done
@@ -604,7 +925,7 @@ export function JurnalLogbookModal({
             {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
           </button>
           <div>
-            <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>Jurnal 11 Tugas Musyrif</h2>
+            <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>Jurnal Tugas Logbook Musyrif</h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>Monitoring kedisiplinan dan checklist tugas harian asrama</p>
           </div>
         </div>
@@ -615,8 +936,8 @@ export function JurnalLogbookModal({
         )}
       </div>
 
-      {/* GPS Status Banner (Only for standard Musyrif doing self-input) */}
-      {!isPamongOrKoord && (
+      {/* GPS Status Banner (Only for standard Musyrif & Koor Gedung doing self-input) */}
+      {!isCanBypass && (
         <div className={`p-3.5 sm:p-4 rounded-3xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
           <div className="flex items-center gap-3 min-w-0">
             <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
@@ -648,7 +969,7 @@ export function JurnalLogbookModal({
               <span>{authUser?.role === "musyrif" ? "Akun Musyrif (Mandiri)" : "Pilih Personel"}</span>
               {isKoorGedung && (
                 <span className="text-[10px] text-emerald-600 font-bold">
-                  {isEditingSelf ? "Mode Mengisi Pribadi (Strava Aktif)" : "Mode Pantau Musyrif"}
+                  {isEditingSelf ? "Mode Mengisi Pribadi (Wajib Patroli & Hari Ini)" : "Mode Pantau Musyrif"}
                 </span>
               )}
             </label>
@@ -672,18 +993,20 @@ export function JurnalLogbookModal({
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-2xl flex flex-col items-center justify-center font-black font-mono shadow-2xs ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200/80"}`}><span className="text-xs">{scorePct}%</span></div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Selesai ✓" : "Sedang Berjalan"}</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5"><strong>{completedTasks}</strong> dari <strong>{totalTasks}</strong> agenda terlaksana</p>
+                <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Terlaksana ✓" : `${completedTasks} Melaksanakan · ${totalTasks - completedTasks} Tidak Melaksanakan`}</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5"><strong>{completedTasks}</strong> Melaksanakan · <strong>{totalTasks - completedTasks}</strong> Tidak Melaksanakan</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleResetLogbook}
-              title="Reset Isian Logbook Tanggal Ini"
-              className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-bold transition-all shadow-2xs active:scale-95"
-            >
-              Reset Logbook
-            </button>
+            {isCanBypass && (
+              <button
+                type="button"
+                onClick={handleResetLogbook}
+                title="Reset Isian Logbook Tanggal Ini"
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-bold transition-all shadow-2xs active:scale-95"
+              >
+                Reset Logbook
+              </button>
+            )}
           </div>
 
           {/* Full-width clean progress bar */}
@@ -706,10 +1029,21 @@ export function JurnalLogbookModal({
             </button>
           ) : (
             <div className="flex flex-col gap-2 w-full">
-              <div className="w-full py-2 px-3 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-500 text-[11px] font-semibold flex items-center justify-between gap-2">
+              <div 
+                onClick={() => {
+                  if (isCanBypass) {
+                    triggerHaptic("medium");
+                    setShowStravaSticker(true);
+                  }
+                }}
+                className={`w-full py-2 px-3 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-500 text-[11px] font-semibold flex items-center justify-between gap-2 select-none ${
+                  isCanBypass ? "cursor-pointer active:scale-[0.99] transition-all" : ""
+                }`}
+                title={isCanBypass ? "Akses Pamong/Admin: Klik untuk buka Stiker Strava" : undefined}
+              >
                 <div className="flex items-center gap-1.5 min-w-0 truncate">
                   <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate">Stiker Story Ala Strava terbuka setelah 11/11 tugas tuntas</span>
+                  <span className="truncate">Stiker Story Ala Strava terbuka setelah seluruh tugas ({totalTasks}/{totalTasks}) tuntas</span>
                 </div>
                 <span className="font-bold text-slate-600 shrink-0 font-mono text-[10px]">Tersisa {totalTasks - completedTasks} tugas</span>
               </div>
@@ -745,7 +1079,7 @@ export function JurnalLogbookModal({
               { id: "Siang", label: "Siang", icon: Sun },
               { id: "Sore", label: "Sore", icon: Sunset },
               { id: "Malam", label: "Malam", icon: Moon },
-              { id: "patrol", label: "Patroli Langkah", icon: Footprints }
+              { id: "patrol", label: "Patroli Langkah (200 Lkg)", icon: Footprints }
             ].map(cat => {
               const IconComp = cat.icon;
               return (
@@ -768,8 +1102,8 @@ export function JurnalLogbookModal({
         </div>
       </div>
 
-      {/* Only block standard field musyrifs if GPS not verified; Super Admins & Pamong NEVER blocked */}
-      {(!isKoordinator && !isPamong && isMusyrifUser && !isGpsVerified) ? (
+      {/* Only block standard field musyrifs if GPS not verified; Pamong & Admins NEVER blocked */}
+      {(!isCanBypass && isMusyrifUser && !isGpsVerified) ? (
         <div className="bg-white rounded-3xl p-8 text-center border border-rose-200 shadow-sm space-y-4">
           <div className="w-16 h-16 rounded-3xl bg-rose-50 border-2 border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-inner"><MapPin className="w-8 h-8" /></div>
           <div>
@@ -783,8 +1117,8 @@ export function JurnalLogbookModal({
       ) : (
         <div className="space-y-3 pb-6">
           <div className="flex items-center justify-between px-1">
-            <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-emerald-600" /> <span>Tugas yang Aktif Saat Ini ({filteredTasks.length})</span></h4>
-            <button type="button" onClick={() => setShowAllScheduled(!showAllScheduled)} className="text-[11px] font-bold text-emerald-700 hover:underline">{showAllScheduled ? "Tampilkan Hanya Jam Aktif" : "Lihat Seluruh 11 Jadwal"}</button>
+            <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-emerald-600" /> <span>Tugas Jadwal ({filteredTasks.length})</span></h4>
+            <button type="button" onClick={() => setShowAllScheduled(!showAllScheduled)} className="text-[11px] font-bold text-emerald-700 hover:underline">{showAllScheduled ? "Tampilkan Hanya Jam Aktif" : `Lihat Seluruh ${activeDateTasks.length} Jadwal`}</button>
           </div>
 
           {filteredTasks.length === 0 ? (
@@ -799,7 +1133,7 @@ export function JurnalLogbookModal({
               const taskData = formState[t.key] || { done: false };
               const isDone = taskData.done;
               const timeInfo = getTaskTimeStatus(t);
-              const isLocked = !isDone && timeInfo.isLocked && !isPamongOrKoord;
+              const isLocked = !isDone && timeInfo.isLocked && !isCanBypass;
               const isPassed = timeInfo.status === "passed" && !isDone;
               const isUpcoming = timeInfo.status === "upcoming" && !isDone;
               const isExpanded = expandedTask === t.key;
@@ -823,9 +1157,9 @@ export function JurnalLogbookModal({
                       {/* Checkbox button */}
                       <button
                         type="button"
-                        disabled={!isPamongOrKoord && (isLocked || !isMusyrifUser || isDone)}
+                        disabled={!isCanBypass && (isLocked || !isMusyrifUser || isDone)}
                         onClick={() => {
-                          if (t.isPatrol && !isPamongOrKoord && isMusyrifUser && !isDone) {
+                          if (t.isPatrol && !isCanBypass && isMusyrifUser && !isDone) {
                             if (isLocked) {
                               appAlert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`, "Jadwal Terkunci", "warning");
                               return;
@@ -837,28 +1171,28 @@ export function JurnalLogbookModal({
                         }}
                         className={`w-9 h-9 rounded-2xl border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
                           isDone
-                            ? "bg-emerald-600 border-emerald-600 text-white shadow-xs " + (isPamongOrKoord ? "cursor-pointer hover:opacity-85" : "cursor-default")
-                            : isPassed && !isPamongOrKoord
+                            ? "bg-emerald-600 border-emerald-600 text-white shadow-xs " + (isCanBypass ? "cursor-pointer hover:opacity-85" : "cursor-default")
+                            : isPassed && !isCanBypass
                             ? "border-rose-200 bg-rose-50/80 text-rose-400 cursor-not-allowed"
-                            : isUpcoming && !isPamongOrKoord
+                            : isUpcoming && !isCanBypass
                             ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
                             : "border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 text-transparent hover:text-emerald-600 active:scale-95 cursor-pointer shadow-2xs"
                         }`}
                         title={
                           isDone
-                            ? (isPamongOrKoord ? "Tugas Selesai (Klik untuk ubah/batal)" : "Tugas Selesai")
-                            : isPassed && !isPamongOrKoord
+                            ? (isCanBypass ? "Tugas Selesai (Klik untuk ubah/batal)" : "Tugas Selesai")
+                            : isPassed && !isCanBypass
                             ? "Jadwal Terlewat (Terkunci)"
-                            : isUpcoming && !isPamongOrKoord
+                            : isUpcoming && !isCanBypass
                             ? "Belum Masuk Waktu"
                             : "Klik untuk Selesaikan Tugas"
                         }
                       >
                         {isDone ? (
                           <Check className="w-4 h-4" />
-                        ) : isPassed && !isPamongOrKoord ? (
+                        ) : isPassed && !isCanBypass ? (
                           <Lock className="w-3.5 h-3.5 text-rose-400" />
-                        ) : isUpcoming && !isPamongOrKoord ? (
+                        ) : isUpcoming && !isCanBypass ? (
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                         ) : (
                           <Check className="w-4 h-4" />
@@ -869,43 +1203,70 @@ export function JurnalLogbookModal({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`text-xs sm:text-sm font-bold leading-tight ${
-                              isDone ? "text-slate-900" : isPassed ? "text-slate-400 line-through" : "text-slate-800"
+                              isDone ? "text-slate-900" : isPassed ? "text-slate-500" : "text-slate-800"
                             }`}
                           >
                             {t.number}. {t.title}
                           </span>
-                          {!isDone && isPassed && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md font-mono">
-                              <Lock className="w-2.5 h-2.5" /> Terkunci
-                            </span>
-                          )}
                         </div>
                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t.shortDesc}</p>
+
+                        {/* Interactive SubChoice Pills for Subuh (Senin - Sabtu) */}
+                        {t.allowSubChoice && (
+                          <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-600">Pilih Sesi Subuh:</span>
+                            <button
+                              type="button"
+                              disabled={isDone && !isCanBypass}
+                              onClick={() => handleSubChoiceChange("bakdaSubuh", "tahfizh")}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 ${
+                                (taskData.subChoice || "tahfizh") === "tahfizh"
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              }`}
+                            >
+                              <BookOpen className="w-3 h-3" />
+                              <span>Tahfizh (Halaqah)</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isDone && !isCanBypass}
+                              onClick={() => handleSubChoiceChange("bakdaSubuh", "piket")}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 ${
+                                taskData.subChoice === "piket"
+                                  ? "bg-amber-600 text-white shadow-xs"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              }`}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>Piket Asrama (Patroli 200 Lkg)</span>
+                            </button>
+                          </div>
+                        )}
                         
-                        {/* Badges row */}
-                        <div className="flex items-center gap-1.5 mt-3 flex-wrap text-xs">
-                          <span className="inline-flex items-center gap-1 font-semibold font-mono text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200/60 text-[11px]">
+                        {/* Meta row - Minimal & Clean */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap text-xs">
+                          {/* Time window */}
+                          <span className="inline-flex items-center gap-1 font-medium font-mono text-slate-500 text-[11px]">
                             <Clock className="w-3 h-3 text-slate-400" /> {t.timeWindow}
                           </span>
 
-                          {/* Only show time status (e.g. Selesai Jamnya / Terlewat) if NOT done */}
-                          {!isDone && (
-                            <span className={`font-semibold px-2.5 py-1 rounded-lg font-mono text-[11px] border ${timeInfo.badgeClass}`}>
-                              {timeInfo.label}
+                          {/* Completion / Missed Status */}
+                          {isDone ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Melaksanakan{taskData.completedAt ? ` • ${taskData.completedAt} WIB` : ""}</span>
                             </span>
-                          )}
-
-                          {/* Clean Emerald Completed Badge */}
-                          {isDone && (
-                            <span className="inline-flex items-center gap-1 font-semibold font-mono text-emerald-800 bg-emerald-100/90 border border-emerald-300/80 px-2.5 py-1 rounded-lg text-[11px] shadow-2xs">
-                              <Check className="w-3 h-3 text-emerald-700" />
-                              <span>Selesai{taskData.completedAt ? ` • ${taskData.completedAt} WIB` : ""}</span>
+                          ) : isPassed ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                              <span>Tidak Melaksanakan</span>
                             </span>
-                          )}
+                          ) : null}
 
-                          {taskData.stepsCount && (
-                            <span className="font-semibold font-mono text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 shadow-2xs">
-                              <Footprints className="w-3 h-3 text-sky-600" /> {taskData.stepsCount} Langkah
+                          {/* Photo Badge: Only show if photo is uploaded */}
+                          {taskData.photoUrl && (
+                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                              <Camera className="w-3 h-3 text-emerald-600" /> Foto ✓
                             </span>
                           )}
                         </div>
@@ -913,29 +1274,79 @@ export function JurnalLogbookModal({
                     </div>
 
                     {/* Action buttons on the right */}
-                    <div className="flex items-center gap-2 self-start sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-2 self-start sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto justify-end flex-wrap">
+                      {/* Photo Thumbnail / Camera Button */}
+                      {taskData.photoUrl ? (
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-xl p-1 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPhoto({
+                              url: taskData.photoUrl!,
+                              title: t.title,
+                              subtitle: `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget}`,
+                              watermark: taskData.photoWatermark
+                            })}
+                            className="relative w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/60 group hover:opacity-90 transition-opacity"
+                            title="Lihat Foto Dokumentasi"
+                          >
+                            <img src={taskData.photoUrl} alt="Bukti Foto" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center text-white">
+                              <Eye className="w-3 h-3" />
+                            </div>
+                          </button>
+
+                          {isMusyrifUser && !isLocked && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(t.key)}
+                              className="w-7 h-7 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                              title="Hapus / Ganti Foto"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        isMusyrifUser && !isLocked && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveCameraTask(t)}
+                            className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border flex items-center gap-1 transition-all ${
+                              t.photoRequirement === "mandatory"
+                                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs font-bold"
+                                : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50"
+                            }`}
+                            title={t.photoRequirement === "mandatory" ? "Ambil Foto Bukti (Wajib)" : "Lampirkan Foto Bukti"}
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>{t.photoRequirement === "mandatory" ? "Foto (Wajib)" : "+ Foto"}</span>
+                          </button>
+                        )
+                      )}
+
+                      {/* Patrol CTA button for active patrol task */}
                       {t.isPatrol && isMusyrifUser && !isDone && (
                         timeInfo.status === "active" ? (
                           <button
                             type="button"
                             onClick={() => {
-                              if (!isToday && !isPamongOrKoord) {
+                              if (!isToday && !isCanBypass) {
                                 appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Patroli Asrama", "warning");
                                 return;
                               }
                               setActivePatrolTask(t);
                             }}
-                            className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                            className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
                           >
-                            <Footprints className="w-3.5 h-3.5" /> <span>Mulai Patroli ({t.targetSteps || 100} Langkah)</span>
+                            <Footprints className="w-3.5 h-3.5" /> <span>Patroli (200 Lkg)</span>
                           </button>
                         ) : isPassed ? (
-                          <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
-                            <Lock className="w-3 h-3" /> <span>Jadwal Terlewat</span>
+                          <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
+                            <Lock className="w-3 h-3" /> <span>Terkunci</span>
                           </span>
                         ) : (
-                          <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
-                            <Clock className="w-3 h-3" /> <span>Menunggu Jam</span>
+                          <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
+                            <Clock className="w-3 h-3" /> <span>Menunggu</span>
                           </span>
                         )
                       )}
@@ -944,20 +1355,22 @@ export function JurnalLogbookModal({
                         <button
                           type="button"
                           onClick={onOpenSantriSakit}
-                          className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-xl flex items-center gap-1 transition-colors shadow-2xs"
+                          className="text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition-colors shadow-2xs"
                         >
                           <Stethoscope className="w-3.5 h-3.5" /> <span>Data Sakit</span>
                         </button>
                       )}
 
+                      {/* Notes Button */}
                       <button
                         type="button"
                         onClick={() => setExpandedTask(isExpanded ? null : t.key)}
-                        className={`text-xs font-bold px-3 py-2 rounded-xl border flex items-center gap-1 transition-all shadow-2xs ${
+                        className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border flex items-center gap-1 transition-all ${
                           taskData.notes
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200 font-bold"
                             : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50"
                         }`}
+                        title="Catatan Tugas"
                       >
                         <FileText className="w-3.5 h-3.5" /> <span>{taskData.notes ? "Catatan ✓" : "+ Catatan"}</span>
                       </button>
@@ -1009,7 +1422,7 @@ export function JurnalLogbookModal({
           onClose={() => setActivePatrolTask(null)}
           taskTitle={activePatrolTask.title}
           taskIcon={activePatrolTask.icon}
-          targetSteps={activePatrolTask.targetSteps || 150}
+          targetSteps={activePatrolTask.targetSteps || 200}
           initialSteps={formState[activePatrolTask.key]?.stepsCount || 0}
           onConfirmSteps={(steps) => { handlePatrolSuccess(activePatrolTask.key, steps); setActivePatrolTask(null); }}
         />
@@ -1022,6 +1435,51 @@ export function JurnalLogbookModal({
           date={selectedDate}
           logbookEntry={formState}
         />
+      )}
+      {activeCameraTask && (
+        <LiveCameraCaptureModal
+          isOpen={Boolean(activeCameraTask)}
+          onClose={() => setActiveCameraTask(null)}
+          onCapture={handlePhotoCaptured}
+          taskTitle={activeCameraTask.title}
+          musyrifName={selectedMusyrif?.name || authUser?.name || "Musyrif Asrama"}
+          asramaName={asramaTarget}
+        />
+      )}
+      {previewPhoto && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative max-w-lg w-full bg-slate-900 border border-slate-700/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80">
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">{previewPhoto.title}</h4>
+                <p className="text-[11px] text-slate-400">{previewPhoto.subtitle}</p>
+              </div>
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 bg-black flex items-center justify-center overflow-auto max-h-[70vh]">
+              <img src={previewPhoto.url} alt={previewPhoto.title} className="w-full h-auto max-h-[66vh] object-contain rounded-lg" />
+            </div>
+            {previewPhoto.watermark && (
+              <div className="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400">
+                <span className="text-emerald-400 font-semibold">Metadata:</span> {previewPhoto.watermark}
+              </div>
+            )}
+          </motion.div>
+        </div>
       )}
     </div>
   );
