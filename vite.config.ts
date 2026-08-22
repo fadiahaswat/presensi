@@ -34,4 +34,34 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('motion')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('date-fns')) {
+              return 'vendor-date';
+            }
+            return 'vendor-core';
+          }
+          if (id.includes('src/app/data/santriData')) {
+            return 'data-santri';
+          }
+          if (id.includes('src/app/data/kalenderPendidikanData')) {
+            return 'data-kalender';
+          }
+        },
+      },
+    },
+  },
 })

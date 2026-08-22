@@ -28,7 +28,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
   const [activeTab, setActiveTab] = useState<"filosofi" | "brand" | "sesi" | "sejarah">("filosofi");
 
   const handleCopy = () => {
-    const text = `☀️ SYAMSA — System for Advisor Management and Student Attendance\nMadrasah Mu'allimin Muhammadiyah Yogyakarta\n\nSlogan: "illuminate every presence"\n\nFilosofi Logo & Nama:\n• Syams (شمس): Matahari yang menyinari keistiqamahan dan menghangatkan ukhuwah asrama.\n• 8 Sinar Centang: Harmoni 6 Tingkatan Santri (Kelas 1–6) + 1 Pendidik/Musyrif + 1 Wali Santri.\n• Simbol Centang: Dedikasi historis musyrif dalam mencentang presensi fisik yang kini berevolusi menjadi presensi digital terpadu.\n• Brand Palette: Brand Deep (#0C4E8C), Brand Blue (#0C81E4), Brand Cyan (#17C3D4), Brand Mint (#4FE7AF).`;
+    const text = `☀️ syamsa — System for Advisor Management and Student Attendance\nMadrasah Mu'allimin Muhammadiyah Yogyakarta\n\nSlogan: "illuminate every presence"\n\nFilosofi Logo & Nama:\n• Syams (شمس): Matahari yang menyinari keistiqamahan dan menghangatkan ukhuwah asrama.\n• 8 Sinar Centang: Harmoni 6 Tingkatan Santri (Kelas 1–6) + 1 Pendidik/Musyrif + 1 Wali Santri.\n• Simbol Centang: Dedikasi historis musyrif dalam mencentang presensi fisik yang kini berevolusi menjadi presensi digital terpadu.\n• Brand Palette: Brand Deep (#0C4E8C), Brand Blue (#0C81E4), Brand Cyan (#17C3D4), Brand Mint (#4FE7AF).`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     triggerHaptic("light");
@@ -183,7 +183,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
           <div className="inline-flex items-center justify-center py-2">
             <img
               src={syamsaPrimaryLogo}
-              alt="Logo SYAMSA"
+              alt="Logo syamsa"
               className="h-10 sm:h-12 w-auto object-contain brightness-0 invert drop-shadow-sm"
             />
           </div>
@@ -336,7 +336,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
             </h3>
             
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Secara bahasa, <strong>Syams</strong> adalah kata dalam bahasa Arab yang bermakna <strong>Matahari</strong>. Sebagaimana fajar yang terbit menyinari bumi secara istiqamah, <strong>SYAMSA</strong> hadir dengan moto <em>“illuminate every presence”</em> (menyinari setiap kehadiran), menjadi lentera yang membimbing ketertiban shalat fajar, senja, dan pengasuhan santri sepanjang masa.
+              Secara bahasa, <strong>Syams</strong> adalah kata dalam bahasa Arab yang bermakna <strong>Matahari</strong>. Sebagaimana fajar yang terbit menyinari bumi secara istiqamah, <strong>syamsa</strong> hadir dengan moto <em>“illuminate every presence”</em> (menyinari setiap kehadiran), menjadi lentera yang membimbing ketertiban shalat fajar, senja, dan pengasuhan santri sepanjang masa.
             </p>
           </div>
 
@@ -411,7 +411,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
           <div className="bg-white/90 backdrop-blur-xl border border-white/80 rounded-3xl p-5 sm:p-6 shadow-xs space-y-3.5">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                Varian Logo Resmi SYAMSA
+                Varian Logo Resmi syamsa
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Format penggunaan logo sesuai konteks background dan media
@@ -602,7 +602,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
                 Secara historis, tugas para <strong>Musyrif Asrama Mu'allimin</strong> di setiap fajar dan senja adalah membawa papan jalan dan lembaran presensi fisik untuk mencentang nama santri satu per satu di saf shalat masjid dan kamar asrama.
               </p>
               <p>
-                Tanda centang tersebut bukan sekadar simbol kehadiran administratif, melainkan wujud nyata <em>ketulusan, kepedulian, dan pengasuhan</em>. Di dalam aplikasi <strong>SYAMSA</strong>, goresan centang tersebut diabadikan menjadi 8 sinar yang membentuk lingkaran matahari—menyatukan 6 tingkatan santri, 1 pembina/musyrif, dan 1 orang tua/wali santri.
+                Tanda centang tersebut bukan sekadar simbol kehadiran administratif, melainkan wujud nyata <em>ketulusan, kepedulian, dan pengasuhan</em>. Di dalam aplikasi <strong>syamsa</strong>, goresan centang tersebut diabadikan menjadi 8 sinar yang membentuk lingkaran matahari—menyatukan 6 tingkatan santri, 1 pembina/musyrif, dan 1 orang tua/wali santri.
               </p>
             </div>
           </div>
@@ -616,7 +616,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
             <div className="rounded-2xl border border-slate-200 overflow-hidden">
               <div className="grid grid-cols-2 bg-slate-100/90 border-b border-slate-200 text-xs font-bold">
                 <div className="p-3 border-r border-slate-200 text-slate-600">Metode Manual (Dulu)</div>
-                <div className="p-3 text-[#0C81E4]">Sistem Digital SYAMSA</div>
+                <div className="p-3 text-[#0C81E4]">Sistem Digital syamsa</div>
               </div>
 
               <div className="divide-y divide-slate-100 text-xs text-slate-600">
@@ -651,7 +651,7 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
         </div>
 
         <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
-          © {new Date().getFullYear()} Madrasah Mu'allimin Muhammadiyah Yogyakarta • SYAMSA v2.0
+          © {new Date().getFullYear()} Madrasah Mu'allimin Muhammadiyah Yogyakarta • syamsa v2.0
         </p>
       </div>
 

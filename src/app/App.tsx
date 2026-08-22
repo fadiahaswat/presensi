@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import {
   LogIn, LogOut, CheckCircle2, Calendar, Sun, Sunset,
   ChevronLeft, ChevronRight, TrendingUp, LayoutDashboard,
@@ -9,7 +9,7 @@ import {
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send,
-  Smartphone, HeartPulse, Building2, Medal
+  Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -21,31 +21,42 @@ import {
   LineChart, Line, CartesianGrid, RadialBarChart, RadialBar, PieChart, Pie, Cell
 } from "recharts";
 import syamsaPrimaryLogo from "../assets/branding/Primary Logo.webp";
-import { WhatsAppShareModal } from "./components/WhatsAppShareModal";
-import { IzinPengajuanModal, IzinRequest } from "./components/IzinPengajuanModal";
-import { PageSantriIzin } from "./components/PageSantriIzin";
-import { PageNotifikasi, getReadNotificationMap, buildSystemNotificationItems } from "./components/PageNotifikasi";
+import { getReadNotificationMap, buildSystemNotificationItems } from "./utils/notificationUtils";
 import { SantriIzinRecord } from "./types/izinSantri";
 import { AlarmNotificationManager } from "./components/AlarmNotificationManager";
-import { KegiatanAsramaModal, KegiatanRecord } from "./components/KegiatanAsramaModal";
-import { JurnalLogbookModal, LogbookStorage, JurnalLogbookEntry } from "./components/JurnalLogbookModal";
-import { MutabaahYaumiyahModal, MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
-import { SantriSakitModal, SantriSakitRecord } from "./components/SantriSakitModal";
-import { LeaderboardModal } from "./components/LeaderboardModal";
-import { RaportSertifikatModal } from "./components/RaportSertifikatModal";
-import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
-import { PamongManagerModal, Pamong } from "./components/PamongManagerModal";
-import { PageKalenderHijriah } from "./components/PageKalenderHijriah";
-import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
-import { PageAboutSyamsa } from "./components/PageAboutSyamsa";
+import type { KegiatanRecord } from "./components/KegiatanAsramaModal";
+import type { LogbookStorage, JurnalLogbookEntry } from "./components/JurnalLogbookModal";
+import type { MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
+import type { SantriSakitRecord } from "./components/SantriSakitModal";
+import type { Pamong } from "./components/PamongManagerModal";
+import type { IzinRequest } from "./components/IzinPengajuanModal";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
-import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
-import { DataSantriModal } from "./components/DataSantriModal";
-import { SantriMapModal } from "./components/SantriMapModal";
 import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { SantriChangeRequest } from "./types/santriRequest";
-import { CloudSyncBadge, CloudSyncModal } from "./components/CloudSyncModal";
+import { CloudSyncBadge } from "./components/CloudSyncBadge";
 import { AppSkeleton } from "./components/AppSkeleton";
+
+// Dynamic Code Splitting for Heavy Modals & Subpages
+const WhatsAppShareModal = lazy(() => import("./components/WhatsAppShareModal").then(m => ({ default: m.WhatsAppShareModal })));
+const IzinPengajuanModal = lazy(() => import("./components/IzinPengajuanModal").then(m => ({ default: m.IzinPengajuanModal })));
+const PageSantriIzin = lazy(() => import("./components/PageSantriIzin").then(m => ({ default: m.PageSantriIzin })));
+const PageNotifikasi = lazy(() => import("./components/PageNotifikasi").then(m => ({ default: m.PageNotifikasi })));
+const KegiatanAsramaModal = lazy(() => import("./components/KegiatanAsramaModal").then(m => ({ default: m.KegiatanAsramaModal })));
+const JurnalLogbookModal = lazy(() => import("./components/JurnalLogbookModal").then(m => ({ default: m.JurnalLogbookModal })));
+const MutabaahYaumiyahModal = lazy(() => import("./components/MutabaahYaumiyahModal").then(m => ({ default: m.MutabaahYaumiyahModal })));
+const SantriSakitModal = lazy(() => import("./components/SantriSakitModal").then(m => ({ default: m.SantriSakitModal })));
+const LeaderboardModal = lazy(() => import("./components/LeaderboardModal").then(m => ({ default: m.LeaderboardModal })));
+const RaportSertifikatModal = lazy(() => import("./components/RaportSertifikatModal").then(m => ({ default: m.RaportSertifikatModal })));
+const MusyrifManagerModal = lazy(() => import("./components/MusyrifManagerModal").then(m => ({ default: m.MusyrifManagerModal })));
+const PamongManagerModal = lazy(() => import("./components/PamongManagerModal").then(m => ({ default: m.PamongManagerModal })));
+const PageKalenderHijriah = lazy(() => import("./components/PageKalenderHijriah").then(m => ({ default: m.PageKalenderHijriah })));
+const PageKalenderPendidikan = lazy(() => import("./components/PageKalenderPendidikan").then(m => ({ default: m.PageKalenderPendidikan })));
+const PageAboutSyamsa = lazy(() => import("./components/PageAboutSyamsa").then(m => ({ default: m.PageAboutSyamsa })));
+const KalenderPendidikanModal = lazy(() => import("./components/KalenderPendidikanModal").then(m => ({ default: m.KalenderPendidikanModal })));
+const DataSantriModal = lazy(() => import("./components/DataSantriModal").then(m => ({ default: m.DataSantriModal })));
+const SantriMapModal = lazy(() => import("./components/SantriMapModal").then(m => ({ default: m.SantriMapModal })));
+const CloudSyncModal = lazy(() => import("./components/CloudSyncModal").then(m => ({ default: m.CloudSyncModal })));
+const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri").then(m => ({ default: m.PagePembinaanSantri })));
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
@@ -63,7 +74,7 @@ import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStat
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
@@ -1784,6 +1795,24 @@ function PageDashboard({
                   <p className="text-[10px] text-slate-500 mt-0.5">Biodata & kontak ortu</p>
                 </div>
               </button>
+
+              {/* 8. Lembar Pembinaan (Musyrif) */}
+              <button
+                type="button"
+                onClick={() => onGoTo("pembinaan")}
+                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                    <ShieldAlert className="w-4 h-4"/>
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-lg font-mono">BK / Poin</span>
+                </div>
+                <div>
+                  <p className="font-bold text-xs text-slate-800 leading-tight">Lembar Pembinaan</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Poin pelanggaran & apresiasi</p>
+                </div>
+              </button>
             </div>
           </div>
         ) : (
@@ -1982,6 +2011,26 @@ function PageDashboard({
                     </div>
                   </button>
                 )}
+
+                {/* 11. Lembar Pembinaan Santri (BK & Poin) - Amber */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("pembinaan")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      Poin / BK
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Lembar Pembinaan</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Poin pelanggaran & sanksi</p>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
@@ -2320,7 +2369,7 @@ function PageDashboard({
 // PAGE: INPUT PRESENSI (SUBUH / MAGHRIB TERPISAH)
 // ─────────────────────────────────────────────────────────────────────────────
 function PageInputPrayer({
-  slot,
+  initialSlot = "subuh",
   authUser,
   records,
   onMark,
@@ -2331,7 +2380,7 @@ function PageInputPrayer({
   showToast,
   musyrifListAll
 }: {
-  slot: PrayerSlot;
+  initialSlot?: PrayerSlot;
   authUser: AuthUser | null;
   records: AttendanceRecord[];
   onMark: MarkFn;
@@ -2342,6 +2391,7 @@ function PageInputPrayer({
   showToast?: (msg: string, type?: "success" | "info" | "error") => void;
   musyrifListAll?: Musyrif[];
 }) {
+  const [slot, setSlot] = useState<PrayerSlot>(initialSlot);
   const [selDate, setSelDate] = useState(todayStr());
   const [selAsrama, setSelAsrama] = useState(ASRAMAS[0]);
   const [search, setSearch] = useState("");
@@ -2350,6 +2400,11 @@ function PageInputPrayer({
   const [confirmAll, setConfirmAll] = useState<PrayerSlot | null>(null);
   const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
+
+  // Sync if initialSlot changed from external navigation
+  useEffect(() => {
+    if (initialSlot) setSlot(initialSlot);
+  }, [initialSlot]);
 
   if (!authUser) return (
     <div className="flex flex-col items-center justify-center gap-6 py-20 text-center px-4">
@@ -2425,13 +2480,11 @@ function PageInputPrayer({
   const doneCount = musyrifList.filter(m => Boolean(getRecord(m.id)?.[slot])).length;
 
   const isSubuh = slot === "subuh";
-  const otherSlot: PrayerSlot = isSubuh ? "maghrib" : "subuh";
 
   // Calculate prayer times for selected date & check locking
   const prayerTimesForSelDate = calcPrayerTimes(parseISO(selDate), -7.807631, 110.350905, 7);
   const targetPrayerObj = prayerTimesForSelDate.find(p => p.key === slot);
   const prayerTimeStr = targetPrayerObj?.time || (isSubuh ? "04:30" : "17:45");
-  const prayerRaw = targetPrayerObj?.raw ?? (isSubuh ? 4.5 : 17.75);
 
   const now = new Date();
   const curDecimal = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
@@ -2448,6 +2501,11 @@ function PageInputPrayer({
   const isNotYetTime = isTodayDate && curDecimal < openTimeRaw;
   const isPastTimeMusyrif = isMusyrifOrKoorGedung && isTodayDate && curDecimal > closeTimeRaw;
   const isLocked = !fullAccess && (isFuture || isNotYetTime || (isMusyrifOrKoorGedung && (!isTodayDate || isPastTimeMusyrif)));
+
+  const handleSelectSlot = (s: PrayerSlot) => {
+    setSlot(s);
+    onSwitchSlot?.(s);
+  };
 
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
     if (isFuture && !fullAccess) {
@@ -2474,7 +2532,8 @@ function PageInputPrayer({
         return;
       }
       if (gpsResult && !gpsResult.isInRange) {
-        showToast?.(`Lokasi Anda di luar radius ${activeAsrama} (${gpsResult.distanceMeters}m). Harap presensi di lingkungan asrama/masjid.`, "error");
+        const errorDetail = gpsResult.error ? ` (${gpsResult.error})` : ` (${gpsResult.distanceMeters}m dari radius valid)`;
+        showToast?.(`Lokasi Anda belum terverifikasi di ${activeAsrama}${errorDetail}. Harap presensi di lingkungan asrama/masjid.`, "error");
         return;
       }
     }
@@ -2501,12 +2560,14 @@ function PageInputPrayer({
     <div className="flex flex-col gap-3">
       {/* 1. Unified Master Header Card */}
       <div className="bg-white rounded-3xl p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
-        {/* Top title & Switch button */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Top title & Tab Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 ${
-              isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-[#0C4E8C] text-white shadow-sky-950/25"
-            }`}>
+            <div 
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0 transition-colors duration-150 ${
+                isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-[#0C4E8C] text-white shadow-sky-950/25"
+              }`}
+            >
               {isSubuh ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
             </div>
             <div className="min-w-0">
@@ -2526,19 +2587,33 @@ function PageInputPrayer({
             </div>
           </div>
 
-          {onSwitchSlot && (
+          {/* Segmented Slot Toggle with Instant Flawless Transition */}
+          <div className="grid grid-cols-2 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 shadow-inner sm:w-56">
             <button
-              onClick={() => onSwitchSlot(otherSlot)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 ${
+              type="button"
+              onClick={() => handleSelectSlot("subuh")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 ${
                 isSubuh 
-                  ? "text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80" 
-                  : "text-amber-700 ring-amber-200 bg-amber-50 hover:bg-amber-100/80"
+                  ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25 scale-[1.01]" 
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
               }`}
             >
-              {isSubuh ? <Moon className="w-3.5 h-3.5 text-[#0C4E8C]"/> : <Sun className="w-3.5 h-3.5 text-amber-500"/>}
-              <span>Ke {isSubuh ? "Maghrib" : "Subuh"}</span>
+              <Sun className={`w-3.5 h-3.5 ${isSubuh ? "text-white" : "text-amber-500"}`} />
+              <span>Subuh</span>
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => handleSelectSlot("maghrib")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 ${
+                !isSubuh 
+                  ? "bg-[#0C4E8C] text-white shadow-sm shadow-sky-950/25 scale-[1.01]" 
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              }`}
+            >
+              <Moon className={`w-3.5 h-3.5 ${!isSubuh ? "text-white" : "text-[#0C4E8C]"}`} />
+              <span>Maghrib</span>
+            </button>
+          </div>
         </div>
 
         {/* Integrated Date Navigation Row */}
@@ -2624,10 +2699,10 @@ function PageInputPrayer({
             </div>
             <div>
               <p className="font-bold">
-                {isCheckingGps ? "Memeriksa Lokasi GPS..." : gpsResult?.isInRange ? "Lokasi Valid (Di Lingkungan Asrama / Masjid)" : "Di Luar Jangkauan Asrama"}
+                {isCheckingGps ? "Memeriksa Lokasi GPS..." : gpsResult?.isInRange ? "Lokasi Valid (Di Lingkungan Asrama / Masjid)" : (gpsResult?.error ? "Sinyal GPS / Izin Terkendala" : "Di Luar Jangkauan Asrama")}
               </p>
               <p className="text-[11px] opacity-80">
-                {gpsResult?.matchedBuilding ? `Terdeteksi di area: ${gpsResult.matchedBuilding}` : `Radius valid ${activeAsrama}. Jarak Anda: ${gpsResult?.distanceMeters ?? "?"}m`}
+                {gpsResult?.error ? gpsResult.error : (gpsResult?.matchedBuilding ? `Terdeteksi di area: ${gpsResult.matchedBuilding} (Jarak: ${gpsResult.distanceMeters}m)` : `Radius valid ${activeAsrama}. Jarak Anda: ${gpsResult?.distanceMeters ?? "?"}m`)}
               </p>
             </div>
           </div>
@@ -6097,19 +6172,18 @@ export default function App() {
         { id: "ibadah" as Page, label: "Ibadah", Icon: Compass },
       ];
     }
+    const currentPrayerSlot: Page = getTrustedDate().getHours() < 12 ? "subuh" : "maghrib";
     if (authUser.role === "musyrif") {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
-        { id: "subuh" as Page, label: "Subuh", Icon: Sun },
-        { id: "maghrib" as Page, label: "Maghrib", Icon: Moon },
+        { id: currentPrayerSlot, label: "Presensi", Icon: Sun },
         { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
         { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
       ];
     }
     return [
       { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
-      { id: "subuh" as Page, label: "Subuh", Icon: Sun },
-      { id: "maghrib" as Page, label: "Maghrib", Icon: Moon },
+      { id: currentPrayerSlot, label: "Presensi", Icon: Sun },
       { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
       { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
     ];
@@ -7512,11 +7586,11 @@ export default function App() {
                 setPage("about-syamsa");
               }
             }}
-            title="SYAMSA - Madrasah Mu'allimin Muhammadiyah Yogyakarta"
+            title="syamsa - Madrasah Mu'allimin Muhammadiyah Yogyakarta"
           >
             <img 
               src={syamsaPrimaryLogo} 
-              alt="Logo SYAMSA" 
+              alt="Logo syamsa" 
               className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs" 
             />
           </div>
@@ -7597,8 +7671,14 @@ export default function App() {
           </div>
         )}
 
-        <AnimatePresence mode="wait">
-          {page==="dashboard" && (
+        <Suspense fallback={
+          <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-8 h-8 rounded-full border-3 border-emerald-500 border-t-transparent animate-spin mb-3" />
+            <p className="text-xs font-medium text-slate-500">Memuat halaman...</p>
+          </div>
+        }>
+          <AnimatePresence mode="wait">
+            {page==="dashboard" && (
             <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <PageDashboard 
                 records={records} 
@@ -7968,16 +8048,26 @@ export default function App() {
               />
             </motion.div>
           )}
+          {page==="pembinaan" && (
+            <motion.div key="pembinaan" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PagePembinaanSantri
+                onBack={() => setPage("dashboard")}
+                authUser={authUser}
+                musyrifList={musyrifList}
+                santriList={santriList}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
-      </main>
+      </Suspense>
+    </main>
 
       {/* Floating Bottom Nav Dock - Role & Public Aware with Fluid Spring Pill */}
       <div className="fixed bottom-0 left-0 right-0 z-30 px-4 pb-4 pt-1 pointer-events-none flex justify-center">
         <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-full shadow-[0_12px_36px_-8px_rgba(12,78,140,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 px-2 py-1.5 flex items-center justify-around border border-white/60">
           {navItems.map(nav=>{
-            const active = page === nav.id;
-            const badgeCount = nav.id === "subuh" ? pendingSubuh : nav.id === "maghrib" ? pendingMaghrib : 0;
-            const showBadge = (nav.id === "subuh" || nav.id === "maghrib") && authUser && badgeCount > 0;
+            const isPresensiItem = nav.label === "Presensi";
+            const active = isPresensiItem ? (page === "subuh" || page === "maghrib") : page === nav.id;
 
             return (
               <button 
@@ -7985,11 +8075,17 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   triggerHaptic("light");
-                  setPage(nav.id);
+                  if (isPresensiItem) {
+                    if (page !== "subuh" && page !== "maghrib") {
+                      setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
+                    }
+                  } else {
+                    setPage(nav.id);
+                  }
                 }} 
                 className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-full relative active:scale-90 select-none transition-colors duration-200 ${
                   active 
-                    ? (nav.id === "subuh" ? "text-amber-800 font-bold" : "text-[#0C81E4] font-bold") 
+                    ? (page === "subuh" ? "text-amber-800 font-bold" : "text-[#0C81E4] font-bold") 
                     : "text-slate-400 hover:text-slate-600"
                 }`}
               >
@@ -7998,17 +8094,12 @@ export default function App() {
                     layoutId="activeNavPill"
                     transition={springSmooth}
                     className={`absolute inset-0 rounded-full ${
-                      nav.id === "subuh" ? "bg-amber-100/80 shadow-2xs" : "bg-sky-100/80 shadow-2xs"
+                      page === "subuh" ? "bg-amber-100/80 shadow-2xs" : "bg-sky-100/80 shadow-2xs"
                     }`}
                   />
                 )}
                 <div className="relative z-10">
                   <nav.Icon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-110" : ""}`}/>
-                  {showBadge && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 ring-2 ring-white rounded-full flex items-center justify-center text-[8px] text-white font-bold animate-pulse">
-                      {badgeCount>9?"9+":badgeCount}
-                    </span>
-                  )}
                 </div>
                 <span className="text-[10px] tracking-tight relative z-10">{nav.label}</span>
               </button>
@@ -8030,9 +8121,11 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 1. WhatsApp Generator Modal */}
-      <AnimatePresence>
-        {showWA && (
+      {/* ─── MODALS (LAZY LOADED) ─── */}
+      <Suspense fallback={null}>
+        {/* 1. WhatsApp Generator Modal */}
+        <AnimatePresence>
+          {showWA && (
           <WhatsAppShareModal
             onClose={() => setShowWA(false)}
             musyrifList={musyrifList}
@@ -8232,6 +8325,7 @@ export default function App() {
           musyrif: musyrifList.length
         }}
       />
+      </Suspense>
 
       {/* Global Custom Dialog Modal (Alert, Confirm, Prompt & Undo Toast) */}
       <CustomDialogModal />

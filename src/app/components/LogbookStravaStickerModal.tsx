@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { 
   X, Download, Copy, Sparkles, Check, 
-  Layers, Palette, Image as ImageIcon, Clock
+  Layers, Image as ImageIcon, Clock
 } from "lucide-react";
 import { motion } from "motion/react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import mualliminLogo from "../muallimin-logo.png";
+import kaabaIcon from "../../assets/kaaba.webp";
+import syamsaPrimaryLogo from "../../assets/branding/Primary Logo.webp";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert } from "../utils/customDialog";
 import { JurnalLogbookEntry, LOGBOOK_TASKS } from "./JurnalLogbookModal";
@@ -26,7 +27,6 @@ export function LogbookStravaStickerModal({
   date,
   logbookEntry
 }: LogbookStravaStickerModalProps) {
-  const [routeColor, setRouteColor] = useState<"orange" | "emerald" | "white">("orange");
   const [metricUnit, setMetricUnit] = useState<"km" | "steps">("km");
   const [taskStyle, setTaskStyle] = useState<"done" | "of" | "pct" | "tasks">("done");
   const [durationStyle, setDurationStyle] = useState<"real" | "span">("real");
@@ -69,6 +69,17 @@ export function LogbookStravaStickerModal({
 
   const displayDuration = durationStyle === "real" ? calculatedDurationStr : "03:30 - 22:00";
 
+  // Helper to load images asynchronously
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    });
+  };
+
   // Render Strava-styled sticker on canvas
   const renderStickerToCanvas = async (
     canvas: HTMLCanvasElement, 
@@ -89,163 +100,137 @@ export function LogbookStravaStickerModal({
       // fallback smoothly
     }
 
-    return new Promise((resolve) => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return resolve();
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-      canvas.width = width;
-      canvas.height = height;
+    canvas.width = width;
+    canvas.height = height;
 
-      // Clear with true transparent background
-      ctx.clearRect(0, 0, width, height);
+    // Clear with true transparent background
+    ctx.clearRect(0, 0, width, height);
 
-      const drawForeground = () => {
-        const scale = width / 1080;
+    const drawForeground = async () => {
+      const scale = width / 1080;
 
-        // No shadow for pure crisp minimal vector look
-        ctx.shadowColor = "transparent";
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
+      // No shadow for pure crisp minimal vector look
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
 
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
 
-        const fontStack = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const fontStack = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-        // --- BLOCK 1: DISTANCE ---
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-        ctx.font = `700 ${46 * scale}px ${fontStack}`;
-        ctx.fillText("Distance", width / 2, 270 * scale);
+      // --- BLOCK 1: DISTANCE ---
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.font = `700 ${46 * scale}px ${fontStack}`;
+      ctx.fillText("Distance", width / 2, 270 * scale);
 
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = `800 ${94 * scale}px ${fontStack}`;
-        const distanceStr = metricUnit === "km" ? `${distanceKm} km` : `${displaySteps.toLocaleString("id-ID")} steps`;
-        ctx.fillText(distanceStr, width / 2, 355 * scale);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = `800 ${94 * scale}px ${fontStack}`;
+      const distanceStr = metricUnit === "km" ? `${distanceKm} km` : `${displaySteps.toLocaleString("id-ID")} steps`;
+      ctx.fillText(distanceStr, width / 2, 355 * scale);
 
-        // --- BLOCK 2: TASK ---
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-        ctx.font = `700 ${46 * scale}px ${fontStack}`;
-        ctx.fillText("Task", width / 2, 495 * scale);
+      // --- BLOCK 2: TASK ---
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.font = `700 ${46 * scale}px ${fontStack}`;
+      ctx.fillText("Task", width / 2, 495 * scale);
 
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = `800 ${94 * scale}px ${fontStack}`;
-        const taskStr = 
-          taskStyle === "done" ? "11 / 11 Done" :
-          taskStyle === "of" ? "11 of 11" :
-          taskStyle === "pct" ? "100% Done" : "11 Tasks";
-        ctx.fillText(taskStr, width / 2, 580 * scale);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = `800 ${94 * scale}px ${fontStack}`;
+      const taskStr = 
+        taskStyle === "done" ? "11 / 11 Done" :
+        taskStyle === "of" ? "11 of 11" :
+        taskStyle === "pct" ? "100% Done" : "11 Tasks";
+      ctx.fillText(taskStr, width / 2, 580 * scale);
 
-        // --- BLOCK 3: DURATION ---
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-        ctx.font = `700 ${46 * scale}px ${fontStack}`;
-        ctx.fillText("Duration", width / 2, 720 * scale);
+      // --- BLOCK 3: DURATION ---
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.font = `700 ${46 * scale}px ${fontStack}`;
+      ctx.fillText("Duration", width / 2, 720 * scale);
 
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = `800 ${94 * scale}px ${fontStack}`;
-        ctx.fillText(displayDuration, width / 2, 805 * scale);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = `800 ${94 * scale}px ${fontStack}`;
+      ctx.fillText(displayDuration, width / 2, 805 * scale);
 
-        // --- GPS ROUTE LOOP (Authentic Strava Circuit Track) ---
-        ctx.save();
-        const strokeColor = routeColor === "orange" ? "#FC4C02" : routeColor === "emerald" ? "#10B981" : "#FFFFFF";
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = 14 * scale;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.shadowColor = "transparent";
-
-        const cx = width / 2;
-        const cy = 1120 * scale;
-
-        // Outer patrol circuit loop with realistic corners
-        ctx.beginPath();
-        ctx.moveTo(cx - 95 * scale, cy - 130 * scale);
-        ctx.lineTo(cx + 35 * scale, cy - 165 * scale);
-        ctx.lineTo(cx + 120 * scale, cy - 90 * scale);
-        ctx.lineTo(cx + 85 * scale, cy - 15 * scale);
-        ctx.lineTo(cx + 135 * scale, cy + 60 * scale);
-        ctx.lineTo(cx + 75 * scale, cy + 175 * scale);
-        ctx.lineTo(cx - 65 * scale, cy + 185 * scale);
-        ctx.lineTo(cx - 125 * scale, cy + 95 * scale);
-        ctx.lineTo(cx - 75 * scale, cy + 45 * scale);
-        ctx.lineTo(cx - 135 * scale, cy - 25 * scale);
-        ctx.closePath();
-        ctx.stroke();
-
-        // Inner connector path divider
-        ctx.beginPath();
-        ctx.moveTo(cx - 75 * scale, cy + 45 * scale);
-        ctx.lineTo(cx + 85 * scale, cy - 15 * scale);
-        ctx.stroke();
-        ctx.restore();
-
-        // --- FOOTER: MU'ALLIMIN LOGO ONLY (Proportional Size + Pure White) ---
-        const logoImg = new Image();
-        logoImg.crossOrigin = "anonymous";
-        logoImg.src = mualliminLogo;
-        logoImg.onload = () => {
-          const naturalW = logoImg.naturalWidth || logoImg.width || 100;
-          const naturalH = logoImg.naturalHeight || logoImg.height || 100;
-          const aspect = naturalW / naturalH;
-
-          // Proportional compact logo size matching Strava logo footprint
-          const targetH = 95 * scale;
-          const logoH = targetH;
-          const logoW = targetH * aspect;
-          const logoX = width / 2 - logoW / 2;
-          const logoY = 1520 * scale;
-
-          // Create offscreen canvas for pure white tint
-          const offCanvas = document.createElement("canvas");
-          offCanvas.width = Math.ceil(logoW);
-          offCanvas.height = Math.ceil(logoH);
-          const offCtx = offCanvas.getContext("2d");
-          if (offCtx) {
-            offCtx.drawImage(logoImg, 0, 0, offCanvas.width, offCanvas.height);
-            offCtx.globalCompositeOperation = "source-in";
-            offCtx.fillStyle = "#FFFFFF";
-            offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
-
-            ctx.save();
-            ctx.shadowColor = "transparent";
-            ctx.shadowBlur = 0;
-            ctx.drawImage(offCanvas, logoX, logoY);
-            ctx.restore();
-          }
-
-          resolve();
-        };
-
-        logoImg.onerror = () => {
-          resolve();
-        };
-      };
-
-      if (includeBgPhoto && customBgImage) {
-        const bg = new Image();
-        bg.crossOrigin = "anonymous";
-        bg.src = customBgImage;
-        bg.onload = () => {
-          const hRatio = canvas.width / bg.width;
-          const vRatio = canvas.height / bg.height;
-          const ratio = Math.max(hRatio, vRatio);
-          const centerShiftX = (canvas.width - bg.width * ratio) / 2;
-          const centerShiftY = (canvas.height - bg.height * ratio) / 2;
-          ctx.drawImage(bg, 0, 0, bg.width, bg.height, centerShiftX, centerShiftY, bg.width * ratio, bg.height * ratio);
-          
-          const grad = ctx.createLinearGradient(0, 0, 0, height);
-          grad.addColorStop(0, "rgba(0,0,0,0.35)");
-          grad.addColorStop(0.5, "rgba(0,0,0,0.15)");
-          grad.addColorStop(1, "rgba(0,0,0,0.45)");
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, width, height);
-
-          drawForeground();
-        };
-      } else {
-        drawForeground();
+      // --- MIDDLE ICON: KAABA.WEBP ---
+      try {
+        const kaabaImg = await loadImage(kaabaIcon);
+        const kNatW = kaabaImg.naturalWidth || kaabaImg.width || 250;
+        const kNatH = kaabaImg.naturalHeight || kaabaImg.height || 250;
+        const kAspect = kNatW / kNatH;
+        const targetKaabaH = 260 * scale;
+        const kaabaH = targetKaabaH;
+        const kaabaW = targetKaabaH * kAspect;
+        const kaabaX = width / 2 - kaabaW / 2;
+        const kaabaY = 1140 * scale - kaabaH / 2;
+        ctx.drawImage(kaabaImg, kaabaX, kaabaY, kaabaW, kaabaH);
+      } catch (err) {
+        console.warn("Could not load Kaaba icon", err);
       }
-    });
+
+      // --- FOOTER: SYAMSA PRIMARY LOGO (Whitened + Proportional) ---
+      try {
+        const logoImg = await loadImage(syamsaPrimaryLogo);
+        const naturalW = logoImg.naturalWidth || logoImg.width || 200;
+        const naturalH = logoImg.naturalHeight || logoImg.height || 80;
+        const aspect = naturalW / naturalH;
+
+        // Proportional logo size
+        const targetH = 110 * scale;
+        const logoH = targetH;
+        const logoW = targetH * aspect;
+        const logoX = width / 2 - logoW / 2;
+        const logoY = 1530 * scale;
+
+        // Create offscreen canvas for pure white tint
+        const offCanvas = document.createElement("canvas");
+        offCanvas.width = Math.ceil(logoW);
+        offCanvas.height = Math.ceil(logoH);
+        const offCtx = offCanvas.getContext("2d");
+        if (offCtx) {
+          offCtx.drawImage(logoImg, 0, 0, offCanvas.width, offCanvas.height);
+          offCtx.globalCompositeOperation = "source-in";
+          offCtx.fillStyle = "#FFFFFF";
+          offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+          ctx.save();
+          ctx.shadowColor = "transparent";
+          ctx.shadowBlur = 0;
+          ctx.drawImage(offCanvas, logoX, logoY);
+          ctx.restore();
+        }
+      } catch (err) {
+        console.warn("Could not load Syamsa Primary logo", err);
+      }
+    };
+
+    if (includeBgPhoto && customBgImage) {
+      try {
+        const bg = await loadImage(customBgImage);
+        const hRatio = canvas.width / bg.width;
+        const vRatio = canvas.height / bg.height;
+        const ratio = Math.max(hRatio, vRatio);
+        const centerShiftX = (canvas.width - bg.width * ratio) / 2;
+        const centerShiftY = (canvas.height - bg.height * ratio) / 2;
+        ctx.drawImage(bg, 0, 0, bg.width, bg.height, centerShiftX, centerShiftY, bg.width * ratio, bg.height * ratio);
+        
+        const grad = ctx.createLinearGradient(0, 0, 0, height);
+        grad.addColorStop(0, "rgba(0,0,0,0.35)");
+        grad.addColorStop(0.5, "rgba(0,0,0,0.15)");
+        grad.addColorStop(1, "rgba(0,0,0,0.45)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        await drawForeground();
+      } catch {
+        await drawForeground();
+      }
+    } else {
+      await drawForeground();
+    }
   };
 
   // Re-render preview canvas on change
@@ -253,7 +238,7 @@ export function LogbookStravaStickerModal({
     if (previewCanvasRef.current) {
       renderStickerToCanvas(previewCanvasRef.current, 540, 960, showPreviewBg);
     }
-  }, [routeColor, metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
+  }, [metricUnit, taskStyle, durationStyle, showPreviewBg, customBgImage, date, logbookEntry]);
 
   // Export full HD transparent PNG (1080x1920)
   const handleDownloadPng = async () => {
@@ -353,7 +338,7 @@ export function LogbookStravaStickerModal({
           <button 
             type="button" 
             onClick={onClose} 
-            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all active:scale-95"
+            className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -397,47 +382,6 @@ export function LogbookStravaStickerModal({
           {/* Quick Customization Controls */}
           <div className="bg-slate-950/50 p-3.5 rounded-2xl border border-slate-800/80 space-y-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-orange-400" /> Warna Rute:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button 
-                  type="button" 
-                  onClick={() => setRouteColor("orange")}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    routeColor === "orange" 
-                      ? "bg-orange-500 text-white shadow-xs" 
-                      : "bg-slate-800 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  🟠 Strava Orange
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setRouteColor("emerald")}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    routeColor === "emerald" 
-                      ? "bg-emerald-600 text-white shadow-xs" 
-                      : "bg-slate-800 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  🟢 Hijau
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setRouteColor("white")}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                    routeColor === "white" 
-                      ? "bg-white text-slate-900 shadow-xs" 
-                      : "bg-slate-800 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  ⚪ Putih
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-800/60">
               <span className="font-bold text-slate-300 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-sky-400" /> Format Metrik:
               </span>

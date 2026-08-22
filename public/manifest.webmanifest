@@ -2,21 +2,23 @@
   "name": "SYAMSA - System Advisor Management and Student Attendance",
   "short_name": "SYAMSA",
   "description": "SYAMSA (System Advisor Management and Student Attendance) - Sistem Presensi, Jurnal Logbook Harian & Mutaba'ah Musyrif Madrasah Mu'allimin Muhammadiyah Yogyakarta",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "background_color": "#0C1F3D",
   "theme_color": "#0C4E8C",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/app-icon.png",
+      "src": "app-icon.png",
       "sizes": "192x192 512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/app-icon.png",
+      "src": "app-icon.png",
       "sizes": "192x192 512x512",
       "type": "image/png",
       "purpose": "maskable"
