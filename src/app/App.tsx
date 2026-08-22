@@ -37,6 +37,7 @@ import { MusyrifManagerModal } from "./components/MusyrifManagerModal";
 import { PamongManagerModal, Pamong } from "./components/PamongManagerModal";
 import { PageKalenderHijriah } from "./components/PageKalenderHijriah";
 import { PageKalenderPendidikan } from "./components/PageKalenderPendidikan";
+import { PageAboutSyamsa } from "./components/PageAboutSyamsa";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
 import { KalenderPendidikanModal } from "./components/KalenderPendidikanModal";
 import { DataSantriModal } from "./components/DataSantriModal";
@@ -62,7 +63,7 @@ import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStat
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
@@ -229,6 +230,25 @@ function getMeccaDist(lat: number, lon: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 // NICKNAME / PANGGILAN HELPER (Ust. [CallName])
 // ─────────────────────────────────────────────────────────────────────────────
+const CUSTOM_CALL_NAMES: Record<string, string> = {
+  "rifqi adha pradipa": "Dipa",
+  "mukti abdul ghofur": "Ghofur",
+  "ayyasy kaizen birruna": "Kaizen",
+  "hafidz nawaf fauzil adhim": "Fauzil",
+  "mukti abdul ghofar": "Ghofar",
+  "fadhl maula fawwas": "Fawwas",
+  "muhammad syaqib ridho asy syafiq": "Ridho",
+  "muhammad islam al ghozy": "Ghozy",
+  "ananda hasan putra rahman": "Hasan",
+  "rayhan bachtiar dwi bayu baskara": "Bachtiar",
+  "hilmy muwafaq 'adman": "'Adman",
+  "hilmy muwafaq adman": "'Adman",
+  "rahmat khoirul anwar": "Anwar",
+  "muhammad rafi feriansyah": "Rafi Feri",
+  "tajulqayyim royyan": "Royyan",
+  "aulia abdan idza shalla": "Abdan",
+};
+
 export function getMusyrifCallName(rawName?: string | null): string {
   if (!rawName) return "";
 
@@ -236,25 +256,33 @@ export function getMusyrifCallName(rawName?: string | null): string {
   let clean = rawName.split(",")[0].trim();
   
   // Clean standalone degree abbreviations if comma wasn't used
-  clean = clean.replace(/\b(S\.Pd|S\.Sos|Lc|S\.s|S\.T|S\.Kom|M\.Pd|M\.Ag|M\.A|S\.Ag|Ph\.D)\b\.?/gi, "").trim();
+  clean = clean.replace(/\b(S\.Pd|S\.Sos|Lc|S\.s|S\.T|S\.Kom|M\.Pd|M\.Ag|M\.A|S\.Ag|Ph\.D|S\.Psi|S\.Th\.I)\b\.?/gi, "").trim();
 
   // 2. Remove leading religious title prefix if already included in data (Ustadz / Ustaz / Ustad / Ust.)
   clean = clean.replace(/^(ustadz|ustaz|ustad|ust\.|ust)\s+/i, "").trim();
 
-  // 3. Check for "Andi" prefix (honorific Bugis/Makassar) -> take "Andi" + next word
+  // 3. Check custom alias dictionary for preferred nickname
+  const lowerKey = clean.toLowerCase().replace(/\s+/g, " ");
+  for (const [key, val] of Object.entries(CUSTOM_CALL_NAMES)) {
+    if (lowerKey === key || lowerKey.includes(key) || key.includes(lowerKey)) {
+      return val;
+    }
+  }
+
+  // 4. Check for "Andi" prefix (honorific Bugis/Makassar) -> take "Andi" + next word
   const andiMatch = clean.match(/^andi\s+([^\s]+)/i);
   if (andiMatch) {
     return `Andi ${andiMatch[1]}`;
   }
 
-  // 4. Strip common Islamic prefixes/initials (Muhammad, Ahmad, M., Moh., etc.)
+  // 5. Strip common Islamic prefixes/initials (Muhammad, Ahmad, M., Moh., etc.)
   let previous = "";
   while (previous !== clean && /^(muhammad|muhamad|mohammad|mohamad|muh\.|muh|m\.|md\.|moh\.|moh|ahmad|achmad|akhmad|ah\.)\s+/i.test(clean)) {
     previous = clean;
     clean = clean.replace(/^(muhammad|muhamad|mohammad|mohamad|muh\.|muh|m\.|md\.|moh\.|moh|ahmad|achmad|akhmad|ah\.)\s+/i, "").trim();
   }
 
-  // 5. Take the first remaining word
+  // 6. Take the first remaining word
   const words = clean.split(/\s+/).filter(Boolean);
   return words[0] || rawName.split(/\s+/)[0] || "";
 }
@@ -6005,6 +6033,9 @@ export default function App() {
   const [showMusyrifManager, setShowMusyrifManager] = useState(false);
   const [showPamongManager, setShowPamongManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
+  const [targetMusyrifId, setTargetMusyrifId] = useState<string | undefined>(undefined);
+  const [targetDate, setTargetDate] = useState<string | undefined>(undefined);
+  const [targetTaskKey, setTargetTaskKey] = useState<string | undefined>(undefined);
 
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -7301,6 +7332,7 @@ export default function App() {
       recordsMap,
       santriSakitList,
       santriIzinList,
+      santriRequests,
       izinList,
       kegiatanRecords,
       logbookData,
@@ -7310,7 +7342,7 @@ export default function App() {
     const readMap = getReadNotificationMap();
     return allNotifs.filter(n => !readMap[n.id]).length;
   }, [
-    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList, 
+    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList, santriRequests,
     izinList, kegiatanRecords, logbookData, mutabaahData, now, notifReadVersion
   ]);
 
@@ -7472,12 +7504,20 @@ export default function App() {
           {/* Pure Logo SYAMSA Primary - Aligned with Hero Card */}
           <div 
             className="cursor-pointer select-none flex items-center active:scale-95 transition-transform" 
-            onClick={()=>setPage("dashboard")}
+            onClick={() => {
+              triggerHaptic("medium");
+              if (page === "about-syamsa") {
+                setPage("dashboard");
+              } else {
+                setPage("about-syamsa");
+              }
+            }}
+            title="SYAMSA - Madrasah Mu'allimin Muhammadiyah Yogyakarta"
           >
             <img 
               src={syamsaPrimaryLogo} 
               alt="Logo SYAMSA" 
-              className="h-10 sm:h-11 w-auto object-contain drop-shadow-xs"
+              className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs" 
             />
           </div>
 
@@ -7507,24 +7547,19 @@ export default function App() {
             </button>
 
             {authUser ? (
-              <>
-                <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs rounded-full p-1 pl-1.5 shadow-2xs">
-                  <div className="flex items-center gap-1.5 pr-2">
-                    <Av name={authUser.name} src={authUser.picture} sz="xs" />
-                    <span className="text-xs font-semibold text-slate-700 truncate max-w-[90px]">
-                      {getMusyrifCallName(authUser.name)}
-                    </span>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={handleLogout} 
-                    title="Keluar akun" 
-                    className="w-6 h-6 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-all active:scale-95"
-                  >
-                    <LogOut className="w-3 h-3"/>
-                  </button>
+              <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs rounded-full p-1 pl-1 shadow-2xs">
+                <div title={authUser.name} className="flex items-center justify-center cursor-default">
+                  <Av name={authUser.name} src={authUser.picture} sz="xs" />
                 </div>
-              </>
+                <button 
+                  type="button"
+                  onClick={handleLogout} 
+                  title={`Keluar akun (${authUser.name})`} 
+                  className="w-6 h-6 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-all active:scale-95"
+                >
+                  <LogOut className="w-3 h-3"/>
+                </button>
+              </div>
             ) : (
               <button 
                 type="button"
@@ -7674,10 +7709,18 @@ export default function App() {
             <motion.div key="logbook" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <JurnalLogbookModal
                 isPage={true}
-                onClose={() => setPage("dashboard")}
+                onClose={() => {
+                  setPage("dashboard");
+                  setTargetMusyrifId(undefined);
+                  setTargetDate(undefined);
+                  setTargetTaskKey(undefined);
+                }}
                 authUser={authUser}
                 musyrifList={musyrifList}
                 logbookData={logbookData}
+                initialMusyrifId={targetMusyrifId}
+                initialDate={targetDate}
+                initialTaskKey={targetTaskKey}
                 onSaveLogbook={handleSaveLogbook}
                 onResetLogbook={handleResetLogbook}
                 onOpenSantriSakit={() => setPage("santri-sakit")}
@@ -7688,10 +7731,16 @@ export default function App() {
             <motion.div key="mutabaah" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <MutabaahYaumiyahModal
                 isPage={true}
-                onClose={() => setPage("dashboard")}
+                onClose={() => {
+                  setPage("dashboard");
+                  setTargetMusyrifId(undefined);
+                  setTargetDate(undefined);
+                }}
                 authUser={authUser}
                 musyrifList={musyrifList}
                 mutabaahData={mutabaahData}
+                initialMusyrifId={targetMusyrifId}
+                initialDate={targetDate}
                 onSaveMutabaah={handleSaveMutabaah}
                 onResetMutabaah={handleResetMutabaah}
               />
@@ -7867,6 +7916,15 @@ export default function App() {
               />
             </motion.div>
           )}
+          {page==="about-syamsa" && (
+            <motion.div key="about-syamsa" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PageAboutSyamsa
+                onBack={() => setPage("dashboard")}
+                authUser={authUser}
+                onGoTo={setPage}
+              />
+            </motion.div>
+          )}
           {page==="notifikasi" && (
             <motion.div key="notifikasi" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <PageNotifikasi
@@ -7876,18 +7934,35 @@ export default function App() {
                 recordsMap={recordsMap}
                 santriSakitList={santriSakitList}
                 santriIzinList={santriIzinList}
+                santriRequests={santriRequests}
                 izinList={izinList}
                 kegiatanRecords={kegiatanRecords}
                 logbookData={logbookData}
                 mutabaahData={mutabaahData}
                 now={now}
                 onGoTo={setPage}
-                onOpenSantriSakit={() => setPage("santri-sakit")}
+                onOpenSantriSakit={() => setShowSantriSakit(true)}
                 onOpenSantriIzin={() => setPage("izin-santri")}
+                onOpenDataSantri={() => setPage("data-santri")}
                 onOpenIzinMusyrif={() => setPage("izin")}
                 onOpenKegiatan={() => setPage("kegiatan")}
-                onOpenLogbook={() => setPage("logbook")}
-                onOpenMutabaah={() => setPage("mutabaah")}
+                onOpenLogbook={(musyrifId, date, taskKey) => {
+                  if (musyrifId) {
+                    setSelectedMusyrifId(musyrifId);
+                    setTargetMusyrifId(musyrifId);
+                  }
+                  if (date) setTargetDate(date);
+                  if (taskKey) setTargetTaskKey(taskKey);
+                  setPage("logbook");
+                }}
+                onOpenMutabaah={(musyrifId, date) => {
+                  if (musyrifId) {
+                    setSelectedMusyrifId(musyrifId);
+                    setTargetMusyrifId(musyrifId);
+                  }
+                  if (date) setTargetDate(date);
+                  setPage("mutabaah");
+                }}
                 onOpenAlarm={() => setShowAlarm(true)}
                 onOpenCloudSync={() => setShowCloudSync(true)}
               />
@@ -8014,10 +8089,16 @@ export default function App() {
       <AnimatePresence>
         {showLogbook && (
           <JurnalLogbookModal
-            onClose={() => setShowLogbook(false)}
+            onClose={() => {
+              setShowLogbook(false);
+              setTargetMusyrifId(undefined);
+              setTargetDate(undefined);
+            }}
             authUser={authUser}
             musyrifList={musyrifList}
             logbookData={logbookData}
+            initialMusyrifId={targetMusyrifId}
+            initialDate={targetDate}
             onSaveLogbook={handleSaveLogbook}
             onResetLogbook={handleResetLogbook}
             onOpenSantriSakit={() => {
@@ -8032,10 +8113,16 @@ export default function App() {
       <AnimatePresence>
         {showMutabaah && (
           <MutabaahYaumiyahModal
-            onClose={() => setShowMutabaah(false)}
+            onClose={() => {
+              setShowMutabaah(false);
+              setTargetMusyrifId(undefined);
+              setTargetDate(undefined);
+            }}
             authUser={authUser}
             musyrifList={musyrifList}
             mutabaahData={mutabaahData}
+            initialMusyrifId={targetMusyrifId}
+            initialDate={targetDate}
             onSaveMutabaah={handleSaveMutabaah}
             onResetMutabaah={handleResetMutabaah}
           />

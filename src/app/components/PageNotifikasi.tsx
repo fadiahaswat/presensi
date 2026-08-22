@@ -4,7 +4,9 @@ import {
   HeartPulse, FileCheck2, Calendar, UserCheck, 
   CheckCheck, Building2, ChevronRight, Volume2, 
   Sun, Moon, Sparkles, BookOpen, User, Flame,
-  ShieldCheck, Inbox
+  ShieldCheck, Inbox, Sunrise, Sunset, Droplets,
+  GraduationCap, DoorClosed, Stethoscope, Bed,
+  Navigation, Users, FileText
 } from "lucide-react";
 import { format, isToday, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -15,6 +17,8 @@ import { SantriSakitRecord } from "./SantriSakitModal";
 import { SantriIzinRecord } from "../types/izinSantri";
 import { IzinRequest } from "./IzinPengajuanModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
+
+import { SantriChangeRequest } from "../types/santriRequest";
 
 export type NotificationCategory = "all" | "unread" | "presensi" | "santri" | "asrama";
 
@@ -27,7 +31,7 @@ export interface SystemNotificationItem {
   priority: "urgent" | "warning" | "success" | "info";
   onAction: () => void;
   badgeText?: string;
-  iconType?: "clock" | "pulse" | "building" | "sparkles" | "check" | "alert" | "book";
+  iconType?: string;
   timestamp?: number;
 }
 
@@ -38,20 +42,65 @@ interface PageNotifikasiProps {
   recordsMap: Record<string, any>;
   santriSakitList: SantriSakitRecord[];
   santriIzinList: SantriIzinRecord[];
+  santriRequests?: SantriChangeRequest[];
   izinList: IzinRequest[];
   kegiatanRecords: KegiatanRecord[];
   logbookData?: Record<string, any>;
   mutabaahData?: Record<string, any>;
   now: Date;
   onGoTo: (page: string) => void;
-  onOpenSantriSakit: () => void;
-  onOpenSantriIzin: () => void;
-  onOpenIzinMusyrif: () => void;
-  onOpenKegiatan: () => void;
-  onOpenLogbook: () => void;
-  onOpenMutabaah: () => void;
+  onOpenSantriSakit: (santriId?: string) => void;
+  onOpenSantriIzin: (izinId?: string) => void;
+  onOpenDataSantri?: () => void;
+  onOpenIzinMusyrif: (izinId?: string) => void;
+  onOpenKegiatan: (kegiatanId?: string) => void;
+  onOpenLogbook: (musyrifId?: string, date?: string, taskKey?: string) => void;
+  onOpenMutabaah: (musyrifId?: string, date?: string) => void;
   onOpenAlarm: () => void;
   onOpenCloudSync?: () => void;
+}
+
+const CUSTOM_CALL_NAMES: Record<string, string> = {
+  "rifqi adha pradipa": "Dipa",
+  "mukti abdul ghofur": "Ghofur",
+  "ayyasy kaizen birruna": "Kaizen",
+  "hafidz nawaf fauzil adhim": "Fauzil",
+  "mukti abdul ghofar": "Ghofar",
+  "fadhl maula fawwas": "Fawwas",
+  "muhammad syaqib ridho asy syafiq": "Ridho",
+  "muhammad islam al ghozy": "Ghozy",
+  "ananda hasan putra rahman": "Hasan",
+  "rayhan bachtiar dwi bayu baskara": "Bachtiar",
+  "hilmy muwafaq 'adman": "'Adman",
+  "hilmy muwafaq adman": "'Adman",
+  "rahmat khoirul anwar": "Anwar",
+  "muhammad rafi feriansyah": "Rafi Feri",
+  "tajulqayyim royyan": "Royyan",
+  "aulia abdan idza shalla": "Abdan",
+};
+
+export function getMusyrifCallName(rawName?: string | null): string {
+  if (!rawName) return "";
+  let clean = rawName.split(",")[0].trim();
+  clean = clean.replace(/\b(S\.Pd|S\.Sos|Lc|S\.s|S\.T|S\.Kom|M\.Pd|M\.Ag|M\.A|S\.Ag|Ph\.D|S\.Psi|S\.Th\.I)\b\.?/gi, "").trim();
+  clean = clean.replace(/^(ustadz|ustaz|ustad|ust\.|ust)\s+/i, "").trim();
+
+  const lowerKey = clean.toLowerCase().replace(/\s+/g, " ");
+  for (const [key, val] of Object.entries(CUSTOM_CALL_NAMES)) {
+    if (lowerKey === key || lowerKey.includes(key) || key.includes(lowerKey)) {
+      return val;
+    }
+  }
+
+  const andiMatch = clean.match(/^andi\s+([^\s]+)/i);
+  if (andiMatch) return `Andi ${andiMatch[1]}`;
+  let previous = "";
+  while (previous !== clean && /^(muhammad|muhamad|mohammad|mohamad|muh\.|muh|m\.|md\.|moh\.|moh|ahmad|achmad|akhmad|ah\.)\s+/i.test(clean)) {
+    previous = clean;
+    clean = clean.replace(/^(muhammad|muhamad|mohammad|mohamad|muh\.|muh|m\.|md\.|moh\.|moh|ahmad|achmad|akhmad|ah\.)\s+/i, "").trim();
+  }
+  const words = clean.split(/\s+/).filter(Boolean);
+  return words[0] || rawName.split(/\s+/)[0] || "";
 }
 
 export const STORAGE_KEY_READ_NOTIFS = "presensi_notification_reads_v8";
@@ -110,6 +159,20 @@ export const LOGBOOK_TASK_ACTION_NAMES: Record<string, string> = {
   bakdaMaghrib: "Telah mendampingi bakda Maghrib",
   belajarMalam: "Telah mengawasi belajar malam",
   cekTidur: "Telah mengecek jam tidur malam",
+};
+
+export const LOGBOOK_TASK_ICONS: Record<string, string> = {
+  tahajjud: "moon",
+  bakdaSubuh: "sunrise",
+  cekSakit: "pulse",
+  sisirSekolah: "school",
+  jagaGerbang: "door",
+  oprakAshar: "sun",
+  oprakMandi: "droplet",
+  sisirMaghrib: "sunset",
+  bakdaMaghrib: "book",
+  belajarMalam: "book",
+  cekTidur: "bed",
 };
 
 export function parseTimeToTimestamp(timeStr?: string, refDate = new Date()): number {
@@ -177,7 +240,9 @@ export function getLogbookNotificationDetails(logbook: any, asramaName: string, 
     return {
       message: `Telah mengisi Jurnal Logbook ${locStr}`.trim(),
       time: "Hari ini",
-      timestamp: refDate.getTime()
+      timestamp: refDate.getTime(),
+      iconType: "check",
+      taskKey: "tahajjud"
     };
   }
 
@@ -189,7 +254,9 @@ export function getLogbookNotificationDetails(logbook: any, asramaName: string, 
     return {
       message: `Telah mengisi Jurnal Logbook ${locStr}`.trim(),
       time: "Hari ini",
-      timestamp: refDate.getTime()
+      timestamp: refDate.getTime(),
+      iconType: "check",
+      taskKey: "tahajjud"
     };
   }
 
@@ -217,11 +284,14 @@ export function getLogbookNotificationDetails(logbook: any, asramaName: string, 
 
   const formattedTime = formatNotificationRelativeTime(latestCompletedAt, "Hari ini", refDate);
   const taskTimestamp = parseTimeToTimestamp(latestCompletedAt, refDate);
+  const taskIcon = LOGBOOK_TASK_ICONS[latestTaskKey] || "check";
 
   return {
     message: actionText,
     time: formattedTime,
-    timestamp: taskTimestamp
+    timestamp: taskTimestamp,
+    iconType: taskIcon,
+    taskKey: latestTaskKey
   };
 }
 
@@ -238,10 +308,47 @@ export function getMutabaahNotificationDetails(mutabaah: any, asramaName: string
   const formattedTime = formatNotificationRelativeTime(targetTimeStr, undefined, refDate);
   const timestamp = parseTimeToTimestamp(targetTimeStr, refDate);
 
+  if (!mutabaah || typeof mutabaah !== "object") {
+    return {
+      message: `Telah memperbarui Mutaba'ah yaumiyah ${locStr}`.trim(),
+      time: formattedTime,
+      timestamp,
+      iconType: "sparkles"
+    };
+  }
+
+  const completedActivities: { label: string; icon: string }[] = [];
+  if (mutabaah.tahajjud) completedActivities.push({ label: "Telah melaksanakan Qiyamul Lail", icon: "moon" });
+  if (mutabaah.dzikirPagi) completedActivities.push({ label: "Telah membaca Dzikir Pagi", icon: "sunrise" });
+  if (mutabaah.dhuha) completedActivities.push({ label: "Telah shalat Dhuha", icon: "sun" });
+  if (mutabaah.tilawahPages && Number(mutabaah.tilawahPages) > 0) {
+    completedActivities.push({ label: `Telah tilawah Al-Qur'an (${mutabaah.tilawahPages} lembar)`, icon: "book" });
+  }
+  if (mutabaah.rawatib) completedActivities.push({ label: "Telah shalat Sunnah Rawatib", icon: "sparkles" });
+  if (mutabaah.dzikirPetang) completedActivities.push({ label: "Telah membaca Dzikir Petang", icon: "sunset" });
+  if (mutabaah.puasaSunnah) completedActivities.push({ label: "Telah menunaikan Puasa Sunnah", icon: "sparkles" });
+  if (mutabaah.muthalaah) completedActivities.push({ label: "Telah muthala'ah kitab", icon: "book" });
+
+  if (completedActivities.length === 0) {
+    return {
+      message: `Telah memperbarui Mutaba'ah yaumiyah ${locStr}`.trim(),
+      time: formattedTime,
+      timestamp,
+      iconType: "sparkles"
+    };
+  }
+
+  const first = completedActivities[0];
+  const othersCount = completedActivities.length - 1;
+  const message = othersCount > 0
+    ? `${first.label} (+${othersCount} amalan) ${locStr}`.trim()
+    : `${first.label} ${locStr}`.trim();
+
   return {
-    message: `Telah memperbarui Mutaba'ah harian ${locStr}`.trim(),
+    message,
     time: formattedTime,
-    timestamp
+    timestamp,
+    iconType: first.icon
   };
 }
 
@@ -251,6 +358,7 @@ export function buildSystemNotificationItems({
   recordsMap = {},
   santriSakitList = [],
   santriIzinList = [],
+  santriRequests = [],
   izinList = [],
   kegiatanRecords = [],
   logbookData = {},
@@ -259,6 +367,7 @@ export function buildSystemNotificationItems({
   onGoTo = () => {},
   onOpenSantriSakit = () => {},
   onOpenSantriIzin = () => {},
+  onOpenDataSantri = () => {},
   onOpenIzinMusyrif = () => {},
   onOpenKegiatan = () => {},
   onOpenLogbook = () => {},
@@ -269,18 +378,20 @@ export function buildSystemNotificationItems({
   recordsMap?: Record<string, any>;
   santriSakitList?: SantriSakitRecord[];
   santriIzinList?: SantriIzinRecord[];
+  santriRequests?: SantriChangeRequest[];
   izinList?: IzinRequest[];
   kegiatanRecords?: KegiatanRecord[];
   logbookData?: Record<string, any>;
   mutabaahData?: Record<string, any>;
   now?: Date;
   onGoTo?: (page: any) => void;
-  onOpenSantriSakit?: () => void;
-  onOpenSantriIzin?: () => void;
-  onOpenIzinMusyrif?: () => void;
-  onOpenKegiatan?: () => void;
-  onOpenLogbook?: () => void;
-  onOpenMutabaah?: () => void;
+  onOpenSantriSakit?: (santriId?: string) => void;
+  onOpenSantriIzin?: (izinId?: string) => void;
+  onOpenDataSantri?: () => void;
+  onOpenIzinMusyrif?: (izinId?: string) => void;
+  onOpenKegiatan?: (kegiatanId?: string) => void;
+  onOpenLogbook?: (musyrifId?: string, date?: string, taskKey?: string) => void;
+  onOpenMutabaah?: (musyrifId?: string, date?: string) => void;
 }): SystemNotificationItem[] {
   const items: SystemNotificationItem[] = [];
   const todayStr = format(now, "yyyy-MM-dd");
@@ -293,6 +404,7 @@ export function buildSystemNotificationItems({
   const isKoordinatorMusyrif = role === "koordinator_musyrif";
   const isKaurKis = role === "kaur_kis";
   const isWadir4 = role === "wadir4";
+  const isAdmin = role === "admin" || role === "superadmin";
 
   const userMusyrifProfile = (musyrifList || []).find(m => m.id === authUser?.musyrifId || m.name === authUser?.name);
   const userAsrama = authUser?.asrama || userMusyrifProfile?.asrama || "";
@@ -301,6 +413,7 @@ export function buildSystemNotificationItems({
   const safeMusyrifList = Array.isArray(musyrifList) ? musyrifList : [];
   const safeSantriSakit = Array.isArray(santriSakitList) ? santriSakitList : [];
   const safeSantriIzin = Array.isArray(santriIzinList) ? santriIzinList : [];
+  const safeSantriRequests = Array.isArray(santriRequests) ? santriRequests : [];
   const safeIzin = Array.isArray(izinList) ? izinList : [];
   const safeKegiatan = Array.isArray(kegiatanRecords) ? kegiatanRecords : [];
 
@@ -313,84 +426,224 @@ export function buildSystemNotificationItems({
     : safeMusyrifList.filter(isFieldMusyrif);
 
     // ─────────────────────────────────────────────────────────────────────────
+    // A. PRESENSI SHALAT ANOMALIES (IZIN, SAKIT, ALPA, TERLAMBAT)
+    // ─────────────────────────────────────────────────────────────────────────
+    scopedMusyrifs.forEach(m => {
+      const rec = recordsMap[`${m.id}_${todayStr}`];
+      if (rec) {
+        // Sholat Subuh
+        const subuhTimeStr = rec.subuhTimestamp || `${todayStr}T04:45:00`;
+        const subuhTimestamp = parseTimeToTimestamp(subuhTimeStr, now);
+        const subuhTimeFormatted = formatNotificationRelativeTime(subuhTimeStr, "04.45", now);
+
+        if (rec.subuh === "izin") {
+          items.push({
+            id: `presensi_subuh_izin_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Izin pada Shalat Subuh ${formatLocationShort(m.asrama)}`,
+            time: subuhTimeFormatted,
+            category: "presensi",
+            priority: "warning",
+            iconType: "file",
+            timestamp: subuhTimestamp,
+            onAction: () => onGoTo("subuh")
+          });
+        } else if (rec.subuh === "sakit") {
+          items.push({
+            id: `presensi_subuh_sakit_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Sakit pada pelaksanaan Shalat Subuh ${formatLocationShort(m.asrama)}`,
+            time: subuhTimeFormatted,
+            category: "presensi",
+            priority: "urgent",
+            iconType: "pulse",
+            timestamp: subuhTimestamp,
+            onAction: () => onGoTo("subuh")
+          });
+        } else if (rec.subuh === "alfa") {
+          items.push({
+            id: `presensi_subuh_alfa_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Alpa (tidak hadir) pada Shalat Subuh ${formatLocationShort(m.asrama)}`,
+            time: subuhTimeFormatted,
+            category: "presensi",
+            priority: "urgent",
+            iconType: "door",
+            timestamp: subuhTimestamp,
+            onAction: () => onGoTo("subuh")
+          });
+        } else if (rec.subuh === "terlambat") {
+          items.push({
+            id: `presensi_subuh_terlambat_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Hadir terlambat pada Shalat Subuh ${formatLocationShort(m.asrama)}`,
+            time: subuhTimeFormatted,
+            category: "presensi",
+            priority: "warning",
+            iconType: "clock",
+            timestamp: subuhTimestamp,
+            onAction: () => onGoTo("subuh")
+          });
+        }
+
+        // Sholat Maghrib
+        const maghribTimeStr = rec.maghribTimestamp || `${todayStr}T18:05:00`;
+        const maghribTimestamp = parseTimeToTimestamp(maghribTimeStr, now);
+        const maghribTimeFormatted = formatNotificationRelativeTime(maghribTimeStr, "18.05", now);
+
+        if (rec.maghrib === "izin") {
+          items.push({
+            id: `presensi_maghrib_izin_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Izin pada Shalat Maghrib ${formatLocationShort(m.asrama)}`,
+            time: maghribTimeFormatted,
+            category: "presensi",
+            priority: "warning",
+            iconType: "file",
+            timestamp: maghribTimestamp,
+            onAction: () => onGoTo("maghrib")
+          });
+        } else if (rec.maghrib === "sakit") {
+          items.push({
+            id: `presensi_maghrib_sakit_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Sakit pada pelaksanaan Shalat Maghrib ${formatLocationShort(m.asrama)}`,
+            time: maghribTimeFormatted,
+            category: "presensi",
+            priority: "urgent",
+            iconType: "pulse",
+            timestamp: maghribTimestamp,
+            onAction: () => onGoTo("maghrib")
+          });
+        } else if (rec.maghrib === "alfa") {
+          items.push({
+            id: `presensi_maghrib_alfa_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Alpa (tidak hadir) pada Shalat Maghrib ${formatLocationShort(m.asrama)}`,
+            time: maghribTimeFormatted,
+            category: "presensi",
+            priority: "urgent",
+            iconType: "door",
+            timestamp: maghribTimestamp,
+            onAction: () => onGoTo("maghrib")
+          });
+        } else if (rec.maghrib === "terlambat") {
+          items.push({
+            id: `presensi_maghrib_terlambat_${m.id}_${todayStr}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
+            message: `Hadir terlambat pada Shalat Maghrib ${formatLocationShort(m.asrama)}`,
+            time: maghribTimeFormatted,
+            category: "presensi",
+            priority: "warning",
+            iconType: "clock",
+            timestamp: maghribTimestamp,
+            onAction: () => onGoTo("maghrib")
+          });
+        }
+      }
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // B. SANTRI REQUESTS (PERMOHONAN EDIT DATABASE SANTRI)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (isPamong || isKoordinatorMusyrif || isAdmin) {
+      safeSantriRequests
+        .filter(r => r && r.status === "pending")
+        .forEach(req => {
+          const reqTime = req.requestedAt || now.toISOString();
+          items.push({
+            id: `santri_request_pending_${req.id}`,
+            title: `Ust. ${getMusyrifCallName(req.requestedBy?.name)}`,
+            message: `Permohonan edit database: ${req.santriNama} (${req.reason || "Pembaruan data"})`,
+            time: formatNotificationRelativeTime(reqTime, "Hari ini", now),
+            category: "santri",
+            priority: "urgent",
+            iconType: "file",
+            timestamp: parseTimeToTimestamp(reqTime, now),
+            onAction: () => onOpenDataSantri ? onOpenDataSantri() : onGoTo("data-santri")
+          });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // 1. ROLE: MUSYRIF BIASA
     // ─────────────────────────────────────────────────────────────────────────
     if (isMusyrif && userMusyrifProfile && isFieldMusyrif(userMusyrifProfile)) {
-      const myRecord = recordsMap[`${userMusyrifProfile.id}_${todayStr}`];
-      const hasSubuh = !!myRecord?.subuh;
-      const hasMaghrib = !!myRecord?.maghrib;
-
-      if (currentHour >= 4 && currentHour <= 12 && !hasSubuh) {
-        items.push({
-          id: `my_presensi_subuh_${todayStr}`,
-          title: `Kamar Anda Belum Presensi Subuh`,
-          message: `Ketuk untuk mengisi presensi Subuh santri kamar ${userMusyrifProfile.kamar || "-"}`,
-          time: "Pagi ini",
-          category: "presensi",
-          priority: "urgent",
-          badgeText: "Subuh",
-          iconType: "clock",
-          onAction: () => onGoTo("subuh")
-        });
-      }
-
-      if (currentHour >= 17 && currentHour <= 22 && !hasMaghrib) {
-        items.push({
-          id: `my_presensi_maghrib_${todayStr}`,
-          title: `Kamar Anda Belum Presensi Maghrib`,
-          message: `Waktu Maghrib tiba. Isi presensi Maghrib santri kamar ${userMusyrifProfile.kamar || "-"}`,
-          time: "Malam ini",
-          category: "presensi",
-          priority: "urgent",
-          badgeText: "Maghrib",
-          iconType: "clock",
-          onAction: () => onGoTo("maghrib")
-        });
-      }
-
       safeSantriSakit
         .filter(s => s && s.status === "dalam_perawatan" && (s.asrama === userAsrama || s.musyrifId === userMusyrifProfile.id))
         .forEach(s => {
           items.push({
             id: `musyrif_santri_sakit_${s.id}`,
             title: `${s.namaSantri} (Kamar ${s.kamar || "-"})`,
-            message: `Sakit: ${s.keluhan} • Dirawat di ${s.lokasiPerawatan === "rs_pku" ? "RS PKU" : s.lokasiPerawatan === "uks" ? "UKS" : "Kamar"}`,
-            time: s.date || "Hari ini",
+            message: `Sakit: ${s.keluhan} • Di ${s.lokasiPerawatan === "rs_pku" ? "RS PKU" : s.lokasiPerawatan === "uks" ? "UKS" : "Kamar"}`,
+            time: formatNotificationRelativeTime(s.date, "Hari ini", now),
             category: "santri",
             priority: s.lokasiPerawatan === "rs_pku" ? "urgent" : "warning",
-            badgeText: s.lokasiPerawatan === "rs_pku" ? "RS PKU" : "Sakit",
-            iconType: "pulse",
-            onAction: onOpenSantriSakit
+            iconType: s.lokasiPerawatan === "rs_pku" ? "pulse" : "stethoscope",
+            timestamp: parseTimeToTimestamp(s.date, now),
+            onAction: () => onOpenSantriSakit(s.id)
           });
         });
 
       safeSantriIzin
         .filter(iz => iz && iz.asrama === userAsrama)
         .forEach(iz => {
+          const izTime = iz.tanggalPengajuan || (iz as any).createdAt || `${todayStr}T08:00:00`;
           if (iz.statusApproval === "pending_musyrif" || (iz as any).status === "pending_musyrif") {
             items.push({
               id: `musyrif_santri_izin_rec_${iz.id}`,
               title: `${iz.namaSantri} (Kamar ${iz.kamar || "-"})`,
-              message: `Pengajuan izin: ${iz.tujuanLokasi} (${iz.keperluan}) • Butuh rekomendasi Musyrif`,
-              time: "Menunggu",
+              message: `Pengajuan izin: ${iz.tujuanLokasi} (${iz.keperluan}) • Butuh rekomendasi`,
+              time: formatNotificationRelativeTime(izTime, "Hari ini", now),
               category: "santri",
               priority: "warning",
-              badgeText: "Rekomendasi",
-              iconType: "alert",
-              onAction: onOpenSantriIzin
+              iconType: "file",
+              timestamp: parseTimeToTimestamp(izTime, now),
+              onAction: () => onOpenSantriIzin(iz.id)
             });
           }
           if (iz.statusPKM === "di_luar" || (iz as any).status === "di_luar") {
+            const outTime = iz.jamKeluar ? `${todayStr}T${iz.jamKeluar}:00` : izTime;
             items.push({
               id: `musyrif_santri_diluar_${iz.id}`,
               title: `${iz.namaSantri} (Sedang di Luar)`,
-              message: `Lokasi: ${iz.tujuanLokasi} • Batas kembali: ${iz.jamKembaliRencana || "17:00"} WIB`,
-              time: "PKM",
+              message: `Lokasi: ${iz.tujuanLokasi} • Batas: ${iz.jamKembaliRencana || "17:00"} WIB`,
+              time: formatNotificationRelativeTime(outTime, "Hari ini", now),
               category: "santri",
               priority: "warning",
-              badgeText: "Di Luar",
-              iconType: "building",
-              onAction: onOpenSantriIzin
+              iconType: "navigation",
+              timestamp: parseTimeToTimestamp(outTime, now),
+              onAction: () => onOpenSantriIzin(iz.id)
+            });
+          }
+        });
+
+      safeSantriRequests
+        .filter(r => r && (r.requestedBy?.id === userMusyrifProfile.id || r.requestedBy?.name === userMusyrifProfile.name))
+        .forEach(req => {
+          if (req.status === "approved") {
+            items.push({
+              id: `my_santri_request_approved_${req.id}`,
+              title: `Data Santri Disetujui: ${req.santriNama}`,
+              message: `Permohonan pembaruan data telah disetujui Pamong`,
+              time: formatNotificationRelativeTime(req.reviewedAt || req.requestedAt, "Hari ini", now),
+              category: "santri",
+              priority: "success",
+              iconType: "check",
+              timestamp: parseTimeToTimestamp(req.reviewedAt || req.requestedAt, now),
+              onAction: () => onOpenDataSantri ? onOpenDataSantri() : onGoTo("data-santri")
+            });
+          } else if (req.status === "rejected") {
+            items.push({
+              id: `my_santri_request_rejected_${req.id}`,
+              title: `Data Santri Ditolak: ${req.santriNama}`,
+              message: `Permohonan ditolak: ${req.reviewNotes || "Data tidak sesuai"}`,
+              time: formatNotificationRelativeTime(req.reviewedAt || req.requestedAt, "Hari ini", now),
+              category: "santri",
+              priority: "warning",
+              iconType: "file",
+              timestamp: parseTimeToTimestamp(req.reviewedAt || req.requestedAt, now),
+              onAction: () => onOpenDataSantri ? onOpenDataSantri() : onGoTo("data-santri")
             });
           }
         });
@@ -398,29 +651,30 @@ export function buildSystemNotificationItems({
       safeIzin
         .filter(iz => iz && (iz.musyrifId === userMusyrifProfile.id || iz.musyrifName === userMusyrifProfile.name))
         .forEach(iz => {
+          const izTime = iz.createdAt || iz.startDate || `${todayStr}T08:00:00`;
           if (iz.status === "pending") {
             items.push({
               id: `my_izin_pending_${iz.id}`,
               title: `Izin Pribadi: ${iz.category}`,
               message: `Tanggal: ${iz.startDate} s/d ${iz.endDate} • Menunggu persetujuan Pamong`,
-              time: "Menunggu",
+              time: formatNotificationRelativeTime(izTime, "Hari ini", now),
               category: "asrama",
               priority: "info",
-              badgeText: "Izin Anda",
-              iconType: "clock",
-              onAction: onOpenIzinMusyrif
+              iconType: "file",
+              timestamp: parseTimeToTimestamp(izTime, now),
+              onAction: () => onOpenIzinMusyrif(iz.id)
             });
           } else if (iz.status === "approved") {
             items.push({
               id: `my_izin_approved_${iz.id}`,
               title: `Izin Pribadi Disetujui: ${iz.category}`,
               message: `Permohonan izin tanggal ${iz.startDate} telah disetujui`,
-              time: "Disetujui",
+              time: formatNotificationRelativeTime(izTime, "Hari ini", now),
               category: "asrama",
               priority: "success",
-              badgeText: "Disetujui",
               iconType: "check",
-              onAction: onOpenIzinMusyrif
+              timestamp: parseTimeToTimestamp(izTime, now),
+              onAction: () => onOpenIzinMusyrif(iz.id)
             });
           }
         });
@@ -431,12 +685,12 @@ export function buildSystemNotificationItems({
           id: `my_logbook_missing_${todayStr}`,
           title: `Jurnal Logbook Belum Diisi`,
           message: `Lengkapi catatan patroli malam dan kondisi santri kamar Anda`,
-          time: "Malam ini",
+          time: formatNotificationRelativeTime(`${todayStr}T19:00:00`, "Malam ini", now),
           category: "asrama",
           priority: "warning",
-          badgeText: "Logbook",
-          iconType: "clock",
-          onAction: onOpenLogbook
+          iconType: "bed",
+          timestamp: parseTimeToTimestamp(`${todayStr}T19:00:00`, now),
+          onAction: () => onOpenLogbook(userMusyrifProfile.id, todayStr)
         });
       }
     }
@@ -445,25 +699,6 @@ export function buildSystemNotificationItems({
     // 2. ROLE: KOORDINATOR GEDUNG
     // ─────────────────────────────────────────────────────────────────────────
     if (isKoordinatorGedung) {
-      scopedMusyrifs.forEach(m => {
-        const rec = recordsMap[`${m.id}_${todayStr}`];
-        const locStr = formatLocationShort(m.asrama);
-        if (currentHour >= 5 && !rec?.subuh) {
-          items.push({
-            id: `kg_no_subuh_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
-            message: `Belum presensi Subuh ${locStr} (Kamar ${m.kamar || "-"})`,
-            time: "Pagi ini",
-            category: "presensi",
-            priority: "urgent",
-            badgeText: "Belum Subuh",
-            iconType: "clock",
-            timestamp: now.getTime(),
-            onAction: () => onGoTo("rekap")
-          });
-        }
-      });
-
       safeSantriSakit
         .filter(s => s && s.status === "dalam_perawatan" && (s.asrama === userAsrama || scopedMusyrifs.some(m => m.asrama === s.asrama)))
         .forEach(s => {
@@ -471,13 +706,12 @@ export function buildSystemNotificationItems({
             id: `kg_sakit_${s.id}`,
             title: `${s.namaSantri} (${s.asrama})`,
             message: `Sakit: ${s.keluhan} • Di ${s.lokasiPerawatan === "rs_pku" ? "RS PKU" : s.lokasiPerawatan === "uks" ? "UKS" : "Kamar"}`,
-            time: "Kesehatan",
+            time: formatNotificationRelativeTime(s.date, "Hari ini", now),
             category: "santri",
             priority: s.lokasiPerawatan === "rs_pku" ? "urgent" : "warning",
-            badgeText: s.lokasiPerawatan === "rs_pku" ? "RS PKU" : "Sakit",
-            iconType: "pulse",
+            iconType: s.lokasiPerawatan === "rs_pku" ? "pulse" : "stethoscope",
             timestamp: parseTimeToTimestamp(s.date, now),
-            onAction: onOpenSantriSakit
+            onAction: () => onOpenSantriSakit(s.id)
           });
         });
     }
@@ -489,99 +723,66 @@ export function buildSystemNotificationItems({
       safeSantriIzin
         .filter(iz => iz && (iz.statusApproval === "pending_pamong" || (iz as any).status === "pending_pamong") && (pamongAsramas.includes(iz.asrama) || iz.asrama === userAsrama))
         .forEach(iz => {
+          const izTime = iz.tanggalPengajuan || (iz as any).createdAt || `${todayStr}T08:00:00`;
           items.push({
             id: `pamong_santri_izin_${iz.id}`,
             title: `${iz.namaSantri} (${iz.kelas || iz.asrama})`,
             message: `Pengajuan izin ke ${iz.tujuanLokasi} (${iz.keperluan})`,
-            time: "Pamong",
+            time: formatNotificationRelativeTime(izTime, "Hari ini", now),
             category: "santri",
             priority: "urgent",
-            badgeText: "Approval",
-            iconType: "alert",
-            timestamp: now.getTime(),
-            onAction: onOpenSantriIzin
+            iconType: "file",
+            timestamp: parseTimeToTimestamp(izTime, now),
+            onAction: () => onOpenSantriIzin(iz.id)
           });
         });
 
       safeIzin
         .filter(iz => iz && iz.status === "pending" && (pamongAsramas.includes(iz.asrama) || iz.asrama === userAsrama))
         .forEach(iz => {
+          const izTime = iz.createdAt || iz.startDate || `${todayStr}T08:00:00`;
           items.push({
             id: `pamong_musyrif_izin_${iz.id}`,
-            title: `Ust. ${iz.musyrifName} (${iz.asrama})`,
+            title: `Ust. ${getMusyrifCallName(iz.musyrifName)} (${iz.asrama})`,
             message: `Pengajuan izin ${iz.category} (${iz.startDate} s/d ${iz.endDate})`,
-            time: "Izin Musyrif",
+            time: formatNotificationRelativeTime(izTime, "Hari ini", now),
             category: "asrama",
             priority: "urgent",
-            badgeText: "Izin Musyrif",
-            iconType: "alert",
-            timestamp: now.getTime(),
-            onAction: onOpenIzinMusyrif
+            iconType: "file",
+            timestamp: parseTimeToTimestamp(izTime, now),
+            onAction: () => onOpenIzinMusyrif(iz.id)
           });
         });
 
-      scopedMusyrifs.forEach(m => {
-        const rec = recordsMap[`${m.id}_${todayStr}`];
-        const locStr = formatLocationShort(m.asrama);
-        if (currentHour >= 5 && !rec?.subuh) {
-          items.push({
-            id: `pamong_no_subuh_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
-            message: `Belum presensi Subuh ${locStr} (Kamar ${m.kamar || "-"})`,
-            time: "Pagi ini",
-            category: "presensi",
-            priority: "urgent",
-            badgeText: "Belum Subuh",
-            iconType: "clock",
-            timestamp: now.getTime(),
-            onAction: () => onGoTo("rekap")
-          });
-        }
-        if (currentHour >= 18 && !rec?.maghrib) {
-          items.push({
-            id: `pamong_no_maghrib_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
-            message: `Belum presensi Maghrib ${locStr} (Kamar ${m.kamar || "-"})`,
-            time: "Malam ini",
-            category: "presensi",
-            priority: "warning",
-            badgeText: "Belum Maghrib",
-            iconType: "clock",
-            timestamp: now.getTime(),
-            onAction: () => onGoTo("rekap")
-          });
-        }
-
+      scopedMusyrifs.forEach((m, idx) => {
         const logbook = logbookData[m.id]?.[todayStr] || logbookData[`${m.id}_${todayStr}`];
         if (logbook) {
           const detail = getLogbookNotificationDetails(logbook, m.asrama, now);
           items.push({
             id: `pamong_logbook_done_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
             message: detail.message,
             time: detail.time,
             category: "asrama",
             priority: "success",
-            badgeText: "Logbook",
-            iconType: "check",
+            iconType: detail.iconType,
             timestamp: detail.timestamp,
-            onAction: onOpenLogbook
+            onAction: () => onOpenLogbook(m.id, todayStr, detail.taskKey)
           });
         }
         const mutabaah = mutabaahData[m.id]?.[todayStr] || mutabaahData[`${m.id}_${todayStr}`];
         if (mutabaah) {
-          const mDetail = getMutabaahNotificationDetails(mutabaah, m.asrama, now);
+          const mDetail = getMutabaahNotificationDetails(mutabaah, m.asrama, now, idx);
           items.push({
             id: `pamong_mutabaah_done_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
             message: mDetail.message,
             time: mDetail.time,
             category: "asrama",
             priority: "success",
-            badgeText: "Mutaba'ah",
-            iconType: "sparkles",
+            iconType: mDetail.iconType,
             timestamp: mDetail.timestamp,
-            onAction: onOpenMutabaah
+            onAction: () => onOpenMutabaah(m.id, todayStr)
           });
         }
       });
@@ -593,13 +794,12 @@ export function buildSystemNotificationItems({
             id: `pamong_sakit_${s.id}`,
             title: `${s.namaSantri} (${s.asrama})`,
             message: `Keluhan: ${s.keluhan} • Dirawat di: ${s.lokasiPerawatan === "rs_pku" ? "RS PKU" : s.lokasiPerawatan === "uks" ? "UKS" : "Kamar"}`,
-            time: "Kesehatan",
+            time: formatNotificationRelativeTime(s.date, "Hari ini", now),
             category: "santri",
             priority: s.lokasiPerawatan === "rs_pku" ? "urgent" : "warning",
-            badgeText: s.lokasiPerawatan === "rs_pku" ? "RS PKU" : "Sakit",
-            iconType: "pulse",
+            iconType: s.lokasiPerawatan === "rs_pku" ? "pulse" : "stethoscope",
             timestamp: parseTimeToTimestamp(s.date, now),
-            onAction: onOpenSantriSakit
+            onAction: () => onOpenSantriSakit(s.id)
           });
         });
     }
@@ -608,39 +808,20 @@ export function buildSystemNotificationItems({
     // 4. ROLE: KOORDINATOR MUSYRIF
     // ─────────────────────────────────────────────────────────────────────────
     if (isKoordinatorMusyrif) {
-      scopedMusyrifs.forEach(m => {
-        const rec = recordsMap[`${m.id}_${todayStr}`];
-        const locStr = formatLocationShort(m.asrama);
-        if (currentHour >= 5 && !rec?.subuh) {
-          items.push({
-            id: `km_no_subuh_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
-            message: `Belum presensi Subuh ${locStr} (Kamar ${m.kamar || "-"})`,
-            time: "Pagi ini",
-            category: "presensi",
-            priority: "urgent",
-            badgeText: "Belum Subuh",
-            iconType: "clock",
-            timestamp: now.getTime(),
-            onAction: () => onGoTo("rekap")
-          });
-        }
-      });
-
       safeIzin
         .filter(iz => iz && iz.status === "pending")
         .forEach(iz => {
+          const izTime = iz.createdAt || iz.startDate || `${todayStr}T08:00:00`;
           items.push({
             id: `km_izin_pending_${iz.id}`,
-            title: `Ust. ${iz.musyrifName}`,
+            title: `Ust. ${getMusyrifCallName(iz.musyrifName)}`,
             message: `Pengajuan izin ${iz.category} (${iz.startDate} s/d ${iz.endDate}) • ${iz.asrama}`,
-            time: "Review",
+            time: formatNotificationRelativeTime(izTime, "Hari ini", now),
             category: "asrama",
             priority: "urgent",
-            badgeText: "Izin Musyrif",
-            iconType: "alert",
-            timestamp: now.getTime(),
-            onAction: onOpenIzinMusyrif
+            iconType: "file",
+            timestamp: parseTimeToTimestamp(izTime, now),
+            onAction: () => onOpenIzinMusyrif(iz.id)
           });
         });
 
@@ -650,15 +831,14 @@ export function buildSystemNotificationItems({
           const detail = getLogbookNotificationDetails(logbook, m.asrama, now);
           items.push({
             id: `km_logbook_done_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
             message: detail.message,
             time: detail.time,
             category: "asrama",
             priority: "success",
-            badgeText: "Logbook",
-            iconType: "check",
+            iconType: detail.iconType,
             timestamp: detail.timestamp,
-            onAction: onOpenLogbook
+            onAction: () => onOpenLogbook(m.id, todayStr, detail.taskKey)
           });
         }
         const mutabaah = mutabaahData[m.id]?.[todayStr] || mutabaahData[`${m.id}_${todayStr}`];
@@ -666,15 +846,14 @@ export function buildSystemNotificationItems({
           const mDetail = getMutabaahNotificationDetails(mutabaah, m.asrama, now, idx);
           items.push({
             id: `km_mutabaah_done_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
             message: mDetail.message,
             time: mDetail.time,
             category: "asrama",
             priority: "success",
-            badgeText: "Mutaba'ah",
-            iconType: "sparkles",
+            iconType: mDetail.iconType,
             timestamp: mDetail.timestamp,
-            onAction: onOpenMutabaah
+            onAction: () => onOpenMutabaah(m.id, todayStr)
           });
         }
       });
@@ -687,13 +866,12 @@ export function buildSystemNotificationItems({
               id: `km_kegiatan_absent_${k.id}`,
               title: `${k.activityTitle}`,
               message: `Terdapat ${absentCount} musyrif belum presensi (${k.asrama || "Asrama"})`,
-              time: "Hari ini",
+              time: formatNotificationRelativeTime(`${k.date}T${k.time || "20:00"}:00`, "Hari ini", now),
               category: "asrama",
               priority: "warning",
-              badgeText: "Rapat",
-              iconType: "alert",
-              timestamp: now.getTime(),
-              onAction: onOpenKegiatan
+              iconType: "users",
+              timestamp: parseTimeToTimestamp(`${k.date}T${k.time || "20:00"}:00`, now),
+              onAction: () => onOpenKegiatan(k.id)
             });
           }
         }
@@ -704,23 +882,6 @@ export function buildSystemNotificationItems({
     // 5. ROLE: KAUR KIS
     // ─────────────────────────────────────────────────────────────────────────
     if (isKaurKis) {
-      scopedMusyrifs.forEach(m => {
-        const rec = recordsMap[`${m.id}_${todayStr}`];
-        if (currentHour >= 5 && !rec?.subuh) {
-          items.push({
-            id: `kis_no_subuh_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
-            message: `Belum menginput presensi Shalat Subuh berjamaah (${m.asrama})`,
-            time: "Pagi ini",
-            category: "presensi",
-            priority: "urgent",
-            badgeText: "Disiplin",
-            iconType: "clock",
-            onAction: () => onGoTo("rekap")
-          });
-        }
-      });
-
       safeSantriSakit
         .filter(s => s && s.status === "dalam_perawatan" && (s.lokasiPerawatan === "rs_pku" || s.lokasiPerawatan === "uks"))
         .forEach(s => {
@@ -728,28 +889,29 @@ export function buildSystemNotificationItems({
             id: `kis_sakit_${s.id}`,
             title: `${s.namaSantri} (${s.asrama})`,
             message: `Keluhan: ${s.keluhan} • Dirawat di ${s.lokasiPerawatan === "rs_pku" ? "RS PKU" : "UKS"}`,
-            time: "Kesehatan",
+            time: formatNotificationRelativeTime(s.date, "Hari ini", now),
             category: "santri",
             priority: s.lokasiPerawatan === "rs_pku" ? "urgent" : "warning",
-            badgeText: s.lokasiPerawatan === "rs_pku" ? "RS PKU" : "UKS",
-            iconType: "pulse",
-            onAction: onOpenSantriSakit
+            iconType: s.lokasiPerawatan === "rs_pku" ? "pulse" : "stethoscope",
+            timestamp: parseTimeToTimestamp(s.date, now),
+            onAction: () => onOpenSantriSakit(s.id)
           });
         });
 
       safeSantriIzin
         .filter(iz => iz && (iz.statusPKM === "di_luar" || (iz as any).status === "di_luar"))
         .forEach(iz => {
+          const outTime = iz.jamKeluar ? `${todayStr}T${iz.jamKeluar}:00` : `${todayStr}T14:00:00`;
           items.push({
             id: `kis_diluar_${iz.id}`,
             title: `${iz.namaSantri} (${iz.asrama})`,
             message: `Sedang di luar (${iz.tujuanLokasi}) • Batas kembali: ${iz.jamKembaliRencana || "17:00"} WIB`,
-            time: "PKM",
+            time: formatNotificationRelativeTime(outTime, "Hari ini", now),
             category: "santri",
             priority: "info",
-            badgeText: "PKM",
-            iconType: "building",
-            onAction: onOpenSantriIzin
+            iconType: "navigation",
+            timestamp: parseTimeToTimestamp(outTime, now),
+            onAction: () => onOpenSantriIzin(iz.id)
           });
         });
 
@@ -759,15 +921,14 @@ export function buildSystemNotificationItems({
           const detail = getLogbookNotificationDetails(logbook, m.asrama, now);
           items.push({
             id: `kis_logbook_done_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
             message: detail.message,
             time: detail.time,
             category: "asrama",
             priority: "success",
-            badgeText: "Logbook",
-            iconType: "check",
+            iconType: detail.iconType,
             timestamp: detail.timestamp,
-            onAction: onOpenLogbook
+            onAction: () => onOpenLogbook(m.id, todayStr, detail.taskKey)
           });
         }
         const mutabaah = mutabaahData[m.id]?.[todayStr] || mutabaahData[`${m.id}_${todayStr}`];
@@ -775,15 +936,14 @@ export function buildSystemNotificationItems({
           const mDetail = getMutabaahNotificationDetails(mutabaah, m.asrama, now, idx);
           items.push({
             id: `kis_mutabaah_done_${m.id}_${todayStr}`,
-            title: `Ust. ${m.name}`,
+            title: `Ust. ${getMusyrifCallName(m.name)}`,
             message: mDetail.message,
             time: mDetail.time,
             category: "asrama",
             priority: "success",
-            badgeText: "Mutaba'ah",
-            iconType: "sparkles",
+            iconType: mDetail.iconType,
             timestamp: mDetail.timestamp,
-            onAction: onOpenMutabaah
+            onAction: () => onOpenMutabaah(m.id, todayStr)
           });
         }
       });
@@ -796,16 +956,17 @@ export function buildSystemNotificationItems({
       safeSantriIzin
         .filter(iz => iz && (iz.statusApproval === "pending_wadir" || iz.jenisIzin === "pulang_menginap"))
         .forEach(iz => {
+          const izTime = iz.tanggalPengajuan || (iz as any).createdAt || `${todayStr}T08:00:00`;
           items.push({
             id: `wadir_izin_khusus_${iz.id}`,
             title: `${iz.namaSantri} (${iz.kelas || iz.asrama})`,
             message: `Disposisi izin khusus: ${iz.tujuanLokasi} (${iz.keperluan})`,
-            time: "Wadir",
+            time: formatNotificationRelativeTime(izTime, "Hari ini", now),
             category: "santri",
             priority: "urgent",
-            badgeText: "Disposisi",
-            iconType: "alert",
-            onAction: onOpenSantriIzin
+            iconType: "file",
+            timestamp: parseTimeToTimestamp(izTime, now),
+            onAction: () => onOpenSantriIzin(iz.id)
           });
         });
 
@@ -819,9 +980,9 @@ export function buildSystemNotificationItems({
             time: "RS PKU",
             category: "santri",
             priority: "urgent",
-            badgeText: "RS PKU",
             iconType: "pulse",
-            onAction: onOpenSantriSakit
+            timestamp: parseTimeToTimestamp(s.date, now),
+            onAction: () => onOpenSantriSakit(s.id)
           });
         });
     }
@@ -837,8 +998,8 @@ export function buildSystemNotificationItems({
         time: "Publik",
         category: "system",
         priority: "info",
-        badgeText: "Akun",
         iconType: "sparkles",
+        timestamp: now.getTime(),
         onAction: () => onGoTo("dashboard")
       });
     }
@@ -853,6 +1014,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
   recordsMap = {},
   santriSakitList = [],
   santriIzinList = [],
+  santriRequests = [],
   izinList = [],
   kegiatanRecords = [],
   logbookData = {},
@@ -861,6 +1023,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
   onGoTo,
   onOpenSantriSakit,
   onOpenSantriIzin,
+  onOpenDataSantri,
   onOpenIzinMusyrif,
   onOpenKegiatan,
   onOpenLogbook,
@@ -891,6 +1054,7 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
       recordsMap,
       santriSakitList,
       santriIzinList,
+      santriRequests,
       izinList,
       kegiatanRecords,
       logbookData,
@@ -899,15 +1063,16 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
       onGoTo,
       onOpenSantriSakit,
       onOpenSantriIzin,
+      onOpenDataSantri,
       onOpenIzinMusyrif,
       onOpenKegiatan,
       onOpenLogbook,
       onOpenMutabaah
     });
   }, [
-    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList,
+    authUser, musyrifList, recordsMap, santriSakitList, santriIzinList, santriRequests,
     izinList, kegiatanRecords, logbookData, mutabaahData, now,
-    onGoTo, onOpenSantriSakit, onOpenSantriIzin, onOpenIzinMusyrif,
+    onGoTo, onOpenSantriSakit, onOpenSantriIzin, onOpenDataSantri, onOpenIzinMusyrif,
     onOpenKegiatan, onOpenLogbook, onOpenMutabaah
   ]);
 
@@ -1134,52 +1299,104 @@ export const PageNotifikasi: React.FC<PageNotifikasiProps> = ({
                     : "bg-slate-50/50 hover:bg-slate-50 opacity-75 hover:opacity-100"
                 }`}
               >
-                {/* Left Icon Indicator */}
-                <div
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
-                    isUrgent
-                      ? "bg-rose-50 text-rose-600 border border-rose-200/60"
-                      : isWarning
-                      ? "bg-amber-50 text-amber-600 border border-amber-200/60"
-                      : isSuccess
-                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
-                      : "bg-sky-50 text-sky-600 border border-sky-200/60"
-                  }`}
-                >
-                  {item.category === "presensi" ? (
-                    <Clock className="w-4 h-4" />
-                  ) : item.category === "santri" ? (
-                    <HeartPulse className="w-4 h-4" />
-                  ) : item.category === "asrama" ? (
-                    <Building2 className="w-4 h-4" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                </div>
+                {/* Left Icon Indicator with diverse representative styling */}
+                {(() => {
+                  let bgClasses = "bg-sky-50 text-sky-600 border border-sky-200/70";
+                  let icon = <Sparkles className="w-4 h-4" />;
+
+                  switch (item.iconType) {
+                    case "moon":
+                      bgClasses = "bg-indigo-50 text-indigo-600 border border-indigo-200/80";
+                      icon = <Moon className="w-4 h-4" />;
+                      break;
+                    case "sunrise":
+                      bgClasses = "bg-amber-50 text-amber-600 border border-amber-200/80";
+                      icon = <Sunrise className="w-4 h-4" />;
+                      break;
+                    case "sunset":
+                      bgClasses = "bg-orange-50 text-orange-600 border border-orange-200/80";
+                      icon = <Sunset className="w-4 h-4" />;
+                      break;
+                    case "sun":
+                      bgClasses = "bg-yellow-50 text-amber-600 border border-yellow-300/80";
+                      icon = <Sun className="w-4 h-4" />;
+                      break;
+                    case "droplet":
+                      bgClasses = "bg-sky-50 text-sky-600 border border-sky-200/80";
+                      icon = <Droplets className="w-4 h-4" />;
+                      break;
+                    case "school":
+                      bgClasses = "bg-purple-50 text-purple-600 border border-purple-200/80";
+                      icon = <GraduationCap className="w-4 h-4" />;
+                      break;
+                    case "door":
+                      bgClasses = "bg-slate-100 text-slate-700 border border-slate-300/80";
+                      icon = <DoorClosed className="w-4 h-4" />;
+                      break;
+                    case "pulse":
+                      bgClasses = "bg-rose-50 text-rose-600 border border-rose-200/80";
+                      icon = <HeartPulse className="w-4 h-4" />;
+                      break;
+                    case "stethoscope":
+                      bgClasses = "bg-rose-50 text-rose-600 border border-rose-200/80";
+                      icon = <Stethoscope className="w-4 h-4" />;
+                      break;
+                    case "book":
+                      bgClasses = "bg-emerald-50 text-emerald-600 border border-emerald-200/80";
+                      icon = <BookOpen className="w-4 h-4" />;
+                      break;
+                    case "bed":
+                      bgClasses = "bg-violet-50 text-violet-600 border border-violet-200/80";
+                      icon = <Bed className="w-4 h-4" />;
+                      break;
+                    case "sparkles":
+                      bgClasses = "bg-teal-50 text-teal-600 border border-teal-200/80";
+                      icon = <Sparkles className="w-4 h-4" />;
+                      break;
+                    case "users":
+                      bgClasses = "bg-amber-50 text-amber-700 border border-amber-200/80";
+                      icon = <Users className="w-4 h-4" />;
+                      break;
+                    case "navigation":
+                      bgClasses = "bg-cyan-50 text-cyan-600 border border-cyan-200/80";
+                      icon = <Navigation className="w-4 h-4" />;
+                      break;
+                    case "file":
+                      bgClasses = "bg-blue-50 text-blue-600 border border-blue-200/80";
+                      icon = <FileText className="w-4 h-4" />;
+                      break;
+                    case "clock":
+                      bgClasses = "bg-sky-50 text-sky-600 border border-sky-200/80";
+                      icon = <Clock className="w-4 h-4" />;
+                      break;
+                    case "check":
+                      bgClasses = "bg-emerald-50 text-emerald-600 border border-emerald-200/80";
+                      icon = <CheckCircle2 className="w-4 h-4" />;
+                      break;
+                    default:
+                      if (item.category === "santri") {
+                        bgClasses = "bg-rose-50 text-rose-600 border border-rose-200/80";
+                        icon = <HeartPulse className="w-4 h-4" />;
+                      } else if (item.category === "asrama") {
+                        bgClasses = "bg-blue-50 text-blue-600 border border-blue-200/80";
+                        icon = <Building2 className="w-4 h-4" />;
+                      }
+                      break;
+                  }
+
+                  return (
+                    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${bgClasses}`}>
+                      {icon}
+                    </div>
+                  );
+                })()}
 
                 {/* Body Text */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {item.badgeText && (
-                        <span
-                          className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full font-mono shrink-0 border ${
-                            isUrgent
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : isWarning
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : isSuccess
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-sky-50 text-sky-700 border-sky-200"
-                          }`}
-                        >
-                          {item.badgeText}
-                        </span>
-                      )}
-                      <span className={`text-xs sm:text-sm font-bold truncate ${!isRead ? "text-slate-800" : "text-slate-600"}`}>
-                        {item.title}
-                      </span>
-                    </div>
+                    <span className={`text-xs sm:text-sm font-bold truncate ${!isRead ? "text-slate-800" : "text-slate-600"}`}>
+                      {item.title}
+                    </span>
 
                     <span className="text-[10px] text-slate-400 font-mono font-medium shrink-0">
                       {item.time}

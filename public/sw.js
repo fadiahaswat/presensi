@@ -1,10 +1,10 @@
-const CACHE_NAME = 'presensi-muallimin-v3';
+const CACHE_NAME = 'presensi-muallimin-v4';
 const ASSETS_TO_CACHE = [
-  '/presensi/',
-  '/presensi/index.html',
-  '/presensi/manifest.webmanifest',
-  '/presensi/icon.webp',
-  '/presensi/app-icon.png'
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/icon.webp',
+  '/app-icon.png'
 ];
 
 // Install event: cache core assets
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/presensi/index.html') || caches.match('/index.html');
+            return caches.match('/index.html') || caches.match('/presensi/index.html');
           }
         });
       })

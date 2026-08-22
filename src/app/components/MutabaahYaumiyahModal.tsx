@@ -39,6 +39,8 @@ interface MutabaahYaumiyahModalProps {
   onSaveMutabaah: (musyrifId: string, date: string, entry: MutabaahEntry) => void;
   onResetMutabaah?: (musyrifId: string, date: string) => void;
   isPage?: boolean;
+  initialMusyrifId?: string;
+  initialDate?: string;
 }
 
 const DEFAULT_ENTRY: MutabaahEntry = {
@@ -59,7 +61,9 @@ export function MutabaahYaumiyahModal({
   mutabaahData,
   onSaveMutabaah,
   onResetMutabaah,
-  isPage = false
+  isPage = false,
+  initialMusyrifId,
+  initialDate
 }: MutabaahYaumiyahModalProps) {
   const isKoordinator = authUser?.role === "koordinator_musyrif";
   const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
@@ -76,10 +80,19 @@ export function MutabaahYaumiyahModal({
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
   }, [musyrifList, authUser, isKoordinator]);
 
-  const defaultMusyrifId = authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
+  const defaultMusyrifId = initialMusyrifId || authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
   
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
+
+  useEffect(() => {
+    if (initialMusyrifId) {
+      setSelectedMusyrifId(initialMusyrifId);
+    }
+    if (initialDate) {
+      setSelectedDate(initialDate);
+    }
+  }, [initialMusyrifId, initialDate]);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
   // Form State

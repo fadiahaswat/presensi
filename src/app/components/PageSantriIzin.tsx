@@ -905,7 +905,10 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                         <button
                           type="button"
                           onClick={() => {
-                            appConfirm("Konfirmasi Approval", `Setujui izin santri ${item.namaSantri}?`).then((ok) => {
+                            appConfirm(`Setujui permohonan izin santri ${item.namaSantri}?`, "Konfirmasi Persetujuan", {
+                              type: "info",
+                              confirmText: "Ya, Setujui"
+                            }).then((ok) => {
                               if (ok) onApproveSantriIzin(item.id, true);
                             });
                           }}
@@ -1040,6 +1043,12 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                                 <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono font-semibold">
                                   Kelas {item.kelas}
                                 </span>
+                                {item.statusApproval === "approved" && (
+                                  <span className="bg-emerald-600 text-white font-extrabold text-[10px] px-2.5 py-0.5 rounded-lg shadow-xs flex items-center gap-1 uppercase tracking-wide">
+                                    <Check className="w-3 h-3 stroke-[3]" />
+                                    DISETUJUI
+                                  </span>
+                                )}
                                 {getJenisIzinBadge(item.jenisIzin)}
                               </div>
                               <p className="text-xs text-slate-500 mt-1 font-medium">
@@ -1078,13 +1087,16 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                               </button>
                             )}
 
-                            {/* Delete button if authorized */}
-                            {(isKoorMusyrif || authUser?.name === item.disetujuiOleh || authUser?.id === item.disetujuiOleh) && (
+                            {/* Delete button for authorized staff */}
+                            {(isKoorMusyrif || isPamong || isMusyrif || isKoorGedung || authUser?.name === item.disetujuiOleh || authUser?.id === item.disetujuiOleh) && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  appConfirm("Hapus Perizinan", `Hapus arsip izin ${item.namaSantri}?`).then(ok => {
-                                    if (ok) onDeleteSantriIzin(item.id);
+                                  appConfirm(`Hapus arsip perizinan ${item.namaSantri}? Data akan dihapus secara permanen.`, "Hapus Perizinan", {
+                                    type: "danger",
+                                    confirmText: "Ya, Hapus"
+                                  }).then(ok => {
+                                    if (ok && onDeleteSantriIzin) onDeleteSantriIzin(item.id);
                                   });
                                 }}
                                 className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
@@ -1127,8 +1139,9 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                                   ⚠️ Terlambat Kembali
                                 </span>
                               ) : (
-                                <span className="text-slate-600 font-bold text-xs flex items-center gap-1 font-mono">
-                                  🕒 Disetujui (Belum Keluar)
+                                <span className="text-emerald-800 bg-emerald-100 border border-emerald-300 font-bold text-xs px-2.5 py-0.5 rounded-lg flex items-center gap-1 font-mono shadow-2xs">
+                                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                                  <span>DISETUJUI (Belum Keluar)</span>
                                 </span>
                               )}
                             </div>
@@ -2052,7 +2065,10 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                           <button
                             type="button"
                             onClick={() => {
-                              appConfirm("Verifikasi Pos", `Catat santri ${item.namaSantri} KELUAR gerbang?`).then(ok => {
+                              appConfirm(`Catat santri ${item.namaSantri} KELUAR gerbang?`, "Verifikasi Pos Gerbang", {
+                                type: "info",
+                                confirmText: "Ya, Catat Keluar"
+                              }).then(ok => {
                                 if (ok) onPKMTap(item.id, "keluar", authUser?.name || "Petugas PKM");
                               });
                             }}
@@ -2067,7 +2083,10 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                           <button
                             type="button"
                             onClick={() => {
-                              appConfirm("Verifikasi Pos", `Catat santri ${item.namaSantri} KEMBALI ke asrama?`).then(ok => {
+                              appConfirm(`Catat santri ${item.namaSantri} KEMBALI ke asrama?`, "Verifikasi Pos Gerbang", {
+                                type: "success",
+                                confirmText: "Ya, Catat Masuk"
+                              }).then(ok => {
                                 if (ok) onPKMTap(item.id, "kembali", authUser?.name || "Petugas PKM");
                               });
                             }}
@@ -2125,7 +2144,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
             </div>
           ) : (
             <>
-              <div className="bg-white text-slate-900 rounded-2xl p-6 shadow-sm ring-1 ring-slate-200/80 border-t-4 border-t-blue-700 relative overflow-hidden">
+              <div className="bg-white text-slate-900 rounded-2xl p-6 shadow-sm ring-1 ring-slate-200/80 border-t-4 border-t-emerald-600 relative overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b-2 border-blue-800 pb-3 mb-4">
                   <div className="flex items-center gap-3">
@@ -2141,9 +2160,13 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end gap-1">
                     <span className="text-[10px] font-mono bg-blue-50 text-blue-900 px-2 py-0.5 rounded border border-blue-200/80 font-bold block">
                       {selectedIzin.nomorSurat}
+                    </span>
+                    <span className="bg-emerald-600 text-white font-extrabold text-[9px] px-2 py-0.5 rounded shadow-xs flex items-center gap-1 uppercase tracking-wide">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      DISETUJUI RESMI
                     </span>
                   </div>
                 </div>
@@ -2198,8 +2221,8 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   <div>
                     <p className="text-[10px] text-slate-400 font-medium">Pamong / Pemberi Izin</p>
                     <div className="h-10 flex items-center justify-center">
-                      <span className="font-bold text-blue-900 border-b border-blue-800">
-                        {selectedIzin.disetujuiOleh || "Disetujui Online"}
+                      <span className="font-bold text-emerald-800 border-b-2 border-emerald-600 px-1">
+                        ✓ {selectedIzin.disetujuiOleh || "Disetujui Online"}
                       </span>
                     </div>
                   </div>

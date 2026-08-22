@@ -55,6 +55,9 @@ interface JurnalLogbookModalProps {
   onResetLogbook?: (musyrifId: string, date: string) => void;
   onOpenSantriSakit?: () => void;
   isPage?: boolean;
+  initialMusyrifId?: string;
+  initialDate?: string;
+  initialTaskKey?: string;
 }
 
 export interface TaskDefinition {
@@ -276,7 +279,10 @@ export function JurnalLogbookModal({
   onSaveLogbook,
   onResetLogbook,
   onOpenSantriSakit,
-  isPage = false
+  isPage = false,
+  initialMusyrifId,
+  initialDate,
+  initialTaskKey
 }: JurnalLogbookModalProps) {
   const isKoordinator = authUser?.role === "koordinator_musyrif";
   const isKoorGedung = authUser?.role === "koordinator_gedung";
@@ -306,14 +312,35 @@ export function JurnalLogbookModal({
     ) || null;
   }, [authUser, musyrifList]);
 
-  const defaultMusyrifId = mySelfMusyrif?.id || authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
+  const defaultMusyrifId = initialMusyrifId || mySelfMusyrif?.id || authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
   const [filterCategory, setFilterCategory] = useState<"all" | "Pagi" | "Siang" | "Sore" | "Malam" | "patrol">("all");
   const [searchTaskQuery, setSearchTaskQuery] = useState<string>("");
-  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [expandedTask, setExpandedTask] = useState<string | null>(initialTaskKey || null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+  const [showAllScheduled, setShowAllScheduled] = useState(Boolean(initialTaskKey));
+
+  useEffect(() => {
+    if (initialMusyrifId) {
+      setSelectedMusyrifId(initialMusyrifId);
+    }
+    if (initialDate) {
+      setSelectedDate(initialDate);
+    }
+    if (initialTaskKey) {
+      setExpandedTask(initialTaskKey);
+      setShowAllScheduled(true);
+      setFilterCategory("all");
+      setTimeout(() => {
+        const el = document.getElementById(`task-card-${initialTaskKey}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300);
+    }
+  }, [initialMusyrifId, initialDate, initialTaskKey]);
 
   // Check if currently active selected musyrif is logged-in user himself
   const isEditingSelf = Boolean(
@@ -538,7 +565,6 @@ export function JurnalLogbookModal({
 
   // Filtered Tasks:
   // For today: by default show active tasks OR completed tasks. User can toggle showAllScheduled to see the full list with locked indicators.
-  const [showAllScheduled, setShowAllScheduled] = useState(false);
   const isToday = selectedDate === format(new Date(), "yyyy-MM-dd");
 
   const filteredTasks = LOGBOOK_TASKS.filter(t => {
@@ -825,6 +851,7 @@ export function JurnalLogbookModal({
               return (
                 <div
                   key={t.key}
+                  id={`task-card-${t.key}`}
                   className={`bg-white rounded-3xl border transition-all overflow-hidden shadow-2xs ${
                     isDone
                       ? "border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/15"
