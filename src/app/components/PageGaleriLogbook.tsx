@@ -271,7 +271,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     const isLikedByMe = likes.some(l => l.userId === currentUserId || l.userName === currentUserName);
     const others = likes.filter(l => l.userId !== currentUserId && l.userName !== currentUserName);
     if (isLikedByMe) return others.length === 0 ? "Disukai oleh Anda" : others.length === 1 ? `Disukai oleh Anda dan ${others[0].userName}` : `Disukai oleh Anda, ${others[0].userName}, dan ${others.length - 1} lainnya`;
-    return likes.length === 1 ? `Disukai oleh ${likes[0].userName}` : `Disukai oleh ${likes[0].userName} dan ${likes.length - 1} lainnya`;
+    return likes.length >= 1 ? `Disukai oleh ${likes[0].userName}${likes.length > 1 ? ` dan ${likes.length - 1} lainnya` : ""}` : null;
   };
 
   const handleShareWhatsApp = (post: GalleryPostItem) => {

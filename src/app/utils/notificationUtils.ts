@@ -22,6 +22,20 @@ export interface SystemNotificationItem {
 }
 
 export const CUSTOM_CALL_NAMES: Record<string, string> = {
+  // ─── Non-Musyrif (Admin, Pamong, Direksi) ───
+  "ahmad salim": "Salim",
+  "muhammad shaleh": "Shaleh",
+  "andi aqillah fadia haswat": "Andi Aqillah",
+  "galang putra muhammady": "Galang",
+  "aulia abdan idza shalla": "Abdan",
+  "anang fathurrahman": "Anang",
+  "inggit prabowo": "Inggit",
+  "rais yudhistira": "Rais",
+  "muh ahnaf lubab": "Ahnaf",
+  "m ismail marzuq": "Ismail",
+  "ariel amarta dzikrillah": "Dzikril",
+
+  // ─── Musyrif ───
   "rifqi adha pradipa": "Dipa",
   "mukti abdul ghofur": "Ghofur",
   "ayyasy kaizen birruna": "Kaizen",
@@ -32,12 +46,16 @@ export const CUSTOM_CALL_NAMES: Record<string, string> = {
   "muhammad islam al ghozy": "Ghozy",
   "ananda hasan putra rahman": "Hasan",
   "rayhan bachtiar dwi bayu baskara": "Bachtiar",
-  "hilmy muwafaq 'adman": "'Adman",
   "hilmy muwafaq adman": "'Adman",
   "rahmat khoirul anwar": "Anwar",
   "muhammad rafi feriansyah": "Rafi Feri",
   "tajulqayyim royyan": "Royyan",
-  "aulia abdan idza shalla": "Abdan",
+  "muhammad atqonuddinillah": "Atqon",
+  "nur affan muarif": "Affan",
+  "ahmad arif kurniawan": "Arif Kurniawan",
+  "arif rahman": "Arif Rahman",
+  "muhammad rafi": "M. Rafi",
+  "muhammad rafi umar rais": "Rafi Umar",
 };
 
 export function getMusyrifCallName(rawName?: string | null): string {
@@ -46,9 +64,11 @@ export function getMusyrifCallName(rawName?: string | null): string {
   clean = clean.replace(/\b(S\.Pd|S\.Sos|Lc|S\.s|S\.T|S\.Kom|M\.Pd|M\.Ag|M\.A|S\.Ag|Ph\.D|S\.Psi|S\.Th\.I)\b\.?/gi, "").trim();
   clean = clean.replace(/^(ustadz|ustaz|ustad|ust\.|ust)\s+/i, "").trim();
 
-  const lowerKey = clean.toLowerCase().replace(/\s+/g, " ");
+  // Check custom alias dictionary for preferred nickname (normalize non-alphanumeric chars for flexible matching)
+  const normalizedKey = clean.toLowerCase().replace(/[^a-z0-9\s]/g, "");
   for (const [key, val] of Object.entries(CUSTOM_CALL_NAMES)) {
-    if (lowerKey === key || lowerKey.includes(key) || key.includes(lowerKey)) {
+    const normalizedDictKey = key.replace(/[^a-z0-9\s]/g, "");
+    if (normalizedKey === normalizedDictKey || normalizedKey.includes(normalizedDictKey) || normalizedDictKey.includes(normalizedKey)) {
       return val;
     }
   }
