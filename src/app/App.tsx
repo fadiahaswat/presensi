@@ -1463,11 +1463,19 @@ function PageDashboard({
                 return rawSakit.filter(s => s.asrama === authUser.asrama);
               }
               if (authUser.role === "musyrif") {
-                return rawSakit.filter(s => 
-                  s.musyrifId === (authUser.musyrifId || authUser.id) ||
-                  (authUser.kelas && s.kelasSantri === authUser.kelas) ||
-                  (authUser.asrama && s.asrama === authUser.asrama)
-                );
+                const myMusyrifId = authUser.musyrifId || authUser.id;
+                const myKelas = (authUser.kelas || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+                return rawSakit.filter(s => {
+                  const sKelas = (s.kelasSantri || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+                  const matchId = Boolean(s.musyrifId && s.musyrifId === myMusyrifId);
+                  const matchKelas = Boolean(myKelas && (sKelas === myKelas || sKelas.includes(myKelas) || myKelas.includes(sKelas)));
+                  const matchKamar = Boolean(authUser.kamar && s.kamar && s.kamar.toLowerCase() === authUser.kamar.toLowerCase());
+                  
+                  if (myKelas) {
+                    return matchKelas || matchId;
+                  }
+                  return matchId || matchKamar || (authUser.asrama && s.asrama === authUser.asrama);
+                });
               }
               return rawSakit;
             })();

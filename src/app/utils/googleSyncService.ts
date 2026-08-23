@@ -289,17 +289,30 @@ class GoogleSyncService {
           tablesPayload[item.table] = [];
         }
         
-        const sanitized: any = { ...item.record };
-        for (const key in sanitized) {
-          if (typeof sanitized[key] === "string" && sanitized[key].length > 35000) {
-            if (sanitized[key].startsWith("data:image")) {
-              // Old uncompressed image in queue -> drop to unblock sync
-              sanitized[key] = "";
-            } else {
-              sanitized[key] = sanitized[key].substring(0, 35000);
+        // Deep sanitize helper for flat and nested objects (e.g. Logbook task objects)
+        let sanitized: any = {};
+        try {
+          sanitized = JSON.parse(JSON.stringify(item.record));
+        } catch (_) {
+          sanitized = { ...item.record };
+        }
+
+        const sanitizeNode = (node: any) => {
+          if (!node || typeof node !== "object") return;
+          for (const k in node) {
+            if (typeof node[k] === "string" && node[k].length > 18000) {
+              if (node[k].startsWith("data:image")) {
+                node[k] = ""; // Clear corrupt/huge base64 to unblock sync
+              } else {
+                node[k] = node[k].substring(0, 18000);
+              }
+            } else if (node[k] && typeof node[k] === "object") {
+              sanitizeNode(node[k]);
             }
           }
-        }
+        };
+
+        sanitizeNode(sanitized);
         tablesPayload[item.table].push(sanitized);
       });
 

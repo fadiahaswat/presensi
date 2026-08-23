@@ -360,9 +360,15 @@ export function SantriSakitModal({
       } else if (isKoorGedung) {
         if (authUser?.asrama && item.asrama !== authUser.asrama) return false;
       } else if (isMusyrif) {
-        const isMyRoomOrClass = item.musyrifId === (authUser?.musyrifId || authUser?.id) || 
-          (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
-          (authUser?.kamar && item.kamar === authUser.kamar);
+        const myMusyrifId = authUser?.musyrifId || authUser?.id;
+        const myKelas = (authUser?.kelas || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+        const sKelas = (item.kelasSantri || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+        
+        const matchId = Boolean(item.musyrifId && item.musyrifId === myMusyrifId);
+        const matchKelas = Boolean(myKelas && (sKelas === myKelas || sKelas.includes(myKelas) || myKelas.includes(sKelas)));
+        const matchKamar = Boolean(authUser?.kamar && item.kamar && item.kamar.toLowerCase() === authUser.kamar.toLowerCase());
+        
+        const isMyRoomOrClass = myKelas ? (matchKelas || matchId) : (matchId || matchKamar || (authUser?.asrama && item.asrama === authUser.asrama));
         if (!isMyRoomOrClass) return false;
       }
       // superadmin & public → semua santri sakit

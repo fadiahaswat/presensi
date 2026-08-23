@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "../utils/geoUtils";
 import { PatroliStepsModal } from "./PatroliStepsModal";
 import { LogbookStravaStickerModal } from "./LogbookStravaStickerModal";
-import { LiveCameraCaptureModal, CapturedPhotoResult } from "./LiveCameraCaptureModal";
+import { compressAndWatermarkImage } from "../utils/imageCompressor";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
 
@@ -581,9 +581,10 @@ export function JurnalLogbookModal({
   // Active Patrol Modal Tracker State
   const [activePatrolTask, setActivePatrolTask] = useState<TaskDefinition | null>(null);
   const [showStravaSticker, setShowStravaSticker] = useState<boolean>(false);
-
-  // Active Live Camera Task State & Fullscreen Photo Preview
+  
+  // Active Camera Task State & Fullscreen Photo Preview
   const [activeCameraTask, setActiveCameraTask] = useState<TaskDefinition | null>(null);
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
   const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string } | null>(null);
 
   // GPS Geofence Check State
@@ -769,42 +770,56 @@ export function JurnalLogbookModal({
     onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
   };
 
-  // Handle Photo Capture from Live Camera Modal
-  const handlePhotoCaptured = (result: CapturedPhotoResult) => {
-    if (!activeCameraTask) return;
-    const key = activeCameraTask.key;
-    const taskDef = activeDateTasks.find(t => t.key === key) || activeCameraTask;
+  // Handle Direct Photo Capture (Kamera & Galeri - Sama seperti Santri Sakit & Izin)
+  const handleDirectTaskPhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>, source: "camera" | "gallery") => {
+    const file = e.target.files?.[0];
+    if (!file || !activeCameraTask) return;
+
+    const taskDef = activeCameraTask;
+    const key = taskDef.key;
     const cur = formState[key] || { done: false };
 
-    // Check if patrol is also required and whether steps have already been fulfilled
-    const isPatrolRequired = Boolean(taskDef.isPatrol);
-    const hasEnoughSteps = (cur.stepsCount || 0) >= (taskDef.targetSteps || 200);
+    setIsCompressingPhoto(true);
+    triggerHaptic("light");
 
-    // If patrol is required but not completed yet, keep done as false; otherwise mark done!
-    const isFullyCompleted = !isPatrolRequired || hasEnoughSteps;
+    try {
+      // Compress with proven imageCompressor adaptive engine (1 task = 1 photo, max <= 18,000 chars)
+      const base64 = await compressAndWatermarkImage(file, null, 360, 0.50);
+      if (!base64) throw new Error("Gagal mengompresi foto.");
 
-    const updatedEntry: JurnalLogbookEntry = {
-      ...formState,
-      [key]: {
-        ...cur,
-        done: isFullyCompleted,
-        completedAt: isFullyCompleted ? (cur.completedAt || format(new Date(), "HH:mm")) : undefined,
-        gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : cur.gpsVerified,
-        photoUrl: result.dataUrl,
-        photoTakenAt: result.takenAt,
-        photoSource: result.source,
-        photoWatermark: result.watermarkText,
-        photoUserAvatar: authUser?.picture
+      const isPatrolRequired = Boolean(taskDef.isPatrol);
+      const hasEnoughSteps = (cur.stepsCount || 0) >= (taskDef.targetSteps || 200);
+      const isFullyCompleted = !isPatrolRequired || hasEnoughSteps;
+
+      const nowIso = new Date().toISOString();
+      const updatedEntry: JurnalLogbookEntry = {
+        ...formState,
+        [key]: {
+          ...cur,
+          done: isFullyCompleted,
+          completedAt: isFullyCompleted ? (cur.completedAt || format(new Date(), "HH:mm")) : undefined,
+          gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : cur.gpsVerified,
+          photoUrl: base64,
+          photoTakenAt: nowIso,
+          photoSource: source,
+          photoWatermark: `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget} • ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+          photoUserAvatar: authUser?.picture
+        }
+      };
+
+      setFormState(updatedEntry);
+      onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+      setActiveCameraTask(null);
+      triggerHaptic("success");
+
+      if (isPatrolRequired && !hasEnoughSteps) {
+        appAlert(`Foto bukti kegiatan berhasil disimpan! Tugas "${taskDef.title}" masih memerlukan patroli langkah (minimal ${taskDef.targetSteps || 200} langkah).`, "Wajib Patroli Langkah", "info");
       }
-    };
-    setFormState(updatedEntry);
-    onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
-    setActiveCameraTask(null);
-
-    if (isPatrolRequired && !hasEnoughSteps) {
-      appAlert(`Foto bukti kegiatan berhasil disimpan! Tugas "${taskDef.title}" masih memerlukan patroli langkah (minimal ${taskDef.targetSteps || 200} langkah).\n\nSilakan lakukan patroli untuk menyelesaikan tugas (Melaksanakan).`, "Wajib Patroli Langkah", "info");
-    } else {
-      triggerHaptic("medium");
+    } catch (err: any) {
+      appAlert("Gagal memproses foto: " + (err?.message || "Format tidak didukung"), "Error Foto", "danger");
+    } finally {
+      setIsCompressingPhoto(false);
+      e.target.value = "";
     }
   };
 
@@ -1613,15 +1628,67 @@ export function JurnalLogbookModal({
           logbookEntry={formState}
         />
       )}
+      {/* MODAL FOTO DOKUMENTASI TUGAS (SAMA DENGAN SANTRI SAKIT & SANTRI IZIN) */}
       {activeCameraTask && (
-        <LiveCameraCaptureModal
-          isOpen={Boolean(activeCameraTask)}
-          onClose={() => setActiveCameraTask(null)}
-          onCapture={handlePhotoCaptured}
-          taskTitle={activeCameraTask.title}
-          musyrifName={selectedMusyrif?.name || authUser?.name || "Musyrif Asrama"}
-          asramaName={asramaTarget}
-        />
+        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-slate-800 leading-tight">Foto Bukti Tugas</h4>
+                  <p className="text-[10px] text-slate-500">{activeCameraTask.title}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveCameraTask(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {isCompressingPhoto ? (
+              <div className="py-8 text-center space-y-2">
+                <RefreshCw className="w-6 h-6 text-emerald-600 animate-spin mx-auto" />
+                <p className="text-xs font-bold text-slate-700">Sedang memproses & mengompresi foto...</p>
+                <p className="text-[10px] text-slate-400">Menyematkan identitas ustadz & waktu secara otomatis</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Lampirkan 1 foto bukti dokumentasi aktivitas tugas <strong>"{activeCameraTask.title}"</strong>:
+                </p>
+                
+                <label className="flex items-center justify-center gap-2.5 p-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl cursor-pointer text-xs font-bold transition-all shadow-md active:scale-95">
+                  <Camera className="w-4 h-4" />
+                  <span>Ambil Foto Kamera (Live)</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    className="hidden" 
+                    onChange={(e) => handleDirectTaskPhotoSelected(e, "camera")} 
+                  />
+                </label>
+
+                <label className="flex items-center justify-center gap-2.5 p-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl cursor-pointer text-xs font-semibold transition-all active:scale-95 border border-slate-200">
+                  <ImageIcon className="w-4 h-4 text-slate-600" />
+                  <span>Pilih dari Galeri HP</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => handleDirectTaskPhotoSelected(e, "gallery")} 
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
       )}
       {previewPhoto && (
         <div 

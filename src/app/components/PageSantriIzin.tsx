@@ -516,10 +516,12 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
     });
   }, [santriIzinList, deferredPkmQuery]);
 
-  // Submit Handler
+  // Submit Handler & Role Checks
+  const isPamong = authUser?.role === "pamong";
+  const isKoorGedung = authUser?.role === "koordinator_gedung";
   const isKoorMusyrif = authUser?.role === "koordinator_musyrif" || authUser?.role === "admin";
-  const isPamongOrAdmin = authUser?.role === "pamong" || isKoorMusyrif || authUser?.role === "koordinator_gedung";
-  const isMusyrif = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
+  const isPamongOrAdmin = isPamong || isKoorMusyrif || isKoorGedung;
+  const isMusyrif = authUser?.role === "musyrif" || isKoorGedung;
   const isPKM = authUser?.role === "keamanan" || authUser?.role === "admin" || isPamongOrAdmin;
 
   // Handler submit form izin (Mendukung satu atau banyak santri sekaligus)

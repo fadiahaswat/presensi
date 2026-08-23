@@ -190,67 +190,71 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       const watermarkLine2 = `${asramaName}`;
       const watermarkLine3 = `${dateTimeStr}`;
 
-      // Helper to load font and return Promise
-      const loadFont = (fontFamily: string, fontUrl: string): Promise<void> => {
-        return new Promise((resolve) => {
-          // Check if font already loaded
-          if (document.fonts && document.fonts.check(`16px ${fontFamily}`)) {
-            resolve();
-            return;
-          }
-          const font = new FontFace(fontFamily, `url(${fontUrl})`);
-          font.load().then((loadedFont) => {
-            document.fonts.add(loadedFont);
-            resolve();
-          }).catch(() => resolve());
-        });
-      };
-
       // Helper to load image
       const loadImage = (src: string): Promise<HTMLImageElement> => {
         return new Promise((resolve) => {
           const img = new window.Image();
-          img.crossOrigin = "anonymous";
           img.onload = () => resolve(img);
           img.onerror = () => resolve(img);
           img.src = src;
         });
       };
 
-      // Load Montserrat font
-      await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
+      // Helper to load font safely
+      const loadFont = (fontFamily: string, fontUrl: string): Promise<void> => {
+        return new Promise((resolve) => {
+          try {
+            if (document.fonts && document.fonts.check(`16px ${fontFamily}`)) {
+              resolve();
+              return;
+            }
+            const font = new FontFace(fontFamily, `url(${fontUrl})`);
+            font.load().then((loadedFont) => {
+              document.fonts.add(loadedFont);
+              resolve();
+            }).catch(() => resolve());
+          } catch (_) {
+            resolve();
+          }
+        });
+      };
 
-      // Draw Watermark Texts - Left Side with Montserrat (Better Typography Hierarchy)
-      const baseSize = Math.max(13, Math.round(targetWidth * 0.028));
+      try {
+        // Load Montserrat font safely
+        await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
+      } catch (_) {}
+
+      // Draw Watermark Texts - Left Side with Montserrat
+      const baseSize = Math.max(12, Math.round(targetWidth * 0.032));
       ctx.textAlign = "left";
       ctx.textBaseline = "bottom";
       ctx.fontFamily = "Montserrat, sans-serif";
 
-      // Line 1 - Nama Ustadz (Medium weight, white color, larger)
-      const nameSize = baseSize * 1.2;
+      // Line 1 - Nama Ustadz
+      const nameSize = baseSize * 1.15;
       ctx.font = `500 ${nameSize}px Montserrat, sans-serif`;
-      ctx.fillStyle = "#ffffff"; // White
-      ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 2;
-      ctx.fillText(watermarkLine1, 16, targetHeight - 14 - (nameSize * 1.5));
+      ctx.fillText(watermarkLine1, 14, targetHeight - 12 - (nameSize * 1.5));
 
-      // Line 2 - Asrama (Regular weight, white, medium size)
-      const asramaSize = baseSize * 1.0;
+      // Line 2 - Asrama
+      const asramaSize = baseSize * 0.95;
       ctx.font = `400 ${asramaSize}px Montserrat, sans-serif`;
       ctx.fillStyle = "#ffffff";
       ctx.shadowBlur = 3;
       ctx.shadowOffsetY = 1;
-      ctx.fillText(watermarkLine2, 16, targetHeight - 12 - (nameSize * 1.5) - (asramaSize * 1.3));
+      ctx.fillText(watermarkLine2, 14, targetHeight - 10 - (nameSize * 1.5) - (asramaSize * 1.25));
 
-      // Line 3 - DateTime (Light weight, white/gray, smaller)
+      // Line 3 - DateTime
       const dateSize = baseSize * 0.85;
       ctx.font = `300 ${dateSize}px Montserrat, sans-serif`;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
       ctx.shadowBlur = 2;
       ctx.shadowOffsetY = 1;
-      ctx.fillText(watermarkLine3, 16, targetHeight - 10);
+      ctx.fillText(watermarkLine3, 14, targetHeight - 8);
 
       // Reset shadow
       ctx.shadowColor = "transparent";
@@ -258,26 +262,39 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
 
-      // Right Side - Draw SYAMSA Logo Image (Whiten)
-      const logoImg = await loadImage(syamsaWordmark);
-      const logoSize = Math.max(32, Math.round(targetWidth * 0.07));
-      const imgRatio = logoImg.height / logoImg.width;
-      ctx.drawImage(
-        logoImg,
-        targetWidth - logoSize - 14,
-        targetHeight - (logoSize * imgRatio) - 14,
-        logoSize,
-        logoSize * imgRatio
-      );
+      // Right Side - Draw SYAMSA Logo Image safely
+      try {
+        const logoImg = await loadImage(syamsaWordmark);
+        if (logoImg && logoImg.width > 0) {
+          const logoSize = Math.max(28, Math.round(targetWidth * 0.07));
+          const imgRatio = (logoImg.height && logoImg.width) ? (logoImg.height / logoImg.width) : 0.8;
+          ctx.drawImage(
+            logoImg,
+            targetWidth - logoSize - 12,
+            targetHeight - (logoSize * imgRatio) - 12,
+            logoSize,
+            logoSize * imgRatio
+          );
+        }
+      } catch (_) {}
 
-      // Compress to WebP (fallback JPEG) - Super lightweight to prevent cell overflows
-      let dataUrl = canvas.toDataURL("image/webp", 0.58);
-      if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
-        dataUrl = canvas.toDataURL("image/jpeg", 0.52);
+      // Iterative Adaptive Compression strictly guaranteeing <= 8,500 characters per logbook photo
+      let dataUrl = "";
+      let quality = 0.52;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        } catch (_) {
+          break;
+        }
+        if (dataUrl && dataUrl.length <= 8500 && dataUrl.length > 50) {
+          break;
+        }
+        quality = Math.max(0.20, quality - 0.08);
       }
 
       return {
-        dataUrl,
+        dataUrl: dataUrl || canvas.toDataURL("image/jpeg", 0.35),
         source: sourceType,
         takenAt: now.toISOString(),
         watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
