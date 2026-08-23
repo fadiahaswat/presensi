@@ -991,13 +991,13 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                     </div>
 
                     {/* FOTO SANTRI IZIN (PENDING) */}
-                    {(item.fotoSantriUrl || item.lampiranUrl) && (
+                    {(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl) && (
                       <div 
                         className="relative rounded-2xl overflow-hidden border border-amber-200/80 bg-slate-950 group cursor-pointer"
-                        onClick={() => setPhotoModalItem({ url: (item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
+                        onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
                       >
                         <img 
-                          src={item.fotoSantriUrl || item.lampiranUrl} 
+                          src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl} 
                           alt={item.namaSantri} 
                           className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                           loading="lazy"
@@ -1173,13 +1173,13 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                         </div>
 
                         {/* FOTO SANTRI IZIN (APPROVED) */}
-                        {(item.fotoSantriUrl || item.lampiranUrl) && (
+                        {(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl) && (
                           <div 
                             className="relative rounded-2xl overflow-hidden border border-slate-200/80 bg-slate-950 group cursor-pointer"
-                            onClick={() => setPhotoModalItem({ url: (item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
+                            onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
                           >
                             <img 
-                              src={item.fotoSantriUrl || item.lampiranUrl} 
+                              src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl} 
                               alt={item.namaSantri} 
                               className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                               loading="lazy"
@@ -2141,11 +2141,11 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       className="bg-slate-50/80 border border-slate-200/70 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="flex items-start gap-3 min-w-0">
-                        {(item.fotoSantriUrl || item.lampiranUrl) ? (
+                        {(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl) ? (
                           <img
-                            src={item.fotoSantriUrl || item.lampiranUrl}
+                            src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl}
                             alt={item.namaSantri}
-                            onClick={() => setPhotoModalItem({ url: (item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • No: ${item.nomorSurat}` })}
+                            onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • No: ${item.nomorSurat}` })}
                             className="w-12 h-12 rounded-xl object-cover ring-1 ring-slate-300 shrink-0 cursor-pointer hover:scale-105 transition-transform"
                           />
                         ) : (
