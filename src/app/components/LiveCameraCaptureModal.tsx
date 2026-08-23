@@ -124,10 +124,10 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   ): Promise<CapturedPhotoResult> => {
       const canvas = canvasRef.current || document.createElement("canvas");
 
-      // Standardized 9:16 story format matching 360px dimension standard
+      // Fixed aspect ratio 9:16 (Story format)
       const STORY_RATIO = 9 / 16; // 0.5625
-      const maxHeight = 640;
-      const maxWidth = Math.round(maxHeight * STORY_RATIO); // 360
+      const maxHeight = 800;
+      const maxWidth = Math.round(maxHeight * STORY_RATIO); // 450
 
       // Calculate target dimensions maintaining 9:16 ratio
       let targetHeight = maxHeight;
@@ -220,37 +220,37 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       // Load Montserrat font
       await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
 
-      // Draw Watermark Texts - Left Side with Montserrat
-      const baseSize = Math.max(12, Math.round(targetWidth * 0.032));
+      // Draw Watermark Texts - Left Side with Montserrat (Better Typography Hierarchy)
+      const baseSize = Math.max(13, Math.round(targetWidth * 0.028));
       ctx.textAlign = "left";
       ctx.textBaseline = "bottom";
       ctx.fontFamily = "Montserrat, sans-serif";
 
-      // Line 1 - Nama Ustadz
-      const nameSize = baseSize * 1.15;
+      // Line 1 - Nama Ustadz (Medium weight, white color, larger)
+      const nameSize = baseSize * 1.2;
       ctx.font = `500 ${nameSize}px Montserrat, sans-serif`;
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#ffffff"; // White
       ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 2;
-      ctx.fillText(watermarkLine1, 14, targetHeight - 12 - (nameSize * 1.4));
+      ctx.fillText(watermarkLine1, 16, targetHeight - 14 - (nameSize * 1.5));
 
-      // Line 2 - Asrama
-      const asramaSize = baseSize * 0.95;
+      // Line 2 - Asrama (Regular weight, white, medium size)
+      const asramaSize = baseSize * 1.0;
       ctx.font = `400 ${asramaSize}px Montserrat, sans-serif`;
       ctx.fillStyle = "#ffffff";
       ctx.shadowBlur = 3;
       ctx.shadowOffsetY = 1;
-      ctx.fillText(watermarkLine2, 14, targetHeight - 10 - (nameSize * 1.4) - (asramaSize * 1.2));
+      ctx.fillText(watermarkLine2, 16, targetHeight - 12 - (nameSize * 1.5) - (asramaSize * 1.3));
 
-      // Line 3 - DateTime
+      // Line 3 - DateTime (Light weight, white/gray, smaller)
       const dateSize = baseSize * 0.85;
       ctx.font = `300 ${dateSize}px Montserrat, sans-serif`;
       ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
       ctx.shadowBlur = 2;
       ctx.shadowOffsetY = 1;
-      ctx.fillText(watermarkLine3, 14, targetHeight - 8);
+      ctx.fillText(watermarkLine3, 16, targetHeight - 10);
 
       // Reset shadow
       ctx.shadowColor = "transparent";
@@ -260,25 +260,20 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
 
       // Right Side - Draw SYAMSA Logo Image (Whiten)
       const logoImg = await loadImage(syamsaWordmark);
-      const logoSize = Math.max(28, Math.round(targetWidth * 0.08));
+      const logoSize = Math.max(32, Math.round(targetWidth * 0.07));
       const imgRatio = logoImg.height / logoImg.width;
       ctx.drawImage(
         logoImg,
-        targetWidth - logoSize - 12,
-        targetHeight - (logoSize * imgRatio) - 12,
+        targetWidth - logoSize - 14,
+        targetHeight - (logoSize * imgRatio) - 14,
         logoSize,
         logoSize * imgRatio
       );
 
-      // Compress to JPEG strictly capped <= 18000 chars (Identical to Santri Sakit standard)
-      const MAX_LOGBOOK_CHARS = 18000;
-      let quality = 0.55;
-      let dataUrl = canvas.toDataURL("image/jpeg", quality);
-
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (dataUrl && dataUrl.length <= MAX_LOGBOOK_CHARS) break;
-        quality = Math.max(0.35, quality - 0.1);
-        dataUrl = canvas.toDataURL("image/jpeg", quality);
+      // Compress to WebP (fallback JPEG)
+      let dataUrl = canvas.toDataURL("image/webp", 0.72);
+      if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.70);
       }
 
       return {
