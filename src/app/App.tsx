@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import {
-  LogIn, LogOut, CheckCircle2, Calendar, Sun, Sunset,
+  LogIn, LogOut, CheckCircle2, Calendar, Sun, Sunset, Camera,
   ChevronLeft, ChevronRight, TrendingUp, LayoutDashboard,
   ClipboardList, X, Users, BookOpen, Lock, Search,
   Download, SlidersHorizontal, Flame, AlertCircle,
@@ -54,6 +54,7 @@ const PamongManagerModal = lazy(() => import("./components/PamongManagerModal").
 const PageKalenderHijriah = lazy(() => import("./components/PageKalenderHijriah").then(m => ({ default: m.PageKalenderHijriah })));
 const PageKalenderPendidikan = lazy(() => import("./components/PageKalenderPendidikan").then(m => ({ default: m.PageKalenderPendidikan })));
 const PageAboutSyamsa = lazy(() => import("./components/PageAboutSyamsa").then(m => ({ default: m.PageAboutSyamsa })));
+const PageGaleriLogbook = lazy(() => import("./components/PageGaleriLogbook").then(m => ({ default: m.PageGaleriLogbook })));
 const KalenderPendidikanModal = lazy(() => import("./components/KalenderPendidikanModal").then(m => ({ default: m.KalenderPendidikanModal })));
 const DataSantriModal = lazy(() => import("./components/DataSantriModal").then(m => ({ default: m.DataSantriModal })));
 const SantriMapModal = lazy(() => import("./components/SantriMapModal").then(m => ({ default: m.SantriMapModal })));
@@ -76,7 +77,7 @@ import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStat
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
 type PrayerSlot = "subuh" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
+type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
@@ -898,11 +899,11 @@ function PageDashboard({
                 activeTaskTitle = dayOfWeek === 0 ? "Muhadatsah Pagi" : "Tahfizh / Piket";
                 activeTaskKey = "bakdaSubuh";
                 activeTaskTime = "05:15–06:00 WIB";
-              } else if (currentMinutesOfDay > 360 && currentMinutesOfDay <= 410) {
+              } else if (dayOfWeek !== 0 && currentMinutesOfDay > 360 && currentMinutesOfDay <= 410) {
                 activeTaskTitle = "Cek Santri Sakit";
                 activeTaskKey = "cekSakit";
                 activeTaskTime = "06:00–06:45 WIB";
-              } else if (currentMinutesOfDay > 410 && currentMinutesOfDay <= 450) {
+              } else if (currentMinutesOfDay > 360 && currentMinutesOfDay <= 450) {
                 activeTaskTitle = dayOfWeek === 0 ? "Kerja Bakti Asrama" : "Sisir Sekolah";
                 activeTaskKey = dayOfWeek === 0 ? "kerjaBakti" : "sisirSekolah";
                 activeTaskTime = dayOfWeek === 0 ? "06:00–07:15 WIB" : "06:45–07:15 WIB";
@@ -1225,13 +1226,12 @@ function PageDashboard({
         </div>
       ) : null}
 
-      {/* 📸 WIDGET GALERI LOGBOOK ASRAMA (INSTAGRAM-STYLE) */}
+      {/* 📸 WIDGET GALERI LOGBOOK ASRAMA (INSTAGRAM-STYLE GRID) */}
       <LogbookGalleryWidget
         logbookData={logbookData}
         musyrifList={musyrifList}
-        onOpenLogbook={() => {
-          onGoTo("logbook");
-        }}
+        onOpenLogbook={() => onGoTo("logbook")}
+        onOpenFullGallery={() => onGoTo("galeri-logbook")}
       />
 
       {/* ───────────────────────────────────────────────────────────────────── */}
@@ -3497,8 +3497,16 @@ function PageRiwayat({
     const list = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
     return list.filter(isFieldMusyrif);
   }, [musyrifListAll]);
-  const [viewMonth, setViewMonth] = useState(new Date());
-  const [selId, setSelId] = useState(initialMusyrifId || allM[0]?.id || "m1");
+  const isPersonalMusyrif = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
+  const isSupervisoryRole = authUser?.role === "pamong" || authUser?.role === "admin" || authUser?.role === "koordinator_musyrif";
+
+  const defaultRiwayatMusyrifId = initialMusyrifId 
+    ? initialMusyrifId 
+    : isSupervisoryRole 
+      ? "" 
+      : (authUser?.musyrifId || authUser?.id || allM[0]?.id || "m1");
+
+  const [selId, setSelId] = useState(defaultRiwayatMusyrifId);
   const [activeTab, setActiveTab] = useState<"sholat" | "logbook" | "mutabaah" | "izin" | "kegiatan">("sholat");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
   const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
@@ -3508,6 +3516,7 @@ function PageRiwayat({
   const [editingSlot, setEditingSlot] = useState<"subuh" | "maghrib" | null>(null);
   const [editNoteText, setEditNoteText] = useState("");
   const [expandedLogbookDate, setExpandedLogbookDate] = useState<string | null>(null);
+  const [viewMonth, setViewMonth] = useState(new Date());
 
   useEffect(() => {
     if (initialMusyrifId) {
@@ -3523,13 +3532,12 @@ function PageRiwayat({
     </div>
   );
 
-  const isPersonalMusyrif = authUser.role === "musyrif";
   const isPamongOrKoord = authUser.role === "pamong" || authUser.role === "koordinator_musyrif" || authUser.role === "koordinator_gedung";
   const { isSedayuPamong, isPamongAnang, isPamongAbdan } = getPamongType(authUser);
   const pamongAssignedAsramas = getPamongAssignedAsramas(authUser);
 
   const allowed = isPersonalMusyrif
-    ? allM.filter(m => m.id === authUser.musyrifId || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
+    ? allM.filter(m => m.id === authUser.musyrifId || m.id === authUser.id || (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase()))
     : hasFullAccess(authUser)
       ? allM
       : pamongAssignedAsramas.length > 0
@@ -3537,17 +3545,17 @@ function PageRiwayat({
         : allM.filter(m => m.asrama === authUser.asrama);
 
   const musyrif = isPersonalMusyrif
-    ? (allowed[0] ?? allM.find(m => m.id === authUser.musyrifId) ?? allM[0])
-    : (allowed.find(m=>m.id===selId) ?? allowed[0] ?? allM[0]);
+    ? (allowed[0] ?? allM.find(m => m.id === authUser.musyrifId || m.id === authUser.id) ?? allM[0])
+    : (allowed.find(m=>m.id===selId) || null);
 
   const mk = format(viewMonth,"yyyy-MM");
-  const mRecs = records.filter(r=>r.musyrifId===musyrif.id&&r.date.startsWith(mk));
-  const allRecs = records.filter(r=>r.musyrifId===musyrif.id);
+  const mRecs = musyrif ? records.filter(r=>r.musyrifId===musyrif.id&&r.date.startsWith(mk)) : [];
+  const allRecs = musyrif ? records.filter(r=>r.musyrifId===musyrif.id) : [];
   const days = eachDayOfInterval({start:startOfMonth(viewMonth),end:endOfMonth(viewMonth)});
   const pastDays = days.filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d));
   const adj = (startOfMonth(viewMonth).getDay()||7)-1;
   const getR = (d: Date) => mRecs.find(r=>r.date===format(d,"yyyy-MM-dd"));
-  const streak = useMemo(()=>computeStreak(musyrif.id,records),[musyrif.id,records]);
+  const streak = useMemo(()=>musyrif ? computeStreak(musyrif.id,records) : 0,[musyrif,records]);
   const pct = pastDays.length?Math.round((mRecs.filter(r=>r.subuh==="hadir").length+mRecs.filter(r=>r.maghrib==="hadir").length)/(pastDays.length*2)*100):0;
 
   const trendData = [-2,-1,0].map(off=>{
@@ -3570,8 +3578,8 @@ function PageRiwayat({
 
   // Logbook data for current musyrif
   const musyrifLogbooks = useMemo(() => {
-    return logbookData[musyrif.id] || {};
-  }, [logbookData, musyrif.id]);
+    return musyrif ? (logbookData[musyrif.id] || {}) : {};
+  }, [logbookData, musyrif]);
 
   const logbookDatesThisMonth = useMemo(() => {
     return Object.keys(musyrifLogbooks).filter(d => d.startsWith(mk)).sort((a, b) => b.localeCompare(a));
@@ -3605,8 +3613,8 @@ function PageRiwayat({
 
   // Mutabaah data for current musyrif
   const musyrifMutabaah = useMemo(() => {
-    return mutabaahData[musyrif.id] || {};
-  }, [mutabaahData, musyrif.id]);
+    return musyrif ? (mutabaahData[musyrif.id] || {}) : {};
+  }, [mutabaahData, musyrif]);
 
   const mutabaahDatesThisMonth = useMemo(() => {
     return Object.keys(musyrifMutabaah).filter(d => d.startsWith(mk)).sort((a, b) => b.localeCompare(a));
@@ -3638,7 +3646,7 @@ function PageRiwayat({
   // Izin data for current musyrif
   const musyrifIzinList = useMemo(() => {
     return (izinList || [])
-      .filter(i => i.musyrifId === musyrif.id || (i.musyrifName && i.musyrifName.toLowerCase() === musyrif.name.toLowerCase()))
+      .filter(i => musyrif && (i.musyrifId === musyrif.id || (i.musyrifName && i.musyrifName.toLowerCase() === musyrif.name.toLowerCase())))
       .sort((a, b) => (b.createdAt || b.startDate).localeCompare(a.createdAt || a.startDate));
   }, [izinList, musyrif]);
 
@@ -3652,25 +3660,25 @@ function PageRiwayat({
   // Kegiatan / Rapat data for current musyrif
   const musyrifKegiatanList = useMemo(() => {
     return (kegiatanRecords || [])
-      .filter(k => (k.attendees && musyrif.id in k.attendees) || k.asrama === musyrif.asrama)
+      .filter(k => musyrif && ((k.attendees && musyrif.id in k.attendees) || k.asrama === musyrif.asrama))
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [kegiatanRecords, musyrif]);
 
   const kegiatanStats = useMemo(() => {
     let hadir = 0, izin = 0, sakit = 0, alfa = 0;
     musyrifKegiatanList.forEach(k => {
-      const st = k.attendees?.[musyrif.id];
+      const st = musyrif ? k.attendees?.[musyrif.id] : undefined;
       if (st === "hadir") hadir++;
       else if (st === "izin") izin++;
       else if (st === "sakit") sakit++;
       else if (st === "alfa") alfa++;
     });
     return { total: musyrifKegiatanList.length, hadir, izin, sakit, alfa };
-  }, [musyrifKegiatanList, musyrif.id]);
+  }, [musyrifKegiatanList, musyrif?.id]);
 
   // Handle direct quick status update for Pamong
   const handleQuickMark = (prayer: PrayerSlot, status: AttendanceStatus) => {
-    if (!selectedDay || !onMark) return;
+    if (!selectedDay || !onMark || !musyrif) return;
     const dStr = format(selectedDay.date, "yyyy-MM-dd");
     onMark(musyrif.id, prayer, status, dStr, editNoteText || undefined);
     
@@ -3731,7 +3739,7 @@ function PageRiwayat({
               className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-teal-700 ring-teal-200 bg-teal-50 hover:bg-teal-100/80"
             >
               <Users className="w-3.5 h-3.5 text-teal-600"/>
-              <span>Pilih Musyrif</span>
+              <span>{musyrif ? musyrif.name : "Pilih Musyrif"}</span>
               <ChevronDown className="w-3 h-3 text-teal-600/70"/>
             </button>
           )}
@@ -3816,18 +3824,82 @@ function PageRiwayat({
         </div>
       </div>
 
-      {/* 2. Executive Musyrif Profile Hero Card */}
-      {isPersonalMusyrif ? (
-        <div className="flex items-center gap-3 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl px-4 py-3 text-emerald-800 shadow-2xs">
-          <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0"/>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold leading-tight">Riwayat Terpadu Akun Anda</p>
-            <p className="text-[11px] text-emerald-600 mt-0.5 truncate">Menampilkan seluruh arsip presensi, tugas harian, mutaba'ah, izin, dan rapat</p>
+      {/* Empty State for PageRiwayat when no musyrif is selected */}
+      {!musyrif ? (
+        <div className="bg-gradient-to-b from-teal-50/70 via-white to-slate-50 border border-teal-100/80 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-sm">
+          <div className="relative mx-auto w-20 h-20 rounded-3xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-lg shadow-teal-500/25 ring-8 ring-teal-50">
+            <Calendar className="w-10 h-10" />
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center text-xs font-black shadow-xs ring-2 ring-white">
+              <Sparkles className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="max-w-md mx-auto space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100/80 text-teal-800 border border-teal-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-600" /> Mode Pantau Pamong & Pengawas
+            </span>
+            <h3 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">
+              Pilih Musyrif Terlebih Dahulu
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+              Silakan pilih salah satu musyrif binaan di bawah ini untuk melihat detail rekap kehadiran shalat berjamaah, jurnal logbook, amalan mutaba'ah, dan izin santri.
+            </p>
+          </div>
+
+          {/* Quick Cards Grid */}
+          <div className="pt-2 text-left">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Daftar Musyrif Binaan:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+              {allowed.map(m => {
+                const mRecsCount = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk) && (r.subuh === "hadir" || r.maghrib === "hadir")).length;
+                
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSelId(m.id)}
+                    className="group p-3.5 rounded-2xl bg-white hover:bg-teal-50/60 border border-slate-200/80 hover:border-teal-300 transition-all shadow-2xs hover:shadow-md flex flex-col justify-between gap-2.5 cursor-pointer text-left active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                        {m.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate">{m.name}</h4>
+                        <span className="text-[10px] text-slate-400 block truncate">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                        mRecsCount > 0 ? "bg-teal-100 text-teal-800" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {mRecsCount > 0 ? `${mRecsCount} Shalat Hadir` : "Belum Ada Presensi"}
+                      </span>
+                      <span className="text-[11px] font-bold text-teal-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        Lihat Riwayat ➔
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <>
+          {/* 2. Executive Musyrif Profile Hero Card */}
+          {isPersonalMusyrif ? (
+            <div className="flex items-center gap-3 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl px-4 py-3 text-emerald-800 shadow-2xs">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0"/>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold leading-tight">Riwayat Terpadu Akun Anda</p>
+                <p className="text-[11px] text-emerald-600 mt-0.5 truncate">Menampilkan seluruh arsip presensi, tugas harian, mutaba'ah, izin, dan rapat</p>
+              </div>
+            </div>
+          ) : null}
 
-      <div className="relative overflow-hidden bg-gradient-to-br from-white via-slate-50/60 to-emerald-50/40 rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs">
+          <div className="relative overflow-hidden bg-gradient-to-br from-white via-slate-50/60 to-emerald-50/40 rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs">
         <div className="flex items-start justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="relative">
@@ -4825,9 +4897,11 @@ function PageRiwayat({
           </div>
         </div>
       )}
+      </>
+      )}
 
       {/* Calendar Day Detail Modal with Quick Pamong Status Revision */}
-      {selectedDay && (
+      {selectedDay && musyrif && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>{ setSelectedDay(null); setEditingSlot(null); }}>
           <div className="bg-white w-full max-w-sm rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200 space-y-4" onClick={e=>e.stopPropagation()}>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -6210,17 +6284,19 @@ export default function App() {
 
   // Dynamic Navigation Items based on Role / Public Mode
   const navItems = useMemo(() => {
+    const currentPrayerSlot: Page = getTrustedDate().getHours() < 12 ? "subuh" : "maghrib";
     if (!authUser) {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
+        { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
         { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
-        { id: "ibadah" as Page, label: "Ibadah", Icon: Compass },
+        { id: "ibadah" as Page, label: "Ibadah", Icon: Moon },
       ];
     }
-    const currentPrayerSlot: Page = getTrustedDate().getHours() < 12 ? "subuh" : "maghrib";
     if (authUser.role === "musyrif") {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
+        { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
         { id: currentPrayerSlot, label: "Presensi", Icon: Sun },
         { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
         { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
@@ -6228,6 +6304,7 @@ export default function App() {
     }
     return [
       { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
+      { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
       { id: currentPrayerSlot, label: "Presensi", Icon: Sun },
       { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
       { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
@@ -7838,6 +7915,16 @@ export default function App() {
                 onSaveLogbook={handleSaveLogbook}
                 onResetLogbook={handleResetLogbook}
                 onOpenSantriSakit={() => setPage("santri-sakit")}
+              />
+            </motion.div>
+          )}
+          {page==="galeri-logbook" && (
+            <motion.div key="galeri-logbook" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PageGaleriLogbook
+                onBack={() => setPage("dashboard")}
+                onOpenLogbook={() => setPage("logbook")}
+                logbookData={logbookData}
+                musyrifList={musyrifList}
               />
             </motion.div>
           )}

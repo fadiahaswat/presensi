@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { 
-  Camera, ChevronRight, Footprints, ShieldCheck, Heart, Share2, 
-  Sparkles, Maximize2, X, Image as ImageIcon
+  ChevronLeft, Camera, Search, Filter, Grid, List, Heart, Share2, 
+  Sparkles, ShieldCheck, Footprints, Calendar, Building2, User, 
+  Maximize2, X, CheckCircle2, Clock, Image as ImageIcon, Flame
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { id } from "date-fns/locale";
 import { triggerHaptic } from "../utils/animations";
 import { LogbookStorage, getLogbookTasksForDate } from "./JurnalLogbookModal";
@@ -18,11 +19,11 @@ interface Musyrif {
   email?: string;
 }
 
-interface LogbookGalleryWidgetProps {
+interface PageGaleriLogbookProps {
+  onBack: () => void;
+  onOpenLogbook?: () => void;
   logbookData: LogbookStorage;
   musyrifList: Musyrif[];
-  onOpenLogbook?: () => void;
-  onOpenFullGallery?: () => void;
 }
 
 export interface GalleryPostItem {
@@ -82,14 +83,19 @@ export const getTaskDisplayTitle = (key: string): string => {
   );
 };
 
-export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
-  logbookData = {},
-  musyrifList = [],
+export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
+  onBack,
   onOpenLogbook,
-  onOpenFullGallery
+  logbookData = {},
+  musyrifList = []
 }) => {
-  const [selectedDateFilter, setSelectedDateFilter] = useState<"today" | "week" | "all">("today");
+  const [selectedAsrama, setSelectedAsrama] = useState<string>("all");
+  const [selectedDateFilter, setSelectedDateFilter] = useState<"today" | "week" | "month" | "all">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"grid" | "feed">("feed");
   const [selectedPost, setSelectedPost] = useState<GalleryPostItem | null>(null);
+
   const [likedPosts, setLikedPosts] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem("syamsa_gallery_likes");
@@ -167,9 +173,20 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
     });
   }, [logbookData, musyrifList, todayStr]);
 
-  // Filtered posts for widget
+  // Unique Asrama list for filter
+  const asramaOptions = useMemo(() => {
+    const set = new Set<string>();
+    musyrifList.forEach(m => {
+      if (m.asrama) set.add(m.asrama);
+    });
+    return Array.from(set).sort();
+  }, [musyrifList]);
+
+  // Filtered posts
   const filteredPosts = useMemo(() => {
     return allPosts.filter(p => {
+      if (selectedAsrama !== "all" && p.asrama !== selectedAsrama) return false;
+      
       if (selectedDateFilter === "today" && p.date !== todayStr) return false;
       if (selectedDateFilter === "week") {
         const pDate = new Date(p.date).getTime();
@@ -177,12 +194,31 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
         const diffDays = (now - pDate) / (1000 * 3600 * 24);
         if (diffDays > 7) return false;
       }
+      if (selectedDateFilter === "month") {
+        const pDate = new Date(p.date).getTime();
+        const now = new Date().getTime();
+        const diffDays = (now - pDate) / (1000 * 3600 * 24);
+        if (diffDays > 30) return false;
+      }
+
+      if (selectedCategory !== "all" && p.taskCategory !== selectedCategory) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = p.taskTitle.toLowerCase().includes(q);
+        const matchName = p.musyrifName.toLowerCase().includes(q);
+        const matchNotes = (p.notes || "").toLowerCase().includes(q);
+        const matchAsrama = p.asrama.toLowerCase().includes(q);
+        if (!matchTitle && !matchName && !matchNotes && !matchAsrama) return false;
+      }
+
       return true;
     });
-  }, [allPosts, selectedDateFilter, todayStr]);
+  }, [allPosts, selectedAsrama, selectedDateFilter, selectedCategory, searchQuery, todayStr]);
 
-  // Display top 9 posts on Beranda for clean 3x3 layout
-  const displayPosts = filteredPosts.slice(0, 9);
+  // Statistics
+  const todayCount = allPosts.filter(p => p.date === todayStr).length;
+  const totalStepsInPhotos = allPosts.reduce((acc, p) => acc + (p.stepsCount || 0), 0);
 
   // Handle Like Toggle
   const handleToggleLike = (postId: string) => {
@@ -220,96 +256,212 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-3.5">
-      {/* Header Widget */}
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 p-[2px] shadow-md shadow-rose-500/20">
-              <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-rose-600">
-                <Camera className="w-5 h-5" />
-              </div>
-            </div>
-            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center" />
-          </div>
+    <div className="w-full max-w-5xl mx-auto px-2.5 sm:px-4 py-3 sm:py-4 space-y-3 animate-in fade-in duration-200">
+      {/* Top Header Bar with Back Button */}
+      <div className="flex items-center justify-between gap-2 bg-white px-3.5 py-3 rounded-2xl border border-slate-100 shadow-xs ring-1 ring-slate-200/60">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onBack();
+            }}
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-95 shadow-2xs"
+            title="Kembali ke Beranda"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
-                Galeri Logbook Asrama
-              </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-                Live Feed
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight flex items-center gap-2">
+              <span>Galeri Logbook Asrama</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold border border-slate-200">
+                {allPosts.length} Foto
               </span>
-            </div>
-            <p className="text-xs text-slate-500">
-              Dokumentasi foto kegiatan harian musyrif langsung dari kamera asrama
-            </p>
+            </h2>
           </div>
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="bg-slate-100 p-0.5 rounded-xl flex items-center gap-0.5 border border-slate-200/80">
+          <button
+            onClick={() => {
+              triggerHaptic();
+              setViewMode("grid");
+            }}
+            className={`p-1.5 px-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+              viewMode === "grid"
+                ? "bg-white text-slate-900 shadow-2xs font-bold"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+            title="Tampilan Grid"
+          >
+            <Grid className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline text-[11px]">Grid</span>
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic();
+              setViewMode("feed");
+            }}
+            className={`p-1.5 px-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+              viewMode === "feed"
+                ? "bg-white text-slate-900 shadow-2xs font-bold"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+            title="Tampilan Feed Postingan"
+          >
+            <List className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline text-[11px]">Feed</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Content: Pure Grid Mode on Beranda (3x3) */}
+      {/* Main Gallery Display */}
       {filteredPosts.length === 0 ? (
-        <div className="py-10 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center p-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-2.5">
-            <Camera className="w-6 h-6" />
+        <div className="py-16 text-center bg-white border border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center p-6 shadow-sm">
+          <div className="w-14 h-14 rounded-3xl bg-rose-50 text-rose-500 flex items-center justify-center mb-3">
+            <Camera className="w-7 h-7" />
           </div>
-          <h4 className="text-sm font-bold text-slate-700">Belum Ada Foto Logbook</h4>
+          <h4 className="text-sm font-bold text-slate-800">Tidak Ada Foto Ditemukan</h4>
           <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
-            {selectedDateFilter === "today" 
-              ? "Musyrif belum mengunggah foto pelaksanaan tugas logbook hari ini."
-              : "Belum ada riwayat foto logbook yang sesuai dengan filter yang dipilih."}
+            {searchQuery
+              ? `Tidak ada dokumentasi foto yang sesuai dengan kata kunci "${searchQuery}".`
+              : "Belum ada foto logbook untuk filter tanggal atau asrama yang dipilih."}
           </p>
           {onOpenLogbook && (
             <button
               onClick={() => onOpenLogbook()}
-              className="mt-3.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+              className="mt-4 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95"
             >
-              <Camera className="w-3.5 h-3.5" />
-              Buka Halaman Logbook
+              <Camera className="w-4 h-4" />
+              Buka Form Jurnal Logbook
             </button>
           )}
         </div>
-      ) : (
-        /* GRID MODE (3x3 Grid Rapi Tanpa Jarak & Tanpa Rounded Corner) */
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-0.5 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-2xs">
-            {displayPosts.map((post) => (
-              <motion.div
-                key={post.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedPost(post)}
-                className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer"
-              >
-                <img
-                  src={post.photoUrl}
-                  alt={post.taskTitle}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  loading="lazy"
-                />
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Bottom Call-To-Action: Open Dedicated Gallery Page */}
-          {onOpenFullGallery && (
-            <button
-              onClick={() => {
-                triggerHaptic();
-                onOpenFullGallery();
-              }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-700 hover:text-rose-700 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-2xs group active:scale-[0.99]"
+      ) : viewMode === "grid" ? (
+        /* GRID MODE (3 Kolom Bersih Tanpa Jarak) */
+        <div className="grid grid-cols-3 gap-0.5 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-sm">
+          {filteredPosts.map((post) => (
+            <motion.div
+              key={post.id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setSelectedPost(post)}
+              className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer transition-all"
             >
-              <ImageIcon className="w-3.5 h-3.5 text-rose-500" />
-              <span>Lihat Semua Galeri</span>
-              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </button>
-          )}
+              <img
+                src={post.photoUrl}
+                alt={post.taskTitle}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        /* FEED MODE (Instagram Post Cards) */
+        <div className="max-w-2xl mx-auto space-y-4">
+          {filteredPosts.map((post) => {
+            const isLiked = (likedPosts[post.id] || 0) > 0;
+            return (
+              <div
+                key={post.id}
+                className="rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                {/* Post Header */}
+                <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[2px]">
+                      <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-slate-700 font-bold text-xs">
+                        {post.musyrifName.charAt(0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-900 leading-tight">
+                          {post.musyrifName}
+                        </span>
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-md">
+                          {post.asrama}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        {format(new Date(post.date), "dd MMMM yyyy", { locale: id })}
+                        {post.completedAt ? ` • ${post.completedAt} WIB` : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200/70 px-2 py-0.5 rounded-lg">
+                    {post.taskCategory}
+                  </span>
+                </div>
+
+                {/* Photo with Click-to-Zoom */}
+                <div
+                  onClick={() => setSelectedPost(post)}
+                  className="relative aspect-4/3 sm:aspect-16/10 bg-slate-950 overflow-hidden cursor-pointer group"
+                >
+                  <img
+                    src={post.photoUrl}
+                    alt={post.taskTitle}
+                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-md">
+                      <Maximize2 className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Post Action Bar & Caption */}
+                <div className="p-3.5 sm:p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleToggleLike(post.id)}
+                        className={`flex items-center gap-1.5 text-xs font-bold transition-transform active:scale-90 ${
+                          isLiked ? "text-rose-600" : "text-slate-600 hover:text-rose-600"
+                        }`}
+                      >
+                        <Heart className={`w-5 h-5 ${isLiked ? "fill-rose-500 text-rose-500" : ""}`} />
+                        <span>{isLiked ? 1 : "Apresiasi"}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleShareWhatsApp(post)}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-emerald-600 transition-colors"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        <span>Share</span>
+                      </button>
+                    </div>
+
+                    {post.stepsCount && (
+                      <span className="text-xs font-bold font-mono text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                        <Footprints className="w-3 h-3 text-orange-600" />
+                        <span>{post.stepsCount} Langkah</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Caption */}
+                  <div className="text-xs leading-relaxed text-slate-800">
+                    <span className="font-bold text-slate-900 mr-1.5">{post.musyrifName}</span>
+                    {post.notes ? (
+                      <span className="text-slate-700">{post.notes}</span>
+                    ) : (
+                      <span className="text-slate-400 italic">Melaksanakan {post.taskTitle} secara tertib.</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Instagram Post Detail Modal (Lightbox) */}
+      {/* Lightbox Modal Detail */}
       <AnimatePresence>
         {selectedPost && (
           <div
@@ -324,7 +476,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
               onClick={e => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/90">
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 bg-slate-950/90">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 p-[2px]">
                     <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-xs">
@@ -351,7 +503,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                 </button>
               </div>
 
-              {/* Full Image Display */}
+              {/* Full Image */}
               <div className="p-2 sm:p-3 bg-black flex items-center justify-center overflow-auto max-h-[58vh]">
                 <img
                   src={selectedPost.photoUrl}
@@ -360,9 +512,8 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                 />
               </div>
 
-              {/* Details & Action Footer */}
+              {/* Details & Actions */}
               <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-3">
-                {/* Meta details */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-2">
                     <span className="text-slate-400 block text-[10px]">Waktu Selesai</span>
@@ -371,7 +522,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-2">
                     <span className="text-slate-400 block text-[10px]">Tanggal Tugas</span>
                     <span className="font-bold text-white">
-                      {format(new Date(selectedPost.date), "d MMM yyyy", { locale: id })}
+                      {format(new Date(selectedPost.date), "d MMMM yyyy", { locale: id })}
                     </span>
                   </div>
                   {selectedPost.stepsCount ? (
@@ -382,7 +533,6 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                   ) : null}
                 </div>
 
-                {/* Caption / Note */}
                 {selectedPost.notes && (
                   <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-300">
                     <span className="text-slate-400 font-semibold block text-[10px] mb-0.5">Catatan Musyrif:</span>
@@ -390,7 +540,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                   </div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Actions */}
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     onClick={() => handleToggleLike(selectedPost.id)}
@@ -411,19 +561,6 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                     <Share2 className="w-4 h-4" />
                     <span>Share WhatsApp</span>
                   </button>
-
-                  {onOpenFullGallery && (
-                    <button
-                      onClick={() => {
-                        setSelectedPost(null);
-                        onOpenFullGallery();
-                      }}
-                      className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center"
-                      title="Buka Halaman Galeri Lengkap"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             </motion.div>
@@ -433,3 +570,5 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
     </div>
   );
 };
+
+export default PageGaleriLogbook;

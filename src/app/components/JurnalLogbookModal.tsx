@@ -4,7 +4,7 @@ import {
   AlertCircle, ChevronRight, FileText, Sparkles, Building2, User, Eye, ShieldCheck,
   MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft, Lock,
   Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award,
-  Sunrise, Sunset, Star, Camera, Image as ImageIcon, Trash2, Maximize2
+  Sunrise, Sunset, Star, Camera, Image as ImageIcon, Trash2, Maximize2, ClipboardList
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -25,7 +25,7 @@ export interface LogbookTaskItem {
   subChoice?: "tahfizh" | "piket";
   photoUrl?: string;
   photoTakenAt?: string;
-  photoSource?: "camera" | "preset";
+  photoSource?: "camera" | "preset" | "gallery";
   photoWatermark?: string;
 }
 
@@ -180,23 +180,25 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
     });
   }
 
-  // 3. Memeriksa Santri yang Sakit (Setiap Hari - Wajib Foto & Wajib Patroli)
-  tasks.push({
-    key: "cekSakit",
-    number: num++,
-    title: "Memeriksa Santri yang Sakit",
-    shortDesc: "Pengecekan kamar santri yang sakit, pemberian obat / lapor pamong",
-    timeWindow: "06:00 – 06:45 WIB",
-    startHour: 6,
-    startMinute: 0,
-    endHour: 6,
-    endMinute: 45,
-    icon: "stethoscope",
-    category: "Pagi",
-    isPatrol: true,
-    targetSteps: 200,
-    photoRequirement: "mandatory"
-  });
+  // 3. Memeriksa Santri yang Sakit (Senin - Sabtu: Wajib Foto & Wajib Patroli, Ahad Libur/Tidak Ada)
+  if (!isAhad) {
+    tasks.push({
+      key: "cekSakit",
+      number: num++,
+      title: "Memeriksa Santri yang Sakit",
+      shortDesc: "Pengecekan kamar santri yang sakit, pemberian obat / lapor pamong",
+      timeWindow: "06:00 – 06:45 WIB",
+      startHour: 6,
+      startMinute: 0,
+      endHour: 6,
+      endMinute: 45,
+      icon: "stethoscope",
+      category: "Pagi",
+      isPatrol: true,
+      targetSteps: 200,
+      photoRequirement: "mandatory"
+    });
+  }
 
   // 4 & 5. Agenda Pagi: Kerja Bakti (Ahad) vs Berangkat Sekolah & Jaga Gerbang (Senin-Sabtu)
   if (isAhad) {
@@ -531,7 +533,14 @@ export function JurnalLogbookModal({
     ) || null;
   }, [authUser, musyrifList]);
 
-  const defaultMusyrifId = initialMusyrifId || mySelfMusyrif?.id || authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || musyrifList[0]?.id || "";
+  // Check supervisory role (Pamong / Admin / Koordinator Musyrif)
+  const isSupervisoryRole = authUser?.role === "pamong" || authUser?.role === "admin" || authUser?.role === "koordinator_musyrif";
+
+  const defaultMusyrifId = initialMusyrifId 
+    ? initialMusyrifId 
+    : isSupervisoryRole 
+      ? "" 
+      : (mySelfMusyrif?.id || authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || "");
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
@@ -580,17 +589,17 @@ export function JurnalLogbookModal({
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
   const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
 
-  const selectedMusyrif = musyrifList.find(m => m.id === selectedMusyrifId) || musyrifList[0];
+  const selectedMusyrif = musyrifList.find(m => m.id === selectedMusyrifId) || null;
   const asramaTarget = selectedMusyrif?.asrama || "Asrama 1";
 
   // Form State initialized from storage
   const [formState, setFormState] = useState<JurnalLogbookEntry>(() => {
-    return logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK;
+    return selectedMusyrifId ? (logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK) : EMPTY_LOGBOOK;
   });
 
   // Keep form in sync when props/cloud data, musyrif, or date changes
   useEffect(() => {
-    const existing = logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK;
+    const existing = selectedMusyrifId ? (logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK) : EMPTY_LOGBOOK;
     setFormState(existing);
   }, [logbookData, selectedMusyrifId, selectedDate]);
 
@@ -712,7 +721,7 @@ export function JurnalLogbookModal({
 
     // 4. Strict Mandatory Photo Enforcement (Must take live photo first if mandatory)
     if (taskDef.photoRequirement === "mandatory" && !cur.photoUrl && !cur.done && !isCanBypass) {
-      appAlert(`Tugas "${taskDef.title}" mewajibkan bukti foto kegiatan langsung dari kamera asrama.\n\nSilakan ambil foto langsung terlebih dahulu untuk menyelesaikan tugas ini.`, "Wajib Foto Dokumentasi", "warning");
+      appAlert(`Tugas "${taskDef.title}" mewajibkan bukti foto kegiatan langsung dari kamera asrama.\n\nSilakan ambil foto langsung terlebih dahulu untuk menyelesaikan tugas (Melaksanakan).`, "Wajib Foto Dokumentasi", "warning");
       setActiveCameraTask(taskDef);
       return;
     }
@@ -752,11 +761,23 @@ export function JurnalLogbookModal({
   const handlePhotoCaptured = (result: CapturedPhotoResult) => {
     if (!activeCameraTask) return;
     const key = activeCameraTask.key;
+    const taskDef = activeDateTasks.find(t => t.key === key) || activeCameraTask;
     const cur = formState[key] || { done: false };
+
+    // Check if patrol is also required and whether steps have already been fulfilled
+    const isPatrolRequired = Boolean(taskDef.isPatrol);
+    const hasEnoughSteps = (cur.stepsCount || 0) >= (taskDef.targetSteps || 200);
+
+    // If patrol is required but not completed yet, keep done as false; otherwise mark done!
+    const isFullyCompleted = !isPatrolRequired || hasEnoughSteps;
+
     const updatedEntry: JurnalLogbookEntry = {
       ...formState,
       [key]: {
         ...cur,
+        done: isFullyCompleted,
+        completedAt: isFullyCompleted ? (cur.completedAt || format(new Date(), "HH:mm")) : undefined,
+        gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : cur.gpsVerified,
         photoUrl: result.dataUrl,
         photoTakenAt: result.takenAt,
         photoSource: result.source,
@@ -766,6 +787,12 @@ export function JurnalLogbookModal({
     setFormState(updatedEntry);
     onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
     setActiveCameraTask(null);
+
+    if (isPatrolRequired && !hasEnoughSteps) {
+      appAlert(`Foto bukti kegiatan berhasil disimpan! Tugas "${taskDef.title}" masih memerlukan patroli langkah (minimal ${taskDef.targetSteps || 200} langkah).\n\nSilakan lakukan patroli untuk menyelesaikan tugas (Melaksanakan).`, "Wajib Patroli Langkah", "info");
+    } else {
+      triggerHaptic("medium");
+    }
   };
 
   // Handle Remove Photo
@@ -774,10 +801,16 @@ export function JurnalLogbookModal({
       if (!ok) return;
       const cur = formState[key];
       if (!cur) return;
+      const taskDef = activeDateTasks.find(t => t.key === key);
+      const isPhotoMandatory = taskDef?.photoRequirement === "mandatory";
+
       const updatedEntry: JurnalLogbookEntry = {
         ...formState,
         [key]: {
           ...cur,
+          // If photo was mandatory, removing the photo returns status to NOT completed (done: false)
+          done: isPhotoMandatory ? false : cur.done,
+          completedAt: isPhotoMandatory ? undefined : cur.completedAt,
           photoUrl: undefined,
           photoTakenAt: undefined,
           photoSource: undefined,
@@ -810,18 +843,34 @@ export function JurnalLogbookModal({
 
   // Complete Patrol Task with Step count
   const handlePatrolSuccess = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, steps: number) => {
+    const taskDef = activeDateTasks.find(t => t.key === key);
+    const isPhotoMandatory = taskDef?.photoRequirement === "mandatory";
+    const existingPhoto = formState[key]?.photoUrl;
+
+    // If photo is mandatory and not yet taken, do NOT mark as done yet!
+    const isFullyCompleted = !isPhotoMandatory || Boolean(existingPhoto);
+
     const updatedEntry: JurnalLogbookEntry = {
       ...formState,
       [key]: {
         ...(formState[key] || { done: false }),
-        done: true,
+        done: isFullyCompleted,
         stepsCount: steps,
-        completedAt: format(new Date(), "HH:mm"),
-        gpsVerified: gpsResult?.isInRange ?? false
+        completedAt: isFullyCompleted ? format(new Date(), "HH:mm") : undefined,
+        gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : false
       }
     };
     setFormState(updatedEntry);
     onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+
+    if (isPhotoMandatory && !existingPhoto) {
+      if (taskDef) {
+        appAlert(`Patroli ${steps} langkah berhasil tercatat! Tugas "${taskDef.title}" mewajibkan foto bukti kegiatan untuk menyelesaikan tugas (Melaksanakan).\n\nSilakan ambil foto bukti sekarang.`, "Wajib Ambil Foto", "info");
+        setActiveCameraTask(taskDef);
+      }
+    } else {
+      triggerHaptic("medium");
+    }
   };
 
   // Summary Metrics
@@ -937,7 +986,7 @@ export function JurnalLogbookModal({
       </div>
 
       {/* GPS Status Banner (Only for standard Musyrif & Koor Gedung doing self-input) */}
-      {!isCanBypass && (
+      {!isCanBypass && selectedMusyrif && (
         <div className={`p-3.5 sm:p-4 rounded-3xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
           <div className="flex items-center gap-3 min-w-0">
             <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
@@ -956,7 +1005,7 @@ export function JurnalLogbookModal({
         </div>
       )}
 
-      {/* Form & Progress Card */}
+      {/* Form & Selection Card */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">
         {/* Date & Account */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -972,11 +1021,17 @@ export function JurnalLogbookModal({
                   {isEditingSelf ? "Mode Mengisi Pribadi (Wajib Patroli & Hari Ini)" : "Mode Pantau Musyrif"}
                 </span>
               )}
+              {isSupervisoryRole && (
+                <span className="text-[10px] text-indigo-600 font-bold">
+                  Mode Pengawas Pamong
+                </span>
+              )}
             </label>
             {authUser?.role === "musyrif" ? (
               <div className="w-full text-xs bg-emerald-50/80 border border-emerald-200 text-emerald-900 rounded-2xl px-3.5 py-2.5 font-bold truncate flex items-center gap-1.5 shadow-2xs"><User className="w-3.5 h-3.5 text-emerald-700 shrink-0" /> {authUser?.name}</div>
             ) : (
               <select value={selectedMusyrifId} onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 outline-none cursor-pointer shadow-2xs">
+                {isSupervisoryRole && <option value="">-- Silakan Pilih Musyrif --</option>}
                 {activeMusyrifList.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.id === mySelfMusyrif?.id ? `${m.name} (Saya Sendiri - Logbook & Patroli)` : `${m.name} (${m.asrama}${m.kamar ? ` - Kmr ${m.kamar}` : ""})`}
@@ -986,70 +1041,138 @@ export function JurnalLogbookModal({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Progress Box */}
-        <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200/60 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-2xl flex flex-col items-center justify-center font-black font-mono shadow-2xs ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200/80"}`}><span className="text-xs">{scorePct}%</span></div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Terlaksana ✓" : `${completedTasks} Melaksanakan · ${totalTasks - completedTasks} Tidak Melaksanakan`}</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5"><strong>{completedTasks}</strong> Melaksanakan · <strong>{totalTasks - completedTasks}</strong> Tidak Melaksanakan</p>
-              </div>
+      {/* Empty State when no musyrif is selected (for Pamong/Koordinator) */}
+      {!selectedMusyrif ? (
+        <div className="bg-gradient-to-b from-indigo-50/70 via-white to-slate-50 border border-indigo-100/80 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-sm">
+          {/* Hero Icon */}
+          <div className="relative mx-auto w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25 ring-8 ring-indigo-50">
+            <ClipboardList className="w-10 h-10" />
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-amber-400 text-slate-900 rounded-full flex items-center justify-center text-xs font-black shadow-xs ring-2 ring-white">
+              <Sparkles className="w-4 h-4" />
             </div>
-            {isCanBypass && (
-              <button
-                type="button"
-                onClick={handleResetLogbook}
-                title="Reset Isian Logbook Tanggal Ini"
-                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-bold transition-all shadow-2xs active:scale-95"
-              >
-                Reset Logbook
-              </button>
-            )}
           </div>
 
-          {/* Full-width clean progress bar */}
-          <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
-            <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} />
+          <div className="max-w-md mx-auto space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-100/80 text-indigo-800 border border-indigo-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Mode Pantau & Pengawasan
+            </span>
+            <h3 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">
+              Pilih Musyrif Terlebih Dahulu
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+              Silakan pilih salah satu musyrif binaan di bawah ini atau gunakan dropdown di atas untuk melihat lembar jurnal harian, status pelaksanaan, dan dokumentasi foto.
+            </p>
           </div>
 
-          {/* Strava Story Sticker Unlock Banner */}
-          {scorePct === 100 ? (
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic("medium");
-                setShowStravaSticker(true);
-              }}
-              className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
-              <span>Buka Stiker Story Ala Strava (PNG Transparan)</span>
-            </button>
-          ) : (
-            <div className="flex flex-col gap-2 w-full">
-              <div 
-                onClick={() => {
-                  if (isCanBypass) {
+          {/* Quick Cards Grid */}
+          <div className="pt-2 text-left">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Daftar Musyrif Binaan:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+              {activeMusyrifList.map(m => {
+                const mLogsToday = logbookData[m.id]?.[selectedDate] || {};
+                const doneCount = Object.values(mLogsToday).filter((t: any) => t?.done).length;
+                
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleDateOrMusyrifChange(m.id, selectedDate)}
+                    className="group p-3.5 rounded-2xl bg-white hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-300 transition-all shadow-2xs hover:shadow-md flex flex-col justify-between gap-2.5 cursor-pointer text-left active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                        {m.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-emerald-800 truncate">{m.name}</h4>
+                        <span className="text-[10px] text-slate-400 block truncate">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                        doneCount > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {doneCount > 0 ? `${doneCount} Melaksanakan` : "Belum Mengisi"}
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        Buka ➔
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">
+            {/* Progress Box */}
+            <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200/60 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl flex flex-col items-center justify-center font-black font-mono shadow-2xs ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200/80"}`}><span className="text-xs">{scorePct}%</span></div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Terlaksana ✓" : `${completedTasks} Melaksanakan · ${totalTasks - completedTasks} Tidak Melaksanakan`}</h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5"><strong>{completedTasks}</strong> Melaksanakan · <strong>{totalTasks - completedTasks}</strong> Tidak Melaksanakan</p>
+                  </div>
+                </div>
+                {isCanBypass && (
+                  <button
+                    type="button"
+                    onClick={handleResetLogbook}
+                    title="Reset Isian Logbook Tanggal Ini"
+                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-bold transition-all shadow-2xs active:scale-95"
+                  >
+                    Reset Logbook
+                  </button>
+                )}
+              </div>
+
+              {/* Full-width clean progress bar */}
+              <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
+                <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${scorePct}%` }} />
+              </div>
+
+              {/* Strava Story Sticker Unlock Banner */}
+              {scorePct === 100 ? (
+                <button
+                  type="button"
+                  onClick={() => {
                     triggerHaptic("medium");
                     setShowStravaSticker(true);
-                  }
-                }}
-                className={`w-full py-2 px-3 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-500 text-[11px] font-semibold flex items-center justify-between gap-2 select-none ${
-                  isCanBypass ? "cursor-pointer active:scale-[0.99] transition-all" : ""
-                }`}
-                title={isCanBypass ? "Akses Pamong/Admin: Klik untuk buka Stiker Strava" : undefined}
-              >
-                <div className="flex items-center gap-1.5 min-w-0 truncate">
-                  <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate">Stiker Story Ala Strava terbuka setelah seluruh tugas ({totalTasks}/{totalTasks}) tuntas</span>
+                  }}
+                  className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
+                  <span>Buka Stiker Story Ala Strava (PNG Transparan)</span>
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2 w-full">
+                  <div 
+                    onClick={() => {
+                      if (isCanBypass) {
+                        triggerHaptic("medium");
+                        setShowStravaSticker(true);
+                      }
+                    }}
+                    className={`w-full py-2 px-3 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-500 text-[11px] font-semibold flex items-center justify-between gap-2 select-none ${
+                      isCanBypass ? "cursor-pointer active:scale-[0.99] transition-all" : ""
+                    }`}
+                    title={isCanBypass ? "Akses Pamong/Admin: Klik untuk buka Stiker Strava" : undefined}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">Stiker Story Ala Strava terbuka setelah seluruh tugas ({totalTasks}/{totalTasks}) tuntas</span>
+                    </div>
+                    <span className="font-bold text-slate-600 shrink-0 font-mono text-[10px]">Tersisa {totalTasks - completedTasks} tugas</span>
+                  </div>
                 </div>
-                <span className="font-bold text-slate-600 shrink-0 font-mono text-[10px]">Tersisa {totalTasks - completedTasks} tugas</span>
-              </div>
+              )}
             </div>
-          )}
-        </div>
 
         {/* Task Search & Category Filter Pills */}
         <div className="space-y-2 pt-1 border-t border-slate-100">
@@ -1164,7 +1287,24 @@ export function JurnalLogbookModal({
                               appAlert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`, "Jadwal Terkunci", "warning");
                               return;
                             }
-                            setActivePatrolTask(t);
+                            const hasEnoughSteps = (taskData.stepsCount || 0) >= (t.targetSteps || 200);
+                            if (!hasEnoughSteps) {
+                              setActivePatrolTask(t);
+                              return;
+                            }
+                            if (t.photoRequirement === "mandatory" && !taskData.photoUrl) {
+                              appAlert(`Patroli langkah telah selesai (${taskData.stepsCount} langkah). Tugas "${t.title}" mewajibkan foto bukti untuk menyelesaikan tugas (Melaksanakan).\n\nSilakan ambil foto bukti sekarang.`, "Wajib Foto Dokumentasi", "info");
+                              setActiveCameraTask(t);
+                              return;
+                            }
+                            toggleTask(t);
+                          } else if (t.photoRequirement === "mandatory" && !taskData.photoUrl && !isDone && !isCanBypass && isMusyrifUser) {
+                            if (isLocked) {
+                              appAlert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`, "Jadwal Terkunci", "warning");
+                              return;
+                            }
+                            appAlert(`Tugas "${t.title}" mewajibkan foto bukti kegiatan.\n\nSilakan ambil foto bukti sekarang untuk menyelesaikan tugas (Melaksanakan).`, "Wajib Foto Dokumentasi", "info");
+                            setActiveCameraTask(t);
                           } else {
                             toggleTask(t);
                           }
@@ -1176,6 +1316,8 @@ export function JurnalLogbookModal({
                             ? "border-rose-200 bg-rose-50/80 text-rose-400 cursor-not-allowed"
                             : isUpcoming && !isCanBypass
                             ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))
+                            ? "border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 active:scale-95 cursor-pointer shadow-2xs"
                             : "border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 text-transparent hover:text-emerald-600 active:scale-95 cursor-pointer shadow-2xs"
                         }`}
                         title={
@@ -1185,6 +1327,8 @@ export function JurnalLogbookModal({
                             ? "Jadwal Terlewat (Terkunci)"
                             : isUpcoming && !isCanBypass
                             ? "Belum Masuk Waktu"
+                            : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))
+                            ? "Patroli Selesai • Wajib Ambil Foto"
                             : "Klik untuk Selesaikan Tugas"
                         }
                       >
@@ -1194,6 +1338,8 @@ export function JurnalLogbookModal({
                           <Lock className="w-3.5 h-3.5 text-rose-400" />
                         ) : isUpcoming && !isCanBypass ? (
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        ) : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200)) ? (
+                          <Camera className="w-4 h-4 text-amber-600" />
                         ) : (
                           <Check className="w-4 h-4" />
                         )}
@@ -1256,6 +1402,11 @@ export function JurnalLogbookModal({
                             <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px]">
                               <Check className="w-3 h-3 text-emerald-600" />
                               <span>Melaksanakan{taskData.completedAt ? ` • ${taskData.completedAt} WIB` : ""}</span>
+                            </span>
+                          ) : (!isDone && (taskData.stepsCount || 0) >= (t.targetSteps || 200) && t.photoRequirement === "mandatory" && !taskData.photoUrl) ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                              <Footprints className="w-3 h-3 text-amber-600" />
+                              <span>Patroli Selesai ({taskData.stepsCount} Lkg) • Wajib Foto</span>
                             </span>
                           ) : isPassed ? (
                             <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-lg text-[11px]">
@@ -1327,19 +1478,29 @@ export function JurnalLogbookModal({
                       {/* Patrol CTA button for active patrol task */}
                       {t.isPatrol && isMusyrifUser && !isDone && (
                         timeInfo.status === "active" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!isToday && !isCanBypass) {
-                                appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Patroli Asrama", "warning");
-                                return;
-                              }
-                              setActivePatrolTask(t);
-                            }}
-                            className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
-                          >
-                            <Footprints className="w-3.5 h-3.5" /> <span>Patroli (200 Lkg)</span>
-                          </button>
+                          (taskData.stepsCount || 0) >= (t.targetSteps || 200) && t.photoRequirement === "mandatory" && !taskData.photoUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => setActiveCameraTask(t)}
+                              className="text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                            >
+                              <Camera className="w-3.5 h-3.5" /> <span>Ambil Foto Wajib</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!isToday && !isCanBypass) {
+                                  appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Patroli Asrama", "warning");
+                                  return;
+                                }
+                                setActivePatrolTask(t);
+                              }}
+                              className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                            >
+                              <Footprints className="w-3.5 h-3.5" /> <span>Patroli (200 Lkg)</span>
+                            </button>
+                          )
                         ) : isPassed ? (
                           <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
                             <Lock className="w-3 h-3" /> <span>Terkunci</span>
@@ -1405,18 +1566,20 @@ export function JurnalLogbookModal({
               );
             })
           )}
-
-          {/* Catatan Tambahan Hari Ini */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-2.5">
-            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-600" /> Catatan Tambahan Hari Ini</label>
-            {isMusyrifUser ? (
-              <textarea rows={2} value={formState.generalNotes || ""} onChange={(e) => setFormState(prev => ({ ...prev, generalNotes: e.target.value }))} placeholder="Tuliskan catatan tambahan mengenai kondisi asrama hari ini..." className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs resize-none" />
-            ) : (
-              <div className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-700 font-medium">{formState.generalNotes || <em className="text-slate-400">Tidak ada catatan tambahan.</em>}</div>
-            )}
-          </div>
         </div>
       )}
+
+      {/* Catatan Tambahan Hari Ini */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-2.5">
+        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-600" /> Catatan Tambahan Hari Ini</label>
+        {isMusyrifUser ? (
+          <textarea rows={2} value={formState.generalNotes || ""} onChange={(e) => setFormState(prev => ({ ...prev, generalNotes: e.target.value }))} placeholder="Tuliskan catatan tambahan mengenai kondisi asrama hari ini..." className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs resize-none" />
+        ) : (
+          <div className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-700 font-medium">{formState.generalNotes || <em className="text-slate-400">Tidak ada catatan tambahan.</em>}</div>
+        )}
+      </div>
+    </>
+  )}
       {activePatrolTask && (
         <PatroliStepsModal
           onClose={() => setActivePatrolTask(null)}

@@ -8,7 +8,7 @@ import { triggerHaptic } from "../utils/animations";
 
 export interface CapturedPhotoResult {
   dataUrl: string;
-  source: "camera" | "preset";
+  source: "camera" | "preset" | "gallery";
   takenAt: string;
   watermarkText: string;
 }
@@ -90,17 +90,19 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   musyrifName,
   asramaName
 }) => {
-  const [activeTab, setActiveTab] = useState<"camera" | "preset">("camera");
+  const [activeTab, setActiveTab] = useState<"camera" | "gallery" | "preset">("camera");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const [selectedSourceType, setSelectedSourceType] = useState<"camera" | "preset" | "gallery">("camera");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
+  const fileInputGalleryRef = useRef<HTMLInputElement | null>(null);
 
   // Inisialisasi Kamera saat modal dibuka
   useEffect(() => {
@@ -113,6 +115,8 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
 
     if (activeTab === "camera" && !capturedPreview) {
       startCamera();
+    } else {
+      stopCamera();
     }
 
     return () => {
@@ -150,7 +154,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       setCameraError(
         err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
           ? "Izin akses kamera belum diberikan. Izinkan akses kamera atau gunakan pengambilan kamera bawaan sistem."
-          : "Kamera langsung tidak dapat diakses di browser ini. Anda dapat menggunakan tombol 'Buka Kamera Sistem' atau 'Template Bawaan'."
+          : "Kamera langsung tidak dapat diakses di browser ini. Anda dapat menggunakan 'Galeri HP' atau 'Template Bawaan'."
       );
     }
   };
@@ -176,7 +180,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     imageSource: CanvasImageSource,
     srcWidth: number,
     srcHeight: number,
-    sourceType: "camera" | "preset"
+    sourceType: "camera" | "preset" | "gallery"
   ): Promise<CapturedPhotoResult> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current || document.createElement("canvas");
@@ -236,9 +240,10 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         second: "2-digit"
       }) + " WIB";
 
+      const sourceLabel = sourceType === "gallery" ? "GALERI HP" : sourceType === "preset" ? "TEMPLATE" : "LIVE CAM";
       const watermarkLine1 = `📸 SYAMSA LOGBOOK • ${asramaName.toUpperCase()}`;
       const watermarkLine2 = `👤 ${musyrifName} • ${taskTitle}`;
-      const watermarkLine3 = `⏱️ ${dateStr}, ${timeStr} • GPS VERIFIED`;
+      const watermarkLine3 = `⏱️ ${dateStr}, ${timeStr} • ${sourceLabel}`;
 
       // Draw Watermark Texts
       const baseFontSize = Math.max(11, Math.round(targetWidth * 0.026));
@@ -266,7 +271,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       ctx.textBaseline = "top";
       ctx.font = `bold ${baseFontSize * 0.85}px sans-serif`;
       ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-      ctx.fillText("MU'ALLIMIN LIVE CAM", targetWidth - topBadgePadding, topBadgePadding);
+      ctx.fillText("MU'ALLIMIN LOGBOOK", targetWidth - topBadgePadding, topBadgePadding);
 
       // Compress to WebP (fallback JPEG) with high compression efficiency (~25-45KB)
       let dataUrl = canvas.toDataURL("image/webp", 0.72);
@@ -298,6 +303,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         "camera"
       );
       setCapturedPreview(result.dataUrl);
+      setSelectedSourceType("camera");
       stopCamera();
     } catch (e) {
       console.error("Snap photo error:", e);
@@ -306,7 +312,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     }
   };
 
-  // Fallback: Native Direct Camera Capture (Melalui input file dengan capture="environment" yang memaksa buka kamera HP, BUKAN galeri)
+  // Native Direct Camera Capture
   const handleNativeCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -320,12 +326,35 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       img.onload = async () => {
         const result = await applyWatermarkAndCompress(img, img.width, img.height, "camera");
         setCapturedPreview(result.dataUrl);
+        setSelectedSourceType("camera");
         setIsProcessing(false);
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
-    // Reset value agar bisa capture ulang
+    e.target.value = "";
+  };
+
+  // Pick Photo from Phone Gallery / Storage
+  const handleGalleryPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    triggerHaptic();
+    setIsProcessing(true);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = async () => {
+        const result = await applyWatermarkAndCompress(img, img.width, img.height, "gallery");
+        setCapturedPreview(result.dataUrl);
+        setSelectedSourceType("gallery");
+        setIsProcessing(false);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
     e.target.value = "";
   };
 
@@ -333,6 +362,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   const handleSelectPreset = async (template: typeof PRESET_TEMPLATES[0]) => {
     triggerHaptic();
     setSelectedPresetId(template.id);
+    setSelectedSourceType("preset");
     setIsProcessing(true);
 
     try {
@@ -409,7 +439,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     triggerHaptic();
     onCapture({
       dataUrl: capturedPreview,
-      source: selectedPresetId ? "preset" : "camera",
+      source: selectedSourceType,
       takenAt: new Date().toISOString(),
       watermarkText: `${taskTitle} • ${asramaName}`
     });
@@ -434,10 +464,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
-                Kamera Tugas Logbook
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
-                  Live Only
-                </span>
+                Dokumentasi Logbook
               </h3>
               <p className="text-[11px] text-slate-400 truncate max-w-[220px] sm:max-w-[300px]">
                 {taskTitle}
@@ -452,23 +479,39 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Selector: Live Kamera vs Template Bawaan */}
+        {/* Tab Selector: Live Kamera vs Galeri HP vs Template Bawaan */}
         {!capturedPreview && (
-          <div className="grid grid-cols-2 p-1.5 bg-slate-950/80 border-b border-slate-800 text-xs font-semibold">
+          <div className="grid grid-cols-3 p-1.5 bg-slate-950/80 border-b border-slate-800 text-xs font-semibold gap-1">
             <button
               onClick={() => {
                 triggerHaptic();
                 setActiveTab("camera");
                 setSelectedPresetId(null);
               }}
-              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all text-center ${
                 activeTab === "camera"
                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/40"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
               <Camera className="w-3.5 h-3.5" />
-              Kamera Langsung
+              <span>Kamera</span>
+            </button>
+            <button
+              onClick={() => {
+                triggerHaptic();
+                setActiveTab("gallery");
+                setSelectedPresetId(null);
+                stopCamera();
+              }}
+              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all text-center ${
+                activeTab === "gallery"
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/40"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Galeri HP</span>
             </button>
             <button
               onClick={() => {
@@ -476,14 +519,14 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 setActiveTab("preset");
                 stopCamera();
               }}
-              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all text-center ${
                 activeTab === "preset"
                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/40"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Template Bawaan
+              <span>Template</span>
             </button>
           </div>
         )}
@@ -501,7 +544,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 />
                 <div className="absolute top-2.5 left-2.5 bg-emerald-500/90 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg">
                   <CheckCircle2 className="w-3 h-3" />
-                  Foto Siap Digunakan
+                  Foto Siap Disimpan
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 mt-2 text-center">
@@ -521,20 +564,19 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                     {cameraError}
                   </p>
                   <div className="flex flex-col gap-2 w-full">
-                    {/* Fallback Direct Device Camera Trigger */}
                     <button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => fileInputCameraRef.current?.click()}
                       className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60"
                     >
                       <Camera className="w-4 h-4" />
                       Buka Kamera Bawaan HP
                     </button>
                     <button
-                      onClick={() => setActiveTab("preset")}
-                      className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-2"
+                      onClick={() => fileInputGalleryRef.current?.click()}
+                      className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2"
                     >
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      Gunakan Template Bawaan
+                      <ImageIcon className="w-4 h-4" />
+                      Pilih dari Galeri HP
                     </button>
                   </div>
                 </div>
@@ -576,8 +618,30 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 </div>
               )}
             </div>
+          ) : activeTab === "gallery" ? (
+            /* 3. Tab Unggah dari Galeri HP */
+            <div className="p-4 sm:p-6 flex flex-col items-center justify-center text-center my-auto">
+              <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3 shadow-lg shadow-indigo-950/50">
+                <ImageIcon className="w-8 h-8" />
+              </div>
+              <h4 className="text-sm font-bold text-white mb-1">
+                Pilih Foto dari Galeri HP
+              </h4>
+              <p className="text-xs text-slate-400 max-w-sm mb-4 leading-relaxed">
+                Gunakan foto yang sudah Anda ambil sebelumnya saat mendampingi kegiatan di asrama. Watermark resmi akan disematkan secara otomatis.
+              </p>
+
+              <button
+                onClick={() => fileInputGalleryRef.current?.click()}
+                disabled={isProcessing}
+                className="w-full max-w-xs py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/60 transition-all active:scale-98"
+              >
+                <ImageIcon className="w-4 h-4" />
+                {isProcessing ? "Memproses Foto..." : "Buka Galeri Foto HP"}
+              </button>
+            </div>
           ) : (
-            /* 3. Tab Template Bawaan Resmi */
+            /* 4. Tab Template Bawaan Resmi */
             <div className="p-3 sm:p-4 space-y-2.5">
               <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-2.5 flex items-start gap-2 text-xs text-emerald-200">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -619,13 +683,22 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           )}
         </div>
 
-        {/* Hidden File Input dengan capture="environment" (Memaksa buka kamera langsung, melarang file album) */}
+        {/* Hidden File Input dengan capture="environment" (Kamera HP) */}
         <input
-          ref={fileInputRef}
+          ref={fileInputCameraRef}
           type="file"
           accept="image/*"
           capture="environment"
           onChange={handleNativeCameraCapture}
+          className="hidden"
+        />
+
+        {/* Hidden File Input untuk Galeri HP (Tanpa capture) */}
+        <input
+          ref={fileInputGalleryRef}
+          type="file"
+          accept="image/*"
+          onChange={handleGalleryPhotoUpload}
           className="hidden"
         />
 
@@ -659,16 +732,31 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
               </button>
             </>
           ) : activeTab === "camera" && !cameraError ? (
-            <div className="w-full flex items-center justify-center py-1">
+            <div className="w-full flex items-center justify-between px-2">
+              <button
+                onClick={() => fileInputGalleryRef.current?.click()}
+                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Galeri HP</span>
+              </button>
+
               {/* Shutter Button */}
               <button
                 onClick={handleSnapLivePhoto}
                 disabled={isProcessing}
-                className="group relative w-16 h-16 rounded-full border-4 border-white/80 p-1 flex items-center justify-center hover:border-white transition-all active:scale-90"
+                className="group relative w-15 h-15 rounded-full border-4 border-white/80 p-1 flex items-center justify-center hover:border-white transition-all active:scale-90"
               >
                 <div className="w-full h-full rounded-full bg-emerald-500 group-hover:bg-emerald-400 flex items-center justify-center shadow-lg transition-colors">
                   <Camera className="w-6 h-6 text-slate-950" />
                 </div>
+              </button>
+
+              <button
+                onClick={onClose}
+                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
+              >
+                Tutup
               </button>
             </div>
           ) : (

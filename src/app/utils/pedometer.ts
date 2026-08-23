@@ -38,22 +38,29 @@ export class PedometerService {
 
   // Digital Signal Processing (DSP) & Step Detection Filters
   private gravity = { x: 0, y: 0, z: 9.8 };
-  private alpha = 0.82; // Faster gravity tracking
+  private alpha = 0.88; // Stable low-pass gravity filter
   private filteredMagnitude = 0;
   private prevMagnitude = 0;
   private prevSlope = 0;
+  private currentValley = 0;
   
   // Rolling Window Adaptive Peak-Valley Thresholding
   private magHistory: number[] = [];
-  private readonly MAG_HISTORY_LEN = 20; // ~0.4s window
-  private dynamicThreshold = 0.85; // Lower dynamic floor for gentle walking
-  private minPeakThreshold = 0.68; // High sensitivity for slow indoor footsteps
-  private maxPeakThreshold = 14.0; // Broad tolerance
+  private readonly MAG_HISTORY_LEN = 25; // ~0.5s window
+  private dynamicThreshold = 2.0; // Dynamic threshold baseline (calibrated for real footsteps)
+  private minPeakThreshold = 1.95; // Sturdy threshold to eliminate hand fidgets and minor tilts (approx 0.20G)
+  private maxPeakThreshold = 18.0; // Broad tolerance for brisk walking / stairs
+  private minPeakToValley = 1.25; // Minimum peak-to-valley amplitude swing for real human steps
 
-  // Step Timing Constraints (Natural walking 0.45Hz - 3.5Hz)
-  private readonly STEP_MIN_INTERVAL = 280; // ~3.5 steps/sec max
-  private readonly STEP_MAX_INTERVAL = 2500; // 2.5s inactivity reset
+  // Step Timing Constraints (Natural walking cadence: ~0.55Hz - 3.0Hz)
+  private readonly STEP_MIN_INTERVAL = 330; // Max ~3 steps/sec (prevents rapid vibration false positives)
+  private readonly STEP_MAX_INTERVAL = 1800; // 1.8s max pause between consecutive steps
   private recentStepTimes: number[] = [];
+
+  // Anti-Fidget Debounce Buffer (Requires at least 3 rhythmic steps before accumulating)
+  private pendingSteps = 0;
+  private lastCandidateTime = 0;
+  private isRhythmEstablished = false;
 
   // GPS & Anti-Room-Spinning
   private watchId: number | null = null;
@@ -107,6 +114,10 @@ export class PedometerService {
     this.startTime = Date.now() - this.elapsedSeconds * 1000;
     this.recentStepTimes = [];
     this.magHistory = [];
+    this.pendingSteps = 0;
+    this.lastCandidateTime = 0;
+    this.isRhythmEstablished = false;
+    this.currentValley = 0;
     this.gravity = { x: 0, y: 0, z: 9.8 };
 
     // Start motion sensor
@@ -125,6 +136,13 @@ export class PedometerService {
     this.timerInterval = setInterval(() => {
       if (this.isActive) {
         this.elapsedSeconds += 1;
+        
+        // Reset rhythm if user has stopped walking for > 2 seconds
+        if (Date.now() - this.lastStepTime > this.STEP_MAX_INTERVAL && this.isRhythmEstablished) {
+          this.isRhythmEstablished = false;
+          this.pendingSteps = 0;
+        }
+
         this.emitTelemetry();
       }
     }, 1000);
@@ -148,6 +166,10 @@ export class PedometerService {
     this.steps = initialSteps;
     this.elapsedSeconds = 0;
     this.lastStepTime = 0;
+    this.lastCandidateTime = 0;
+    this.pendingSteps = 0;
+    this.isRhythmEstablished = false;
+    this.currentValley = 0;
     this.recentStepTimes = [];
     this.startLocation = null;
     this.lastLocation = null;
@@ -185,10 +207,11 @@ export class PedometerService {
   }
 
   /**
-   * Ultra-Sensitive High-Precision Signal Processing:
-   * 1. Gravity Isolate (Low-pass filter on 3D vectors)
+   * Industrial-Grade Calibrated Pedometer Filter (Android/iOS Step Detector Standard):
+   * 1. Gravity Isolate (Low-pass IIR on 3D vectors)
    * 2. User Linear Dynamic Acceleration = Vector - Gravity
-   * 3. Sensitive Adaptive Threshold Peak Detection (registers soft footsteps, pocket placement, etc.)
+   * 3. Peak-to-Valley Amplitude Swing Verification (Filters small twitches and hand jitter)
+   * 4. Rhythmic Cadence Streak Buffer (Requires 3 rhythmic steps before accumulating to avoid single-shake false positives)
    */
   private handleMotion(event: DeviceMotionEvent) {
     const rawAcc = event.accelerationIncludingGravity || event.acceleration;
@@ -198,12 +221,12 @@ export class PedometerService {
     const ry = rawAcc.y || 0;
     const rz = rawAcc.z || 0;
 
-    // 1. Isolate gravity using low-pass IIR filter
+    // 1. Isolate gravity using low-pass IIR filter (alpha = 0.88 for steady baseline)
     this.gravity.x = this.alpha * this.gravity.x + (1 - this.alpha) * rx;
     this.gravity.y = this.alpha * this.gravity.y + (1 - this.alpha) * ry;
     this.gravity.z = this.alpha * this.gravity.z + (1 - this.alpha) * rz;
 
-    // 2. High-pass filter linear body acceleration (remove static tilt/gravity)
+    // 2. High-pass filter linear body acceleration (remove tilt/orientation)
     const linX = rx - this.gravity.x;
     const linY = ry - this.gravity.y;
     const linZ = rz - this.gravity.z;
@@ -211,8 +234,13 @@ export class PedometerService {
     // Calculate dynamic body acceleration magnitude
     const dynMagnitude = Math.sqrt(linX * linX + linY * linY + linZ * linZ);
 
-    // 3. Smooth with exponential moving average (fast responsive filter)
-    this.filteredMagnitude = 0.55 * this.filteredMagnitude + 0.45 * dynMagnitude;
+    // 3. Smooth with exponential moving average to filter high-frequency sensor noise
+    this.filteredMagnitude = 0.45 * this.filteredMagnitude + 0.55 * dynMagnitude;
+
+    // Track rolling minimum (valley) during the wave
+    if (this.filteredMagnitude < this.currentValley || this.currentValley === 0) {
+      this.currentValley = this.filteredMagnitude;
+    }
 
     // Rolling history for adaptive statistical thresholding
     this.magHistory.push(this.filteredMagnitude);
@@ -220,15 +248,17 @@ export class PedometerService {
       this.magHistory.shift();
     }
 
-    if (this.magHistory.length >= 6) {
+    if (this.magHistory.length >= 8) {
       const sum = this.magHistory.reduce((a, b) => a + b, 0);
       const mean = sum / this.magHistory.length;
-      // Variance calculation
       const variance = this.magHistory.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / this.magHistory.length;
       const stdDev = Math.sqrt(variance);
 
-      // Sensitive threshold: mean + 0.65 * stdDev (detects gentle walking easily)
-      this.dynamicThreshold = Math.max(this.minPeakThreshold, Math.min(this.maxPeakThreshold, mean + stdDev * 0.65));
+      // Adaptive dynamic threshold: mean + 0.85 * stdDev (clamped firmly to minPeakThreshold = 1.95 m/s²)
+      this.dynamicThreshold = Math.max(
+        this.minPeakThreshold,
+        Math.min(this.maxPeakThreshold, mean + stdDev * 0.85)
+      );
     }
 
     // 4. Peak Detection with zero-crossing slope analysis
@@ -236,42 +266,69 @@ export class PedometerService {
     const now = Date.now();
 
     // Check for local peak: slope changed from positive to negative above adaptive threshold
-    if (
-      this.prevSlope > 0 && 
-      currentSlope <= 0 && 
-      this.prevMagnitude >= this.dynamicThreshold &&
-      this.prevMagnitude <= this.maxPeakThreshold
-    ) {
-      const timeSinceLast = now - this.lastStepTime;
+    if (this.prevSlope > 0 && currentSlope <= 0) {
+      const peakVal = this.prevMagnitude;
+      const amplitudeSwing = peakVal - this.currentValley;
 
-      // Realistic human patrol step cadence constraint (~280ms to 2500ms)
-      if (timeSinceLast >= this.STEP_MIN_INTERVAL) {
-        this.steps += 1;
-        this.lastStepTime = now;
-        this.recentStepTimes.push(now);
+      // Validate peak height AND genuine peak-to-valley wave swing
+      if (
+        peakVal >= this.dynamicThreshold &&
+        peakVal <= this.maxPeakThreshold &&
+        amplitudeSwing >= this.minPeakToValley
+      ) {
+        const timeSinceLastCandidate = now - this.lastCandidateTime;
 
-        if (this.recentStepTimes.length > 15) {
-          this.recentStepTimes.shift();
-        }
-
-        // Indoor Fallback: If GPS is unavailable/weak, estimate displacement from step count
-        if (!this.gpsActive || this.gpsAccuracy > 35) {
-          this.totalGpsDistanceMeters += 0.72; // Avg human stride length ~72cm
-          if (this.steps >= 15) {
-            this.maxDisplacementMeters = Math.max(
-              this.maxDisplacementMeters,
-              Math.min(35, Math.round(this.steps * 0.3))
-            );
+        // Check if timing fits natural human walking cadence (~330ms to 1800ms)
+        if (timeSinceLastCandidate >= this.STEP_MIN_INTERVAL && timeSinceLastCandidate <= this.STEP_MAX_INTERVAL) {
+          if (!this.isRhythmEstablished) {
+            this.pendingSteps += 1;
+            // When 3 rhythmic steps occur consecutively, establish cadence and credit all 3 steps
+            if (this.pendingSteps >= 3) {
+              this.isRhythmEstablished = true;
+              this.steps += this.pendingSteps;
+              this.pendingSteps = 0;
+              this.lastStepTime = now;
+              this.recentStepTimes.push(now - 600, now - 300, now);
+              this.onStepValidated(3);
+            }
+          } else {
+            // Rhythm is already active: count step immediately in real-time
+            this.steps += 1;
+            this.lastStepTime = now;
+            this.recentStepTimes.push(now);
+            if (this.recentStepTimes.length > 15) this.recentStepTimes.shift();
+            this.onStepValidated(1);
           }
+          this.lastCandidateTime = now;
+        } else if (timeSinceLastCandidate > this.STEP_MAX_INTERVAL || timeSinceLastCandidate < this.STEP_MIN_INTERVAL) {
+          // If interval is too long or too short (abnormal jitter), start fresh streak candidate
+          this.isRhythmEstablished = false;
+          this.pendingSteps = 1;
+          this.lastCandidateTime = now;
         }
 
-        this.triggerHaptic();
+        // Reset valley for the next walking wave
+        this.currentValley = peakVal;
       }
     }
 
     this.prevSlope = currentSlope;
     this.prevMagnitude = this.filteredMagnitude;
     this.emitTelemetry();
+  }
+
+  private onStepValidated(stepCount: number) {
+    // Indoor Fallback: If GPS is unavailable/weak, estimate displacement from step count
+    if (!this.gpsActive || this.gpsAccuracy > 35) {
+      this.totalGpsDistanceMeters += 0.72 * stepCount; // Avg human stride length ~72cm
+      if (this.steps >= 15) {
+        this.maxDisplacementMeters = Math.max(
+          this.maxDisplacementMeters,
+          Math.min(35, Math.round(this.steps * 0.3))
+        );
+      }
+    }
+    this.triggerHaptic();
   }
 
   private calculateCadence(): number {
