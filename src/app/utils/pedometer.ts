@@ -38,26 +38,26 @@ export class PedometerService {
 
   // Digital Signal Processing (DSP) & Step Detection Filters
   private gravity = { x: 0, y: 0, z: 9.8 };
-  private alpha = 0.88; // Stable low-pass gravity filter
+  private alpha = 0.85; // Stable balanced gravity filter
   private filteredMagnitude = 0;
   private prevMagnitude = 0;
   private prevSlope = 0;
   private currentValley = 0;
   
-  // Rolling Window Adaptive Peak-Valley Thresholding
+  // Rolling Window Adaptive Peak-Valley Thresholding (Calibrated for Asrama Stop-and-Go Patrol)
   private magHistory: number[] = [];
-  private readonly MAG_HISTORY_LEN = 25; // ~0.5s window
-  private dynamicThreshold = 2.0; // Dynamic threshold baseline (calibrated for real footsteps)
-  private minPeakThreshold = 1.95; // Sturdy threshold to eliminate hand fidgets and minor tilts (approx 0.20G)
-  private maxPeakThreshold = 18.0; // Broad tolerance for brisk walking / stairs
-  private minPeakToValley = 1.25; // Minimum peak-to-valley amplitude swing for real human steps
+  private readonly MAG_HISTORY_LEN = 20; // ~0.4s window
+  private dynamicThreshold = 1.25; // Dynamic threshold baseline
+  private minPeakThreshold = 1.15; // Balanced floor: catches loose sarung/gamis/koko pockets while ignoring table resting / typing jitter (~0.12G)
+  private maxPeakThreshold = 16.0; // Broad tolerance for stairs & brisk walking
+  private minPeakToValley = 0.80; // Minimum wave amplitude for real human footsteps
 
-  // Step Timing Constraints (Natural walking cadence: ~0.55Hz - 3.0Hz)
-  private readonly STEP_MIN_INTERVAL = 330; // Max ~3 steps/sec (prevents rapid vibration false positives)
-  private readonly STEP_MAX_INTERVAL = 1800; // 1.8s max pause between consecutive steps
+  // Step Timing Constraints (Natural walking cadence: ~0.45Hz - 3.2Hz)
+  private readonly STEP_MIN_INTERVAL = 310; // Max ~3.2 steps/sec
+  private readonly STEP_MAX_INTERVAL = 2200; // 2.2s tolerance for musyrif stopping to inspect room / talk to santri
   private recentStepTimes: number[] = [];
 
-  // Anti-Fidget Debounce Buffer (Requires at least 3 rhythmic steps before accumulating)
+  // Stop-and-Go 2-Step Confirmation Buffer
   private pendingSteps = 0;
   private lastCandidateTime = 0;
   private isRhythmEstablished = false;
@@ -137,7 +137,7 @@ export class PedometerService {
       if (this.isActive) {
         this.elapsedSeconds += 1;
         
-        // Reset rhythm if user has stopped walking for > 2 seconds
+        // Reset rhythm buffer if user stopped walking for > 2.2 seconds (without losing total steps)
         if (Date.now() - this.lastStepTime > this.STEP_MAX_INTERVAL && this.isRhythmEstablished) {
           this.isRhythmEstablished = false;
           this.pendingSteps = 0;
@@ -207,11 +207,11 @@ export class PedometerService {
   }
 
   /**
-   * Industrial-Grade Calibrated Pedometer Filter (Android/iOS Step Detector Standard):
+   * Stop-and-Go Calibrated Pedometer Filter for Asrama Patrol:
    * 1. Gravity Isolate (Low-pass IIR on 3D vectors)
    * 2. User Linear Dynamic Acceleration = Vector - Gravity
-   * 3. Peak-to-Valley Amplitude Swing Verification (Filters small twitches and hand jitter)
-   * 4. Rhythmic Cadence Streak Buffer (Requires 3 rhythmic steps before accumulating to avoid single-shake false positives)
+   * 3. Peak-to-Valley Amplitude Check (Filters hand twitch / table resting)
+   * 4. Quick 2-Step Streak Buffer (Validates 2 consecutive steps so short inter-room walks are seamlessly counted)
    */
   private handleMotion(event: DeviceMotionEvent) {
     const rawAcc = event.accelerationIncludingGravity || event.acceleration;
@@ -221,7 +221,7 @@ export class PedometerService {
     const ry = rawAcc.y || 0;
     const rz = rawAcc.z || 0;
 
-    // 1. Isolate gravity using low-pass IIR filter (alpha = 0.88 for steady baseline)
+    // 1. Isolate gravity using low-pass IIR filter (alpha = 0.85)
     this.gravity.x = this.alpha * this.gravity.x + (1 - this.alpha) * rx;
     this.gravity.y = this.alpha * this.gravity.y + (1 - this.alpha) * ry;
     this.gravity.z = this.alpha * this.gravity.z + (1 - this.alpha) * rz;
@@ -234,8 +234,8 @@ export class PedometerService {
     // Calculate dynamic body acceleration magnitude
     const dynMagnitude = Math.sqrt(linX * linX + linY * linY + linZ * linZ);
 
-    // 3. Smooth with exponential moving average to filter high-frequency sensor noise
-    this.filteredMagnitude = 0.45 * this.filteredMagnitude + 0.55 * dynMagnitude;
+    // 3. Smooth with exponential moving average to filter sensor jitter
+    this.filteredMagnitude = 0.50 * this.filteredMagnitude + 0.50 * dynMagnitude;
 
     // Track rolling minimum (valley) during the wave
     if (this.filteredMagnitude < this.currentValley || this.currentValley === 0) {
@@ -248,16 +248,16 @@ export class PedometerService {
       this.magHistory.shift();
     }
 
-    if (this.magHistory.length >= 8) {
+    if (this.magHistory.length >= 6) {
       const sum = this.magHistory.reduce((a, b) => a + b, 0);
       const mean = sum / this.magHistory.length;
       const variance = this.magHistory.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / this.magHistory.length;
       const stdDev = Math.sqrt(variance);
 
-      // Adaptive dynamic threshold: mean + 0.85 * stdDev (clamped firmly to minPeakThreshold = 1.95 m/s²)
+      // Adaptive dynamic threshold: mean + 0.70 * stdDev (clamped to minPeakThreshold = 1.15 m/s²)
       this.dynamicThreshold = Math.max(
         this.minPeakThreshold,
-        Math.min(this.maxPeakThreshold, mean + stdDev * 0.85)
+        Math.min(this.maxPeakThreshold, mean + stdDev * 0.70)
       );
     }
 
@@ -270,7 +270,7 @@ export class PedometerService {
       const peakVal = this.prevMagnitude;
       const amplitudeSwing = peakVal - this.currentValley;
 
-      // Validate peak height AND genuine peak-to-valley wave swing
+      // Validate peak height AND genuine wave swing
       if (
         peakVal >= this.dynamicThreshold &&
         peakVal <= this.maxPeakThreshold &&
@@ -278,21 +278,21 @@ export class PedometerService {
       ) {
         const timeSinceLastCandidate = now - this.lastCandidateTime;
 
-        // Check if timing fits natural human walking cadence (~330ms to 1800ms)
+        // Check if timing fits walking interval (310ms - 2200ms)
         if (timeSinceLastCandidate >= this.STEP_MIN_INTERVAL && timeSinceLastCandidate <= this.STEP_MAX_INTERVAL) {
           if (!this.isRhythmEstablished) {
             this.pendingSteps += 1;
-            // When 3 rhythmic steps occur consecutively, establish cadence and credit all 3 steps
-            if (this.pendingSteps >= 3) {
+            // 2 consecutive steps confirms walking: credit both steps immediately!
+            if (this.pendingSteps >= 2) {
               this.isRhythmEstablished = true;
               this.steps += this.pendingSteps;
               this.pendingSteps = 0;
               this.lastStepTime = now;
-              this.recentStepTimes.push(now - 600, now - 300, now);
-              this.onStepValidated(3);
+              this.recentStepTimes.push(now - 450, now);
+              this.onStepValidated(2);
             }
           } else {
-            // Rhythm is already active: count step immediately in real-time
+            // Walking is ongoing: count step directly in real-time
             this.steps += 1;
             this.lastStepTime = now;
             this.recentStepTimes.push(now);
@@ -301,13 +301,13 @@ export class PedometerService {
           }
           this.lastCandidateTime = now;
         } else if (timeSinceLastCandidate > this.STEP_MAX_INTERVAL || timeSinceLastCandidate < this.STEP_MIN_INTERVAL) {
-          // If interval is too long or too short (abnormal jitter), start fresh streak candidate
+          // If paused or erratic single movement: start new 2-step candidate
           this.isRhythmEstablished = false;
           this.pendingSteps = 1;
           this.lastCandidateTime = now;
         }
 
-        // Reset valley for the next walking wave
+        // Reset valley for next step wave
         this.currentValley = peakVal;
       }
     }
