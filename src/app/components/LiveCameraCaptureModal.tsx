@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
-import { 
-  Camera, RefreshCw, X, Check, Image as ImageIcon, Sparkles, AlertTriangle, ShieldCheck, 
-  FlipHorizontal, Zap, ZapOff, CheckCircle2, ChevronRight
+import {
+  Camera, RefreshCw, X, Check, Image as ImageIcon, AlertTriangle,
+  FlipHorizontal, CheckCircle2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { triggerHaptic } from "../utils/animations";
+import syamsaWordmark from "../../assets/branding/Wordmark.webp";
 
 export interface CapturedPhotoResult {
   dataUrl: string;
-  source: "camera" | "preset" | "gallery";
+  source: "camera" | "gallery";
   takenAt: string;
   watermarkText: string;
 }
@@ -22,66 +23,6 @@ interface LiveCameraCaptureModalProps {
   asramaName: string;
 }
 
-// Preset template foto bawaan resmi (jika kamera tidak bisa digunakan)
-const PRESET_TEMPLATES = [
-  {
-    id: "preset_tahajjud",
-    title: "Membangunkan Qiyamul Lail",
-    category: "Tahajjud & Shubuh",
-    gradient: "from-slate-900 via-indigo-950 to-blue-900",
-    icon: "🌙",
-    desc: "Dokumentasi penyisiran kamar santri bangun malam & shalat tahajjud berjamaah."
-  },
-  {
-    id: "preset_muhadatsah",
-    title: "Halaqah & Muhadatsah Pagi",
-    category: "Ba'da Shubuh",
-    gradient: "from-emerald-900 via-teal-950 to-cyan-900",
-    icon: "📖",
-    desc: "Dokumentasi pendampingan muhadatsah bahasa Arab/Inggris dan halaqah tahfizh."
-  },
-  {
-    id: "preset_sisir_sekolah",
-    title: "Penyisiran Kamar Berangkat Sekolah",
-    category: "Pagi Madrasah",
-    gradient: "from-amber-900 via-orange-950 to-yellow-900",
-    icon: "🚪",
-    desc: "Dokumentasi penyisiran kamar santri rapi & terkunci saat berangkat madrasah."
-  },
-  {
-    id: "preset_jaga_gerbang",
-    title: "Patroli & Penjagaan Gerbang Asrama",
-    category: "Patroli Pagi",
-    gradient: "from-blue-950 via-slate-900 to-sky-950",
-    icon: "🛡️",
-    desc: "Dokumentasi patroli dan penertiban santri keluar masuk gerbang asrama."
-  },
-  {
-    id: "preset_kerja_bakti",
-    title: "Gotong Royong & Kerja Bakti Asrama",
-    category: "Kerja Bakti Ahad",
-    gradient: "from-teal-900 via-emerald-950 to-green-900",
-    icon: "🧹",
-    desc: "Dokumentasi pendampingan santri kerja bakti kebersihan lorong & kamar asrama."
-  },
-  {
-    id: "preset_sakit",
-    title: "Pemeriksaan & Kontrol Santri Sakit",
-    category: "Kesehatan Santri",
-    gradient: "from-rose-950 via-red-950 to-pink-900",
-    icon: "🩺",
-    desc: "Dokumentasi pengecekan kondisi santri yang sakit dan pemberian obat di asrama."
-  },
-  {
-    id: "preset_sisir_malam",
-    title: "Penyisiran Jam Tidur Santri",
-    category: "Malam Asrama",
-    gradient: "from-purple-950 via-indigo-950 to-slate-950",
-    icon: "🛏️",
-    desc: "Dokumentasi kontrol lampu kamar santri padam dan istirahat tertib tepat waktu."
-  }
-];
-
 export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   isOpen,
   onClose,
@@ -90,14 +31,13 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   musyrifName,
   asramaName
 }) => {
-  const [activeTab, setActiveTab] = useState<"camera" | "gallery" | "preset">("camera");
+  const [activeTab, setActiveTab] = useState<"camera" | "gallery">("camera");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  const [selectedSourceType, setSelectedSourceType] = useState<"camera" | "preset" | "gallery">("camera");
+  const [selectedSourceType, setSelectedSourceType] = useState<"camera" | "gallery">("camera");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -180,26 +120,21 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     imageSource: CanvasImageSource,
     srcWidth: number,
     srcHeight: number,
-    sourceType: "camera" | "preset" | "gallery"
+    sourceType: "camera" | "gallery"
   ): Promise<CapturedPhotoResult> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current || document.createElement("canvas");
-      
-      // Target resolusi maksimal untuk efisiensi penyimpanan & cloud sync (~640x640 / 720x540)
-      const maxDim = 800;
-      let targetWidth = srcWidth;
-      let targetHeight = srcHeight;
 
-      if (srcWidth > maxDim || srcHeight > maxDim) {
-        if (srcWidth > srcHeight) {
-          targetWidth = maxDim;
-          targetHeight = Math.round((srcHeight * maxDim) / srcWidth);
-        } else {
-          targetHeight = maxDim;
-          targetWidth = Math.round((srcWidth * maxDim) / srcHeight);
-        }
-      }
+      // Fixed aspect ratio 9:16 (Story format)
+      const STORY_RATIO = 9 / 16; // 0.5625
+      const maxHeight = 800;
+      const maxWidth = Math.round(maxHeight * STORY_RATIO); // 450
 
+      // Calculate target dimensions maintaining 9:16 ratio
+      let targetHeight = maxHeight;
+      let targetWidth = maxWidth;
+
+      // Crop from center to get 9:16
       canvas.width = targetWidth;
       canvas.height = targetHeight;
       const ctx = canvas.getContext("2d");
@@ -214,8 +149,21 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         return;
       }
 
-      // Draw Base Image
-      ctx.drawImage(imageSource, 0, 0, targetWidth, targetHeight);
+      // Draw Base Image - Crop from center to fit 9:16 ratio
+      const srcRatio = srcWidth / srcHeight;
+      let sx = 0, sy = 0, sW = srcWidth, sH = srcHeight;
+
+      if (srcRatio > STORY_RATIO) {
+        // Source is wider than 9:16 - crop sides
+        sW = Math.round(srcHeight * STORY_RATIO);
+        sx = Math.round((srcWidth - sW) / 2);
+      } else if (srcRatio < STORY_RATIO) {
+        // Source is taller than 9:16 - crop top/bottom
+        sH = Math.round(srcWidth / STORY_RATIO);
+        sy = Math.round((srcHeight - sH) / 2);
+      }
+
+      ctx.drawImage(imageSource, sx, sy, sW, sH, 0, 0, targetWidth, targetHeight);
 
       // Add Gradient Overlay at bottom for Watermark legibility
       const overlayHeight = Math.min(140, Math.round(targetHeight * 0.28));
@@ -226,64 +174,74 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       ctx.fillStyle = gradient;
       ctx.fillRect(0, targetHeight - overlayHeight, targetWidth, overlayHeight);
 
-      // Date Time Formatting
+      // Date Time Formatting - Format: 12/8/2026 - 02.49.18
       const now = new Date();
       const dateStr = now.toLocaleDateString("id-ID", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
+        day: "2-digit",
+        month: "2-digit",
         year: "numeric"
       });
       const timeStr = now.toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
-      }) + " WIB";
+      }).replace(/\./g, ":");
+      const dateTimeStr = `${dateStr} - ${timeStr}`;
 
-      const sourceLabel = sourceType === "gallery" ? "GALERI HP" : sourceType === "preset" ? "TEMPLATE" : "LIVE CAM";
-      const watermarkLine1 = `📸 SYAMSA LOGBOOK • ${asramaName.toUpperCase()}`;
-      const watermarkLine2 = `👤 ${musyrifName} • ${taskTitle}`;
-      const watermarkLine3 = `⏱️ ${dateStr}, ${timeStr} • ${sourceLabel}`;
+      const watermarkLine1 = `${musyrifName}`;
+      const watermarkLine2 = `${asramaName}`;
+      const watermarkLine3 = `${dateTimeStr}`;
 
-      // Draw Watermark Texts
-      const baseFontSize = Math.max(11, Math.round(targetWidth * 0.026));
+      // Draw Watermark Texts - Left Side (2 lines only)
+      const baseFontSize = Math.max(14, Math.round(targetWidth * 0.032));
       ctx.textAlign = "left";
       ctx.textBaseline = "bottom";
 
-      // Line 3 (Bottom-most)
-      ctx.font = `600 ${baseFontSize * 0.88}px sans-serif`;
-      ctx.fillStyle = "#34d399"; // emerald-400
-      ctx.fillText(watermarkLine3, 14, targetHeight - 10);
-
-      // Line 2 (Middle)
-      ctx.font = `500 ${baseFontSize * 0.95}px sans-serif`;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(watermarkLine2, 14, targetHeight - 12 - (baseFontSize * 1.1));
-
-      // Line 1 (Top of watermark)
-      ctx.font = `bold ${baseFontSize * 1.05}px sans-serif`;
+      // Line 1 (Top) - Nama Ustadz
+      ctx.font = `bold ${baseFontSize * 1.15}px sans-serif`;
       ctx.fillStyle = "#facc15"; // amber-400
-      ctx.fillText(watermarkLine1, 14, targetHeight - 14 - (baseFontSize * 2.2));
+      ctx.fillText(watermarkLine1, 14, targetHeight - 14 - (baseFontSize * 1.3));
 
-      // Add Top-Right Watermark Logo/Badge
-      const topBadgePadding = 12;
-      ctx.textAlign = "right";
-      ctx.textBaseline = "top";
-      ctx.font = `bold ${baseFontSize * 0.85}px sans-serif`;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-      ctx.fillText("MU'ALLIMIN LOGBOOK", targetWidth - topBadgePadding, topBadgePadding);
+      // Line 2 (Bottom) - Asrama & DateTime
+      ctx.font = `600 ${baseFontSize * 0.92}px sans-serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(`${watermarkLine2} - ${watermarkLine3}`, 14, targetHeight - 10);
 
-      // Compress to WebP (fallback JPEG) with high compression efficiency (~25-45KB)
-      let dataUrl = canvas.toDataURL("image/webp", 0.72);
-      if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
-        dataUrl = canvas.toDataURL("image/jpeg", 0.70);
-      }
+      // Helper to load image and return Promise
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve) => {
+          const img = new window.Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(img);
+          img.src = src;
+        });
+      };
 
-      resolve({
-        dataUrl,
-        source: sourceType,
-        takenAt: now.toISOString(),
-        watermarkText: `${watermarkLine1} | ${watermarkLine2} | ${watermarkLine3}`
+      // Right Side - Draw SYAMSA Logo Image (Whiten)
+      const logoSize = Math.max(32, Math.round(targetWidth * 0.07));
+      loadImage(syamsaWordmark).then((logoImg) => {
+        const imgRatio = logoImg.height / logoImg.width;
+        ctx.drawImage(
+          logoImg,
+          targetWidth - logoSize - 14,
+          targetHeight - (logoSize * imgRatio) - 14,
+          logoSize,
+          logoSize * imgRatio
+        );
+
+        // Compress to WebP (fallback JPEG)
+        let dataUrl = canvas.toDataURL("image/webp", 0.72);
+        if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
+          dataUrl = canvas.toDataURL("image/jpeg", 0.70);
+        }
+
+        resolve({
+          dataUrl,
+          source: sourceType,
+          takenAt: now.toISOString(),
+          watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
+        });
       });
     });
   };
@@ -358,90 +316,27 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     e.target.value = "";
   };
 
-  // Render Preset Template Gambar
-  const handleSelectPreset = async (template: typeof PRESET_TEMPLATES[0]) => {
-    triggerHaptic();
-    setSelectedPresetId(template.id);
-    setSelectedSourceType("preset");
-    setIsProcessing(true);
-
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 640;
-      canvas.height = 480;
-      const ctx = canvas.getContext("2d");
-
-      if (ctx) {
-        // Create Gradient Background
-        const grad = ctx.createLinearGradient(0, 0, 640, 480);
-        if (template.id.includes("tahajjud")) {
-          grad.addColorStop(0, "#0f172a");
-          grad.addColorStop(1, "#1e1b4b");
-        } else if (template.id.includes("muhadatsah")) {
-          grad.addColorStop(0, "#064e3b");
-          grad.addColorStop(1, "#042f2e");
-        } else if (template.id.includes("kerja_bakti")) {
-          grad.addColorStop(0, "#134e4a");
-          grad.addColorStop(1, "#065f46");
-        } else if (template.id.includes("sakit")) {
-          grad.addColorStop(0, "#881337");
-          grad.addColorStop(1, "#4c0519");
-        } else {
-          grad.addColorStop(0, "#1e293b");
-          grad.addColorStop(1, "#0f172a");
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 640, 480);
-
-        // Pattern / Grid Accents
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 640; i += 40) {
-          ctx.beginPath();
-          ctx.moveTo(i, 0);
-          ctx.lineTo(i, 480);
-          ctx.stroke();
-        }
-        for (let j = 0; j < 480; j += 40) {
-          ctx.beginPath();
-          ctx.moveTo(0, j);
-          ctx.lineTo(640, j);
-          ctx.stroke();
-        }
-
-        // Draw Center Icon & Title
-        ctx.font = "72px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(template.icon, 320, 180);
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 24px sans-serif";
-        ctx.fillText(template.title, 320, 260);
-
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "14px sans-serif";
-        ctx.fillText(template.category + " • Dokumentasi Resmi", 320, 295);
-
-        const result = await applyWatermarkAndCompress(canvas, 640, 480, "preset");
-        setCapturedPreview(result.dataUrl);
-      }
-    } catch (e) {
-      console.error("Preset render error:", e);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // Konfirmasi Penggunaan Foto
   const handleConfirmPhoto = () => {
     if (!capturedPreview) return;
     triggerHaptic();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+    const timeStr = now.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }).replace(/\./g, ":");
+    const dateTimeStr = `${dateStr} - ${timeStr}`;
     onCapture({
       dataUrl: capturedPreview,
       source: selectedSourceType,
-      takenAt: new Date().toISOString(),
-      watermarkText: `${taskTitle} • ${asramaName}`
+      takenAt: now.toISOString(),
+      watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
     });
     onClose();
   };
@@ -479,14 +374,13 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Selector: Live Kamera vs Galeri HP vs Template Bawaan */}
+        {/* Tab Selector: Kamera vs Galeri HP */}
         {!capturedPreview && (
-          <div className="grid grid-cols-3 p-1.5 bg-slate-950/80 border-b border-slate-800 text-xs font-semibold gap-1">
+          <div className="grid grid-cols-2 p-1.5 bg-slate-950/80 border-b border-slate-800 text-xs font-semibold gap-1">
             <button
               onClick={() => {
                 triggerHaptic();
                 setActiveTab("camera");
-                setSelectedPresetId(null);
               }}
               className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all text-center ${
                 activeTab === "camera"
@@ -501,7 +395,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
               onClick={() => {
                 triggerHaptic();
                 setActiveTab("gallery");
-                setSelectedPresetId(null);
                 stopCamera();
               }}
               className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all text-center ${
@@ -512,21 +405,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
             >
               <ImageIcon className="w-3.5 h-3.5" />
               <span>Galeri HP</span>
-            </button>
-            <button
-              onClick={() => {
-                triggerHaptic();
-                setActiveTab("preset");
-                stopCamera();
-              }}
-              className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all text-center ${
-                activeTab === "preset"
-                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/40"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Template</span>
             </button>
           </div>
         )}
@@ -548,7 +426,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 mt-2 text-center">
-                Watermark tanggal, waktu, nama musyrif, dan asrama telah otomatis disematkan.
+                Watermark nama ustadz dan keterangan telah otomatis disematkan.
               </p>
             </div>
           ) : activeTab === "camera" ? (
@@ -618,7 +496,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 </div>
               )}
             </div>
-          ) : activeTab === "gallery" ? (
+          ) : activeTab === "gallery" && (
             /* 3. Tab Unggah dari Galeri HP */
             <div className="p-4 sm:p-6 flex flex-col items-center justify-center text-center my-auto">
               <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3 shadow-lg shadow-indigo-950/50">
@@ -639,46 +517,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 <ImageIcon className="w-4 h-4" />
                 {isProcessing ? "Memproses Foto..." : "Buka Galeri Foto HP"}
               </button>
-            </div>
-          ) : (
-            /* 4. Tab Template Bawaan Resmi */
-            <div className="p-3 sm:p-4 space-y-2.5">
-              <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-2.5 flex items-start gap-2 text-xs text-emerald-200">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <p>
-                  Pilihan foto template resmi ini digunakan jika kamera perangkat Anda sedang tidak dapat mengambil gambar secara langsung.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {PRESET_TEMPLATES.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    onClick={() => handleSelectPreset(tpl)}
-                    disabled={isProcessing}
-                    className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between ${
-                      selectedPresetId === tpl.id
-                        ? "bg-slate-800 border-emerald-500 ring-2 ring-emerald-500/40"
-                        : "bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-850"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5 mb-2">
-                      <span className="text-2xl">{tpl.icon}</span>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">
-                          {tpl.category}
-                        </span>
-                        <h5 className="text-xs font-bold text-white leading-snug">
-                          {tpl.title}
-                        </h5>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-400 line-clamp-2">
-                      {tpl.desc}
-                    </p>
-                  </button>
-                ))}
-              </div>
             </div>
           )}
         </div>
