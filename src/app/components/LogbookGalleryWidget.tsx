@@ -167,22 +167,8 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
     });
   }, [logbookData, musyrifList, todayStr]);
 
-  // Filtered posts for widget
-  const filteredPosts = useMemo(() => {
-    return allPosts.filter(p => {
-      if (selectedDateFilter === "today" && p.date !== todayStr) return false;
-      if (selectedDateFilter === "week") {
-        const pDate = new Date(p.date).getTime();
-        const now = new Date().getTime();
-        const diffDays = (now - pDate) / (1000 * 3600 * 24);
-        if (diffDays > 7) return false;
-      }
-      return true;
-    });
-  }, [allPosts, selectedDateFilter, todayStr]);
-
-  // Display top 9 posts on Beranda for clean 3x3 layout
-  const displayPosts = filteredPosts.slice(0, 9);
+  // Always display top 9 latest posts on Beranda for seamless 3x3 layout
+  const displayPosts = allPosts.slice(0, 9);
 
   // Handle Like Toggle
   const handleToggleLike = (postId: string) => {
@@ -220,12 +206,12 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-3.5">
+    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 space-y-3.5">
       {/* Header Widget */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 p-[2px] shadow-md shadow-rose-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 p-[2px]">
               <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center text-rose-600">
                 <Camera className="w-5 h-5" />
               </div>
@@ -249,21 +235,19 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
       </div>
 
       {/* Main Content: Pure Grid Mode on Beranda (3x3) */}
-      {filteredPosts.length === 0 ? (
+      {allPosts.length === 0 ? (
         <div className="py-10 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center p-4">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-2.5">
             <Camera className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-bold text-slate-700">Belum Ada Foto Logbook</h4>
           <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
-            {selectedDateFilter === "today" 
-              ? "Musyrif belum mengunggah foto pelaksanaan tugas logbook hari ini."
-              : "Belum ada riwayat foto logbook yang sesuai dengan filter yang dipilih."}
+            Musyrif belum mengunggah foto dokumentasi kegiatan logbook.
           </p>
           {onOpenLogbook && (
             <button
               onClick={() => onOpenLogbook()}
-              className="mt-3.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+              className="mt-3.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
             >
               <Camera className="w-3.5 h-3.5" />
               Buka Halaman Logbook
@@ -271,16 +255,16 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
           )}
         </div>
       ) : (
-        /* GRID MODE (3x3 Grid Rapi Tanpa Jarak & Tanpa Rounded Corner) */
+        /* GRID MODE (3x3 Grid Rapi Seamless Tanpa Jarak & Tanpa Garis Pemisah) */
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-0.5 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-2xs">
+          <div className="grid grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-slate-200">
             {displayPosts.map((post) => (
               <motion.div
                 key={post.id}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ opacity: 0.92 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSelectedPost(post)}
-                className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer"
+                className="group relative aspect-square rounded-none overflow-hidden bg-slate-100 cursor-pointer"
               >
                 <img
                   src={post.photoUrl}
@@ -299,7 +283,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                 triggerHaptic();
                 onOpenFullGallery();
               }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-700 hover:text-rose-700 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-2xs group active:scale-[0.99]"
+              className="w-full py-2.5 px-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-700 hover:text-rose-700 font-bold text-xs flex items-center justify-center gap-2 transition-all group active:scale-[0.99]"
             >
               <ImageIcon className="w-3.5 h-3.5 text-rose-500" />
               <span>Lihat Semua Galeri</span>

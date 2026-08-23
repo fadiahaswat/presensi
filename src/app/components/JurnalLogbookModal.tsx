@@ -27,6 +27,7 @@ export interface LogbookTaskItem {
   photoTakenAt?: string;
   photoSource?: "camera" | "preset" | "gallery";
   photoWatermark?: string;
+  photoUserAvatar?: string;
 }
 
 export interface JurnalLogbookEntry {
@@ -781,7 +782,8 @@ export function JurnalLogbookModal({
         photoUrl: result.dataUrl,
         photoTakenAt: result.takenAt,
         photoSource: result.source,
-        photoWatermark: result.watermarkText
+        photoWatermark: result.watermarkText,
+        photoUserAvatar: authUser?.picture
       }
     };
     setFormState(updatedEntry);

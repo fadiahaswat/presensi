@@ -6570,6 +6570,18 @@ export default function App() {
             try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(next)); } catch {}
             return next;
           });
+        } else if (tbl === "galleryinteractions" && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && (cr.postId || cr.id));
+          try {
+            const raw = localStorage.getItem("syamsa_gallery_interactions_v1");
+            const map: Record<string, any> = raw ? JSON.parse(raw) : {};
+            validCloud.forEach((cr: any) => {
+              const pId = cr.postId || cr.id;
+              map[pId] = { ...(map[pId] || {}), ...cr, postId: pId };
+            });
+            localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(map));
+            window.dispatchEvent(new Event("syamsa_gallery_interactions_updated"));
+          } catch {}
         }
         return;
       }
@@ -6738,6 +6750,20 @@ export default function App() {
           });
           return next;
         });
+      } else if (tbl === "galleryinteractions") {
+        try {
+          const raw = localStorage.getItem("syamsa_gallery_interactions_v1");
+          const map: Record<string, any> = raw ? JSON.parse(raw) : {};
+          cloudRecords.forEach(cr => {
+            const pId = cr.postId || cr.id;
+            if (pId) {
+              if (cr.is_deleted) delete map[pId];
+              else map[pId] = { ...(map[pId] || {}), ...cr, postId: pId };
+            }
+          });
+          localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(map));
+          window.dispatchEvent(new Event("syamsa_gallery_interactions_updated"));
+        } catch {}
       }
     });
 
@@ -6796,6 +6822,25 @@ export default function App() {
     try {
       localStorage.setItem("presensi_auth_user", JSON.stringify(u));
     } catch {}
+
+    // Auto-update Musyrif Profile with Google Picture so it appears for all other musyrif
+    if (u.picture) {
+      setMusyrifList(prev => {
+        const updated = prev.map(m => {
+          if (m.id === u.musyrifId || m.id === u.id || (m.email && u.email && m.email.toLowerCase() === u.email.toLowerCase())) {
+            const upM = { ...m, picture: u.picture, avatar: u.picture };
+            googleSyncService.enqueue("Musyrif", upM, "upsert", true);
+            return upM;
+          }
+          return m;
+        });
+        try {
+          localStorage.setItem("syamsa_musyrif_list_v4", JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    }
+
     showToast(`Selamat datang, Ustaz ${getMusyrifCallName(u.name)}!`);
     setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
     // Immediately sync all data from Sheet after login
@@ -7620,7 +7665,7 @@ export default function App() {
 
   return (
     <div 
-      className="min-h-screen bg-[#F4F8FF] text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white relative overflow-x-hidden" 
+      className={`min-h-screen ${page === "galeri-logbook" ? "bg-white" : "bg-[#F4F8FF]"} text-slate-800 flex flex-col font-sans selection:bg-sky-500 selection:text-white relative overflow-x-hidden`} 
       style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -7694,8 +7739,8 @@ export default function App() {
       </AnimatePresence>
 
       {/* Seamless Header - Non-sticky & Natural Scroll */}
-      <header className="w-full pt-5 sm:pt-6 pb-1">
-        <div className="max-w-2xl mx-auto px-4 flex items-center justify-between gap-3">
+      <header className={`w-full transition-colors ${page === "galeri-logbook" ? "bg-white pt-3.5 pb-2.5 border-b border-slate-100" : "pt-5 sm:pt-6 pb-1"}`}>
+        <div className={`${page === "galeri-logbook" ? "max-w-lg" : "max-w-2xl"} mx-auto px-4 flex items-center justify-between gap-3`}>
           
           {/* Pure Logo SYAMSA Primary - Aligned with Hero Card */}
           <div 
@@ -7730,9 +7775,11 @@ export default function App() {
                 setPage("notifikasi");
               }}
               title="Pusat Notifikasi & Update Data"
-              className={`w-8 h-8 rounded-full relative bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs flex items-center justify-center transition-all active:scale-95 ${
-                page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""
-              }`}
+              className={`w-8 h-8 rounded-full relative flex items-center justify-center transition-all active:scale-95 ${
+                page === "galeri-logbook"
+                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  : "bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs"
+              } ${page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""}`}
             >
               <Bell className="w-4 h-4"/>
               {notificationBadgeCount > 0 && (
@@ -7743,7 +7790,11 @@ export default function App() {
             </button>
 
             {authUser ? (
-              <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs rounded-full p-1 pl-1 shadow-2xs">
+              <div className={`flex items-center gap-1.5 rounded-full p-1 pl-1 ${
+                page === "galeri-logbook"
+                  ? "bg-slate-100"
+                  : "bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs shadow-2xs"
+              }`}>
                 <div title={authUser.name} className="flex items-center justify-center cursor-default">
                   <Av name={authUser.name} src={authUser.picture} sz="xs" />
                 </div>
@@ -7751,7 +7802,11 @@ export default function App() {
                   type="button"
                   onClick={handleLogout} 
                   title={`Keluar akun (${authUser.name})`} 
-                  className="w-6 h-6 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-all active:scale-95"
+                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                    page === "galeri-logbook"
+                      ? "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-500"
+                      : "bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400"
+                  }`}
                 >
                   <LogOut className="w-3 h-3"/>
                 </button>
@@ -7772,7 +7827,7 @@ export default function App() {
       </header>
 
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 py-5 pb-24 w-full flex-1">
+      <main className={page === "galeri-logbook" ? "w-full max-w-lg mx-auto px-0 py-0 pb-24 flex-1" : "max-w-2xl mx-auto px-4 py-5 pb-24 w-full flex-1"}>
         {/* Anti Time-Spoofing & Drift Alert Banner */}
         {timeSyncState?.status === "drift_detected" && (
           <div className="mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-md flex items-start gap-3 shadow-xs">
@@ -7925,6 +7980,7 @@ export default function App() {
                 onOpenLogbook={() => setPage("logbook")}
                 logbookData={logbookData}
                 musyrifList={musyrifList}
+                authUser={authUser}
               />
             </motion.div>
           )}
