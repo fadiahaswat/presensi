@@ -4,15 +4,15 @@
  * strictly guaranteeing payload is <= 30,000 characters to fit securely inside Google Sheets cell limits.
  */
 
-const MAX_SHEET_SAFE_CHARS = 18000; // Optimal lightweight payload for Google Sheets cell safety
+const MAX_SHEET_SAFE_CHARS = 25000; // Aligned with Logbook photo standards
 
 export async function compressAndWatermarkImage(
   file: File,
   _options?: any,
-  initialMaxDim = 360,
-  initialQuality = 0.52
+  initialMaxDim = 480,
+  initialQuality = 0.72
 ): Promise<string> {
-  // Step 1: Decode image with fallback
+  // Step 1: Decode image with dual fallback
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     let hasLoaded = false;
     
@@ -60,10 +60,10 @@ export async function compressAndWatermarkImage(
     }
   });
 
-  const origWidth = img.naturalWidth || img.width || 600;
-  const origHeight = img.naturalHeight || img.height || 450;
+  const origWidth = img.naturalWidth || img.width || 640;
+  const origHeight = img.naturalHeight || img.height || 480;
 
-  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 30,000 characters
+  // Step 2: Iterative adaptive compressor using WebP (fallback JPEG) identical to Logbook
   let currentMaxDim = initialMaxDim;
   let currentQuality = initialQuality;
   let resultDataUrl = "";
@@ -92,10 +92,16 @@ export async function compressAndWatermarkImage(
     if (!ctx) break;
 
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "medium";
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, width, height);
 
-    resultDataUrl = canvas.toDataURL("image/jpeg", currentQuality);
+    // Compress to WebP (fallback JPEG) — same as Logbook
+    let dataUrl = canvas.toDataURL("image/webp", currentQuality);
+    if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
+      dataUrl = canvas.toDataURL("image/jpeg", Math.min(0.70, currentQuality));
+    }
+
+    resultDataUrl = dataUrl;
 
     // If within safe character limit, return immediately
     if (resultDataUrl && resultDataUrl.length <= MAX_SHEET_SAFE_CHARS && resultDataUrl.length > 50) {
@@ -103,8 +109,8 @@ export async function compressAndWatermarkImage(
     }
 
     // Otherwise downscale dimension & quality progressively
-    currentMaxDim = Math.max(180, Math.round(currentMaxDim * 0.75));
-    currentQuality = Math.max(0.3, currentQuality - 0.1);
+    currentMaxDim = Math.max(200, Math.round(currentMaxDim * 0.75));
+    currentQuality = Math.max(0.35, currentQuality - 0.12);
   }
 
   return resultDataUrl || "";
