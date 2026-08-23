@@ -6840,11 +6840,12 @@ export default function App() {
 
     // Auto-update Musyrif Profile with Google Picture so it appears for all other musyrif
     if (u.picture) {
+      let matchedMusyrif: Musyrif | undefined;
       setMusyrifList(prev => {
         const updated = prev.map(m => {
           if (m.id === u.musyrifId || m.id === u.id || (m.email && u.email && m.email.toLowerCase() === u.email.toLowerCase())) {
             const upM = { ...m, picture: u.picture, avatar: u.picture };
-            googleSyncService.enqueue("Musyrif", upM, "upsert", true);
+            matchedMusyrif = upM;
             return upM;
           }
           return m;
@@ -6854,6 +6855,12 @@ export default function App() {
         } catch {}
         return updated;
       });
+
+      if (matchedMusyrif) {
+        setTimeout(() => {
+          googleSyncService.enqueue("Musyrif", matchedMusyrif, "upsert", true);
+        }, 0);
+      }
     }
 
     showToast(`Selamat datang, Ustaz ${getMusyrifCallName(u.name)}!`);
