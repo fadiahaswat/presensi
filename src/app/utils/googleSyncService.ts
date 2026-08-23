@@ -280,7 +280,7 @@ class GoogleSyncService {
     this.updateStatus("syncing");
 
     try {
-      // Group queue by table
+      // Group queue by table and sanitize all payloads (guarantee <= 35,000 chars per field)
       const tablesPayload: Record<string, any[]> = {};
       const batchItems = [...this.queue];
 
@@ -288,7 +288,19 @@ class GoogleSyncService {
         if (!tablesPayload[item.table]) {
           tablesPayload[item.table] = [];
         }
-        tablesPayload[item.table].push(item.record);
+        
+        const sanitized: any = { ...item.record };
+        for (const key in sanitized) {
+          if (typeof sanitized[key] === "string" && sanitized[key].length > 35000) {
+            if (sanitized[key].startsWith("data:image")) {
+              // Old uncompressed image in queue -> drop to unblock sync
+              sanitized[key] = "";
+            } else {
+              sanitized[key] = sanitized[key].substring(0, 35000);
+            }
+          }
+        }
+        tablesPayload[item.table].push(sanitized);
       });
 
       const res = await fetch(this.gasUrl, {
@@ -327,6 +339,15 @@ class GoogleSyncService {
       this.isFlushing = false;
       return false;
     }
+  }
+
+  /**
+   * Reset / Clear local queue in case of corrupt legacy items
+   */
+  public clearQueue(): void {
+    this.queue = [];
+    this.saveQueue();
+    this.updateStatus("synced");
   }
 
   /**
