@@ -1,7 +1,7 @@
 {
-  "name": "SYAMSA - Sistem Presensi & Logbook Musyrif",
+  "name": "SYAMSA - Sistem Manajemen Musyrif dan Kehadiran Santri",
   "short_name": "SYAMSA",
-  "description": "Sistem Presensi, Jurnal Logbook Harian & Mutaba'ah Musyrif Madrasah Mu'allimin Muhammadiyah Yogyakarta",
+  "description": "Sistem Manajemen Musyrif dan Kehadiran Santri Madrasah Mu'allimin Muhammadiyah Yogyakarta",
   "id": "/",
   "start_url": "/",
   "scope": "/",
