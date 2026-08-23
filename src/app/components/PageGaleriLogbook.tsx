@@ -188,6 +188,17 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     return () => window.removeEventListener("syamsa_gallery_interactions_updated", handleUpdate);
   }, []);
 
+  // Sync interactions to Google Sheets (deferred to avoid setState during render)
+  useEffect(() => {
+    if (Object.keys(interactions).length > 0) {
+      Object.entries(interactions).forEach(([postId, interaction]) => {
+        if (interaction) {
+          googleSyncService.enqueue("GalleryInteractions", { id: postId, ...interaction }, "upsert");
+        }
+      });
+    }
+  }, [interactions]);
+
   const currentUserId = authUser?.id || authUser?.musyrifId || "guest";
   const currentUserName = authUser ? `Ustaz ${getMusyrifCallName(authUser.name)}` : "Ustaz";
   const currentUserAvatar = authUser?.picture;
@@ -239,12 +250,11 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     setInteractions(prev => {
       const existing = prev[postId] || { postId, likes: [], comments: [] };
       const hasLiked = existing.likes?.some(l => l.userId === currentUserId || l.userName === currentUserName);
-      const updatedLikes = hasLiked 
+      const updatedLikes = hasLiked
         ? (existing.likes || []).filter(l => l.userId !== currentUserId && l.userName !== currentUserName)
         : [...(existing.likes || []), { userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, likedAt: new Date().toISOString() }];
       const next = { ...prev, [postId]: { ...existing, postId, likes: updatedLikes, updatedAt: new Date().toISOString() } };
       localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(next));
-      googleSyncService.enqueue("GalleryInteractions", { id: postId, ...next[postId] }, "upsert");
       return next;
     });
   };
@@ -262,7 +272,6 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
       const existing = prev[postId] || { postId, likes: [], comments: [] };
       const next = { ...prev, [postId]: { ...existing, postId, comments: [...(existing.comments || []), newComment], updatedAt: new Date().toISOString() } };
       localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(next));
-      googleSyncService.enqueue("GalleryInteractions", { id: postId, ...next[postId] }, "upsert");
       return next;
     });
     setCommentInput("");
