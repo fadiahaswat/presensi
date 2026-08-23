@@ -1561,7 +1561,8 @@ export function JurnalLogbookModal({
                           type="text"
                           value={taskData.notes || ""}
                           onChange={(e) => updateTaskNotes(t.key, e.target.value)}
-                          placeholder="Tuliskan catatan pelaksanaan tugas..."
+                          onBlur={() => onSaveLogbook(selectedMusyrifId, selectedDate, formState)}
+                          placeholder="Tuliskan catatan pelaksanaan tugas (otomatis tersimpan)..."
                           className="w-full text-xs bg-white border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs"
                         />
                       ) : (
