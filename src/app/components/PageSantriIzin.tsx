@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { 
   X, CheckCircle, AlertCircle, Clock, Upload, 
   FileCheck2, ShieldCheck, Check, Ban, Eye, User, Calendar, MapPin,
@@ -114,6 +114,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filterAsrama, setFilterAsrama] = useState<string>("Semua");
   const [filterJenis, setFilterJenis] = useState<string>("all");
   const [scopeFilter, setScopeFilter] = useState<"hari_ini" | "semua" | "di_luar" | "terlambat">("hari_ini");
@@ -128,6 +129,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
 
   // PKM Scan / Quick search query
   const [pkmQuery, setPkmQuery] = useState("");
+  const deferredPkmQuery = useDeferredValue(pkmQuery);
 
   // ===================== STEPPER WIZARD STATE (1: Santri, 2: Jenis, 3: Waktu, 4: Wali) =====================
   const [formStep, setFormStep] = useState<1 | 2 | 3 | 4>(1);
@@ -340,8 +342,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       if (!st.startsWith("pending")) return false;
       if (filterAsrama !== "Semua" && item.asrama !== filterAsrama) return false;
       if (filterJenis !== "all" && item.jenisIzin !== filterJenis) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (deferredSearchQuery.trim()) {
+        const q = deferredSearchQuery.toLowerCase();
         const nama = String(item.namaSantri || "").toLowerCase();
         const nisn = String(item.nisn || "");
         const kelas = String(item.kelas || "").toLowerCase();
@@ -350,7 +352,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       }
       return true;
     }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }, [santriIzinList, filterAsrama, filterJenis, searchQuery]);
+  }, [santriIzinList, filterAsrama, filterJenis, deferredSearchQuery]);
 
   // ── 2. MAIN LIST: PERIZINAN DISETUJUI (Default: Hari Ini) ──
   const mainApprovedList = useMemo(() => {
@@ -366,8 +368,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       if (filterAsrama !== "Semua" && item.asrama !== filterAsrama) return false;
       if (filterJenis !== "all" && item.jenisIzin !== filterJenis) return false;
       
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (deferredSearchQuery.trim()) {
+        const q = deferredSearchQuery.toLowerCase();
         const nama = String(item.namaSantri || "").toLowerCase();
         const nisn = String(item.nisn || "");
         const kelas = String(item.kelas || "").toLowerCase();
@@ -393,15 +395,15 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
         return stApproval === "approved" || stApproval === "rejected";
       }
     }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  }, [santriIzinList, filterAsrama, filterJenis, searchQuery, scopeFilter]);
+  }, [santriIzinList, filterAsrama, filterJenis, deferredSearchQuery, scopeFilter]);
 
   // Filtered list for PKM (Active approved permissions)
   const pkmActiveList = useMemo(() => {
     return santriIzinList.filter(item => {
       if (!item) return false;
       if (String(item.statusApproval || "") !== "approved") return false;
-      if (!pkmQuery.trim()) return true;
-      const q = pkmQuery.toLowerCase();
+      if (!deferredPkmQuery.trim()) return true;
+      const q = deferredPkmQuery.toLowerCase();
       return (
         String(item.namaSantri || "").toLowerCase().includes(q) ||
         String(item.nisn || "").includes(q) ||
@@ -413,7 +415,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       if (b.statusPKM === "di_luar" && a.statusPKM !== "di_luar") return 1;
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
-  }, [santriIzinList, pkmQuery]);
+  }, [santriIzinList, deferredPkmQuery]);
 
   // Submit Handler
   const handleSubmitForm = (e: React.FormEvent) => {

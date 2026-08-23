@@ -116,13 +116,12 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   };
 
   // Watermark Renderer Helper
-  const applyWatermarkAndCompress = (
+  const applyWatermarkAndCompress = async (
     imageSource: CanvasImageSource,
     srcWidth: number,
     srcHeight: number,
     sourceType: "camera" | "gallery"
   ): Promise<CapturedPhotoResult> => {
-    return new Promise((resolve) => {
       const canvas = canvasRef.current || document.createElement("canvas");
 
       // Fixed aspect ratio 9:16 (Story format)
@@ -140,13 +139,12 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       const ctx = canvas.getContext("2d");
 
       if (!ctx) {
-        resolve({
+        return {
           dataUrl: "",
           source: sourceType,
           takenAt: new Date().toISOString(),
           watermarkText: ""
-        });
-        return;
+        };
       }
 
       // Draw Base Image - Crop from center to fit 9:16 ratio
@@ -192,22 +190,23 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       const watermarkLine2 = `${asramaName}`;
       const watermarkLine3 = `${dateTimeStr}`;
 
-      // Draw Watermark Texts - Left Side (2 lines only)
-      const baseFontSize = Math.max(14, Math.round(targetWidth * 0.032));
-      ctx.textAlign = "left";
-      ctx.textBaseline = "bottom";
+      // Helper to load font and return Promise
+      const loadFont = (fontFamily: string, fontUrl: string): Promise<void> => {
+        return new Promise((resolve) => {
+          // Check if font already loaded
+          if (document.fonts && document.fonts.check(`16px ${fontFamily}`)) {
+            resolve();
+            return;
+          }
+          const font = new FontFace(fontFamily, `url(${fontUrl})`);
+          font.load().then((loadedFont) => {
+            document.fonts.add(loadedFont);
+            resolve();
+          }).catch(() => resolve());
+        });
+      };
 
-      // Line 1 (Top) - Nama Ustadz
-      ctx.font = `bold ${baseFontSize * 1.15}px sans-serif`;
-      ctx.fillStyle = "#facc15"; // amber-400
-      ctx.fillText(watermarkLine1, 14, targetHeight - 14 - (baseFontSize * 1.3));
-
-      // Line 2 (Bottom) - Asrama & DateTime
-      ctx.font = `600 ${baseFontSize * 0.92}px sans-serif`;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(`${watermarkLine2} - ${watermarkLine3}`, 14, targetHeight - 10);
-
-      // Helper to load image and return Promise
+      // Helper to load image
       const loadImage = (src: string): Promise<HTMLImageElement> => {
         return new Promise((resolve) => {
           const img = new window.Image();
@@ -218,32 +217,71 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         });
       };
 
+      // Load Montserrat font
+      await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
+
+      // Draw Watermark Texts - Left Side with Montserrat (Better Typography Hierarchy)
+      const baseSize = Math.max(13, Math.round(targetWidth * 0.028));
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fontFamily = "Montserrat, sans-serif";
+
+      // Line 1 - Nama Ustadz (Medium weight, white color, larger)
+      const nameSize = baseSize * 1.2;
+      ctx.font = `500 ${nameSize}px Montserrat, sans-serif`;
+      ctx.fillStyle = "#ffffff"; // White
+      ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      ctx.fillText(watermarkLine1, 16, targetHeight - 14 - (nameSize * 1.5));
+
+      // Line 2 - Asrama (Regular weight, white, medium size)
+      const asramaSize = baseSize * 1.0;
+      ctx.font = `400 ${asramaSize}px Montserrat, sans-serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetY = 1;
+      ctx.fillText(watermarkLine2, 16, targetHeight - 12 - (nameSize * 1.5) - (asramaSize * 1.3));
+
+      // Line 3 - DateTime (Light weight, white/gray, smaller)
+      const dateSize = baseSize * 0.85;
+      ctx.font = `300 ${dateSize}px Montserrat, sans-serif`;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.shadowBlur = 2;
+      ctx.shadowOffsetY = 1;
+      ctx.fillText(watermarkLine3, 16, targetHeight - 10);
+
+      // Reset shadow
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
       // Right Side - Draw SYAMSA Logo Image (Whiten)
+      const logoImg = await loadImage(syamsaWordmark);
       const logoSize = Math.max(32, Math.round(targetWidth * 0.07));
-      loadImage(syamsaWordmark).then((logoImg) => {
-        const imgRatio = logoImg.height / logoImg.width;
-        ctx.drawImage(
-          logoImg,
-          targetWidth - logoSize - 14,
-          targetHeight - (logoSize * imgRatio) - 14,
-          logoSize,
-          logoSize * imgRatio
-        );
+      const imgRatio = logoImg.height / logoImg.width;
+      ctx.drawImage(
+        logoImg,
+        targetWidth - logoSize - 14,
+        targetHeight - (logoSize * imgRatio) - 14,
+        logoSize,
+        logoSize * imgRatio
+      );
 
-        // Compress to WebP (fallback JPEG)
-        let dataUrl = canvas.toDataURL("image/webp", 0.72);
-        if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
-          dataUrl = canvas.toDataURL("image/jpeg", 0.70);
-        }
+      // Compress to WebP (fallback JPEG)
+      let dataUrl = canvas.toDataURL("image/webp", 0.72);
+      if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.70);
+      }
 
-        resolve({
-          dataUrl,
-          source: sourceType,
-          takenAt: now.toISOString(),
-          watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
-        });
-      });
-    });
+      return {
+        dataUrl,
+        source: sourceType,
+        takenAt: now.toISOString(),
+        watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
+      };
   };
 
   // Jepret Foto dari Video Stream

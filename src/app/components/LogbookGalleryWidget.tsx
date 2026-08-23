@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
-  Camera, ChevronRight, X, Image as ImageIcon
+  Camera, ChevronRight, X, Image as ImageIcon, RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { LogbookStorage } from "./JurnalLogbookModal";
+import { googleSyncService } from "../utils/googleSyncService";
 
 interface Musyrif {
   id: string;
@@ -17,6 +18,7 @@ interface Musyrif {
 interface LogbookGalleryWidgetProps {
   logbookData: LogbookStorage;
   musyrifList: Musyrif[];
+  isLoading?: boolean;
   onOpenLogbook?: () => void;
   onOpenFullGallery?: () => void;
 }
@@ -81,10 +83,20 @@ export const getTaskDisplayTitle = (key: string): string => {
 export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
   logbookData = {},
   musyrifList = [],
+  isLoading = false,
   onOpenLogbook,
   onOpenFullGallery
 }) => {
   const [selectedPost, setSelectedPost] = useState<GalleryPostItem | null>(null);
+  const [isSyncing, setIsSyncing] = useState(() => googleSyncService.getStatus().isSyncing);
+
+  // Subscribe to real-time Google Cloud Sync status
+  useEffect(() => {
+    const unsub = googleSyncService.subscribeStatus((st) => {
+      setIsSyncing(st.isSyncing);
+    });
+    return unsub;
+  }, []);
 
   // Extract all gallery posts with photo from logbookData
   const allPosts = useMemo(() => {
@@ -154,11 +166,12 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
 
   // Always display top 9 latest posts on Beranda for seamless 3x3 layout
   const displayPosts = allPosts.slice(0, 9);
+  const showSkeleton = isLoading || (isSyncing && allPosts.length === 0);
 
   return (
-    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 space-y-3.5">
+    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden space-y-0">
       {/* Header Widget */}
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+      <div className="p-4 sm:p-5 pb-3.5 flex items-center justify-between gap-3 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 p-[2px]">
@@ -166,16 +179,23 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
                 <Camera className="w-5 h-5" />
               </div>
             </div>
-            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center" />
+            <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${isSyncing ? "bg-amber-400 animate-ping" : "bg-emerald-500"}`} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                 Galeri Logbook Asrama
               </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-                Live Feed
-              </span>
+              {isSyncing ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                  <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                  <span>Sinkron</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                  Live Feed
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500">
               Dokumentasi foto kegiatan harian musyrif langsung dari kamera asrama
@@ -184,37 +204,60 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
         </div>
       </div>
 
-      {/* Main Content: Pure Grid Mode on Beranda (3x3) */}
-      {allPosts.length === 0 ? (
-        <div className="py-10 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center p-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-2.5">
-            <Camera className="w-6 h-6" />
+      {/* Main Content */}
+      {showSkeleton ? (
+        /* SKELETON SHIMMER 3x3 (Saat Fetch / Sinkronisasi Data Cloud) */
+        <div>
+          <div className="grid grid-cols-3 gap-0 w-full bg-slate-100 overflow-hidden">
+            {[...Array(9)].map((_, i) => (
+              <div
+                key={i}
+                className="relative aspect-square bg-slate-200 overflow-hidden border-[0.5px] border-white/60"
+              >
+                <div className="w-full h-full bg-gradient-to-tr from-slate-200 via-slate-100 to-slate-200 animate-pulse flex items-center justify-center">
+                  <ImageIcon className="w-5 h-5 text-slate-300 animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
-          <h4 className="text-sm font-bold text-slate-700">Belum Ada Foto Logbook</h4>
-          <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
-            Musyrif belum mengunggah foto dokumentasi kegiatan logbook.
-          </p>
-          {onOpenLogbook && (
-            <button
-              onClick={() => onOpenLogbook()}
-              className="mt-3.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              Buka Halaman Logbook
-            </button>
-          )}
+
+          <div className="p-3.5 sm:p-4 bg-white border-t border-slate-100 flex items-center justify-center gap-2">
+            <RefreshCw className="w-3.5 h-3.5 text-rose-500 animate-spin" />
+            <span className="text-xs font-semibold text-slate-500">Memuat & menyinkronkan galeri foto...</span>
+          </div>
+        </div>
+      ) : allPosts.length === 0 ? (
+        <div className="p-4 sm:p-5">
+          <div className="py-10 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-2.5">
+              <Camera className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-700">Belum Ada Foto Logbook</h4>
+            <p className="text-xs text-slate-400 max-w-sm mt-1 leading-relaxed">
+              Musyrif belum mengunggah foto dokumentasi kegiatan logbook.
+            </p>
+            {onOpenLogbook && (
+              <button
+                onClick={() => onOpenLogbook()}
+                className="mt-3.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Buka Halaman Logbook
+              </button>
+            )}
+          </div>
         </div>
       ) : (
-        /* GRID MODE (3x3 Grid Rapi Seamless Tanpa Jarak & Tanpa Garis Pemisah) */
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-slate-200">
+        /* GRID MODE: Edge-to-Edge Full Bleed (Menyentuh Sisi Kiri-Kanan Kartu & Tanpa Rounded) */
+        <div>
+          <div className="grid grid-cols-3 gap-0 w-full bg-slate-950">
             {displayPosts.map((post) => (
               <motion.div
                 key={post.id}
                 whileHover={{ opacity: 0.92 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSelectedPost(post)}
-                className="group relative aspect-square rounded-none overflow-hidden bg-slate-100 cursor-pointer"
+                className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer select-none"
               >
                 <img
                   src={post.photoUrl}
@@ -226,19 +269,20 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
             ))}
           </div>
 
-          {/* Bottom Call-To-Action: Open Dedicated Gallery Page */}
+          {/* Bottom Call-To-Action */}
           {onOpenFullGallery && (
-            <button
-              onClick={() => {
-                triggerHaptic();
-                onOpenFullGallery();
-              }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-700 hover:text-rose-700 font-bold text-xs flex items-center justify-center gap-2 transition-all group active:scale-[0.99]"
-            >
-              <ImageIcon className="w-3.5 h-3.5 text-rose-500" />
-              <span>Lihat Semua Galeri</span>
-              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            <div className="p-3.5 sm:p-4 bg-white border-t border-slate-100">
+              <button
+                onClick={() => {
+                  onOpenFullGallery();
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-700 hover:text-rose-700 font-bold text-xs flex items-center justify-center gap-2 transition-all group active:scale-[0.99]"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-rose-500" />
+                <span>Lihat Semua Galeri</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
           )}
         </div>
       )}

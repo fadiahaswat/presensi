@@ -5245,9 +5245,15 @@ function PageIbadah({
     } else {
       window.addEventListener("deviceorientation",handler);
     }
-    const iv = setInterval(()=>setDemoH(h=>(h+0.4)%360),30);
-    return ()=>{ window.removeEventListener("deviceorientation",handler); clearInterval(iv); };
+    return ()=>{ window.removeEventListener("deviceorientation",handler); };
   },[]);
+
+  // Demo rotation fallback only when viewing Kiblat tab and physical sensor is unavailable
+  useEffect(() => {
+    if (tab !== "kiblat" || heading !== null) return;
+    const iv = setInterval(() => setDemoH(h => (h + 1) % 360), 100);
+    return () => clearInterval(iv);
+  }, [tab, heading]);
 
   const activeHeading = heading ?? demoH;
   const relQibla = (qibla - activeHeading + 360) % 360;
@@ -6381,33 +6387,54 @@ export default function App() {
     }, 3000);
   }, []);
 
-  // Save records to local working cache whenever they change
+  // Save records to local working cache with debounce to avoid blocking UI main thread
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [records]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_IZIN, JSON.stringify(izinList)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_IZIN, JSON.stringify(izinList)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [izinList]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_KEGIATAN, JSON.stringify(kegiatanRecords)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_KEGIATAN, JSON.stringify(kegiatanRecords)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [kegiatanRecords]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(logbookData)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(logbookData)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [logbookData]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(mutabaahData)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(mutabaahData)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [mutabaahData]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(santriSakitList)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(santriSakitList)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [santriSakitList]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(santriIzinList)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(santriIzinList)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
   }, [santriIzinList]);
 
   // Synchronize Perizinan Santri directly with Izin Sedayu Google Sheets
@@ -6454,7 +6481,7 @@ export default function App() {
     };
 
     syncIzinSedayu(true);
-    const interval = setInterval(() => syncIzinSedayu(false), 25000);
+    const interval = setInterval(() => syncIzinSedayu(false), 60000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -6462,19 +6489,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(musyrifList)); } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
   }, [musyrifList]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(authUsers)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(authUsers)); } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
   }, [authUsers]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(santriList)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_SANTRI, JSON.stringify(santriList)); } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
   }, [santriList]);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(santriRequests)); } catch {}
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_REQUESTS, JSON.stringify(santriRequests)); } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
   }, [santriRequests]);
 
   // Initial Cloud Hydration & Realtime Delta Subscription

@@ -121,12 +121,28 @@ class GoogleSyncService {
     };
   }
 
+  public getStatus(): { isSyncing: boolean; status: SyncStatus } {
+    return {
+      isSyncing: this.status === "syncing" || this.isFlushing || this.isPolling,
+      status: this.status
+    };
+  }
+
   public subscribe(listener: SyncListener): () => void {
     this.listeners.add(listener);
     listener(this.getState());
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  public subscribeStatus(listener: (status: { isSyncing: boolean; status: SyncStatus }) => void): () => void {
+    return this.subscribe((state) => {
+      listener({
+        isSyncing: state.status === "syncing" || this.isFlushing || this.isPolling,
+        status: state.status
+      });
+    });
   }
 
   public subscribeDataUpdates(listener: DataUpdateListener): () => void {
@@ -442,7 +458,7 @@ class GoogleSyncService {
     return true;
   }
 
-  public startSmartPolling(intervalMs: number = 20000) {
+  public startSmartPolling(intervalMs: number = 60000) {
     this.stopSmartPolling();
     if (!this.gasUrl) return;
 

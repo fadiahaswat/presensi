@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import {
   X, Search, GraduationCap, Users, Phone, Mail, MapPin,
   Download, Eye, CheckCircle2, ChevronRight, ChevronLeft, Building2,
@@ -115,6 +115,7 @@ export function DataSantriModal({
   const [activeMainTab, setActiveMainTab] = useState<"database" | "requests">("database");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedTingkat, setSelectedTingkat] = useState<string>("all");
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "aktif" | "non_aktif" | "bersaudara">("aktif");
@@ -238,9 +239,9 @@ export function DataSantriModal({
       result = result.filter(s => s.tingkat === selectedTingkat);
     }
 
-    // Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    // Search Query (Deferred for buttery smooth typing)
+    if (deferredSearchQuery.trim()) {
+      const q = deferredSearchQuery.toLowerCase().trim();
       result = result.filter(s =>
         s.nama.toLowerCase().includes(q) ||
         s.nis.includes(q) ||
@@ -256,11 +257,11 @@ export function DataSantriModal({
     }
 
     return result;
-  }, [scopedSantriList, filterStatus, selectedClass, selectedTingkat, searchQuery, siblingMap]);
+  }, [scopedSantriList, filterStatus, selectedClass, selectedTingkat, deferredSearchQuery, siblingMap]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedTingkat, selectedClass, filterStatus]);
+  }, [deferredSearchQuery, selectedTingkat, selectedClass, filterStatus]);
 
   const totalPages = Math.ceil(filteredSantri.length / itemsPerPage) || 1;
   const paginatedSantri = useMemo(() => {

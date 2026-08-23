@@ -133,21 +133,26 @@ const LOGBOOK_TASK_TITLES: Record<string, { title: string; category: string }> =
   cekSakit: { title: "Pemeriksaan Santri Sakit", category: "Kesehatan" }
 };
 
-function getAvatarGradient(name: string): string {
-  const colors = [
-    "from-emerald-500 to-teal-600",
-    "from-sky-500 to-blue-600",
-    "from-indigo-500 to-purple-600",
-    "from-rose-500 to-pink-600",
-    "from-amber-500 to-orange-600",
-    "from-cyan-500 to-blue-600",
-    "from-violet-500 to-purple-600"
-  ];
-  let hash = 0;
-  for (let i = 0; i < (name || "").length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+// Avatar Image with Instagram-style user icon fallback
+function AvatarImage({ src, name, size = "w-8 h-8", iconSize = "w-4 h-4", className = "" }: { src?: string; name: string; size?: string; iconSize?: string; className?: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (!src || imgError) {
+    return (
+      <div className={`${size} rounded-full bg-slate-100 ring-1 ring-slate-200/70 flex items-center justify-center text-slate-500 shrink-0 ${className}`}>
+        <User className={iconSize} />
+      </div>
+    );
   }
-  return colors[Math.abs(hash) % colors.length];
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      className={`${size} rounded-full object-cover ring-1 ring-slate-200/80 shrink-0 ${className}`}
+      onError={() => setImgError(true)}
+    />
+  );
 }
 
 export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
@@ -297,16 +302,10 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
 
             return (
               <article key={post.id} className="bg-white pb-3">
-                {/* 1. Post Header (Top Call Name + Asrama + Time + Category Pill) */}
+                {/* 1. Post Header (Top Call Name + Asrama + Time) */}
                 <div className="flex items-center justify-between px-3.5 py-2.5">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {post.musyrifAvatar ? (
-                      <img src={post.musyrifAvatar} className="w-8 h-8 rounded-full object-cover ring-1.5 ring-slate-100 shrink-0" />
-                    ) : (
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${getAvatarGradient(post.musyrifName)} flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0`}>
-                        {post.musyrifName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <AvatarImage src={post.musyrifAvatar} name={post.musyrifName} size="w-8 h-8" iconSize="w-4 h-4" />
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs font-bold text-slate-900 truncate">
                         Ustaz {getMusyrifCallName(post.musyrifName)}
@@ -386,13 +385,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
                 {/* 7. Quick Comment Input / Guest Login Callout */}
                 {authUser ? (
                   <div className="px-3.5 pt-2 flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full bg-gradient-to-tr ${getAvatarGradient(currentUserName)} flex items-center justify-center text-white font-bold text-[10px] shrink-0 overflow-hidden`}>
-                      {currentUserAvatar ? (
-                        <img src={currentUserAvatar} alt="Me" className="w-full h-full object-cover" />
-                      ) : (
-                        currentUserName.charAt(0).toUpperCase()
-                      )}
-                    </div>
+                    <AvatarImage src={currentUserAvatar} name={currentUserName} size="w-6 h-6" iconSize="w-3.5 h-3.5" />
                     <input
                       type="text"
                       placeholder="Beri apresiasi..."
@@ -437,17 +430,35 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
         </div>
       )}
 
+      {/* Simple Clean Fullscreen Photo View Modal (Sama seperti di Beranda) */}
       <AnimatePresence>
         {selectedPost && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md" onClick={() => setSelectedPost(null)}>
-            <motion.div className="bg-slate-900 rounded-3xl overflow-hidden w-full max-w-xl" onClick={e => e.stopPropagation()}>
-              <img src={selectedPost.photoUrl} className="w-full max-h-[50vh] object-contain" />
-              <div className="p-4 bg-slate-950">
-                <p className="text-white font-bold">{selectedPost.taskTitle}</p>
-                <div className="flex items-center gap-2 mt-4">
-                  <button onClick={() => handleToggleLike(selectedPost.id)} className="flex-1 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">Beri Apresiasi</button>
-                  <button onClick={() => { setActiveCommentsPost(selectedPost); setSelectedPost(null); }} className="py-2.5 px-4 rounded-xl bg-slate-800 text-slate-200 text-xs">Komentar</button>
-                </div>
+          <div
+            className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md flex items-center justify-center"
+            onClick={() => setSelectedPost(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full h-full flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Close Button - Top Right */}
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors backdrop-blur-sm shadow-lg active:scale-95"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              {/* Full Photo - Centered */}
+              <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
+                <img
+                  src={selectedPost.photoUrl}
+                  alt={selectedPost.taskTitle}
+                  className="max-w-full max-h-full object-contain"
+                />
               </div>
             </motion.div>
           </div>
@@ -464,11 +475,11 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {(interactions[activeCommentsPost.id]?.comments || []).map(c => (
-                  <div key={c.id} className="flex gap-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[10px]">{c.userName[6]}</div>
-                    <div>
-                      <p className="text-xs font-bold">{c.userName}</p>
-                      <p className="text-xs text-slate-700">{c.text}</p>
+                  <div key={c.id} className="flex gap-2.5 items-start">
+                    <AvatarImage src={c.userAvatar} name={c.userName} size="w-7 h-7" iconSize="w-3.5 h-3.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-900 leading-tight">{c.userName}</p>
+                      <p className="text-xs text-slate-700 mt-0.5 leading-snug break-words">{c.text}</p>
                     </div>
                   </div>
                 ))}
