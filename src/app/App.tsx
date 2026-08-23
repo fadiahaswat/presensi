@@ -4849,7 +4849,7 @@ function PageRiwayat({
               }/>
             ) : (
               musyrifKegiatanList.map(keg => {
-                const myStatus = keg.attendees?.[musyrif.id] || "belum";
+                const myStatus = musyrif ? (keg.attendees?.[musyrif.id] || "belum") : "belum";
                 const typeLabels: Record<string, string> = {
                   tahfidz: "Tahfidz Al-Qur'an",
                   kajian: "Kajian & Rapat Asrama",
@@ -5136,7 +5136,7 @@ function PageRiwayat({
                   return matchSearch && matchAsrama;
                 })
                 .map(m => {
-                  const isCurrent = m.id === musyrif.id;
+                  const isCurrent = musyrif ? m.id === musyrif.id : false;
                   return (
                     <button
                       key={m.id}
