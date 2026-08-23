@@ -1,0 +1,38 @@
+# GitHub Pages Redirects - Clean URLs for SYAMSA
+# https://syamsa.web.id/_redirects
+
+# Homepage
+/                    /                    200
+
+# Clean URL routes - maps pretty URLs to index.html for SPA
+/dashboard           /                   200
+/presensi-subuh      /                   200
+/presensi-maghrib    /                   200
+/rekap               /                   200
+/riwayat             /                   200
+/logbook             /                   200
+/galeri-logbook      /                   200
+/mutabaah            /                   200
+/santri-sakit        /                   200
+/pembinaan           /                   200
+/izin                /                   200
+/izin-santri         /                   200
+/kegiatan            /                   200
+/leaderboard         /                   200
+/raport              /                   200
+/musyrif-manager     /                   200
+/pamong-manager      /                   200
+/kalender-hijriah    /                   200
+/kalender-pendidikan /                   200
+/data-santri         /                   200
+/peta-santri         /                   200
+/notifikasi          /                   200
+/tentang             /                   200
+
+# Legacy redirects (if you had old URLs)
+/attendance          /                   301
+/presensi            /                   301
+/jurnal              /                   301
+
+# SPA fallback - catch-all for client-side routing
+/*                   /index.html          200
