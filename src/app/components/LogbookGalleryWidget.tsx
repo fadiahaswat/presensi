@@ -155,13 +155,21 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
       }
     });
 
-    // Sort descending by date and time
-    return posts.sort((a, b) => {
-      if (a.date !== b.date) {
-        return b.date.localeCompare(a.date);
+    // Sort strictly by latest timestamp (photoTakenAt or date/completedAt)
+    const getPostTimestamp = (p: LogbookPhotoPost) => {
+      if (p.photoTakenAt) {
+        const t = new Date(p.photoTakenAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
       }
-      return (b.completedAt || "").localeCompare(a.completedAt || "");
-    });
+      if (p.date) {
+        const timePart = (p.completedAt && /^\d{2}:\d{2}/.test(p.completedAt)) ? p.completedAt : "12:00";
+        const t = new Date(`${p.date}T${timePart}:00`).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      return 0;
+    };
+
+    return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
   }, [logbookData, musyrifList]);
 
   // Always display top 9 latest posts on Beranda for seamless 3x3 layout

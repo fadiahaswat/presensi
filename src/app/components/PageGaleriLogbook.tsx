@@ -248,7 +248,21 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
         });
       }
     });
-    return posts.sort((a, b) => b.date.localeCompare(a.date) || (b.completedAt || "").localeCompare(a.completedAt || ""));
+
+    const getPostTimestamp = (p: GalleryPostItem) => {
+      if (p.photoTakenAt) {
+        const t = new Date(p.photoTakenAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      if (p.date) {
+        const timePart = (p.completedAt && /^\d{2}:\d{2}/.test(p.completedAt)) ? p.completedAt : "12:00";
+        const t = new Date(`${p.date}T${timePart}:00`).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      return 0;
+    };
+
+    return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
   }, [logbookData, musyrifList]);
 
   const handleToggleLike = (postId: string) => {
