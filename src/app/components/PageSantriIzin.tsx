@@ -69,6 +69,33 @@ const TIME_OPTIONS = [
   "21:00", "21:30", "22:00"
 ];
 
+const RELEVANT_PRESETS: Record<JenisIzinSantri, Array<{ label: string; dest: string }>> = {
+  keluar_biasa: [
+    { label: "Beli Perlengkapan Asrama", dest: "Toko / Swalayan Terdekat" },
+    { label: "Fotokopi & Alat Tulis", dest: "Percetakan / Toko ATK" },
+    { label: "Keperluan Dinas Madrasah", dest: "Kampus Induk / Lokasi Kegiatan" },
+    { label: "Pangkas Rambut", dest: "Barbershop Terdekat" }
+  ],
+  kesehatan_berobat: [
+    { label: "Periksa Medis / Poskestren", dest: "Poskestren / RS PKU Muhammadiyah" },
+    { label: "Periksa Poli Gigi", dest: "Klinik Pratama PKU" },
+    { label: "Kontrol Rawat Jalan", dest: "RS PKU Muhammadiyah Kota" },
+    { label: "Beli Obat / Resep Dokter", dest: "Apotek Terdekat" }
+  ],
+  pulang_menginap: [
+    { label: "Acara Keluarga", dest: "Rumah Orang Tua" },
+    { label: "Keluarga Sakit / Takziyah", dest: "Kediaman Keluarga" },
+    { label: "Urusan Dokumen / Paspor", dest: "Kantor Imigrasi / Instansi" },
+    { label: "Liburan / Pulang Terjadwal", dest: "Rumah Orang Tua" }
+  ],
+  rutin_sabtu_ahad: [
+    { label: "Izin Rutin Sabtu Sore", dest: "Area Sekitar Kampus / Kuliner" },
+    { label: "Izin Rutin Ahad Pagi", dest: "Olahraga / Pasar Pagi" },
+    { label: "Kunjungan Keluarga", dest: "Rumah Makan / Temu Keluarga" },
+    { label: "Sakit – Rawat di Rumah", dest: "Rumah Orang Tua" }
+  ]
+};
+
 const getJenisIzinBadge = (jenis: JenisIzinSantri) => {
   switch (jenis) {
     case "pulang_menginap":
@@ -115,6 +142,9 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   onPKMTap,
   onDeleteSantriIzin
 }) => {
+  // Public mode check - public users cannot add izin
+  const isPublic = !authUser;
+
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<"daftar" | "ajukan" | "pkm" | "kartu">("daftar");
 
@@ -151,9 +181,29 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
 
   // Step 3: Waktu & Keperluan
   const [tglKeluar, setTglKeluar] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [jamKeluar, setJamKeluar] = useState<string>("08:00");
+  const [jamKeluar, setJamKeluar] = useState<string>(() => {
+    const now = new Date();
+    const m = now.getMinutes();
+    let h = now.getHours();
+    let mm = "00";
+    if (m > 30) {
+      h = (h + 1) % 24;
+      mm = "00";
+    } else if (m > 5) {
+      mm = "30";
+    }
+    const t = `${String(h).padStart(2, "0")}:${mm}`;
+    return TIME_OPTIONS.includes(t) ? t : (t > "22:00" ? "21:00" : "08:00");
+  });
   const [tglKembali, setTglKembali] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [jamKembali, setJamKembali] = useState<string>("17:00");
+  const [jamKembali, setJamKembali] = useState<string>(() => {
+    const now = new Date();
+    let h = now.getHours() + 2;
+    if (h >= 22) h = 21;
+    if (h < 10) h = 17;
+    const t = `${String(h).padStart(2, "0")}:00`;
+    return TIME_OPTIONS.includes(t) ? t : "21:00";
+  });
   const [keperluan, setKeperluan] = useState<string>("");
   const [alasanDetail, setAlasanDetail] = useState<string>("");
   const [tujuanLokasi, setTujuanLokasi] = useState<string>("");
@@ -683,18 +733,20 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
             <span>Pos Keamanan ({pkmActiveList.length})</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              setActiveTab("ajukan");
-              setSelectedIzin(null);
-            }}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Ajukan Izin Baru</span>
-          </button>
+          {!isPublic && (
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                setActiveTab("ajukan");
+                setSelectedIzin(null);
+              }}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Ajukan Izin Baru</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1393,44 +1445,25 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   )}
                 </div>
 
-                {/* Selected Santri List / Chips */}
+                {/* Selected Santri Chips (Hanya Nama Santri) */}
                 {selectedSantriList.length > 0 ? (
-                  <div className="p-3.5 bg-blue-50/60 border border-blue-200/80 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
-                      <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-blue-700" />
-                        Daftar Santri yang Diizinkan ({selectedSantriList.length}):
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSantriList([])}
-                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700"
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedSantriList.map((s, idx) => (
+                      <span
+                        key={s.id || s.nisn || idx}
+                        className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 bg-blue-50/90 border border-blue-200/90 text-blue-950 font-bold text-xs rounded-full shadow-2xs"
                       >
-                        Hapus Semua
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {selectedSantriList.map((s, idx) => (
-                        <div
-                          key={s.id || s.nisn || idx}
-                          className="bg-white border border-blue-300/80 pl-3 pr-2 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 text-xs"
+                        <span>{s.nama}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSantri(s.id || s.nisn || s.nama)}
+                          className="w-4 h-4 rounded-full bg-blue-200/80 hover:bg-rose-500 hover:text-white flex items-center justify-center text-blue-800 transition"
+                          title="Hapus"
                         >
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 leading-tight">{s.nama}</p>
-                            <p className="text-[10px] text-slate-500 font-mono">{s.kelasLengkap} · {s.asrama}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSantri(s.id || s.nisn || s.nama)}
-                            className="w-5 h-5 rounded-full bg-slate-100 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center text-slate-400 transition"
-                            title="Hapus dari daftar"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                          <X className="w-2.5 h-2.5 stroke-[2.5]" />
+                        </button>
+                      </span>
+                    ))}
                   </div>
                 ) : (
                   <div className="border border-dashed border-slate-200 rounded-2xl p-6 text-center space-y-1.5 bg-slate-50/50">
@@ -1439,7 +1472,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                     </div>
                     <p className="font-bold text-slate-700 text-xs sm:text-sm">Belum ada santri yang dipilih</p>
                     <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                      Cari nama santri di atas atau klik salah satu pilihan cepat di bawah (bisa lebih dari 1 nama).
+                      Cari nama atau NISN santri di atas (bisa memilih lebih dari 1 nama).
                     </p>
                   </div>
                 )}
@@ -1673,6 +1706,36 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                     />
                   </div>
                 </div>
+
+                {/* Aksi Cepat Relevan Sesuai Jenis Izin yang Dipilih */}
+                {RELEVANT_PRESETS[jenisIzin] && RELEVANT_PRESETS[jenisIzin].length > 0 && (
+                  <div className="space-y-1.5 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      Pilihan Cepat ({jenisIzin === "kesehatan_berobat" ? "Medis" : jenisIzin === "pulang_menginap" ? "Pulang" : jenisIzin === "rutin_sabtu_ahad" ? "Akhir Pekan" : "Keluar"}):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {RELEVANT_PRESETS[jenisIzin].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setKeperluan(preset.label);
+                            setTujuanLokasi(preset.dest);
+                            triggerHaptic("light");
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 text-left ${
+                            keperluan === preset.label
+                              ? "bg-blue-600 text-white border-blue-600 shadow-2xs font-bold"
+                              : "bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-900 border-slate-200 shadow-2xs"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Tanggal & Durasi */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

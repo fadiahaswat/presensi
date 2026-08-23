@@ -138,7 +138,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
     category: "Pagi",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "optional"
+    photoRequirement: "mandatory"
   });
 
   // 2. Sesi Ba'da Shubuh
@@ -157,7 +157,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       category: "Pagi",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   } else {
     tasks.push({
@@ -290,7 +290,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
     category: "Sore",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "optional"
+    photoRequirement: "mandatory"
   });
 
   // 7. Mengoprak-oprak Mandi Sore (Setiap Hari - Wajib Foto & Patroli)
@@ -326,7 +326,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
     category: "Sore",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "optional"
+    photoRequirement: "mandatory"
   });
 
   // 9. Agenda Ba'da Maghrib
@@ -345,7 +345,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       category: "Malam",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   } else if (isRabu) {
     tasks.push({
@@ -361,7 +361,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       icon: "book",
       category: "Malam",
       isPatrol: false,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   } else if (isKamis || isJumat) {
     tasks.push({
@@ -377,7 +377,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       icon: "book",
       category: "Malam",
       isPatrol: false,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   } else {
     // Sabtu & Ahad
@@ -394,7 +394,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       icon: "book",
       category: "Malam",
       isPatrol: false,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   }
 
@@ -414,7 +414,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       category: "Malam",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   } else {
     tasks.push({
@@ -431,7 +431,7 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
       category: "Malam",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "optional"
+      photoRequirement: "mandatory"
     });
   }
 
@@ -598,10 +598,21 @@ export function JurnalLogbookModal({
     return selectedMusyrifId ? (logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK) : EMPTY_LOGBOOK;
   });
 
-  // Keep form in sync when props/cloud data, musyrif, or date changes
+  // Keep form in sync when props/cloud data, musyrif, or date changes (preserving active local photos during background sync)
   useEffect(() => {
     const existing = selectedMusyrifId ? (logbookData[selectedMusyrifId]?.[selectedDate] || EMPTY_LOGBOOK) : EMPTY_LOGBOOK;
-    setFormState(existing);
+    setFormState(prev => {
+      // If previous form state already had a photo that incoming sync data hasn't received yet, preserve local photo!
+      const merged: any = { ...existing };
+      for (const k in prev) {
+        const prevTask = (prev as any)[k];
+        const existTask = (existing as any)[k];
+        if (prevTask && typeof prevTask === "object" && prevTask.photoUrl && (!existTask || !existTask.photoUrl)) {
+          merged[k] = { ...existTask, ...prevTask };
+        }
+      }
+      return merged;
+    });
   }, [logbookData, selectedMusyrifId, selectedDate]);
 
   // SubChoice Map for dynamic tasks

@@ -165,12 +165,11 @@ export function SantriSakitModal({
     setFormKelas(santri.kelasLengkap);
     setSelectedStudentId(santri.id);
     setShowSuggestions(false);
-    // If admin or pamong selects a santri from another class, auto-match the musyrif of that class if not locked
-    if (!isMusyrifUser) {
-      const matchM = musyrifList.find(m => m.kelas && m.kelas.toLowerCase() === santri.kelasLengkap.toLowerCase());
-      if (matchM) {
-        setFormMusyrifId(matchM.id);
-      }
+    // Auto-match the musyrif of that class/asrama and lock it
+    const matchM = musyrifList.find(m => m.kelas && m.kelas.toLowerCase() === (santri.kelasLengkap || "").toLowerCase())
+      || musyrifList.find(m => m.asrama && m.asrama.toLowerCase() === (santri.asrama || "").toLowerCase());
+    if (matchM) {
+      setFormMusyrifId(matchM.id);
     }
   };
 
@@ -613,9 +612,9 @@ export function SantriSakitModal({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-700 block">Musyrif Pendamping</label>
-                {isMusyrifUser && (
+                {(isMusyrifUser || Boolean(selectedStudentId || formKelas)) && (
                   <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded font-semibold flex items-center gap-0.5">
-                    Terkunci
+                    Terkunci Otomatis
                   </span>
                 )}
               </div>
@@ -629,9 +628,9 @@ export function SantriSakitModal({
                     setFormKelas(mObj.kelas || "");
                   }
                 }}
-                disabled={isMusyrifUser}
+                disabled={isMusyrifUser || Boolean(selectedStudentId || formKelas)}
                 className={`w-full text-xs rounded-xl px-3 py-2.5 font-medium border outline-none cursor-pointer ${
-                  isMusyrifUser 
+                  (isMusyrifUser || Boolean(selectedStudentId || formKelas))
                     ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" 
                     : "bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 }`}

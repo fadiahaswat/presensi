@@ -124,10 +124,10 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   ): Promise<CapturedPhotoResult> => {
       const canvas = canvasRef.current || document.createElement("canvas");
 
-      // Fixed aspect ratio 9:16 (Story format)
+      // Fixed aspect ratio 9:16 (Story format) - Optimized for high visual clarity and lightweight cell storage
       const STORY_RATIO = 9 / 16; // 0.5625
-      const maxHeight = 800;
-      const maxWidth = Math.round(maxHeight * STORY_RATIO); // 450
+      const maxHeight = 480;
+      const maxWidth = Math.round(maxHeight * STORY_RATIO); // 270
 
       // Calculate target dimensions maintaining 9:16 ratio
       let targetHeight = maxHeight;
@@ -270,10 +270,10 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         logoSize * imgRatio
       );
 
-      // Compress to WebP (fallback JPEG)
-      let dataUrl = canvas.toDataURL("image/webp", 0.72);
+      // Compress to WebP (fallback JPEG) - Super lightweight to prevent cell overflows
+      let dataUrl = canvas.toDataURL("image/webp", 0.58);
       if (!dataUrl || dataUrl.length < 50 || dataUrl.startsWith("data:,")) {
-        dataUrl = canvas.toDataURL("image/jpeg", 0.70);
+        dataUrl = canvas.toDataURL("image/jpeg", 0.52);
       }
 
       return {

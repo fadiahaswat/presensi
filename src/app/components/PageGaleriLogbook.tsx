@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { 
   Camera, Heart, Share2, 
   Footprints, User, 
@@ -114,7 +114,8 @@ export interface GalleryPostItem {
 }
 
 const LOGBOOK_TASK_TITLES: Record<string, { title: string; category: string }> = {
-  tahajjud: { title: "Dampingi Tahajjud & Witir", category: "Ibadah" },
+  tahajjud: { title: "Membangunkan Pagi & Shalat Tahajjud", category: "Ibadah" },
+  bakdaSubuh: { title: "Halaqah Tahfizh / Piket Ba'da Subuh", category: "Ibadah" },
   shubuh: { title: "Kawal Shalat Shubuh", category: "Ibadah" },
   tadarusPagi: { title: "Dampingi Tadarus Pagi", category: "Qur'ani" },
   piketMakanPagi: { title: "Pengawasan Makan Pagi", category: "Dapur" },
@@ -122,15 +123,23 @@ const LOGBOOK_TASK_TITLES: Record<string, { title: string; category: string }> =
   patroliKbmPagi: { title: "Patroli Asrama Jam KBM", category: "Patroli" },
   makanSiang: { title: "Pengawasan Makan Siang", category: "Dapur" },
   piketMakanMalam: { title: "Pengawasan Makan Malam", category: "Dapur" },
+  sisirSekolah: { title: "Menyisir Area Sekolah", category: "Patroli" },
+  jagaGerbang: { title: "Jaga Gerbang Asrama", category: "Keamanan" },
+  oprakJumat: { title: "Oprak-oprak Shalat Jum'at", category: "Ibadah" },
+  kerjaBakti: { title: "Kerja Bakti & Kebersihan Asrama", category: "Kegiatan" },
+  oprakAshar: { title: "Oprak-oprak Shalat Ashar", category: "Ibadah" },
+  oprakMandi: { title: "Oprak Mandi Sore", category: "Ketertiban" },
+  sisirMaghrib: { title: "Menyisir Maghrib", category: "Patroli" },
   maghrib: { title: "Kawal Shalat Maghrib Berjamaah", category: "Ibadah" },
+  bakdaMaghrib: { title: "Ba'da Maghrib (Tahsin/Belajar)", category: "Akademik" },
   tadarusMalam: { title: "Dampingi Tadarus Malam & Isya", category: "Qur'ani" },
   belajarMalam: { title: "Dampingi Belajar Malam Santri", category: "Akademik" },
   raziaKamar: { title: "Pemeriksaan Kamar Santri", category: "Kedisiplinan" },
   apelMalam: { title: "Apel & Absensi Malam", category: "Kedisiplinan" },
   istirahatMalam: { title: "Pengawasan Istirahat Malam", category: "Ketertiban" },
-  kerjaBakti: { title: "Kerja Bakti & Kebersihan Asrama", category: "Kegiatan" },
+  cekTidur: { title: "Menyisir & Cek Tidur Santri", category: "Ketertiban" },
   olahraga: { title: "Olahraga Pagi Santri", category: "Kegiatan" },
-  cekSakit: { title: "Pemeriksaan Santri Sakit", category: "Kesehatan" }
+  cekSakit: { title: "Memeriksa Santri yang Sakit", category: "Kesehatan" }
 };
 
 // Avatar Image with Instagram-style user icon fallback
@@ -177,6 +186,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     }
   });
 
+  // Listen for external updates (e.g., from other tabs via localStorage events)
   useEffect(() => {
     const handleUpdate = () => {
       try {
@@ -188,16 +198,17 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     return () => window.removeEventListener("syamsa_gallery_interactions_updated", handleUpdate);
   }, []);
 
-  // Sync interactions to Google Sheets (deferred to avoid setState during render)
+  // Defer Google Sheets sync to avoid setState during render
+  const pendingSyncRef = useRef<{ postId: string; interaction: GalleryPostInteraction }[]>([]);
   useEffect(() => {
-    if (Object.keys(interactions).length > 0) {
-      Object.entries(interactions).forEach(([postId, interaction]) => {
-        if (interaction) {
-          googleSyncService.enqueue("GalleryInteractions", { id: postId, ...interaction }, "upsert");
-        }
+    if (pendingSyncRef.current.length > 0) {
+      const items = [...pendingSyncRef.current];
+      pendingSyncRef.current = [];
+      items.forEach(({ postId, interaction }) => {
+        googleSyncService.enqueue("GalleryInteractions", { id: postId, ...interaction }, "upsert");
       });
     }
-  }, [interactions]);
+  });
 
   const currentUserId = authUser?.id || authUser?.musyrifId || "guest";
   const currentUserName = authUser ? `Ustaz ${getMusyrifCallName(authUser.name)}` : "Ustaz";
@@ -247,14 +258,20 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
       return;
     }
     triggerHaptic("medium");
+    const updatedAt = new Date().toISOString();
     setInteractions(prev => {
       const existing = prev[postId] || { postId, likes: [], comments: [] };
       const hasLiked = existing.likes?.some(l => l.userId === currentUserId || l.userName === currentUserName);
       const updatedLikes = hasLiked
         ? (existing.likes || []).filter(l => l.userId !== currentUserId && l.userName !== currentUserName)
-        : [...(existing.likes || []), { userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, likedAt: new Date().toISOString() }];
-      const next = { ...prev, [postId]: { ...existing, postId, likes: updatedLikes, updatedAt: new Date().toISOString() } };
-      localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(next));
+        : [...(existing.likes || []), { userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, likedAt: updatedAt }];
+      const next = { ...prev, [postId]: { ...existing, postId, likes: updatedLikes, updatedAt } };
+
+      // Save to localStorage (with error handling for quota)
+      try { localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(next)); } catch {}
+      // Queue for Google Sheets sync (deferred to avoid setState during render)
+      pendingSyncRef.current.push({ postId, interaction: next[postId] });
+
       return next;
     });
   };
@@ -271,7 +288,12 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     setInteractions(prev => {
       const existing = prev[postId] || { postId, likes: [], comments: [] };
       const next = { ...prev, [postId]: { ...existing, postId, comments: [...(existing.comments || []), newComment], updatedAt: new Date().toISOString() } };
-      localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(next));
+
+      // Save to localStorage (with error handling for quota)
+      try { localStorage.setItem("syamsa_gallery_interactions_v1", JSON.stringify(next)); } catch {}
+      // Queue for Google Sheets sync (deferred to avoid setState during render)
+      pendingSyncRef.current.push({ postId, interaction: next[postId] });
+
       return next;
     });
     setCommentInput("");
@@ -393,7 +415,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
 
                 {/* 7. Quick Comment Input / Guest Login Callout */}
                 {authUser ? (
-                  <div className="px-3.5 pt-2 flex items-center gap-2">
+                  <div className="px-3.5 pt-1.5 flex items-center gap-2">
                     <AvatarImage src={currentUserAvatar} name={currentUserName} size="w-6 h-6" iconSize="w-3.5 h-3.5" />
                     <input
                       type="text"
@@ -420,7 +442,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
                       triggerHaptic("light");
                       if (onLogin) onLogin();
                     }}
-                    className="px-3.5 pt-2 flex items-center justify-between gap-2 cursor-pointer group select-none"
+                    className="px-3.5 pt-1.5 flex items-center justify-between gap-2 cursor-pointer group select-none"
                   >
                     <div className="flex items-center gap-2 text-xs text-slate-400 group-hover:text-sky-600 transition-colors">
                       <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-sky-50 group-hover:text-sky-600 transition-colors">
