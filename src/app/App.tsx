@@ -7484,7 +7484,7 @@ export default function App() {
       }
       return [rec, ...prev];
     });
-    googleSyncService.enqueue("SantriSakit", rec, "upsert");
+    googleSyncService.enqueue("SantriSakit", rec, "upsert", true);
     showToast(`Data santri sakit (${rec.namaSantri}) berhasil disimpan!`, "success");
   };
 
@@ -7514,84 +7514,131 @@ export default function App() {
   })();
 
   // Handlers for Perizinan Santri Asrama (SOP Sedayu & Seluruh Asrama)
-  const handleSaveSantriIzin = async (rec: Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt">) => {
+  const handleSaveSantriIzin = async (
+    recOrList: Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt"> | Array<Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt">>
+  ) => {
+    const list = Array.isArray(recOrList) ? recOrList : [recOrList];
+    if (list.length === 0) return;
+
     const now = new Date();
-    const idUnik = `IZN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const newRecord: SantriIzinRecord = {
-      ...rec,
-      id: idUnik,
-      nomorSurat: idUnik,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
-    };
+    const newRecords: SantriIzinRecord[] = list.map((rec, idx) => {
+      const idUnik = `IZN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}${idx > 0 ? `-${idx + 1}` : ""}`;
+      const foto = rec.fotoSantriUrl || rec.lampiranUrl || (rec as any).photoUrl || "";
 
-    setSantriIzinList(prev => [newRecord, ...prev]);
+      return {
+        ...rec,
+        id: idUnik,
+        nomorSurat: idUnik,
+        statusApproval: rec.statusApproval || "approved",
+        status: (rec.status || (rec.statusApproval === "rejected" ? "REJECTED" : "APPROVED")).toUpperCase(),
+        disetujuiOleh: rec.disetujuiOleh || authUser?.name || "Musyrif / Pamong",
+        fotoSantriUrl: foto,
+        lampiranUrl: foto,
+        photoUrl: foto,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString()
+      };
+    });
 
-    // Push ke Database Presensi via googleSyncService with immediate sync
-    googleSyncService.enqueue("SantriIzin", newRecord, "upsert", true);
-    showToast(`Izin ${newRecord.namaSantri} (${idUnik}) berhasil diterbitkan & tersimpan di Database!`, "success");
+    setSantriIzinList(prev => {
+      const next = [...newRecords, ...prev];
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    // Push each new record ke Database Presensi via googleSyncService with single consolidated batch flush
+    newRecords.forEach((r, idx) => {
+      googleSyncService.enqueue("SantriIzin", r, "upsert", idx === newRecords.length - 1);
+    });
+
+    if (newRecords.length === 1) {
+      showToast(`Izin ${newRecords[0].namaSantri} (${newRecords[0].nomorSurat}) berhasil diterbitkan!`, "success");
+    } else {
+      showToast(`Izin rombongan untuk ${newRecords.length} santri berhasil diterbitkan serentak!`, "success");
+    }
   };
 
   const handleApproveSantriIzin = (id: string, approved: boolean, catatan?: string) => {
-    setSantriIzinList(prev => prev.map(item => {
-      if (item.id === id || item.nomorSurat === id) {
-        const updated: SantriIzinRecord = {
-          ...item,
-          statusApproval: approved ? "approved" : "rejected",
-          disetujuiOleh: authUser?.name || "Pamong Asrama",
-          rolePenyetuju: authUser?.role || "pamong",
-          waktuPenyetujuan: new Date().toISOString(),
-          catatanPenolakan: catatan || item.catatanPenolakan,
-          updatedAt: new Date().toISOString()
-        };
+    const nowIso = new Date().toISOString();
+    const approvedStatus = approved ? "approved" : "rejected";
+    const statusUpper = approved ? "APPROVED" : "REJECTED";
 
-        // Push update status ke Database Presensi with immediate sync
-        googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
-        return updated;
-      }
-      return item;
-    }));
-    showToast(approved ? "Izin santri disetujui & terupdate di Database" : "Izin santri ditolak", approved ? "success" : "warning");
+    setSantriIzinList(prev => {
+      const next = prev.map(item => {
+        if (item.id === id || item.nomorSurat === id) {
+          const updated: SantriIzinRecord = {
+            ...item,
+            statusApproval: approvedStatus,
+            status: statusUpper,
+            pemberiIzin: authUser?.name || "Pamong Asrama",
+            disetujuiOleh: authUser?.name || "Pamong Asrama",
+            rolePenyetuju: authUser?.role || "pamong",
+            waktuPenyetujuan: nowIso,
+            catatanPenolakan: catatan || item.catatanPenolakan,
+            updatedAt: nowIso
+          };
+
+          // Push update status ke Database Presensi via unified googleSyncService
+          googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
+          return updated;
+        }
+        return item;
+      });
+
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    showToast(approved ? "Izin santri disetujui & tersimpan permanen" : "Izin santri ditolak", approved ? "success" : "warning");
   };
 
   const handlePKMTap = (id: string, type: "keluar" | "kembali", petugasName: string) => {
     const now = new Date();
-    setSantriIzinList(prev => prev.map(item => {
-      if (item.id === id || item.nomorSurat === id) {
-        let updated: SantriIzinRecord;
-        if (type === "keluar") {
-          updated = {
-            ...item,
-            statusPKM: "di_luar",
-            tglKeluarAktual: now.toISOString(),
-            petugasPKMKeluar: petugasName,
-            updatedAt: now.toISOString()
-          };
-          googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
-          showToast(`Check-Out gerbang: ${item.namaSantri} tercatat KELUAR`, "info");
-        } else {
-          const batasKembali = new Date(`${item.tglKembaliRencana}T${item.jamKembaliRencana}:00`);
-          const isLate = now > batasKembali;
-          const statusPKM = isLate ? "terlambat" : "kembali_tepat_waktu";
-          updated = {
-            ...item,
-            statusPKM: statusPKM,
-            tglKembaliAktual: now.toISOString(),
-            petugasPKMKembali: petugasName,
-            updatedAt: now.toISOString()
-          };
-          googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
-          showToast(
-            isLate 
-              ? `Check-In gerbang: ${item.namaSantri} tercatat KEMBALI (TERLAMBAT)` 
-              : `Check-In gerbang: ${item.namaSantri} tercatat KEMBALI TEPAT WAKTU`,
-            isLate ? "warning" : "success"
-          );
+    const nowIso = now.toISOString();
+
+    setSantriIzinList(prev => {
+      const next = prev.map(item => {
+        if (item.id === id || item.nomorSurat === id) {
+          let updated: SantriIzinRecord;
+          if (type === "keluar") {
+            updated = {
+              ...item,
+              statusPKM: "di_luar",
+              status: "CHECKED_OUT",
+              tglKeluarAktual: nowIso,
+              petugasPKMKeluar: petugasName,
+              updatedAt: nowIso
+            };
+            googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
+            showToast(`Check-Out gerbang: ${item.namaSantri} tercatat KELUAR`, "info");
+          } else {
+            const batasKembali = new Date(`${item.tglKembaliRencana}T${item.jamKembaliRencana}:00`);
+            const isLate = now > batasKembali;
+            const statusPKM = isLate ? "terlambat" : "kembali_tepat_waktu";
+            updated = {
+              ...item,
+              statusPKM: statusPKM,
+              status: "RETURNED",
+              tglKembaliAktual: nowIso,
+              petugasPKMKembali: petugasName,
+              updatedAt: nowIso
+            };
+            googleSyncService.enqueue("SantriIzin", updated, "upsert", true);
+            showToast(
+              isLate 
+                ? `Check-In gerbang: ${item.namaSantri} tercatat KEMBALI (TERLAMBAT)` 
+                : `Check-In gerbang: ${item.namaSantri} tercatat KEMBALI TEPAT WAKTU`,
+              isLate ? "warning" : "success"
+            );
+          }
+          return updated;
         }
-        return updated;
-      }
-      return item;
-    }));
+        return item;
+      });
+
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const handleDeleteSantriIzin = (id: string) => {

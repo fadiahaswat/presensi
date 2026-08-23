@@ -63,8 +63,9 @@ export interface SantriIzinRecord {
   waktuPenyetujuan?: string;
   catatanPenolakan?: string;
   
-  // Lampiran / Bukti
+  // Lampiran / Bukti Foto
   lampiranUrl?: string;
+  fotoSantriUrl?: string;
   dibuatOleh: string;
   rolePembuat: string;
   userEmail?: string;

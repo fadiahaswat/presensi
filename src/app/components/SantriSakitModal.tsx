@@ -2,15 +2,17 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Plus, HeartPulse, Bed, Stethoscope, Building2, Home, CheckCircle2, 
   Trash2, AlertCircle, Search, Filter, Share2, Calendar, User, Phone,
-  ChevronLeft, Sparkles, Send, Edit3, UserCheck, Copy, Check
+  ChevronLeft, Sparkles, Send, Edit3, UserCheck, Copy, Check,
+  Camera, Upload, Eye, RefreshCw
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { searchSantri, getSantriForMusyrif, SantriData } from "../data/santriData";
 import { appAlert } from "../utils/customDialog";
 import { getPamongAssignedAsramas } from "../utils/roleAccessUtils";
+import { compressAndWatermarkImage } from "../utils/imageCompressor";
 
 export interface SantriSakitRecord {
   id: string;
@@ -25,6 +27,7 @@ export interface SantriSakitRecord {
   lokasiPerawatan: "kamar" | "uks" | "rs_pku" | "pulang";
   catatanTindakan?: string;
   status: "dalam_perawatan" | "sembuh";
+  photoUrl?: string;
   createdAt: string;
 }
 
@@ -78,6 +81,11 @@ export function SantriSakitModal({
   const [editingRecord, setEditingRecord] = useState<SantriSakitRecord | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Photo state & modal
+  const [formPhotoUrl, setFormPhotoUrl] = useState<string>("");
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
+  const [photoModalItem, setPhotoModalItem] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+
   const activeMusyrifList = useMemo(() => {
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
   }, [musyrifList]);
@@ -109,6 +117,25 @@ export function SantriSakitModal({
   const currentMusyrifObj = useMemo(() => {
     return musyrifList.find(m => m.id === formMusyrifId) || defaultMusyrif;
   }, [musyrifList, formMusyrifId, defaultMusyrif]);
+
+  // Handle Photo Compression (Tanpa Watermark untuk Santri Sakit)
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    triggerHaptic("light");
+    setIsCompressingPhoto(true);
+    try {
+      // Kompresi foto langsung tanpa watermark
+      const compressed = await compressAndWatermarkImage(file);
+      setFormPhotoUrl(compressed);
+      triggerHaptic("medium");
+    } catch {
+      appAlert("Gagal memproses dan mengompres foto.", "Peringatan", "error");
+    } finally {
+      setIsCompressingPhoto(false);
+      e.target.value = "";
+    }
+  };
 
   // Scoped students of this musyrif's class
   const classStudents = useMemo(() => {
@@ -157,6 +184,7 @@ export function SantriSakitModal({
     setFormKeluhan("");
     setFormLokasi("kamar");
     setFormCatatan("");
+    setFormPhotoUrl("");
     setEditingRecord(null);
     setShowAddForm(false);
     setShowSuggestions(false);
@@ -172,6 +200,7 @@ export function SantriSakitModal({
     setFormKeluhan(rec.keluhan);
     setFormLokasi(rec.lokasiPerawatan);
     setFormCatatan(rec.catatanTindakan || "");
+    setFormPhotoUrl(rec.photoUrl || "");
     setShowAddForm(true);
     setShowSuggestions(false);
   };
@@ -268,7 +297,18 @@ export function SantriSakitModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formNama.trim() || !formKeluhan.trim()) return;
+    if (!formNama.trim()) {
+      appAlert("Silakan isi nama santri yang sakit.", "Nama Santri Kosong", "warning");
+      return;
+    }
+    if (!formKeluhan.trim()) {
+      appAlert("Silakan isi keluhan dan gejala santri yang sakit.", "Keluhan Kosong", "warning");
+      return;
+    }
+    if (!formPhotoUrl) {
+      appAlert("Wajib Mengambil Foto", "Laporan santri sakit wajib menyertakan foto dokumentasi kondisi santri / resep obat sebelum disimpan.", "warning");
+      return;
+    }
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
     if (formDate > todayStr) {
@@ -291,6 +331,7 @@ export function SantriSakitModal({
       lokasiPerawatan: formLokasi,
       catatanTindakan: formCatatan.trim(),
       status: editingRecord ? editingRecord.status : "dalam_perawatan",
+      photoUrl: formPhotoUrl,
       createdAt: editingRecord ? editingRecord.createdAt : format(new Date(), "yyyy-MM-dd HH:mm")
     };
 
@@ -625,7 +666,80 @@ export function SantriSakitModal({
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
+          {/* FOTO DOKUMENTASI SANTRI SAKIT (WAJIB) */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 block">
+                Foto Santri Sakit / Resep Obat <span className="text-rose-500">*Wajib</span>
+              </label>
+              {formPhotoUrl && (
+                <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3" /> Foto Terlampir
+                </span>
+              )}
+            </div>
+
+            {formPhotoUrl ? (
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 group">
+                <img 
+                  src={formPhotoUrl} 
+                  alt="Foto Santri Sakit" 
+                  className="w-full h-44 sm:h-52 object-contain bg-slate-900 cursor-pointer" 
+                  onClick={() => setPhotoModalItem({ url: formPhotoUrl, title: formNama || "Santri Sakit", subtitle: `${currentMusyrifObj?.asrama || "Asrama"} • ${formKelas || "Kelas"}` })} 
+                />
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPhotoModalItem({ url: formPhotoUrl, title: formNama || "Santri Sakit", subtitle: `${currentMusyrifObj?.asrama || "Asrama"} • ${formKelas || "Kelas"}` })}
+                    className="px-2.5 py-1 rounded-xl bg-black/60 hover:bg-black/80 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm transition-all"
+                  >
+                    Lihat Penuh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormPhotoUrl("")}
+                    className="px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm transition-all"
+                  >
+                    Hapus / Ganti
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="flex items-center justify-center gap-2 p-3 bg-rose-50 hover:bg-rose-100 border border-dashed border-rose-300 rounded-2xl cursor-pointer text-rose-700 text-xs font-bold transition-all active:scale-[0.98]">
+                  <Camera className="w-4 h-4" />
+                  <span>Ambil Foto Kamera (Live)</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    className="hidden" 
+                    onChange={handlePhotoSelected} 
+                    disabled={isCompressingPhoto} 
+                  />
+                </label>
+                <label className="flex items-center justify-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded-2xl cursor-pointer text-slate-700 text-xs font-semibold transition-all active:scale-[0.98]">
+                  <Upload className="w-4 h-4 text-slate-500" />
+                  <span>Pilih dari Galeri HP</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handlePhotoSelected} 
+                    disabled={isCompressingPhoto} 
+                  />
+                </label>
+              </div>
+            )}
+
+            {isCompressingPhoto && (
+              <p className="text-[11px] text-amber-600 font-semibold flex items-center gap-1.5 animate-pulse pt-1">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Mengompres dan memproses foto...
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
@@ -658,24 +772,13 @@ export function SantriSakitModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {isClassScoped ? (
-              <span className="text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                <span>Kelas</span>
-                <span className="font-mono">{musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id))?.kelas || authUser?.asrama || "-"}</span>
-              </span>
-            ) : (
+            {!isMusyrifUser && (
               <select
                 value={filterAsrama}
                 onChange={(e) => setFilterAsrama(e.target.value)}
-                disabled={isPamong}
-                className={`text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 outline-none ${isPamong ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
               >
-                {!isPamong && <option value="all">Semua Asrama</option>}
-                <option value="Asrama 1">Asrama 1</option>
-                <option value="Asrama 8A">Asrama 8A</option>
-                <option value="Asrama 8B">Asrama 8B</option>
-                <option value="Asrama 8C">Asrama 8C</option>
-                <option value="Asrama 10">Asrama 10</option>
+                <option value="all">Semua Asrama</option>
                 <option value="Asrama Sedayu Gedung A">Sedayu Gedung A</option>
                 <option value="Asrama Sedayu Gedung B">Sedayu Gedung B</option>
                 <option value="Asrama Sedayu Gedung C">Sedayu Gedung C</option>
@@ -837,6 +940,25 @@ export function SantriSakitModal({
                 </div>
               </div>
 
+              {/* FOTO SANTRI SAKIT DITAMPILKAN DI KARTU */}
+              {item.photoUrl && (
+                <div 
+                  className="mb-3 relative rounded-2xl overflow-hidden border border-slate-200/80 bg-slate-950 group cursor-pointer"
+                  onClick={() => setPhotoModalItem({ url: item.photoUrl!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelasSantri} • Keluhan: ${item.keluhan}` })}
+                >
+                  <img 
+                    src={item.photoUrl} 
+                    alt={item.namaSantri} 
+                    className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium flex items-center gap-1">
+                    <Eye className="w-3 h-3 text-sky-400" />
+                    <span>Klik untuk Perbesar Foto</span>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-1.5">
                 <p className="text-xs text-slate-800 leading-relaxed font-medium">
                   <span className="text-slate-500 font-semibold">Keluhan: </span>
@@ -901,6 +1023,46 @@ export function SantriSakitModal({
           ))
         )}
       </div>
+
+      {/* FULLSCREEN PHOTO LIGHTBOX MODAL */}
+      <AnimatePresence>
+        {photoModalItem && (
+          <div
+            className="fixed inset-0 z-[140] bg-black/95 backdrop-blur-md flex items-center justify-center"
+            onClick={() => setPhotoModalItem(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full h-full flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setPhotoModalItem(null)}
+                className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg active:scale-95"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
+                <img
+                  src={photoModalItem.url}
+                  alt={photoModalItem.title}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+
+              <div className="p-4 bg-black/80 text-white text-center">
+                <p className="font-bold text-sm">{photoModalItem.title}</p>
+                {photoModalItem.subtitle && (
+                  <p className="text-xs text-slate-300 mt-0.5">{photoModalItem.subtitle}</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 

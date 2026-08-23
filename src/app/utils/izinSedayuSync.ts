@@ -39,25 +39,39 @@ export interface IzinSedayuRow {
 
 // Convert Izin Sedayu raw row to Presensi SantriIzinRecord
 export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
-  // If already in Presensi SantriIzinRecord format
-  if (row.statusApproval || row.statusPKM || row.tglKeluarRencana) {
-    return row as SantriIzinRecord;
-  }
-
-  const normalizeStatusApproval = (st: string): StatusApprovalSantri => {
-    const s = (st || "").toUpperCase();
-    if (s === "APPROVED" || s === "RETURNED" || s === "CHECKED_OUT") return "approved";
-    if (s === "REJECTED") return "rejected";
+  const normalizeStatusApproval = (st?: string): StatusApprovalSantri => {
+    const s = String(st || "").trim().toLowerCase();
+    if (s === "approved" || s === "disetujui" || s === "returned" || s === "checked_out" || s === "selesai") return "approved";
+    if (s === "rejected" || s === "ditolak") return "rejected";
+    if (s.includes("pamong")) return "pending_pamong";
     return "pending_musyrif";
   };
 
-  const normalizeStatusPKM = (st: string): StatusPKM => {
-    const s = (st || "").toUpperCase();
-    if (s === "CHECKED_OUT") return "di_luar";
-    if (s === "RETURNED") return "kembali_tepat_waktu";
-    if (s === "APPROVED") return "menunggu_keluar";
+  const normalizeStatusPKM = (st?: string, pkm?: string): StatusPKM => {
+    const s = String(pkm || st || "").trim().toLowerCase();
+    if (s === "checked_out" || s === "di_luar") return "di_luar";
+    if (s === "returned" || s === "kembali_tepat_waktu" || s === "kembali") return "kembali_tepat_waktu";
+    if (s === "terlambat") return "terlambat";
     return "menunggu_keluar";
   };
+
+  const rawStatus = row.statusApproval || row.status || row.status_approval || row.Status || row.StatusApproval || "";
+  const resolvedStatusApproval = normalizeStatusApproval(rawStatus);
+  const resolvedStatusPKM = normalizeStatusPKM(row.status, row.statusPKM);
+
+  // If already in Presensi SantriIzinRecord format
+  if (row.tglKeluarRencana || row.santriId) {
+    const foto = row.photoUrl || row.fotoSantriUrl || row.lampiranUrl || "";
+    return {
+      ...row,
+      statusApproval: resolvedStatusApproval,
+      statusPKM: resolvedStatusPKM,
+      status: resolvedStatusApproval === "approved" ? "APPROVED" : (resolvedStatusApproval === "rejected" ? "REJECTED" : "PENDING"),
+      photoUrl: foto,
+      fotoSantriUrl: foto,
+      lampiranUrl: foto
+    } as SantriIzinRecord;
+  }
 
   const normalizeJenisIzin = (j: string): JenisIzinSantri => {
     const s = (j || "").toLowerCase();
@@ -123,6 +137,9 @@ export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
     statusApproval: normalizeStatusApproval(row.status || row.statusApproval),
     statusPKM: normalizeStatusPKM(row.status || row.statusPKM),
     disetujuiOleh: row.pemberiIzin && row.pemberiIzin !== "-" ? row.pemberiIzin : row.disetujuiOleh,
+    lampiranUrl: row.fotoSantriUrl || row.lampiranUrl || row.photoUrl || "",
+    fotoSantriUrl: row.fotoSantriUrl || row.lampiranUrl || row.photoUrl || "",
+    photoUrl: row.fotoSantriUrl || row.lampiranUrl || row.photoUrl || "",
     dibuatOleh: row.namaWali || row.dibuatOleh || "Wali Santri",
     rolePembuat: row.rolePembuat || "wali",
     userEmail: row.userEmail || "",
@@ -151,6 +168,8 @@ export function mapRecordToIzinSedayuPayload(rec: SantriIzinRecord): any {
     return "PENDING";
   };
 
+  const fotoUrl = rec.fotoSantriUrl || rec.lampiranUrl || rec.photoUrl || "";
+
   return {
     action: "create",
     idIzin: rec.nomorSurat || rec.id,
@@ -172,7 +191,10 @@ export function mapRecordToIzinSedayuPayload(rec: SantriIzinRecord): any {
     status: mapStatusLabel(rec.statusApproval, rec.statusPKM),
     catatanAdmin: rec.alasanDetail || "Diajukan via Aplikasi Presensi",
     userEmail: rec.userEmail || "musyrif.muallimin@gmail.com",
-    userRole: rec.rolePembuat || "MUSYRIF"
+    userRole: rec.rolePembuat || "MUSYRIF",
+    lampiranUrl: fotoUrl,
+    fotoSantriUrl: fotoUrl,
+    photoUrl: fotoUrl
   };
 }
 

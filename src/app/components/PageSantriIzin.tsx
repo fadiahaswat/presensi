@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import { 
-  X, CheckCircle, AlertCircle, Clock, Upload, 
-  FileCheck2, ShieldCheck, Check, Ban, Eye, User, Calendar, MapPin,
+  X, CheckCircle, AlertCircle, Clock, Upload, Camera,
+  FileCheck2, ShieldCheck, Check, Ban, Eye, User, Users, Calendar, MapPin,
   ChevronLeft, Plus, Search, Filter, Share2, Printer, QrCode, Phone,
   Building2, ShieldAlert, ArrowRight, ArrowLeft, RefreshCw, Send, CheckCircle2,
   ExternalLink, FileText, AlertTriangle, UserCheck, KeyRound, Sparkles,
@@ -16,6 +16,7 @@ import { triggerHaptic } from "../utils/animations";
 import { ALL_SANTRI_DATA, searchSantri, SantriData } from "../data/santriData";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { SantriIzinRecord, JenisIzinSantri, StatusApprovalSantri, StatusPKM } from "../types/izinSantri";
+import { compressAndWatermarkImage } from "../utils/imageCompressor";
 import syamsaLogomark from "../../assets/branding/Logomark.webp";
 
 interface Musyrif {
@@ -43,7 +44,7 @@ interface PageSantriIzinProps {
   asramaList: string[];
   santriList?: SantriData[];
   santriIzinList: SantriIzinRecord[];
-  onSaveSantriIzin: (record: Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt">) => void;
+  onSaveSantriIzin: (recordOrList: Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt"> | Array<Omit<SantriIzinRecord, "id" | "nomorSurat" | "createdAt" | "updatedAt">>) => void;
   onUpdateSantriIzin?: (record: SantriIzinRecord) => void;
   onApproveSantriIzin: (id: string, approved: boolean, catatan?: string) => void;
   onPKMTap: (id: string, type: "keluar" | "kembali", petugasName: string) => void;
@@ -55,8 +56,17 @@ const HUBUNGAN_PENJEMPUT_OPTIONS = [
   "Saudara Kandung",
   "Kakek / Nenek",
   "Paman / Bibi",
-  "Wali Resmi",
+  "Wali Resmi / Pihak Keluarga",
+  "Pihak Sekolah / Guru",
   "Mandiri / Tanpa Penjemput"
+];
+
+const TIME_OPTIONS = [
+  "05:00", "05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30",
+  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30",
+  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+  "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
+  "21:00", "21:30", "22:00"
 ];
 
 const getJenisIzinBadge = (jenis: JenisIzinSantri) => {
@@ -105,19 +115,15 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   onPKMTap,
   onDeleteSantriIzin
 }) => {
-  const isKoorMusyrif = authUser?.role === "koordinator_musyrif" || authUser?.role === "admin";
-  const isPamongOrAdmin = authUser?.role === "pamong" || isKoorMusyrif || authUser?.role === "koordinator_gedung";
-  const isMusyrif = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
-  const isPKM = authUser?.role === "keamanan" || authUser?.role === "admin" || isPamongOrAdmin;
-
+  // Navigation tabs
   const [activeTab, setActiveTab] = useState<"daftar" | "ajukan" | "pkm" | "kartu">("daftar");
-  
-  // Search & Filter State
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [filterAsrama, setFilterAsrama] = useState<string>("Semua");
-  const [filterJenis, setFilterJenis] = useState<string>("all");
-  const [scopeFilter, setScopeFilter] = useState<"hari_ini" | "semua" | "di_luar" | "terlambat">("hari_ini");
+  const [filterAsrama, setFilterAsrama] = useState<string>("semua");
+  const [filterJenis, setFilterJenis] = useState<string>("semua");
+  const [scopeFilter, setScopeFilter] = useState<"hari_ini" | "pending" | "di_luar" | "terlambat" | "semua">("hari_ini");
   
   // Selected Izin for Detail / Kartu Preview
   const [selectedIzin, setSelectedIzin] = useState<SantriIzinRecord | null>(null);
@@ -134,9 +140,9 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   // ===================== STEPPER WIZARD STATE (1: Santri, 2: Jenis, 3: Waktu, 4: Wali) =====================
   const [formStep, setFormStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Santri
+  // Step 1: Multiple Santri Selection
   const [santriQuery, setSantriQuery] = useState("");
-  const [selectedSantri, setSelectedSantri] = useState<SantriData | null>(null);
+  const [selectedSantriList, setSelectedSantriList] = useState<SantriData[]>([]);
   const [santriSearchResults, setSantriSearchResults] = useState<SantriData[]>([]);
   const [showSantriDropdown, setShowSantriDropdown] = useState(false);
 
@@ -154,7 +160,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   const [rekomendasiPoskestren, setRekomendasiPoskestren] = useState<string>("");
   const [isPoskestrenApproved, setIsPoskestrenApproved] = useState<boolean>(false);
 
-  // Cek apakah perizinan memerlukan rekomendasi / persetujuan Dokter Poskestren (RS PKU / Faskes / Pulang / Sakit)
+  // Cek apakah perizinan memerlukan rekomendasi / persetujuan Dokter Poskestren
   const isPoskestrenRequired = useMemo(() => {
     if (jenisIzin === "kesehatan_berobat" || jenisIzin === "pulang_menginap" || jenisIzin === "rutin_sabtu_ahad") {
       return true;
@@ -173,25 +179,48 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
     );
   }, [jenisIzin, keperluan, tujuanLokasi]);
 
-  // Step 4: Wali & Penjemput
+  // Step 4: Wali & Penjemput (DEFAULT: Tanpa Penjemput / Mandiri)
   const [asramaForm, setAsramaForm] = useState<string>(authUser?.asrama || asramaList[0] || "Asrama 1");
   const [kamarForm, setKamarForm] = useState<string>(authUser?.kamar || "Kamar 1");
   const [namaWali, setNamaWali] = useState<string>("");
   const [alamatWali, setAlamatWali] = useState<string>("");
   const [noHpWali, setNoHpWali] = useState<string>("");
-  const [isPenjemputBerbeda, setIsPenjemputBerbeda] = useState<boolean>(false);
+  const [adaPenjemput, setAdaPenjemput] = useState<boolean>(false); // DEFAULT: FALSE (Tanpa Penjemput)
   const [namaPenjemput, setNamaPenjemput] = useState<string>("");
   const [hubunganPenjemput, setHubunganPenjemput] = useState<string>("Orang Tua (Ayah/Ibu)");
+
+  // Photo State & Modal (Mandatory Pure Compressed Photo)
+  const [fotoSantriUrl, setFotoSantriUrl] = useState<string>("");
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
+  const [photoModalItem, setPhotoModalItem] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+
+  // Handle Photo Compression (Tanpa Watermark untuk Izin Santri)
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    triggerHaptic("light");
+    setIsCompressingPhoto(true);
+    try {
+      const compressed = await compressAndWatermarkImage(file);
+      setFotoSantriUrl(compressed);
+      triggerHaptic("medium");
+    } catch {
+      appAlert("Gagal memproses dan mengompres foto.", "Peringatan", "error");
+    } finally {
+      setIsCompressingPhoto(false);
+      e.target.value = "";
+    }
+  };
 
   // Santri binaan cepat (Quick santri chips for logged in Musyrif)
   const myAssignedSantri = useMemo(() => {
     const list = santriList || ALL_SANTRI_DATA;
-    if (!authUser?.asrama) return list.slice(0, 6);
+    if (!authUser?.asrama) return list.slice(0, 8);
     const matched = list.filter(s => s.asrama === authUser.asrama || (authUser.kamar && s.kamar === authUser.kamar));
-    return matched.length > 0 ? matched.slice(0, 8) : list.slice(0, 6);
-  }, [authUser, santriList]);
+    return matched.length > 0 ? matched.slice(0, 10) : list.slice(0, 8);
+  }, [santriList, authUser]);
 
-  // Autocomplete search santri
+  // Debounced search logic for Santri
   useEffect(() => {
     if (santriQuery.trim().length >= 2) {
       const results = searchSantri(santriQuery, 8, santriList);
@@ -203,25 +232,45 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
     }
   }, [santriQuery, santriList]);
 
-  const handleSelectSantri = (s: SantriData, autoAdvance: boolean = false) => {
-    setSelectedSantri(s);
-    setSantriQuery(s.nama);
+  // Toggle or add santri to selected list
+  const handleToggleSantri = (s: SantriData) => {
+    setSelectedSantriList(prev => {
+      const exists = prev.some(item => (item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || item.nama.toLowerCase() === s.nama.toLowerCase());
+      if (exists) {
+        return prev.filter(item => !((item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || item.nama.toLowerCase() === s.nama.toLowerCase()));
+      } else {
+        if (prev.length === 0) {
+          if (s.asrama) setAsramaForm(s.asrama);
+          if (s.kamar) setKamarForm(s.kamar);
+          const parentName = s.namaAyah || s.namaIbu || s.namaWali || "";
+          if (parentName) setNamaWali(parentName);
+          if (s.alamat || s.kabupaten) setAlamatWali(s.alamat || s.kabupaten || "Yogyakarta");
+          if (s.telpAyah || s.telpIbu || s.telpWali) setNoHpWali(s.telpAyah || s.telpIbu || s.telpWali || "");
+        }
+        return [...prev, s];
+      }
+    });
+    setSantriQuery("");
     setShowSantriDropdown(false);
-    const parentName = s.namaAyah || s.namaIbu || s.namaWali || `Bapak/Ibu Wali ${s.nama.split(" ")[0]}`;
-    const parentPhone = s.telpAyah || s.telpIbu || s.telpWali || "";
-    const parentAddress = s.alamat || s.kabupaten || "Yogyakarta";
-
-    setNamaWali(parentName);
-    setNoHpWali(parentPhone);
-    setAlamatWali(parentAddress);
-    setNamaPenjemput(parentName);
-    if (s.asrama) setAsramaForm(s.asrama);
-    if (s.kamar) setKamarForm(s.kamar);
-
     triggerHaptic("light");
-    if (autoAdvance) {
-      setTimeout(() => setFormStep(2), 250);
-    }
+  };
+
+  const handleRemoveSantri = (identifier: string) => {
+    setSelectedSantriList(prev => prev.filter(s => s.id !== identifier && s.nisn !== identifier && s.nama !== identifier));
+    triggerHaptic("light");
+  };
+
+  const handleAddManualSantri = () => {
+    if (!santriQuery.trim()) return;
+    const manualSantri: SantriData = {
+      id: `manual-${Date.now()}`,
+      nama: santriQuery.trim(),
+      nisn: "-",
+      kelasLengkap: "Kelas Asrama",
+      asrama: asramaForm,
+      kamar: kamarForm
+    };
+    handleToggleSantri(manualSantri);
   };
 
   // Helper Duration Calculation
@@ -418,10 +467,29 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   }, [santriIzinList, deferredPkmQuery]);
 
   // Submit Handler
+  const isKoorMusyrif = authUser?.role === "koordinator_musyrif" || authUser?.role === "admin";
+  const isPamongOrAdmin = authUser?.role === "pamong" || isKoorMusyrif || authUser?.role === "koordinator_gedung";
+  const isMusyrif = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
+  const isPKM = authUser?.role === "keamanan" || authUser?.role === "admin" || isPamongOrAdmin;
+
+  // Handler submit form izin (Mendukung satu atau banyak santri sekaligus)
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSantri && !santriQuery.trim()) {
-      appAlert("Peringatan", "Silakan pilih data santri terlebih dahulu.");
+
+    let targetSantriList = [...selectedSantriList];
+    if (targetSantriList.length === 0 && santriQuery.trim()) {
+      targetSantriList = [{
+        id: `manual-${Date.now()}`,
+        nama: santriQuery.trim(),
+        nisn: "-",
+        kelasLengkap: "Kelas Asrama",
+        asrama: asramaForm,
+        kamar: kamarForm
+      }];
+    }
+
+    if (targetSantriList.length === 0) {
+      appAlert("Peringatan", "Silakan pilih minimal satu santri yang mengajukan izin.");
       setFormStep(1);
       return;
     }
@@ -436,54 +504,29 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       return;
     }
 
-    if (isPoskestrenRequired && !isPoskestrenApproved) {
-      appAlert(
-        "Persetujuan Poskestren Diperlukan",
-        "Perizinan ke RS PKU / Faskes dan Pulang ke Rumah wajib mendapatkan rekomendasi/persetujuan dari Dokter Poskestren. Silakan centang konfirmasi dokter atau hubungi dr. Kartini Aprilia (wa.me/6281225760883)."
-      );
-      setFormStep(4);
-      return;
-    }
+    // ── Logika Status Approval Awal (Langsung Disetujui jika dibuat oleh Musyrif/Pamong) ──
+    const initialStatusApproval: StatusApprovalSantri = "approved";
+    const disetujuiOleh = authUser?.name || "Musyrif / Pamong";
+    const rolePenyetuju = authUser?.role || "musyrif";
+    const waktuPenyetujuan = new Date().toISOString();
 
-    const namaSantri = selectedSantri ? selectedSantri.nama : santriQuery.trim();
-    const nisn = selectedSantri ? selectedSantri.nisn : "-";
-    const kelas = selectedSantri ? selectedSantri.kelasLengkap : "Kelas Asrama";
+    // Penjemput default: Mandiri / Tanpa Penjemput
+    const resolvedNamaPenjemput = adaPenjemput ? (namaPenjemput.trim() || "Penjemput Santri") : "Mandiri / Tanpa Penjemput";
+    const resolvedHubunganPenjemput = adaPenjemput ? hubunganPenjemput : "Mandiri / Tanpa Penjemput";
 
-    // ── Logika Status Approval Awal berdasarkan SOP & Role ──
-    let initialStatusApproval: StatusApprovalSantri = "pending_musyrif";
-    let disetujuiOleh: string | undefined = undefined;
-    let rolePenyetuju: string | undefined = undefined;
-    let waktuPenyetujuan: string | undefined = undefined;
-
-    if (isPamongOrAdmin) {
-      initialStatusApproval = "approved";
-      disetujuiOleh = authUser?.name || "Pamong Asrama";
-      rolePenyetuju = authUser?.role || "pamong";
-      waktuPenyetujuan = new Date().toISOString();
-    } else if (authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung") {
-      if (jenisIzin === "keluar_biasa" || jenisIzin === "kesehatan_berobat") {
-        initialStatusApproval = "approved";
-        disetujuiOleh = authUser?.name || "Musyrif Kelas";
-        rolePenyetuju = "musyrif";
-        waktuPenyetujuan = new Date().toISOString();
-      } else {
-        initialStatusApproval = "pending_pamong";
-      }
-    }
-
-    const newRecordData = {
-      santriId: selectedSantri?.id || `santri-${Date.now()}`,
-      nisn: nisn,
-      nis: selectedSantri?.nis,
-      namaSantri: namaSantri,
-      kelas: kelas,
-      asrama: asramaForm,
-      kamar: kamarForm,
-      namaWali: (namaWali || "Orang Tua / Wali").trim(),
-      alamatWali: (alamatWali || "Yogyakarta").trim(),
-      noHpWali: noHpWali.trim(),
-      namaPenjemput: (isPenjemputBerbeda ? namaPenjemput : namaWali || "Orang Tua").trim(),
-      hubunganPenjemput: isPenjemputBerbeda ? hubunganPenjemput : "Orang Tua (Ayah/Ibu)",
+    const recordsToSave = targetSantriList.map((s) => ({
+      santriId: s.id || `santri-${Date.now()}`,
+      nisn: s.nisn || "-",
+      nis: s.nis,
+      namaSantri: s.nama,
+      kelas: s.kelasLengkap || "Kelas Asrama",
+      asrama: s.asrama || asramaForm,
+      kamar: s.kamar || kamarForm,
+      namaWali: (namaWali || s.namaAyah || s.namaIbu || "Orang Tua / Wali").trim(),
+      alamatWali: (alamatWali || s.alamat || "Yogyakarta").trim(),
+      noHpWali: (noHpWali || s.telpAyah || s.telpIbu || "").trim(),
+      namaPenjemput: resolvedNamaPenjemput,
+      hubunganPenjemput: resolvedHubunganPenjemput,
       rekomendasiPoskestren: rekomendasiPoskestren.trim(),
       jenisIzin: jenisIzin,
       keperluan: keperluan.trim(),
@@ -494,20 +537,24 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       tglKembaliRencana: tglKembali,
       jamKembaliRencana: jamKembali,
       statusApproval: initialStatusApproval,
+      status: "APPROVED",
       statusPKM: "menunggu_keluar" as StatusPKM,
       disetujuiOleh: disetujuiOleh,
       rolePenyetuju: rolePenyetuju,
       waktuPenyetujuan: waktuPenyetujuan,
+      lampiranUrl: fotoSantriUrl,
+      fotoSantriUrl: fotoSantriUrl,
+      photoUrl: fotoSantriUrl,
       dibuatOleh: authUser?.name || "Musyrif / Staff",
       rolePembuat: authUser?.role || "musyrif",
       userEmail: (authUser as any)?.email || ""
-    };
+    }));
 
-    onSaveSantriIzin(newRecordData);
+    onSaveSantriIzin(recordsToSave);
     triggerHaptic("success");
 
     const createdIzin: SantriIzinRecord = {
-      ...newRecordData,
+      ...recordsToSave[0],
       id: `IZN-${Date.now().toString(36).toUpperCase()}`,
       nomorSurat: `IZN-${Date.now().toString(36).toUpperCase()}`,
       createdAt: new Date().toISOString(),
@@ -515,11 +562,14 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
     };
 
     setLastSubmittedIzin(createdIzin);
-    setSelectedSantri(null);
+    setSelectedSantriList([]);
     setSantriQuery("");
     setKeperluan("");
     setAlasanDetail("");
     setTujuanLokasi("");
+    setFotoSantriUrl("");
+    setAdaPenjemput(false);
+    setNamaPenjemput("");
     setFormStep(1);
     setActiveTab("daftar");
   };
@@ -889,12 +939,12 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                               Menunggu Approval
                             </span>
                             <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono font-semibold">
-                              Kelas {item.kelas}
+                              {item.kelas ? (item.kelas.startsWith("Kelas") ? item.kelas : `Kelas ${item.kelas}`) : "-"}
                             </span>
                             {getJenisIzinBadge(item.jenisIzin)}
                           </div>
                           <p className="text-xs text-slate-500 mt-1 font-medium">
-                            {item.asrama}{item.kamar ? ` · Kamar ${item.kamar}` : ""} · No: <span className="font-mono">{item.nomorSurat}</span>
+                            {item.asrama}{item.kamar ? ` · ${item.kamar.startsWith("Kamar") ? item.kamar : `Kamar ${item.kamar}`}` : ""} · No: <span className="font-mono">{item.nomorSurat}</span>
                           </p>
                         </div>
                       </div>
@@ -942,6 +992,25 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                         </button>
                       </div>
                     </div>
+
+                    {/* FOTO SANTRI IZIN (PENDING) */}
+                    {(item.fotoSantriUrl || item.lampiranUrl) && (
+                      <div 
+                        className="relative rounded-2xl overflow-hidden border border-amber-200/80 bg-slate-950 group cursor-pointer"
+                        onClick={() => setPhotoModalItem({ url: (item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
+                      >
+                        <img 
+                          src={item.fotoSantriUrl || item.lampiranUrl} 
+                          alt={item.namaSantri} 
+                          className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium flex items-center gap-1">
+                          <Eye className="w-3 h-3 text-sky-400" />
+                          <span>Klik untuk Perbesar Foto</span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="bg-amber-50/50 rounded-2xl p-3 border border-amber-100 space-y-1.5 text-xs text-slate-800">
                       <p className="leading-relaxed font-medium">
@@ -1039,7 +1108,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                                   </span>
                                 )}
                                 <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono font-semibold">
-                                  Kelas {item.kelas}
+                                  {item.kelas ? (item.kelas.startsWith("Kelas") ? item.kelas : `Kelas ${item.kelas}`) : "-"}
                                 </span>
                                 {item.statusApproval === "approved" && (
                                   <span className="bg-emerald-600 text-white font-extrabold text-[10px] px-2.5 py-0.5 rounded-lg shadow-xs flex items-center gap-1 uppercase tracking-wide">
@@ -1050,7 +1119,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                                 {getJenisIzinBadge(item.jenisIzin)}
                               </div>
                               <p className="text-xs text-slate-500 mt-1 font-medium">
-                                {item.asrama}{item.kamar ? ` · Kamar ${item.kamar}` : ""} · Musyrif: {item.disetujuiOleh || "Ustadz Asrama"}
+                                {item.asrama}{item.kamar ? ` · ${item.kamar.startsWith("Kamar") ? item.kamar : `Kamar ${item.kamar}`}` : ""} · Musyrif: {item.disetujuiOleh || "Ustadz Asrama"}
                               </p>
                             </div>
                           </div>
@@ -1105,6 +1174,25 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                             )}
                           </div>
                         </div>
+
+                        {/* FOTO SANTRI IZIN (APPROVED) */}
+                        {(item.fotoSantriUrl || item.lampiranUrl) && (
+                          <div 
+                            className="relative rounded-2xl overflow-hidden border border-slate-200/80 bg-slate-950 group cursor-pointer"
+                            onClick={() => setPhotoModalItem({ url: (item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
+                          >
+                            <img 
+                              src={item.fotoSantriUrl || item.lampiranUrl} 
+                              alt={item.namaSantri} 
+                              className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium flex items-center gap-1">
+                              <Eye className="w-3 h-3 text-sky-400" />
+                              <span>Klik untuk Perbesar Foto</span>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Inner shaded container matching Santri Sakit */}
                         <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-1.5">
@@ -1208,7 +1296,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                     <button
                       type="button"
                       onClick={() => {
-                        if (step < formStep || (step === 2 && selectedSantri) || (step === 3 && selectedSantri)) {
+                        if (step < formStep || (step === 2 && selectedSantriList.length > 0) || (step === 3 && selectedSantriList.length > 0)) {
                           setFormStep(step as any);
                         }
                       }}
@@ -1232,104 +1320,129 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
               })}
             </div>
 
-            {/* ═════════════════ STEP 1: SANTRI ═════════════════ */}
+            {/* ═════════════════ STEP 1: SANTRI (BISA BEBERAPA NAMA) ═════════════════ */}
             {formStep === 1 && (
               <div className="space-y-4 pt-2">
-                <div>
-                  <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
-                    Pilih Santri yang Mengajukan Izin
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Ketik nama santri di bawah atau pilih santri dari daftar cepat.
-                  </p>
-                </div>
-
-                {/* Search Input */}
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={santriQuery}
-                    onChange={(e) => setSantriQuery(e.target.value)}
-                    placeholder="Ketik minimal 2 huruf nama santri atau NISN..."
-                    className="w-full pl-10 pr-4 py-3 bg-white border-2 border-blue-500/70 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition-all shadow-xs"
-                    autoFocus
-                  />
-
-                  {/* Dropdown search results */}
-                  {showSantriDropdown && santriSearchResults.length > 0 && (
-                    <div className="absolute z-30 top-full mt-1.5 w-full bg-white border border-slate-200 rounded-2xl shadow-xl max-h-56 overflow-y-auto">
-                      {santriSearchResults.map(s => (
-                        <div
-                          key={s.id || s.nisn}
-                          onClick={() => handleSelectSantri(s, true)}
-                          className="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 text-xs flex items-center justify-between transition"
-                        >
-                          <div>
-                            <p className="font-bold text-slate-900 text-sm">{s.nama}</p>
-                            <p className="text-slate-500 text-xs">{s.kelasLengkap} · NISN: {s.nisn} · Asrama: {s.asrama || "-"}</p>
-                          </div>
-                          <span className="text-[10px] px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 font-bold">
-                            Pilih & Lanjut
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
+                      Pilih Santri yang Mengajukan Izin
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Bisa memilih satu atau beberapa nama santri sekaligus (Izin Rombongan).
+                    </p>
+                  </div>
+                  {selectedSantriList.length > 0 && (
+                    <span className="px-2.5 py-1 rounded-xl bg-blue-100 text-blue-800 text-xs font-bold font-mono">
+                      {selectedSantriList.length} Santri Terpilih
+                    </span>
                   )}
                 </div>
 
-                {/* Quick Santri Chips (Santri Binaan Cepat) */}
-                {!selectedSantri && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-amber-500" />
-                      Pilihan Cepat Santri:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {myAssignedSantri.map(s => (
-                        <button
-                          key={s.id || s.nisn}
-                          type="button"
-                          onClick={() => handleSelectSantri(s, true)}
-                          className="px-2.5 py-1.5 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-200/80 rounded-xl text-xs font-semibold transition active:scale-95"
+                {/* Search Input with Manual Add */}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={santriQuery}
+                      onChange={(e) => setSantriQuery(e.target.value)}
+                      placeholder="Cari nama santri atau NISN..."
+                      className="w-full pl-10 pr-4 py-3 bg-white border-2 border-blue-500/70 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition-all shadow-xs"
+                      autoFocus
+                    />
+
+                    {/* Dropdown search results */}
+                    {showSantriDropdown && santriSearchResults.length > 0 && (
+                      <div className="absolute z-30 top-full mt-1.5 w-full bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto">
+                        {santriSearchResults.map(s => {
+                          const isSelected = selectedSantriList.some(item => (item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || item.nama.toLowerCase() === s.nama.toLowerCase());
+
+                          return (
+                            <div
+                              key={s.id || s.nisn}
+                              onClick={() => handleToggleSantri(s)}
+                              className={`p-3 cursor-pointer border-b border-slate-100 text-xs flex items-center justify-between transition ${
+                                isSelected ? "bg-blue-50/80" : "hover:bg-slate-50"
+                              }`}
+                            >
+                              <div>
+                                <p className="font-bold text-slate-900 text-sm">{s.nama}</p>
+                                <p className="text-slate-500 text-xs">{s.kelasLengkap} · NISN: {s.nisn} · Asrama: {s.asrama || "-"}</p>
+                              </div>
+                              <span className={`text-[10px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 ${
+                                isSelected 
+                                  ? "bg-emerald-600 text-white" 
+                                  : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                              }`}>
+                                {isSelected ? <><Check className="w-3 h-3 stroke-[3]" /> Terpilih</> : "+ Tambah"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manual add button if not found */}
+                  {santriQuery.trim().length >= 3 && santriSearchResults.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAddManualSantri}
+                      className="w-full p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-dashed border-blue-300 flex items-center justify-center gap-2 transition"
+                    >
+                      <span>+ Tambah Santri Manual: "<strong>{santriQuery.trim()}</strong>"</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Selected Santri List / Chips */}
+                {selectedSantriList.length > 0 ? (
+                  <div className="p-3.5 bg-blue-50/60 border border-blue-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
+                      <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-blue-700" />
+                        Daftar Santri yang Diizinkan ({selectedSantriList.length}):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSantriList([])}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700"
+                      >
+                        Hapus Semua
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedSantriList.map((s, idx) => (
+                        <div
+                          key={s.id || s.nisn || idx}
+                          className="bg-white border border-blue-300/80 pl-3 pr-2 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 text-xs"
                         >
-                          {s.nama} ({s.kelasLengkap})
-                        </button>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 leading-tight">{s.nama}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">{s.kelasLengkap} · {s.asrama}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSantri(s.id || s.nisn || s.nama)}
+                            className="w-5 h-5 rounded-full bg-slate-100 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center text-slate-400 transition"
+                            title="Hapus dari daftar"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
-                )}
-
-                {/* Selected Santri Card or Placeholder */}
-                {selectedSantri ? (
-                  <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl space-y-2 relative">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedSantri(null)}
-                      className="absolute right-3 top-3 text-slate-400 hover:text-rose-600 p-1"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-blue-600 text-white rounded-md">
-                        {selectedSantri.nisn}
-                      </span>
-                      <span className="text-xs font-bold text-blue-900">{selectedSantri.kelasLengkap}</span>
-                      <span className="text-xs text-slate-500 font-medium">· {selectedSantri.asrama} ({selectedSantri.kamar})</span>
-                    </div>
-                    <p className="font-extrabold text-slate-900 text-base">{selectedSantri.nama}</p>
-                    <p className="text-xs text-slate-600">
-                      Wali: <strong className="text-slate-800">{namaWali}</strong> · Alamat: {alamatWali}
-                    </p>
-                  </div>
                 ) : (
-                  <div className="border border-dashed border-slate-200 rounded-2xl p-8 text-center space-y-2 bg-slate-50/50">
+                  <div className="border border-dashed border-slate-200 rounded-2xl p-6 text-center space-y-1.5 bg-slate-50/50">
                     <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                      <User className="w-5 h-5" />
+                      <Users className="w-5 h-5" />
                     </div>
                     <p className="font-bold text-slate-700 text-xs sm:text-sm">Belum ada santri yang dipilih</p>
                     <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                      Ketik nama santri atau klik salah satu pilihan cepat di atas
+                      Cari nama santri di atas atau klik salah satu pilihan cepat di bawah (bisa lebih dari 1 nama).
                     </p>
                   </div>
                 )}
@@ -1347,18 +1460,18 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
 
                   <button
                     type="button"
-                    disabled={!selectedSantri}
+                    disabled={selectedSantriList.length === 0}
                     onClick={() => {
                       triggerHaptic("light");
                       setFormStep(2);
                     }}
                     className={`px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 ${
-                      selectedSantri
+                      selectedSantriList.length > 0
                         ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20"
                         : "bg-blue-300 text-white cursor-not-allowed"
                     }`}
                   >
-                    <span>Lanjut</span>
+                    <span>Lanjut ke Jenis Izin ({selectedSantriList.length})</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -1533,40 +1646,6 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   </button>
                 </div>
 
-                {/* Pilihan Keperluan Cepat (Quick Chips) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Pilihan Keperluan Cepat:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { label: "Acara Keluarga", dest: "Rumah Orang Tua / Keluarga" },
-                      { label: "Keluarga Sakit", dest: "RS / Kediaman Keluarga" },
-                      { label: "Keperluan Madrasah", dest: "Lokasi Kegiatan Madrasah" },
-                      { label: "Keperluan Mendesak", dest: "Lokasi Kebutuhan Santri" },
-                      { label: "Periksa Medis / Gigi", dest: "RS PKU Muhammadiyah / Klinik" },
-                      { label: "Beli Perlengkapan Asrama", dest: "Toko / Swalayan Terdekat" }
-                    ].map(chip => (
-                      <button
-                        key={chip.label}
-                        type="button"
-                        onClick={() => {
-                          setKeperluan(chip.label);
-                          setTujuanLokasi(chip.dest);
-                          triggerHaptic("light");
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
-                          keperluan === chip.label
-                            ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Detail Keperluan & Tempat Tujuan */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -1577,7 +1656,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       type="text"
                       value={keperluan}
                       onChange={(e) => setKeperluan(e.target.value)}
-                      placeholder="Misal: acara keluarga, keperluan penting"
+                      placeholder="Misal: acara keluarga, periksa dokter, urusan penting"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition"
                       required
                     />
@@ -1591,47 +1670,10 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       type="text"
                       value={tujuanLokasi}
                       onChange={(e) => setTujuanLokasi(e.target.value)}
-                      placeholder="Misal: Rumah Orang Tua, Toko Buku..."
+                      placeholder="Misal: Rumah Orang Tua, RS PKU, Toko Buku..."
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition"
                       required
                     />
-                  </div>
-                </div>
-
-                {/* Quick Date Selection Chips */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Pilihan Tanggal Cepat:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => applyDatePreset("today")}
-                      className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 rounded-lg text-xs font-medium border border-slate-200 transition"
-                    >
-                      📅 Hari Ini ({format(new Date(), "dd MMM")})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyDatePreset("tomorrow")}
-                      className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 rounded-lg text-xs font-medium border border-slate-200 transition"
-                    >
-                      🌅 Besok ({format(addDays(new Date(), 1), "dd MMM")})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyDatePreset("saturday")}
-                      className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 rounded-lg text-xs font-medium border border-slate-200 transition"
-                    >
-                      ✨ Sabtu Ini
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyDatePreset("sunday")}
-                      className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 rounded-lg text-xs font-medium border border-slate-200 transition"
-                    >
-                      🌿 Ahad Ini
-                    </button>
                   </div>
                 </div>
 
@@ -1754,8 +1796,8 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       <a
                         href={`https://wa.me/6281225760883?text=${encodeURIComponent(
                           `Assalamu'alaikum dr. Kartini Aprilia, mohon konfirmasi/rekomendasi perizinan santri:\n\n` +
-                          `• Nama: ${selectedSantri?.nama || santriQuery || "-"}\n` +
-                          `• Kelas/Asrama: ${selectedSantri?.kelasLengkap || "-"} / ${asramaForm} (${kamarForm})\n` +
+                          `• Nama: ${selectedSantriList.length > 0 ? selectedSantriList.map(s => s.nama).join(", ") : (santriQuery || "-")}\n` +
+                          `• Asrama: ${asramaForm} (${kamarForm})\n` +
                           `• Keperluan: ${keperluan || "-"}\n` +
                           `• Tempat Tujuan: ${tujuanLokasi || "-"}\n` +
                           `• Jadwal: ${tglKeluar} (${jamKeluar}) s/d ${tglKembali} (${jamKembali})\n\n` +
@@ -1809,97 +1851,75 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
               <form onSubmit={handleSubmitForm} className="space-y-4 pt-2">
                 <div>
                   <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
-                    Data Wali & Penjemput Santri
+                    Penjemput & Dokumen Foto Santri
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Identitas penanggung jawab santri telah terisi otomatis dari master data.
+                    Secara default perizinan diatur keluar mandiri tanpa penjemput.
                   </p>
                 </div>
 
-                {/* Nama Wali & Kota Asal */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Nama Wali Santri <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={namaWali}
-                      onChange={(e) => setNamaWali(e.target.value)}
-                      placeholder="Nama Orang Tua / Wali"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white focus:border-blue-600 outline-none"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Kota Asal / Alamat <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={alamatWali}
-                      onChange={(e) => setAlamatWali(e.target.value)}
-                      placeholder="Yogyakarta"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:bg-white focus:border-blue-600 outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Switch Toggle: Penjemput berbeda dengan Wali */}
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-slate-900 text-xs">Penjemput berbeda dengan Wali?</p>
-                    <p className="text-[11px] text-slate-500">Aktifkan jika santri dijemput oleh pihak lain / keluarga selain wali</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsPenjemputBerbeda(!isPenjemputBerbeda);
-                      triggerHaptic("light");
-                    }}
-                    className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
-                      isPenjemputBerbeda ? "bg-blue-600" : "bg-slate-300"
-                    }`}
-                  >
-                    <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
-                      isPenjemputBerbeda ? "translate-x-6" : "translate-x-0"
-                    }`} />
-                  </button>
-                </div>
-
-                {/* Penjemput Input fields if toggled ON */}
-                {isPenjemputBerbeda && (
-                  <div className="p-3.5 bg-blue-50/50 border border-blue-200 rounded-2xl space-y-3">
+                {/* Switch Toggle: Penjemput (DEFAULT: OFF / Tanpa Penjemput) */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Nama Penjemput
-                      </label>
-                      <input
-                        type="text"
-                        value={namaPenjemput}
-                        onChange={(e) => setNamaPenjemput(e.target.value)}
-                        placeholder="Nama pihak yang menjemput..."
-                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:border-blue-600 outline-none"
-                      />
+                      <p className="font-bold text-slate-900 text-xs">Apakah santri dijemput?</p>
+                      <p className="text-[11px] text-slate-500">Aktifkan hanya jika santri dijemput oleh orang tua/pihak lain</p>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Hubungan dengan Santri
-                      </label>
-                      <select
-                        value={hubunganPenjemput}
-                        onChange={(e) => setHubunganPenjemput(e.target.value)}
-                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:border-blue-600 outline-none font-medium"
-                      >
-                        {HUBUNGAN_PENJEMPUT_OPTIONS.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdaPenjemput(!adaPenjemput);
+                        triggerHaptic("light");
+                      }}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+                        adaPenjemput ? "bg-blue-600" : "bg-slate-300"
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                        adaPenjemput ? "translate-x-6" : "translate-x-0"
+                      }`} />
+                    </button>
                   </div>
-                )}
+
+                  {!adaPenjemput ? (
+                    <div className="p-2.5 bg-white border border-slate-200/80 rounded-xl flex items-center gap-2 text-xs text-slate-600 font-medium">
+                      <span className="text-base">🚶‍♂️</span>
+                      <span>Santri berizin <strong>Mandiri / Tanpa Penjemput</strong> (tidak ada penjemput khusus).</span>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-white border border-blue-200 rounded-xl space-y-2.5 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Nama Penjemput <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={namaPenjemput}
+                            onChange={(e) => setNamaPenjemput(e.target.value)}
+                            placeholder="Contoh: Bapak Ahmad / Ibu Siti"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:border-blue-600 outline-none"
+                            required={adaPenjemput}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Hubungan dengan Santri
+                          </label>
+                          <select
+                            value={hubunganPenjemput}
+                            onChange={(e) => setHubunganPenjemput(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:border-blue-600 outline-none font-medium"
+                          >
+                            {HUBUNGAN_PENJEMPUT_OPTIONS.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Poskestren Warning / Checkbox inside Step 4 Review if required */}
                 {isPoskestrenRequired && (
@@ -1943,8 +1963,12 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   </div>
 
                   <div className="grid grid-cols-3 gap-y-1.5 text-xs text-slate-700">
-                    <span className="text-slate-400 font-medium">Santri:</span>
-                    <span className="col-span-2 font-bold text-slate-900">{selectedSantri?.nama} ({selectedSantri?.kelasLengkap})</span>
+                    <span className="text-slate-400 font-medium">Santri ({selectedSantriList.length}):</span>
+                    <span className="col-span-2 font-bold text-slate-900">
+                      {selectedSantriList.length > 0
+                        ? selectedSantriList.map(s => s.nama).join(", ")
+                        : santriQuery || "-"}
+                    </span>
 
                     <span className="text-slate-400 font-medium">Jenis Izin:</span>
                     <span className="col-span-2 font-bold text-blue-700">
@@ -1959,6 +1983,11 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
 
                     <span className="text-slate-400 font-medium">Tujuan:</span>
                     <span className="col-span-2 font-semibold text-slate-800">{tujuanLokasi}</span>
+
+                    <span className="text-slate-400 font-medium">Penjemput:</span>
+                    <span className="col-span-2 font-semibold text-slate-800">
+                      {adaPenjemput ? `${namaPenjemput || "Penjemput"} (${hubunganPenjemput})` : "Mandiri (Tanpa Penjemput)"}
+                    </span>
 
                     <span className="text-slate-400 font-medium">Waktu Keluar:</span>
                     <span className="col-span-2 font-mono text-slate-900 font-semibold">{tglKeluar} — {jamKeluar} WIB</span>
@@ -2039,23 +2068,37 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       key={item.id}
                       className="bg-slate-50/80 border border-slate-200/70 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 text-sm">{item.namaSantri}</span>
-                          <span className="text-xs text-slate-500">({item.kelas} · {item.asrama})</span>
-                          <span className="text-[10px] font-mono bg-white text-blue-800 px-2 py-0.5 rounded border border-slate-200 font-bold">
-                            {item.nomorSurat}
-                          </span>
+                      <div className="flex items-start gap-3 min-w-0">
+                        {(item.fotoSantriUrl || item.lampiranUrl) ? (
+                          <img
+                            src={item.fotoSantriUrl || item.lampiranUrl}
+                            alt={item.namaSantri}
+                            onClick={() => setPhotoModalItem({ url: (item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • No: ${item.nomorSurat}` })}
+                            className="w-12 h-12 rounded-xl object-cover ring-1 ring-slate-300 shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-blue-100/70 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-6 h-6" />
+                          </div>
+                        )}
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900 text-sm">{item.namaSantri}</span>
+                            <span className="text-xs text-slate-500">({item.kelas} · {item.asrama})</span>
+                            <span className="text-[10px] font-mono bg-white text-blue-800 px-2 py-0.5 rounded border border-slate-200 font-bold">
+                              {item.nomorSurat}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            <span className="text-slate-400 font-medium">Tujuan:</span> {item.tujuanLokasi} ({item.keperluan})
+                            {item.namaPenjemput && <span className="ml-1 text-slate-500">· Penjemput: {item.namaPenjemput}</span>}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-mono">
+                            Batas Kembali: <span className="text-blue-800 font-bold">{item.tglKembaliRencana} {item.jamKembaliRencana} WIB</span>
+                            {item.tglKeluarAktual && ` · Keluar: ${format(new Date(item.tglKeluarAktual), "HH:mm")}`}
+                            {item.tglKembaliAktual && ` · Kembali: ${format(new Date(item.tglKembaliAktual), "HH:mm")}`}
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-600">
-                          <span className="text-slate-400 font-medium">Tujuan:</span> {item.tujuanLokasi} ({item.keperluan})
-                          {item.namaPenjemput && <span className="ml-1 text-slate-500">· Penjemput: {item.namaPenjemput}</span>}
-                        </p>
-                        <p className="text-[11px] text-slate-500 font-mono">
-                          Batas Kembali: <span className="text-blue-800 font-bold">{item.tglKembaliRencana} {item.jamKembaliRencana} WIB</span>
-                          {item.tglKeluarAktual && ` · Keluar: ${format(new Date(item.tglKeluarAktual), "HH:mm")}`}
-                          {item.tglKembaliAktual && ` · Kembali: ${format(new Date(item.tglKembaliAktual), "HH:mm")}`}
-                        </p>
                       </div>
 
                       <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -2169,7 +2212,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   </div>
                 </div>
 
-                {/* Identitas */}
+                {/* Identitas & Foto */}
                 <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
                   <div className="col-span-2 space-y-2">
                     <div>
@@ -2189,7 +2232,16 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   </div>
 
                   <div className="flex flex-col items-center justify-center p-2 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
-                    <QrCode className="w-14 h-14 text-blue-900" />
+                    {(selectedIzin.fotoSantriUrl || selectedIzin.lampiranUrl) ? (
+                      <img
+                        src={selectedIzin.fotoSantriUrl || selectedIzin.lampiranUrl}
+                        alt={selectedIzin.namaSantri}
+                        onClick={() => setPhotoModalItem({ url: (selectedIzin.fotoSantriUrl || selectedIzin.lampiranUrl)!, title: selectedIzin.namaSantri, subtitle: `${selectedIzin.asrama} • Kelas ${selectedIzin.kelas}` })}
+                        className="w-16 h-16 rounded-xl object-cover ring-1 ring-slate-300 cursor-pointer hover:scale-105 transition-transform"
+                      />
+                    ) : (
+                      <QrCode className="w-14 h-14 text-blue-900" />
+                    )}
                     <span className="text-[8px] font-mono text-blue-800 font-bold mt-1">VERIFIKASI PKM</span>
                   </div>
                 </div>
@@ -2391,6 +2443,45 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
           </div>
         </div>
       )}
+      {/* FULLSCREEN PHOTO LIGHTBOX MODAL */}
+      <AnimatePresence>
+        {photoModalItem && (
+          <div
+            className="fixed inset-0 z-[140] bg-black/95 backdrop-blur-md flex items-center justify-center"
+            onClick={() => setPhotoModalItem(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full h-full flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setPhotoModalItem(null)}
+                className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg active:scale-95"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
+                <img
+                  src={photoModalItem.url}
+                  alt={photoModalItem.title}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+
+              <div className="p-4 bg-black/80 text-white text-center">
+                <p className="font-bold text-sm">{photoModalItem.title}</p>
+                {photoModalItem.subtitle && (
+                  <p className="text-xs text-slate-300 mt-0.5">{photoModalItem.subtitle}</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
