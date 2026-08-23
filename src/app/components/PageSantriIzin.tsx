@@ -541,10 +541,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       statusPKM: "menunggu_keluar" as StatusPKM,
       disetujuiOleh: disetujuiOleh,
       rolePenyetuju: rolePenyetuju,
-      waktuPenyetujuan: waktuPenyetujuan,
-      lampiranUrl: fotoSantriUrl,
-      fotoSantriUrl: fotoSantriUrl,
-      photoUrl: fotoSantriUrl,
+      photoUrl: fotoSantriUrl || undefined,
       dibuatOleh: authUser?.name || "Musyrif / Staff",
       rolePembuat: authUser?.role || "musyrif",
       userEmail: (authUser as any)?.email || ""

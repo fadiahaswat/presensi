@@ -7532,9 +7532,9 @@ export default function App() {
         statusApproval: rec.statusApproval || "approved",
         status: (rec.status || (rec.statusApproval === "rejected" ? "REJECTED" : "APPROVED")).toUpperCase(),
         disetujuiOleh: rec.disetujuiOleh || authUser?.name || "Musyrif / Pamong",
-        fotoSantriUrl: foto,
-        lampiranUrl: foto,
-        photoUrl: foto,
+        photoUrl: foto || undefined,
+        fotoSantriUrl: undefined,
+        lampiranUrl: undefined,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString()
       };

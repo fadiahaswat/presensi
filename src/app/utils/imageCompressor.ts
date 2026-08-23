@@ -4,13 +4,13 @@
  * strictly guaranteeing payload is <= 30,000 characters to fit securely inside Google Sheets cell limits.
  */
 
-const MAX_SHEET_SAFE_CHARS = 30000; // Google Sheets hard limit is 50,000 chars per cell
+const MAX_SHEET_SAFE_CHARS = 18000; // Optimal lightweight payload for Google Sheets cell safety
 
 export async function compressAndWatermarkImage(
   file: File,
   _options?: any,
-  initialMaxDim = 420,
-  initialQuality = 0.55
+  initialMaxDim = 360,
+  initialQuality = 0.52
 ): Promise<string> {
   // Step 1: Decode image with fallback
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
