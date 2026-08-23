@@ -121,8 +121,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [filterAsrama, setFilterAsrama] = useState<string>("semua");
-  const [filterJenis, setFilterJenis] = useState<string>("semua");
+  const [filterAsrama, setFilterAsrama] = useState<string>("Semua");
+  const [filterJenis, setFilterJenis] = useState<string>("all");
   const [scopeFilter, setScopeFilter] = useState<"hari_ini" | "pending" | "di_luar" | "terlambat" | "semua">("hari_ini");
   
   // Selected Izin for Detail / Kartu Preview
@@ -389,8 +389,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       if (!item) return false;
       const st = String(item.statusApproval || "");
       if (!st.startsWith("pending")) return false;
-      if (filterAsrama !== "Semua" && item.asrama !== filterAsrama) return false;
-      if (filterJenis !== "all" && item.jenisIzin !== filterJenis) return false;
+      if (filterAsrama && filterAsrama.toLowerCase() !== "semua" && item.asrama !== filterAsrama) return false;
+      if (filterJenis && filterJenis.toLowerCase() !== "all" && filterJenis.toLowerCase() !== "semua" && item.jenisIzin !== filterJenis) return false;
       if (deferredSearchQuery.trim()) {
         const q = deferredSearchQuery.toLowerCase();
         const nama = String(item.namaSantri || "").toLowerCase();
@@ -414,8 +414,8 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
       // Exclude pending items from main list since they have their own dedicated top section
       if (stApproval.startsWith("pending")) return false;
 
-      if (filterAsrama !== "Semua" && item.asrama !== filterAsrama) return false;
-      if (filterJenis !== "all" && item.jenisIzin !== filterJenis) return false;
+      if (filterAsrama && filterAsrama.toLowerCase() !== "semua" && item.asrama !== filterAsrama) return false;
+      if (filterJenis && filterJenis.toLowerCase() !== "all" && filterJenis.toLowerCase() !== "semua" && item.jenisIzin !== filterJenis) return false;
       
       if (deferredSearchQuery.trim()) {
         const q = deferredSearchQuery.toLowerCase();
