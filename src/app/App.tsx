@@ -7923,8 +7923,6 @@ export default function App() {
 
       {/* Seamless Header - Non-sticky & Natural Scroll */}
       <header className={`w-full transition-colors ${page === "galeri-logbook" ? "bg-white pt-[max(env(safe-area-inset-top),0.875rem)] pb-2.5 border-b border-slate-100" : "pt-[max(env(safe-area-inset-top),1.25rem)] pb-1"}`}>
-        {/* SEO: Visually hidden H1 for search engines */}
-        <h1 className="sr-only">Syamsa - Sistem Manajemen Musyrif dan Kehadiran Santri Madrasah Mu'allimin Muhammadiyah Yogyakarta</h1>
         <div className={`${page === "galeri-logbook" ? "max-w-lg" : "max-w-2xl"} mx-auto px-4 flex items-center justify-between gap-3`}>
 
           {/* Pure Logo SYAMSA Primary - Aligned with Hero Card */}
