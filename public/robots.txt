@@ -1,29 +1,4 @@
-# https://syamsa.web.id/robots.txt
-
-# Allow all crawlers
 User-agent: *
 Allow: /
 
-# Sitemap
-Sitemap: https://syamsa.web.id/sitemap.xml
-
-# Crawl delay (be nice to the server)
-Crawl-delay: 1
-
-# Block sensitive paths (if any)
-Disallow: /api/
-Disallow: /private/
-Disallow: /*.json$
-
-# Specific bot rules
-User-agent: Googlebot
-Allow: /
-Sitemap: https://syamsa.web.id/sitemap.xml
-
-User-agent: Bingbot
-Allow: /
-Sitemap: https://syamsa.web.id/sitemap.xml
-
-User-agent: YandexBot
-Allow: /
 Sitemap: https://syamsa.web.id/sitemap.xml
