@@ -6276,6 +6276,21 @@ export default function App() {
   const [timeSyncState, setTimeSyncState] = useState<TimeSyncState | null>(null);
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
 
+  // Sync PWA status bar theme-color and html/body background for Explore page
+  useEffect(() => {
+    const isExplore = page === "galeri-logbook";
+    const targetBg = isExplore ? "#ffffff" : "#F4F8FF";
+    const targetThemeColor = isExplore ? "#ffffff" : "#0C4E8C";
+    
+    document.documentElement.style.backgroundColor = targetBg;
+    document.body.style.backgroundColor = targetBg;
+    
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute("content", targetThemeColor);
+    }
+  }, [page]);
+
   // Prayer Calculation for Alarm and Global Widgets
   const rootPrayerTimes = useMemo(() => calcPrayerTimes(now, -7.807631, 110.350905, 7), [now]);
   const rootNowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
@@ -7739,7 +7754,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Seamless Header - Non-sticky & Natural Scroll */}
-      <header className={`w-full transition-colors ${page === "galeri-logbook" ? "bg-white pt-3.5 pb-2.5 border-b border-slate-100" : "pt-5 sm:pt-6 pb-1"}`}>
+      <header className={`w-full transition-colors ${page === "galeri-logbook" ? "bg-white pt-[max(env(safe-area-inset-top),0.875rem)] pb-2.5 border-b border-slate-100" : "pt-[max(env(safe-area-inset-top),1.25rem)] pb-1"}`}>
         <div className={`${page === "galeri-logbook" ? "max-w-lg" : "max-w-2xl"} mx-auto px-4 flex items-center justify-between gap-3`}>
           
           {/* Pure Logo SYAMSA Primary - Aligned with Hero Card */}
@@ -7981,6 +7996,7 @@ export default function App() {
                 logbookData={logbookData}
                 musyrifList={musyrifList}
                 authUser={authUser}
+                onLogin={() => setShowLogin(true)}
               />
             </motion.div>
           )}

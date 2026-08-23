@@ -88,6 +88,10 @@ export function MutabaahYaumiyahModal({
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
 
+  const selectedMusyrif = useMemo(() => {
+    return activeMusyrifList.find(m => m.id === selectedMusyrifId) || null;
+  }, [activeMusyrifList, selectedMusyrifId]);
+
   useEffect(() => {
     if (initialMusyrifId) {
       setSelectedMusyrifId(initialMusyrifId);

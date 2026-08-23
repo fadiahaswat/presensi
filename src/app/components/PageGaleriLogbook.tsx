@@ -89,6 +89,7 @@ interface PageGaleriLogbookProps {
   logbookData: LogbookStorage;
   musyrifList: Musyrif[];
   authUser?: any;
+  onLogin?: () => void;
 }
 
 export interface GalleryPostItem {
@@ -154,7 +155,8 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   onOpenLogbook,
   logbookData,
   musyrifList,
-  authUser
+  authUser,
+  onLogin
 }) => {
   const [selectedPost, setSelectedPost] = useState<GalleryPostItem | null>(null);
   const [activeCommentsPost, setActiveCommentsPost] = useState<GalleryPostItem | null>(null);
@@ -223,6 +225,11 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   }, [logbookData, musyrifList]);
 
   const handleToggleLike = (postId: string) => {
+    if (!authUser) {
+      triggerHaptic("warning");
+      if (onLogin) onLogin();
+      return;
+    }
     triggerHaptic("medium");
     setInteractions(prev => {
       const existing = prev[postId] || { postId, likes: [], comments: [] };
@@ -238,6 +245,11 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   };
 
   const handleAddComment = (postId: string, text: string) => {
+    if (!authUser) {
+      triggerHaptic("warning");
+      if (onLogin) onLogin();
+      return;
+    }
     if (!text.trim()) return;
     triggerHaptic("light");
     const newComment = { id: `c_${Date.now()}`, userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, text: text.trim(), createdAt: new Date().toISOString() };
@@ -371,34 +383,54 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
                   </div>
                 )}
 
-                {/* 7. Quick Comment Input */}
-                <div className="px-3.5 pt-2 flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full bg-gradient-to-tr ${getAvatarGradient(currentUserName)} flex items-center justify-center text-white font-bold text-[10px] shrink-0 overflow-hidden`}>
-                    {currentUserAvatar ? (
-                      <img src={currentUserAvatar} alt="Me" className="w-full h-full object-cover" />
-                    ) : (
-                      currentUserName.charAt(0).toUpperCase()
+                {/* 7. Quick Comment Input / Guest Login Callout */}
+                {authUser ? (
+                  <div className="px-3.5 pt-2 flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-full bg-gradient-to-tr ${getAvatarGradient(currentUserName)} flex items-center justify-center text-white font-bold text-[10px] shrink-0 overflow-hidden`}>
+                      {currentUserAvatar ? (
+                        <img src={currentUserAvatar} alt="Me" className="w-full h-full object-cover" />
+                      ) : (
+                        currentUserName.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Beri apresiasi..."
+                      value={inlineInputs[post.id] || ""}
+                      onChange={e => setInlineInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleAddComment(post.id, inlineInputs[post.id] || "");
+                      }}
+                      className="flex-1 text-xs bg-slate-50 border border-slate-200/80 rounded-full px-3 py-1.5 outline-none focus:border-sky-500 focus:bg-white transition-colors placeholder:text-slate-400"
+                    />
+                    {(inlineInputs[post.id] || "").trim() && (
+                      <button
+                        onClick={() => handleAddComment(post.id, inlineInputs[post.id] || "")}
+                        className="text-xs font-bold text-[#0C81E4] hover:text-[#0C4E8C] active:scale-95 px-1.5"
+                      >
+                        Kirim
+                      </button>
                     )}
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Beri apresiasi..."
-                    value={inlineInputs[post.id] || ""}
-                    onChange={e => setInlineInputs(prev => ({ ...prev, [post.id]: e.target.value }))}
-                    onKeyDown={e => {
-                      if (e.key === "Enter") handleAddComment(post.id, inlineInputs[post.id] || "");
+                ) : (
+                  <div
+                    onClick={() => {
+                      triggerHaptic("light");
+                      if (onLogin) onLogin();
                     }}
-                    className="flex-1 text-xs bg-slate-50 border border-slate-200/80 rounded-full px-3 py-1.5 outline-none focus:border-sky-500 focus:bg-white transition-colors placeholder:text-slate-400"
-                  />
-                  {(inlineInputs[post.id] || "").trim() && (
-                    <button
-                      onClick={() => handleAddComment(post.id, inlineInputs[post.id] || "")}
-                      className="text-xs font-bold text-[#0C81E4] hover:text-[#0C4E8C] active:scale-95 px-1.5"
-                    >
-                      Kirim
-                    </button>
-                  )}
-                </div>
+                    className="px-3.5 pt-2 flex items-center justify-between gap-2 cursor-pointer group select-none"
+                  >
+                    <div className="flex items-center gap-2 text-xs text-slate-400 group-hover:text-sky-600 transition-colors">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-sky-50 group-hover:text-sky-600 transition-colors">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[11px] font-medium">Masuk akun untuk memberi like & apresiasi...</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-sky-600 bg-sky-50 px-2.5 py-0.5 rounded-full group-hover:bg-sky-100 transition-colors">
+                      Masuk
+                    </span>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -441,10 +473,42 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
                   </div>
                 ))}
               </div>
-              <div className="p-3 border-t flex gap-2">
-                <input value={commentInput} onChange={e => setCommentInput(e.target.value)} className="flex-1 bg-slate-100 rounded-full px-4 py-2 text-xs" placeholder="Tulis komentar..." />
-                <button onClick={() => handleAddComment(activeCommentsPost.id, commentInput)} className="text-emerald-600 font-bold text-xs">Kirim</button>
-              </div>
+              {authUser ? (
+                <div className="p-3 border-t flex gap-2">
+                  <input
+                    value={commentInput}
+                    onChange={e => setCommentInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleAddComment(activeCommentsPost.id, commentInput);
+                    }}
+                    className="flex-1 bg-slate-100 rounded-full px-4 py-2 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-sky-500 transition-colors"
+                    placeholder="Tulis komentar..."
+                    autoFocus
+                  />
+                  <button onClick={() => handleAddComment(activeCommentsPost.id, commentInput)} className="text-[#0C81E4] font-bold text-xs px-2">Kirim</button>
+                </div>
+              ) : (
+                <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
+                      <User className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs text-slate-600 font-medium truncate">
+                      Masuk untuk menulis komentar
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      triggerHaptic("medium");
+                      setActiveCommentsPost(null);
+                      if (onLogin) onLogin();
+                    }}
+                    className="bg-[#0C81E4] hover:bg-[#0C4E8C] text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-xs active:scale-95 transition-all shrink-0"
+                  >
+                    Masuk Akun
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
