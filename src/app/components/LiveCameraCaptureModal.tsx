@@ -124,16 +124,16 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   ): Promise<CapturedPhotoResult> => {
       const canvas = canvasRef.current || document.createElement("canvas");
 
-      // Fixed aspect ratio 9:16 (Story format) - Optimized for high visual clarity and lightweight cell storage
-      const STORY_RATIO = 9 / 16; // 0.5625
-      const maxHeight = 480;
-      const maxWidth = Math.round(maxHeight * STORY_RATIO); // 270
+      // Fixed aspect ratio 3:4 (Standard Portrait Foto) - Luas, alami, dan super ringan untuk Google Sheets
+      const PHOTO_RATIO = 3 / 4; // 0.75
+      const maxHeight = 440;
+      const maxWidth = Math.round(maxHeight * PHOTO_RATIO); // 330
 
-      // Calculate target dimensions maintaining 9:16 ratio
+      // Calculate target dimensions maintaining 3:4 ratio
       let targetHeight = maxHeight;
       let targetWidth = maxWidth;
 
-      // Crop from center to get 9:16
+      // Crop from center to get 3:4
       canvas.width = targetWidth;
       canvas.height = targetHeight;
       const ctx = canvas.getContext("2d");
@@ -147,17 +147,17 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         };
       }
 
-      // Draw Base Image - Crop from center to fit 9:16 ratio
+      // Draw Base Image - Crop from center to fit 3:4 ratio
       const srcRatio = srcWidth / srcHeight;
       let sx = 0, sy = 0, sW = srcWidth, sH = srcHeight;
 
-      if (srcRatio > STORY_RATIO) {
-        // Source is wider than 9:16 - crop sides
-        sW = Math.round(srcHeight * STORY_RATIO);
+      if (srcRatio > PHOTO_RATIO) {
+        // Source is wider than 3:4 - crop sides
+        sW = Math.round(srcHeight * PHOTO_RATIO);
         sx = Math.round((srcWidth - sW) / 2);
-      } else if (srcRatio < STORY_RATIO) {
-        // Source is taller than 9:16 - crop top/bottom
-        sH = Math.round(srcWidth / STORY_RATIO);
+      } else if (srcRatio < PHOTO_RATIO) {
+        // Source is taller than 3:4 - crop top/bottom
+        sH = Math.round(srcWidth / PHOTO_RATIO);
         sy = Math.round((srcHeight - sH) / 2);
       }
 
