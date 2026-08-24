@@ -109,7 +109,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = ({
 
       if (dateEntries && typeof dateEntries === "object") {
         Object.entries(dateEntries).forEach(([dateStr, entry]) => {
-          if (!entry || typeof entry !== "object") return;
+          if (!entry || typeof entry !== "object" || dateStr < "2026-08-18") return;
 
           Object.entries(entry).forEach(([key, taskVal]) => {
             if (

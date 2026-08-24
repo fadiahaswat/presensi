@@ -473,7 +473,7 @@ export function getTaskIconComponent(icon: string) {
   }
 }
 
-const EMPTY_LOGBOOK: JurnalLogbookEntry = {
+export const EMPTY_LOGBOOK: JurnalLogbookEntry = {
   tahajjud: { done: false },
   bakdaSubuh: { done: false, subChoice: "tahfizh" },
   cekSakit: { done: false },
@@ -506,13 +506,19 @@ export function JurnalLogbookModal({
   const isKoorGedung = authUser?.role === "koordinator_gedung";
   const isPamong = authUser?.role === "pamong";
   const isAdmin = authUser?.role === "admin";
+  const isSpecialBypassUser = Boolean(
+    authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id") ||
+    authUser?.email?.toLowerCase().includes("afifnashrul") ||
+    authUser?.name?.toLowerCase().includes("afif nashrul") ||
+    authUser?.musyrifId === "m2" ||
+    authUser?.id === "m2"
+  );
 
-  // Yang berwenang bypass jadwal (masa depan, masa lalu, dan patroli langsung) HANYA Pamong, Koordinator Musyrif, atau Admin.
-  // Musyrif biasa dan Koordinator Gedung TIDAK BISA bypass!
-  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin;
+  // Yang berwenang bypass jadwal (masa depan, masa lalu, dan input tanpa batasan waktu): Pamong, Koordinator Musyrif, Admin, serta akun khusus (Ustaz Afif Nashrul / andiaqillah@muallimin.sch.id)
+  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
 
   const activeMusyrifList = useMemo(() => {
-    if (isKoordinatorMusyrif || isAdmin) {
+    if (isKoordinatorMusyrif || isAdmin || isSpecialBypassUser) {
       return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
     }
     if (isKoorGedung) {
@@ -522,14 +528,16 @@ export function JurnalLogbookModal({
       return musyrifList.filter(m => m.asrama === authUser.asrama);
     }
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
-  }, [musyrifList, authUser, isKoordinatorMusyrif, isKoorGedung, isPamong, isAdmin]);
+  }, [musyrifList, authUser, isKoordinatorMusyrif, isKoorGedung, isPamong, isAdmin, isSpecialBypassUser]);
 
   // Find the musyrif record matching logged-in user (including Koordinator Gedung)
   const mySelfMusyrif = useMemo(() => {
     if (!authUser) return null;
+    const authClean = (authUser.email || "").trim().toLowerCase();
     return musyrifList.find(m => 
       m.id === authUser.musyrifId || 
       m.id === authUser.id || 
+      (m.email && authClean && m.email.toLowerCase().split(/[\s,]+/).includes(authClean)) ||
       (m.email && authUser.email && m.email.toLowerCase() === authUser.email.toLowerCase())
     ) || null;
   }, [authUser, musyrifList]);
@@ -775,6 +783,12 @@ export function JurnalLogbookModal({
     const file = e.target.files?.[0];
     if (!file || !activeCameraTask) return;
 
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Pengunggahan foto hanya diizinkan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+      return;
+    }
+
     const taskDef = activeCameraTask;
     const key = taskDef.key;
     const cur = formState[key] || { done: false };
@@ -783,26 +797,28 @@ export function JurnalLogbookModal({
     triggerHaptic("light");
 
     try {
-      // Compress with proven imageCompressor adaptive engine (1 task = 1 photo, max <= 18,000 chars)
-      const base64 = await compressAndWatermarkImage(file, null, 360, 0.50);
+      const nowIso = new Date().toISOString();
+      const watermark = `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget} • ${format(new Date(), "dd/MM/yyyy HH:mm")}`;
+      
+      // Compress with proven imageCompressor adaptive engine (guaranteed <= 10,000 chars & watermarked)
+      const base64 = await compressAndWatermarkImage(file, { watermark }, 360, 0.50);
       if (!base64) throw new Error("Gagal mengompresi foto.");
 
       const isPatrolRequired = Boolean(taskDef.isPatrol);
       const hasEnoughSteps = (cur.stepsCount || 0) >= (taskDef.targetSteps || 200);
       const isFullyCompleted = !isPatrolRequired || hasEnoughSteps;
 
-      const nowIso = new Date().toISOString();
       const updatedEntry: JurnalLogbookEntry = {
         ...formState,
         [key]: {
           ...cur,
           done: isFullyCompleted,
-          completedAt: isFullyCompleted ? (cur.completedAt || format(new Date(), "HH:mm")) : undefined,
+          completedAt: isFullyCompleted ? (cur.completedAt || format(new Date(), "HH:mm")) : (cur.completedAt || format(new Date(), "HH:mm")),
           gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : cur.gpsVerified,
           photoUrl: base64,
           photoTakenAt: nowIso,
           photoSource: source,
-          photoWatermark: `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget} • ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+          photoWatermark: watermark,
           photoUserAvatar: authUser?.picture
         }
       };
@@ -825,6 +841,12 @@ export function JurnalLogbookModal({
 
   // Handle Remove Photo
   const handleRemovePhoto = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">) => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Penghapusan foto hanya diizinkan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+      return;
+    }
+
     appConfirm("Apakah Anda yakin ingin menghapus foto dokumentasi tugas ini?", "Hapus Foto", "danger").then(ok => {
       if (!ok) return;
       const cur = formState[key];
@@ -839,7 +861,7 @@ export function JurnalLogbookModal({
           // If photo was mandatory, removing the photo returns status to NOT completed (done: false)
           done: isPhotoMandatory ? false : cur.done,
           completedAt: isPhotoMandatory ? undefined : cur.completedAt,
-          photoUrl: undefined,
+          photoUrl: "", // Explicit signal to remove photo
           photoTakenAt: undefined,
           photoSource: undefined,
           photoWatermark: undefined
@@ -852,6 +874,11 @@ export function JurnalLogbookModal({
 
   // Handle note updates
   const updateTaskNotes = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, notes: string) => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      return;
+    }
+
     const updatedEntry: JurnalLogbookEntry = {
       ...formState,
       [key]: {
@@ -864,6 +891,12 @@ export function JurnalLogbookModal({
 
   // Save complete logbook
   const handleSave = () => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Penyimpanan logbook untuk tanggal lampau terkunci secara otomatis. Hanya Pamong/Admin yang berwenang mengubah catatan lampau.", "Tanggal Terkunci", "warning");
+      return;
+    }
+
     onSaveLogbook(selectedMusyrifId, selectedDate, formState);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -871,6 +904,12 @@ export function JurnalLogbookModal({
 
   // Complete Patrol Task with Step count
   const handlePatrolSuccess = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, steps: number) => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Tanggal Terkunci", "warning");
+      return;
+    }
+
     const taskDef = activeDateTasks.find(t => t.key === key);
     const isPhotoMandatory = taskDef?.photoRequirement === "mandatory";
     const existingPhoto = formState[key]?.photoUrl;
@@ -1039,7 +1078,7 @@ export function JurnalLogbookModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-emerald-600" /> Tanggal Tugas</label>
-            <input type="date" value={selectedDate} onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs" />
+            <input type="date" min="2026-08-18" value={selectedDate} onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
@@ -1069,6 +1108,16 @@ export function JurnalLogbookModal({
             )}
           </div>
         </div>
+
+        {/* Mode Read-Only Alert Banner for Non-Bypass Users on Past/Future Dates */}
+        {!isCanBypass && selectedDate !== format(new Date(), "yyyy-MM-dd") && (
+          <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2.5 shadow-2xs">
+            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="leading-tight">
+              <strong>Mode Riwayat (Hanya Baca):</strong> Anda sedang melihat tanggal lampau ({format(parseISO(selectedDate), "dd MMMM yyyy", { locale: id })}). Pengisian, pencentangan, foto, dan perubahan logbook terkunci otomatis.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Empty State when no musyrif is selected (for Pamong/Koordinator) */}
@@ -1284,9 +1333,9 @@ export function JurnalLogbookModal({
               const taskData = formState[t.key] || { done: false };
               const isDone = taskData.done;
               const timeInfo = getTaskTimeStatus(t);
-              const isLocked = !isDone && timeInfo.isLocked && !isCanBypass;
-              const isPassed = timeInfo.status === "passed" && !isDone;
-              const isUpcoming = timeInfo.status === "upcoming" && !isDone;
+              const isLocked = (!isDone && timeInfo.isLocked && !isCanBypass) || (selectedDate !== todayStr && !isCanBypass);
+              const isPassed = (timeInfo.status === "passed" || timeInfo.status === "past_date") && !isDone;
+              const isUpcoming = (timeInfo.status === "upcoming" || timeInfo.status === "future_date") && !isDone;
               const isExpanded = expandedTask === t.key;
 
               return (
@@ -1296,7 +1345,7 @@ export function JurnalLogbookModal({
                   className={`bg-white rounded-3xl border transition-all overflow-hidden shadow-2xs ${
                     isDone
                       ? "border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/15"
-                      : timeInfo.status === "active"
+                      : timeInfo.status === "active" && selectedDate === todayStr
                       ? "border-emerald-500 ring-2 ring-emerald-300/40 bg-white shadow-xs"
                       : isPassed
                       ? "border-slate-200 bg-slate-50/70 opacity-60"
@@ -1308,8 +1357,12 @@ export function JurnalLogbookModal({
                       {/* Checkbox button */}
                       <button
                         type="button"
-                        disabled={!isCanBypass && (isLocked || !isMusyrifUser || isDone)}
+                        disabled={!isCanBypass && (isLocked || !isMusyrifUser || isDone || selectedDate !== todayStr)}
                         onClick={() => {
+                          if (selectedDate !== todayStr && !isCanBypass) {
+                            appAlert("Pengisian logbook hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+                            return;
+                          }
                           if (t.isPatrol && !isCanBypass && isMusyrifUser && !isDone) {
                             if (isLocked) {
                               appAlert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`, "Jadwal Terkunci", "warning");
@@ -1352,7 +1405,7 @@ export function JurnalLogbookModal({
                           isDone
                             ? (isCanBypass ? "Tugas Selesai (Klik untuk ubah/batal)" : "Tugas Selesai")
                             : isPassed && !isCanBypass
-                            ? "Jadwal Terlewat (Terkunci)"
+                            ? "Jadwal Terlewat / Tanggal Lampau (Terkunci)"
                             : isUpcoming && !isCanBypass
                             ? "Belum Masuk Waktu"
                             : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))

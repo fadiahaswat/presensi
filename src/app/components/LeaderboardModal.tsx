@@ -80,13 +80,15 @@ export function LeaderboardModal({
 
     const sholatScore = Math.max(0, hadirCount * 10 - alfaCount * 15);
 
-    // 2. Logbook Harian Score
+    // 2. Logbook Harian Score (Hanya dihitung serentak mulai 18 Agustus 2026)
     let logbookTasksDone = 0;
     const musyrifLogbooks = logbookData[m.id] || {};
-    Object.values(musyrifLogbooks).forEach(dayEntry => {
-      LOGBOOK_TASKS.forEach(t => {
-        if (dayEntry[t.key]?.done) logbookTasksDone++;
-      });
+    Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
+      if (dt >= "2026-08-18") {
+        LOGBOOK_TASKS.forEach(t => {
+          if (dayEntry[t.key]?.done) logbookTasksDone++;
+        });
+      }
     });
     const logbookScore = logbookTasksDone * 5;
 
@@ -97,18 +99,20 @@ export function LeaderboardModal({
     });
     const kegiatanScore = kegiatanDone * 15;
 
-    // 4. Mutaba'ah Yaumiyah Score
+    // 4. Mutaba'ah Yaumiyah Score (Hanya dihitung serentak mulai 18 Agustus 2026)
     let mutabaahPoints = 0;
     const musyrifMutabaah = mutabaahData[m.id] || {};
-    Object.values(musyrifMutabaah).forEach(dayEntry => {
-      if (dayEntry.tahajjud) mutabaahPoints += 5;
-      if (dayEntry.dhuha) mutabaahPoints += 3;
-      if (dayEntry.rawatib) mutabaahPoints += 3;
-      if (dayEntry.tilawahPages > 0) mutabaahPoints += Math.min(dayEntry.tilawahPages, 10);
-      if (dayEntry.dzikirPagi) mutabaahPoints += 2;
-      if (dayEntry.dzikirPetang) mutabaahPoints += 2;
-      if (dayEntry.puasaSunnah) mutabaahPoints += 10;
-      if (dayEntry.muthalaah) mutabaahPoints += 5;
+    Object.entries(musyrifMutabaah).forEach(([dt, dayEntry]) => {
+      if (dt >= "2026-08-18") {
+        if (dayEntry.tahajjud) mutabaahPoints += 5;
+        if (dayEntry.dhuha) mutabaahPoints += 3;
+        if (dayEntry.rawatib) mutabaahPoints += 3;
+        if (dayEntry.tilawahPages > 0) mutabaahPoints += Math.min(dayEntry.tilawahPages, 10);
+        if (dayEntry.dzikirPagi) mutabaahPoints += 2;
+        if (dayEntry.dzikirPetang) mutabaahPoints += 2;
+        if (dayEntry.puasaSunnah) mutabaahPoints += 10;
+        if (dayEntry.muthalaah) mutabaahPoints += 5;
+      }
     });
 
     const totalScore = sholatScore + logbookScore + kegiatanScore + mutabaahPoints;

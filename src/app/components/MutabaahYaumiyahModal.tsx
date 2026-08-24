@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   X, Check, Flame, Award, BookOpen, 
   Sparkles, Calendar, TrendingUp, Sun, Moon, Heart, ChevronRight, User, ShieldCheck, Eye, CheckCircle2,
-  ChevronLeft, Sunrise, Sunset, BookMarked
+  ChevronLeft, Sunrise, Sunset, BookMarked, Lock
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
@@ -66,9 +66,21 @@ export function MutabaahYaumiyahModal({
   initialDate
 }: MutabaahYaumiyahModalProps) {
   const isKoordinator = authUser?.role === "koordinator_musyrif";
-  const isPamongOrKoord = authUser?.role === "pamong" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
+  const isPamong = authUser?.role === "pamong";
+  const isAdmin = authUser?.role === "admin";
+  const isSpecialBypassUser = Boolean(
+    authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id") ||
+    authUser?.email?.toLowerCase().includes("afifnashrul") ||
+    authUser?.name?.toLowerCase().includes("afif nashrul") ||
+    authUser?.musyrifId === "m2" ||
+    authUser?.id === "m2"
+  );
+  const isCanBypass = isPamong || isKoordinator || isAdmin || isSpecialBypassUser;
   const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
-  const canEdit = isMusyrifUser || isPamongOrKoord;
+  const canEdit = isMusyrifUser || isCanBypass;
+  
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const isDateLocked = selectedDate !== todayStr && !isCanBypass;
   
   const activeMusyrifList = useMemo(() => {
     if (isKoordinator) {
@@ -120,12 +132,10 @@ export function MutabaahYaumiyahModal({
     setEntry(existing);
   };
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
     if (!canEdit) return;
-    if (selectedDate > todayStr && !isKoordinator) {
-      appAlert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
     const updated: MutabaahEntry = {
@@ -138,10 +148,25 @@ export function MutabaahYaumiyahModal({
     onSaveMutabaah(selectedMusyrifId, selectedDate, updated);
   };
 
+  const handleTilawahChange = (pages: number) => {
+    if (!canEdit) return;
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+      return;
+    }
+    const updated: MutabaahEntry = {
+      ...entry,
+      tilawahPages: pages,
+      updatedAt: new Date().toISOString()
+    };
+    setEntry(updated);
+    onSaveMutabaah(selectedMusyrifId, selectedDate, updated);
+  };
+
   const handleMarkAll = (done: boolean) => {
     if (!canEdit) return;
-    if (selectedDate > todayStr && !isKoordinator) {
-      appAlert("Tidak dapat mengisi atau mengubah amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
     const updated: MutabaahEntry = {
@@ -161,6 +186,10 @@ export function MutabaahYaumiyahModal({
 
   const handleResetToday = async () => {
     if (!canEdit) return;
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Pengosongan amalan hanya dapat dilakukan pada tanggal hari ini.", "Tanggal Terkunci", "warning");
+      return;
+    }
     const ok = await appConfirm(
       `Yakin ingin mengosongkan/reset catatan amalan mutaba'ah tanggal ${selectedDate}?`,
       "Reset Mutaba'ah",
@@ -179,8 +208,8 @@ export function MutabaahYaumiyahModal({
   };
 
   const handleSave = () => {
-    if (selectedDate > todayStr && !isKoordinator) {
-      appAlert("Tidak dapat menyimpan amalan yaumiyah untuk tanggal di masa depan.", "Tanggal Masa Depan", "warning");
+    if (selectedDate !== todayStr && !isCanBypass) {
+      appAlert("Penyimpanan amalan mutaba'ah untuk tanggal lampau terkunci secara otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
     onSaveMutabaah(selectedMusyrifId, selectedDate, { ...entry, updatedAt: new Date().toISOString() });
@@ -203,11 +232,11 @@ export function MutabaahYaumiyahModal({
   const totalFields = 8;
   const scorePct = Math.round((completedCount / totalFields) * 100);
 
-  // Monthly summary for selected Musyrif (filtered by current selected month)
+  // Monthly summary for selected Musyrif (filtered by current selected month & starting from 18 Agustus 2026)
   const selectedMonthPrefix = selectedDate ? selectedDate.substring(0, 7) : format(new Date(), "yyyy-MM");
   const mEntries = mutabaahData[selectedMusyrifId] || {};
   const mRecords = Object.entries(mEntries)
-    .filter(([dt]) => dt.startsWith(selectedMonthPrefix))
+    .filter(([dt]) => dt >= "2026-08-18" && dt.startsWith(selectedMonthPrefix))
     .map(([_, r]) => r);
   const monthlyTahajjud = mRecords.filter(r => r.tahajjud).length;
   const monthlyDhuha = mRecords.filter(r => r.dhuha).length;
@@ -242,7 +271,7 @@ export function MutabaahYaumiyahModal({
               Mutaba'ah Yaumiyah Ibadah
             </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>
-              Pencatatan amalan sunnah, tilawah Al-Qur'an & dzikir harian
+              Pencatatan amalan sunnah, tilawah Al-Qur'an & dzikir harian (Mulai 18 Agustus 2026)
             </p>
           </div>
         </div>
@@ -268,6 +297,7 @@ export function MutabaahYaumiyahModal({
             </label>
             <input
               type="date"
+              min="2026-08-18"
               value={selectedDate}
               max={todayStr}
               onChange={(e) => handleDateOrMusyrifChange(selectedMusyrifId, e.target.value)}
@@ -298,6 +328,16 @@ export function MutabaahYaumiyahModal({
             )}
           </div>
         </div>
+
+        {/* Mode Read-Only Alert Banner for Non-Bypass Users on Past/Future Dates */}
+        {isDateLocked && (
+          <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2.5 shadow-2xs">
+            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="leading-tight">
+              <strong>Mode Riwayat (Hanya Baca):</strong> Anda sedang melihat tanggal lampau ({format(parseISO(selectedDate), "dd MMMM yyyy", { locale: id })}). Pengisian dan perubahan amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Empty State when no musyrif is selected */}
@@ -318,26 +358,30 @@ export function MutabaahYaumiyahModal({
               Pilih Musyrif Terlebih Dahulu
             </h3>
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              Silakan pilih salah satu musyrif binaan di bawah ini atau gunakan dropdown di atas untuk melihat lembar amalan mutaba'ah yaumiyah harian (Tahajjud, Dhuha, Rawatib, Tilawah, Dzikir, Puasa Sunnah, dll).
+              Silakan pilih salah satu musyrif dari daftar di atas untuk memantau capaian amalan sunnah, tilawah Al-Qur'an, dan dzikir harian.
             </p>
           </div>
 
-          {/* Quick Cards Grid */}
-          <div className="pt-2 text-left">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Daftar Musyrif Binaan:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+          {/* Quick Musyrif Selector Grid */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">Daftar Musyrif Asrama:</span>
+              <span className="text-[10px] text-slate-400 font-medium">Klik musyrif untuk membuka mutaba'ah</span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-left">
               {activeMusyrifList.map(m => {
                 const mMutabaahToday = mutabaahData[m.id]?.[selectedDate];
-                let pts = 0;
+                let todayDoneCount = 0;
                 if (mMutabaahToday) {
-                  if (mMutabaahToday.tahajjud) pts += 5;
-                  if (mMutabaahToday.dhuha) pts += 3;
-                  if (mMutabaahToday.rawatib) pts += 3;
-                  if (mMutabaahToday.tilawahPages > 0) pts += Math.min(mMutabaahToday.tilawahPages, 10);
-                  if (mMutabaahToday.dzikirPagi) pts += 2;
-                  if (mMutabaahToday.dzikirPetang) pts += 2;
-                  if (mMutabaahToday.puasaSunnah) pts += 10;
-                  if (mMutabaahToday.muthalaah) pts += 5;
+                  if (mMutabaahToday.tahajjud) todayDoneCount++;
+                  if (mMutabaahToday.dhuha) todayDoneCount++;
+                  if (mMutabaahToday.rawatib) todayDoneCount++;
+                  if (mMutabaahToday.tilawahPages > 0) todayDoneCount++;
+                  if (mMutabaahToday.dzikirPagi) todayDoneCount++;
+                  if (mMutabaahToday.dzikirPetang) todayDoneCount++;
+                  if (mMutabaahToday.puasaSunnah) todayDoneCount++;
+                  if (mMutabaahToday.muthalaah) todayDoneCount++;
                 }
                 
                 return (
@@ -359,9 +403,9 @@ export function MutabaahYaumiyahModal({
                     
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                       <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                        pts > 0 ? "bg-purple-100 text-purple-800" : "bg-slate-100 text-slate-500"
+                        todayDoneCount > 0 ? "bg-purple-100 text-purple-800" : "bg-slate-100 text-slate-500"
                       }`}>
-                        {pts > 0 ? `${pts} Poin Amalan` : "Belum Mengisi"}
+                        {todayDoneCount > 0 ? `${todayDoneCount}/${totalFields} Amalan` : "Belum Mengisi"}
                       </span>
                       <span className="text-[11px] font-bold text-purple-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
                         Buka ➔
@@ -395,7 +439,7 @@ export function MutabaahYaumiyahModal({
                   </div>
                 </div>
 
-                {isMusyrifUser && (
+                {isMusyrifUser && !isDateLocked && (
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -470,10 +514,11 @@ export function MutabaahYaumiyahModal({
           {/* Tahajjud */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("tahajjud")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.tahajjud ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.tahajjud ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -486,19 +531,20 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.tahajjud ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.tahajjud ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.tahajjud && <Check className="w-4 h-4" />}
+              {entry.tahajjud ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
           {/* Dhuha */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("dhuha")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.dhuha ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.dhuha ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -511,19 +557,20 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.dhuha ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.dhuha ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.dhuha && <Check className="w-4 h-4" />}
+              {entry.dhuha ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
           {/* Rawatib */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("rawatib")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.rawatib ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.rawatib ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -536,19 +583,20 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.rawatib ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.rawatib ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.rawatib && <Check className="w-4 h-4" />}
+              {entry.rawatib ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
           {/* Muthala'ah */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("muthalaah")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.muthalaah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.muthalaah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -561,19 +609,20 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.muthalaah ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.muthalaah ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.muthalaah && <Check className="w-4 h-4" />}
+              {entry.muthalaah ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
           {/* Dzikir Pagi */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("dzikirPagi")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.dzikirPagi ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.dzikirPagi ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -586,19 +635,20 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.dzikirPagi ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.dzikirPagi ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.dzikirPagi && <Check className="w-4 h-4" />}
+              {entry.dzikirPagi ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
           {/* Dzikir Petang */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("dzikirPetang")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.dzikirPetang ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.dzikirPetang ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -611,19 +661,20 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.dzikirPetang ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.dzikirPetang ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.dzikirPetang && <Check className="w-4 h-4" />}
+              {entry.dzikirPetang ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
           {/* Puasa Sunnah */}
           <button
             type="button"
-            disabled={!canEdit}
+            disabled={!canEdit || isDateLocked}
             onClick={() => toggleField("puasaSunnah")}
             className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              entry.puasaSunnah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200" : "border-slate-200/80 bg-white hover:border-slate-300"
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.puasaSunnah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -636,9 +687,9 @@ export function MutabaahYaumiyahModal({
               </div>
             </div>
             <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.puasaSunnah ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : "border-slate-300 bg-slate-50"
+              entry.puasaSunnah ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
             }`}>
-              {entry.puasaSunnah && <Check className="w-4 h-4" />}
+              {entry.puasaSunnah ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
             </div>
           </button>
 
@@ -665,11 +716,14 @@ export function MutabaahYaumiyahModal({
                   <button
                     key={pages}
                     type="button"
-                    onClick={() => setEntry(prev => ({ ...prev, tilawahPages: pages }))}
+                    disabled={isDateLocked}
+                    onClick={() => handleTilawahChange(pages)}
                     className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95 ${
-                      entry.tilawahPages === pages
+                      isDateLocked
+                        ? "opacity-60 cursor-not-allowed bg-slate-50 text-slate-400 border border-slate-200"
+                        : entry.tilawahPages === pages
                         ? "bg-emerald-600 text-white shadow-xs"
-                        : "bg-slate-50 text-slate-600 border border-slate-200/80 hover:bg-slate-100"
+                        : "bg-slate-50 text-slate-600 border border-slate-200/80 hover:bg-slate-100 cursor-pointer"
                     }`}
                   >
                     {pages === 0 ? "0" : `${pages} Hal`}

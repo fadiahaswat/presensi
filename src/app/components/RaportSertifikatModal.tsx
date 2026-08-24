@@ -94,13 +94,15 @@ export function RaportSertifikatModal({
   const totalHadir = totalSubuhHadir + totalMaghribHadir;
   const attendanceRate = totalSlots > 0 ? Math.round((totalHadir / totalSlots) * 100) : 0;
 
-  // 2. Logbook 11 Tasks Statistics
+  // 2. Logbook 11 Tasks Statistics (Hanya dihitung serentak mulai 18 Agustus 2026)
   let totalLogbookDone = 0;
   const mLogbook = musyrif ? (logbookData[musyrif.id] || {}) : {};
-  Object.values(mLogbook).forEach(entry => {
-    LOGBOOK_TASKS.forEach(t => {
-      if (entry[t.key]?.done) totalLogbookDone++;
-    });
+  Object.entries(mLogbook).forEach(([dt, entry]) => {
+    if (dt >= "2026-08-18") {
+      LOGBOOK_TASKS.forEach(t => {
+        if (entry[t.key]?.done) totalLogbookDone++;
+      });
+    }
   });
 
   // 3. Agenda Khusus Asrama Statistics
@@ -111,17 +113,19 @@ export function RaportSertifikatModal({
     });
   }
 
-  // 4. Mutaba'ah Sunnah Statistics
+  // 4. Mutaba'ah Sunnah Statistics (Hanya dihitung serentak mulai 18 Agustus 2026)
   let totalMutabaahDone = 0;
   const mMutabaah = musyrif ? (mutabaahData[musyrif.id] || {}) : {};
-  Object.values(mMutabaah).forEach(entry => {
-    if (entry.tahajjud) totalMutabaahDone++;
-    if (entry.dhuha) totalMutabaahDone++;
-    if (entry.rawatib) totalMutabaahDone++;
-    if (entry.tilawahPages > 0) totalMutabaahDone++;
-    if (entry.dzikirPagi) totalMutabaahDone++;
-    if (entry.dzikirPetang) totalMutabaahDone++;
-    if (entry.puasaSunnah || entry.muthalaah) totalMutabaahDone++;
+  Object.entries(mMutabaah).forEach(([dt, entry]) => {
+    if (dt >= "2026-08-18") {
+      if (entry.tahajjud) totalMutabaahDone++;
+      if (entry.dhuha) totalMutabaahDone++;
+      if (entry.rawatib) totalMutabaahDone++;
+      if (entry.tilawahPages > 0) totalMutabaahDone++;
+      if (entry.dzikirPagi) totalMutabaahDone++;
+      if (entry.dzikirPetang) totalMutabaahDone++;
+      if (entry.puasaSunnah || entry.muthalaah) totalMutabaahDone++;
+    }
   });
 
   // Holistic Grade Calculation

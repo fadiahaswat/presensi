@@ -26,7 +26,7 @@ import { getReadNotificationMap, buildSystemNotificationItems } from "./utils/no
 import { SantriIzinRecord } from "./types/izinSantri";
 import { AlarmNotificationManager } from "./components/AlarmNotificationManager";
 import type { KegiatanRecord } from "./components/KegiatanAsramaModal";
-import type { LogbookStorage, JurnalLogbookEntry } from "./components/JurnalLogbookModal";
+import { type LogbookStorage, type JurnalLogbookEntry, EMPTY_LOGBOOK } from "./components/JurnalLogbookModal";
 import type { MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
 import type { SantriSakitRecord } from "./components/SantriSakitModal";
 import type { Pamong } from "./components/PamongManagerModal";
@@ -357,7 +357,7 @@ const AUTH_USERS: AuthUser[] = [
 const MUSYRIF_LIST: Musyrif[] = [
   // ─── ASRAMA SEDAYU GEDUNG D (Pamong: Ariel Amarta Dzikrillah, S.Sos.) ───
   { id:"m1",  name:"Wahyu Dermawan",               role:"koordinator_gedung", kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"wahyudermawan1212@gmail.com",     phone:"6282180998704" },
-  { id:"m2",  name:"Afif Nashrul",                 role:"musyrif",            kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"afifnashrul06@gmail.com",         phone:"6281287066297" },
+  { id:"m2",  name:"Afif Nashrul",                 role:"musyrif",            kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"afifnashrul06@gmail.com, andiaqillah@muallimin.sch.id", phone:"6281287066297" },
   { id:"m3",  name:"Muhammad Farras Mamduh",       role:"musyrif",            kelas:"1 B",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 B",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"farrasmdh@gmail.com",             phone:"6285117104411" },
   { id:"m4",  name:"Leo Fernando Adnan Muzaki",    role:"musyrif",            kelas:"1 C",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 C",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"leodrfernandofelix@gmail.com",    phone:"6285701209925" },
   { id:"m5",  name:"Husein Nur Alwany",            role:"musyrif",            kelas:"1 D",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 D",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"husennur085@gmail.com",           phone:"6285157379443" },
@@ -2198,74 +2198,6 @@ function PageDashboard({
                     </div>
                   </button>
                 )}
-
-                {/* 9. Database Santri - Cyan */}
-                {authUser && (
-                  <button
-                    type="button"
-                    onClick={() => onGoTo("data-santri")}
-                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-cyan-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-7 h-7 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center">
-                        <GraduationCap className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                        {authUser.role === "koordinator_musyrif" ? "1.497" : (authUser.role === "pamong" ? "Asrama" : "Santri")}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-slate-800 leading-tight">
-                        {authUser.role === "pamong" ? "Santri Asrama" : "Database Santri"}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                        {authUser.role === "pamong" ? "Biodata santri asrama" : "Biodata & kontak ortu"}
-                      </p>
-                    </div>
-                  </button>
-                )}
-
-                {/* 10. Peta Sebaran Santri - Fuchsia */}
-                {authUser && (
-                  <button
-                    type="button"
-                    onClick={() => onGoTo("peta-santri")}
-                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-fuchsia-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-7 h-7 rounded-xl bg-fuchsia-50 text-fuchsia-700 flex items-center justify-center">
-                        <MapPin className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[10px] font-bold text-fuchsia-800 bg-fuchsia-50 border border-fuchsia-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                        36 prov
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-slate-800 leading-tight">Peta Sebaran</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Asal daerah santri</p>
-                    </div>
-                  </button>
-                )}
-
-                {/* 11. Lembar Pembinaan Santri (BK & Poin) - Amber */}
-                <button
-                  type="button"
-                  onClick={() => onGoTo("pembinaan")}
-                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                      Poin / BK
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-xs text-slate-800 leading-tight">Lembar Pembinaan</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Poin pelanggaran & sanksi</p>
-                  </div>
-                </button>
               </div>
             </div>
           </div>
@@ -6352,25 +6284,51 @@ export default function App() {
     return [];
   });
 
-  // State for Jurnal Logbook Harian Musyrif (11 Tugas)
+  // State for Jurnal Logbook Harian Musyrif (Dimulai Serentak 18 Agustus 2026)
   const [logbookData, setLogbookData] = useState<LogbookStorage>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_LOGBOOK);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (typeof parsed === "object" && parsed !== null) return parsed;
+        if (typeof parsed === "object" && parsed !== null) {
+          const cleaned: LogbookStorage = {};
+          Object.entries(parsed).forEach(([mId, dateEntries]) => {
+            if (dateEntries && typeof dateEntries === "object") {
+              cleaned[mId] = {};
+              Object.entries(dateEntries).forEach(([dt, entry]) => {
+                if (dt >= "2026-08-18") {
+                  cleaned[mId][dt] = entry as any;
+                }
+              });
+            }
+          });
+          return cleaned;
+        }
       }
     } catch {}
     return {};
   });
 
-  // State for Mutabaah Yaumiyah (Ibadah Sunnah)
+  // State for Mutabaah Yaumiyah (Ibadah Sunnah - Dimulai Serentak 18 Agustus 2026)
   const [mutabaahData, setMutabaahData] = useState<MutabaahStorage>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MUTABAAH);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (typeof parsed === "object" && parsed !== null) return parsed;
+        if (typeof parsed === "object" && parsed !== null) {
+          const cleaned: MutabaahStorage = {};
+          Object.entries(parsed).forEach(([mId, dateEntries]) => {
+            if (dateEntries && typeof dateEntries === "object") {
+              cleaned[mId] = {};
+              Object.entries(dateEntries).forEach(([dt, entry]) => {
+                if (dt >= "2026-08-18") {
+                  cleaned[mId][dt] = entry as any;
+                }
+              });
+            }
+          });
+          return cleaned;
+        }
       }
     } catch {}
     return {};
@@ -6838,18 +6796,43 @@ export default function App() {
             })));
           }
         } else if (tbl === "logbook" && Array.isArray(cloudRecords)) {
-          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date);
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date && cr.date >= "2026-08-18");
+          // Proactively purge any legacy cloud records before official start date 18 Agustus 2026
+          cloudRecords.forEach((cr: any) => {
+            if (cr.date && cr.date < "2026-08-18" && !cr.is_deleted) {
+              googleSyncService.enqueue("Logbook", { id: cr.id }, "delete");
+            }
+          });
           setLogbookData(prev => {
             const next: LogbookStorage = { ...prev };
             validCloud.forEach((cr: any) => {
-              if (!next[cr.musyrifId]) next[cr.musyrifId] = {};
-              next[cr.musyrifId][cr.date] = { ...(next[cr.musyrifId][cr.date] || {}), ...cr };
+              const mId = cr.musyrifId;
+              const dt = cr.date;
+              if (!next[mId]) next[mId] = {};
+              if (!next[mId][dt]) next[mId][dt] = { ...EMPTY_LOGBOOK };
+
+              if (cr.taskKey && cr.taskData) {
+                (next[mId][dt] as any)[cr.taskKey] = {
+                  ...((next[mId][dt] as any)[cr.taskKey] || {}),
+                  ...cr.taskData
+                };
+              } else if (cr.taskKey === "generalNotes" && cr.generalNotes) {
+                next[mId][dt].generalNotes = cr.generalNotes;
+              } else {
+                next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
+              }
             });
             try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
             return next;
           });
         } else if (tbl === "mutabaah" && Array.isArray(cloudRecords)) {
-          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date);
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date && cr.date >= "2026-08-18");
+          // Proactively purge any legacy cloud records before official start date 18 Agustus 2026
+          cloudRecords.forEach((cr: any) => {
+            if (cr.date && cr.date < "2026-08-18" && !cr.is_deleted) {
+              googleSyncService.enqueue("Mutabaah", { id: cr.id }, "delete");
+            }
+          });
           setMutabaahData(prev => {
             const next: MutabaahStorage = { ...prev };
             validCloud.forEach((cr: any) => {
@@ -7003,19 +6986,35 @@ export default function App() {
           cloudRecords.forEach(cr => {
             const mId = cr.musyrifId;
             const dt = cr.date;
-            if (mId && dt) {
+            if (mId && dt && dt >= "2026-08-18") {
               if (cr.is_deleted) {
                 if (next[mId]) {
-                  const copy = { ...next[mId] };
-                  delete copy[dt];
-                  next[mId] = copy;
+                  if (cr.taskKey && (next[mId][dt] as any)?.[cr.taskKey]) {
+                    delete (next[mId][dt] as any)[cr.taskKey];
+                  } else {
+                    const copy = { ...next[mId] };
+                    delete copy[dt];
+                    next[mId] = copy;
+                  }
                 }
               } else {
                 if (!next[mId]) next[mId] = {};
-                next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
+                if (!next[mId][dt]) next[mId][dt] = { ...EMPTY_LOGBOOK };
+
+                if (cr.taskKey && cr.taskData) {
+                  (next[mId][dt] as any)[cr.taskKey] = {
+                    ...((next[mId][dt] as any)[cr.taskKey] || {}),
+                    ...cr.taskData
+                  };
+                } else if (cr.taskKey === "generalNotes" && cr.generalNotes) {
+                  next[mId][dt].generalNotes = cr.generalNotes;
+                } else {
+                  next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
+                }
               }
             }
           });
+          try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
           return next;
         });
       } else if (tbl === "mutabaah") {
@@ -7024,7 +7023,7 @@ export default function App() {
           cloudRecords.forEach(cr => {
             const mId = cr.musyrifId;
             const dt = cr.date;
-            if (mId && dt) {
+            if (mId && dt && dt >= "2026-08-18") {
               if (cr.is_deleted) {
                 if (next[mId]) {
                   const copy = { ...next[mId] };
@@ -7037,6 +7036,7 @@ export default function App() {
               }
             }
           });
+          try { localStorage.setItem(STORAGE_KEY_MUTABAAH, JSON.stringify(next)); } catch {}
           return next;
         });
       } else if (tbl === "galleryinteractions") {
@@ -7082,7 +7082,28 @@ export default function App() {
     return unsubData;
   }, []);
 
-  useEffect(()=>{ const t=setInterval(()=>setNow(getTrustedDate()),30000); return()=>clearInterval(t); },[]);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setNow(getTrustedDate());
+      if (navigator.onLine && googleSyncService.getGasUrl()) {
+        googleSyncService.pollDelta();
+      }
+    }, 20000);
+
+    const handleFocus = () => {
+      if (navigator.onLine && googleSyncService.getGasUrl()) {
+        googleSyncService.pollDelta();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleFocus);
+
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleFocus);
+    };
+  }, []);
 
   // ─── AUTO-INJECT MASTER DATA setiap 10 menit (khusus Koordinator Musyrif) ───
   useEffect(() => {
@@ -7633,16 +7654,104 @@ export default function App() {
     showToast("Data presensi kegiatan berhasil dihapus.", "info");
   };
 
-  // Save Jurnal Logbook (Synchronized to Google Sheet)
+  // Save Jurnal Logbook (Synchronized to Google Sheet via Granular Per-Task Rows)
   const handleSaveLogbook = (musyrifId: string, date: string, entry: JurnalLogbookEntry) => {
-    setLogbookData(prev => ({
-      ...prev,
-      [musyrifId]: {
-        ...(prev[musyrifId] || {}),
-        [date]: entry
+    setLogbookData(prev => {
+      const prevEntry = prev[musyrifId]?.[date] || {};
+      const allTaskKeys = [
+        "tahajjud", "bakdaSubuh", "cekSakit", "sisirSekolah", "jagaGerbang",
+        "oprakJumat", "kerjaBakti", "oprakAshar", "oprakMandi", "sisirMaghrib",
+        "bakdaMaghrib", "belajarMalam", "cekTidur"
+      ];
+
+      // Merge tasks deeply so no previous photos or notes are overwritten by subsequent tasks
+      const mergedEntry: any = { ...prevEntry, ...entry };
+      allTaskKeys.forEach(taskKey => {
+        const existingTask = (prevEntry as any)?.[taskKey] || {};
+        const incomingTask = (entry as any)?.[taskKey] || {};
+        
+        let finalPhotoUrl = existingTask.photoUrl;
+        let finalPhotoTakenAt = existingTask.photoTakenAt;
+        let finalPhotoWatermark = existingTask.photoWatermark;
+        let finalPhotoSource = existingTask.photoSource;
+
+        // Check if photo was explicitly removed
+        if (incomingTask.photoUrl === "" || incomingTask.photoUrl === null) {
+          finalPhotoUrl = undefined;
+          finalPhotoTakenAt = undefined;
+          finalPhotoWatermark = undefined;
+          finalPhotoSource = undefined;
+        } else if (incomingTask.photoUrl) {
+          finalPhotoUrl = incomingTask.photoUrl;
+          finalPhotoTakenAt = incomingTask.photoTakenAt || new Date().toISOString();
+          finalPhotoWatermark = incomingTask.photoWatermark || existingTask.photoWatermark;
+          finalPhotoSource = incomingTask.photoSource || existingTask.photoSource;
+        }
+
+        const taskObj: any = {
+          ...existingTask,
+          ...incomingTask
+        };
+
+        if (finalPhotoUrl) {
+          taskObj.photoUrl = finalPhotoUrl;
+          taskObj.photoTakenAt = finalPhotoTakenAt;
+          taskObj.photoWatermark = finalPhotoWatermark;
+          taskObj.photoSource = finalPhotoSource;
+        } else {
+          delete taskObj.photoUrl;
+          delete taskObj.photoTakenAt;
+          delete taskObj.photoWatermark;
+          delete taskObj.photoSource;
+        }
+
+        mergedEntry[taskKey] = taskObj;
+      });
+
+      // 1. Enqueue each active task individually (guaranteed <= 10,000 chars per row, 100% cell overflow-proof!)
+      allTaskKeys.forEach((taskKey) => {
+        const taskData = mergedEntry[taskKey];
+        const hasData = taskData && typeof taskData === "object" && (taskData.done || taskData.photoUrl || taskData.notes || taskData.stepsCount);
+        if (hasData) {
+          googleSyncService.enqueue("Logbook", {
+            id: `${musyrifId}_${date}_${taskKey}`,
+            musyrifId,
+            date,
+            taskKey,
+            taskData,
+            updated_at: new Date().toISOString()
+          }, "upsert");
+        } else {
+          // If task has no photo and no completion/notes, delete/clear granular row in cloud
+          googleSyncService.enqueue("Logbook", {
+            id: `${musyrifId}_${date}_${taskKey}`
+          }, "delete");
+        }
+      });
+
+      // 2. Save generalNotes separately if present
+      if (mergedEntry.generalNotes) {
+        googleSyncService.enqueue("Logbook", {
+          id: `${musyrifId}_${date}_generalNotes`,
+          musyrifId,
+          date,
+          taskKey: "generalNotes",
+          generalNotes: mergedEntry.generalNotes,
+          updated_at: new Date().toISOString()
+        }, "upsert");
       }
-    }));
-    googleSyncService.enqueue("Logbook", { id: `${musyrifId}_${date}`, musyrifId, date, ...entry }, "upsert");
+
+      const next = {
+        ...prev,
+        [musyrifId]: {
+          ...(prev[musyrifId] || {}),
+          [date]: mergedEntry
+        }
+      };
+      try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
+      return next;
+    });
+
     showToast("Jurnal logbook berhasil disimpan!", "success");
   };
 
@@ -7657,7 +7766,18 @@ export default function App() {
       }
       return copy;
     });
+
+    // Delete legacy record and all granular per-task records in cloud
     googleSyncService.enqueue("Logbook", { id: `${musyrifId}_${date}` }, "delete");
+    const allTaskKeys = [
+      "tahajjud", "bakdaSubuh", "cekSakit", "sisirSekolah", "jagaGerbang",
+      "oprakJumat", "kerjaBakti", "oprakAshar", "oprakMandi", "sisirMaghrib",
+      "bakdaMaghrib", "belajarMalam", "cekTidur", "generalNotes"
+    ];
+    allTaskKeys.forEach(k => {
+      googleSyncService.enqueue("Logbook", { id: `${musyrifId}_${date}_${k}` }, "delete");
+    });
+
     showToast("Jurnal logbook hari ini berhasil di-reset.", "info");
   };
 
