@@ -9,7 +9,7 @@ import {
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send,
-  Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet
+  Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet, Eye
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -727,6 +727,7 @@ function PageDashboard({
   const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
   const [asramaCampus, setAsramaCampus] = useState<"all" | "sparman" | "sedayu">("all");
   const [expandedAsrama, setExpandedAsrama] = useState<string | null>(null);
+  const [previewWidgetPhoto, setPreviewWidgetPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
 
   // Live 1-second interval for real-time MM:SS countdown
   const [liveNow, setLiveNow] = useState<Date>(() => new Date());
@@ -1319,14 +1320,14 @@ function PageDashboard({
             });
             const santriDiLuarList = validIzinList.filter(iz => String(iz?.statusApproval || "") === "approved" && iz?.statusPKM === "di_luar");
             
-            // Prioritas tampilan: 1. Pending approval -> 2. Santri di luar -> 3. Izin aktif hari ini -> 4. Izin terbaru
+            // Prioritas tampilan: 1. Pending approval -> 2. Santri di luar -> 3. Izin aktif hari ini -> 4. Izin terbaru (Maksimal 5)
             const displayList = pendingSantriList.length > 0 
-              ? pendingSantriList.slice(0, 2)
+              ? pendingSantriList.slice(0, 5)
               : santriDiLuarList.length > 0
-              ? santriDiLuarList.slice(0, 2)
+              ? santriDiLuarList.slice(0, 5)
               : approvedTodayList.length > 0
-              ? approvedTodayList.slice(0, 2)
-              : validIzinList.slice(0, 2);
+              ? approvedTodayList.slice(0, 5)
+              : validIzinList.slice(0, 5);
 
             const pendingCount = pendingSantriList.length;
             const diLuarCount = santriDiLuarList.length;
@@ -1431,6 +1432,64 @@ function PageDashboard({
                       <p className="text-[11px] font-medium text-slate-500">Belum ada perizinan santri aktif</p>
                     </div>
                   )}
+
+                  {/* ADAPTIVE PHOTO GRID (Max 5x2 = 10 Foto) */}
+                  {(() => {
+                    const izinWithPhotos = validIzinList
+                      .filter(iz => Boolean(iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl))
+                      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+                      .slice(0, 10);
+
+                    if (izinWithPhotos.length === 0) return null;
+
+                    return (
+                      <div className="mt-2.5 pt-2 border-t border-slate-100/90">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
+                            <Camera className="w-3 h-3 text-blue-500" />
+                            Dokumentasi Izin ({izinWithPhotos.length}):
+                          </span>
+                          <span className="text-[9px] font-semibold text-blue-600">Klik lihat</span>
+                        </div>
+                        <div className={`grid gap-1.5 ${
+                          izinWithPhotos.length === 1 ? "grid-cols-2 max-w-[140px]" :
+                          izinWithPhotos.length === 2 ? "grid-cols-2 max-w-[180px]" :
+                          izinWithPhotos.length === 3 ? "grid-cols-3" :
+                          izinWithPhotos.length === 4 ? "grid-cols-4" :
+                          "grid-cols-5"
+                        }`}>
+                          {izinWithPhotos.map((iz) => {
+                            const pUrl = iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl;
+                            return (
+                              <div
+                                key={iz.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewWidgetPhoto({
+                                    url: pUrl!,
+                                    title: iz.namaSantri,
+                                    subtitle: `${iz.kelas || "Kelas"} • ${iz.asrama || "Asrama"} • ${iz.keperluan || "Izin Santri"}`
+                                  });
+                                }}
+                                className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 group/photo cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all shadow-2xs"
+                                title={`${iz.namaSantri} (${iz.kelas})`}
+                              >
+                                <img
+                                  src={pUrl}
+                                  alt={iz.namaSantri}
+                                  className="w-full h-full object-cover group-hover/photo:scale-110 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                  <Eye className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-blue-600 group-hover:text-blue-700">
@@ -1488,7 +1547,7 @@ function PageDashboard({
               return (b.id || "").localeCompare(a.id || "");
             });
 
-            const activeSakit = sortedSakit.slice(0, 2);
+            const activeSakit = sortedSakit.slice(0, 5);
             const todayStrVal = todayStr();
 
             return (
@@ -1549,6 +1608,61 @@ function PageDashboard({
                       <p className="text-[11px] font-medium text-slate-500">Semua santri dalam kondisi sehat</p>
                     </div>
                   )}
+
+                  {/* ADAPTIVE PHOTO GRID (Max 5x2 = 10 Foto) */}
+                  {(() => {
+                    const sakitWithPhotos = scopedSakit
+                      .filter(s => Boolean(s.photoUrl))
+                      .sort((a, b) => (b.createdAt || b.date || "").localeCompare(a.createdAt || a.date || ""))
+                      .slice(0, 10);
+
+                    if (sakitWithPhotos.length === 0) return null;
+
+                    return (
+                      <div className="mt-2.5 pt-2 border-t border-slate-100/90">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
+                            <Camera className="w-3 h-3 text-rose-500" />
+                            Dokumentasi Sakit ({sakitWithPhotos.length}):
+                          </span>
+                          <span className="text-[9px] font-semibold text-rose-600">Klik lihat</span>
+                        </div>
+                        <div className={`grid gap-1.5 ${
+                          sakitWithPhotos.length === 1 ? "grid-cols-2 max-w-[140px]" :
+                          sakitWithPhotos.length === 2 ? "grid-cols-2 max-w-[180px]" :
+                          sakitWithPhotos.length === 3 ? "grid-cols-3" :
+                          sakitWithPhotos.length === 4 ? "grid-cols-4" :
+                          "grid-cols-5"
+                        }`}>
+                          {sakitWithPhotos.map((s) => (
+                            <div
+                              key={s.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewWidgetPhoto({
+                                  url: s.photoUrl!,
+                                  title: s.namaSantri,
+                                  subtitle: `${s.kelasSantri ? `Kelas ${s.kelasSantri}` : s.asrama} • ${s.keluhan || "Gejala Sakit"}`
+                                });
+                              }}
+                              className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 group/photo cursor-pointer hover:ring-2 hover:ring-rose-500 transition-all shadow-2xs"
+                              title={`${s.namaSantri} (${s.kelasSantri || s.asrama})`}
+                            >
+                              <img
+                                src={s.photoUrl}
+                                alt={s.namaSantri}
+                                className="w-full h-full object-cover group-hover/photo:scale-110 transition-transform duration-300"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <Eye className="w-3.5 h-3.5" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-rose-600 group-hover:text-rose-700">
@@ -2478,6 +2592,52 @@ function PageDashboard({
                 type="button"
                 onClick={()=>setDetailMusyrif(null)} 
                 className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Fullscreen Lightbox Modal untuk Foto Widget Beranda */}
+      {previewWidgetPhoto && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewWidgetPhoto(null)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 bg-slate-950/80">
+              <div className="min-w-0 pr-2">
+                <h4 className="text-xs sm:text-sm font-bold text-white leading-tight truncate">{previewWidgetPhoto.title}</h4>
+                {previewWidgetPhoto.subtitle && (
+                  <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 truncate">{previewWidgetPhoto.subtitle}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewWidgetPhoto(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative flex-1 bg-black flex items-center justify-center p-2 min-h-[260px] max-h-[65vh] overflow-hidden">
+              <img
+                src={previewWidgetPhoto.url}
+                alt={previewWidgetPhoto.title}
+                className="max-w-full max-h-full object-contain rounded-xl"
+              />
+            </div>
+            <div className="px-4 py-2.5 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <span>Dokumentasi Presensi Santri</span>
+              <button
+                type="button"
+                onClick={() => setPreviewWidgetPhoto(null)}
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition"
               >
                 Tutup
               </button>
