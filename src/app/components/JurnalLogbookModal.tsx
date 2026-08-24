@@ -516,6 +516,7 @@ export function JurnalLogbookModal({
 
   // Yang berwenang bypass jadwal (masa depan, masa lalu, dan input tanpa batasan waktu): Pamong, Koordinator Musyrif, Admin, serta akun khusus (Ustaz Afif Nashrul / andiaqillah@muallimin.sch.id)
   const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const activeMusyrifList = useMemo(() => {
     if (isKoordinatorMusyrif || isAdmin || isSpecialBypassUser) {
