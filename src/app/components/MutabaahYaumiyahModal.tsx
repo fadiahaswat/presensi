@@ -80,8 +80,9 @@ export function MutabaahYaumiyahModal({
   const canEdit = isMusyrifUser || isCanBypass;
   
   const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
   const isDateLocked = selectedDate !== todayStr && !isCanBypass;
-  
+
   const activeMusyrifList = useMemo(() => {
     if (isKoordinator) {
       return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
@@ -98,7 +99,6 @@ export function MutabaahYaumiyahModal({
       : (authUser?.musyrifId || authUser?.id || activeMusyrifList[0]?.id || "");
   
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
-  const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
 
   const selectedMusyrif = useMemo(() => {
     return activeMusyrifList.find(m => m.id === selectedMusyrifId) || null;
