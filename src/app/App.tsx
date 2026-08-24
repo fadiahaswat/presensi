@@ -1772,6 +1772,108 @@ function PageDashboard({
         ) : (authUser.role === "musyrif" || authUser.role === "koordinator_gedung") ? (
           /* Musyrif & Koordinator Gedung Dashboard */
           <div className="space-y-3">
+            {/* Rapat / Agenda Terjadwal Alert Banner (Jika Musyrif Terundang) */}
+            {(() => {
+              const myId = authUser.musyrifId || authUser.id;
+              const myCleanEmail = (authUser.email || "").trim().toLowerCase();
+              const matchedMusyrif = musyrifList.find(m => 
+                m.id === myId || 
+                (m.email && myCleanEmail && m.email.toLowerCase().includes(myCleanEmail))
+              );
+              const targetId = matchedMusyrif?.id || myId;
+
+              // Find active/today or upcoming agendas where this musyrif is invited
+              const myAgendas = (agendaRapatList || []).filter(ag => 
+                Array.isArray(ag.invitedMusyrifIds) && 
+                ag.invitedMusyrifIds.includes(targetId) &&
+                ag.date >= today
+              ).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+
+              if (myAgendas.length === 0) return null;
+
+              const currentAgenda = myAgendas[0];
+              const isTodayAgenda = currentAgenda.date === today;
+              const taskKey = `agenda_${currentAgenda.id}`;
+              const dayLogbook = logbookData[targetId]?.[currentAgenda.date];
+              const hasPresensi = Boolean(dayLogbook?.[taskKey]?.done);
+
+              return (
+                <div className={`p-3.5 sm:p-4 rounded-2xl border shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  hasPresensi 
+                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-950" 
+                    : isTodayAgenda 
+                      ? "bg-gradient-to-r from-blue-50 via-indigo-50 to-white border-blue-200 text-blue-950" 
+                      : "bg-slate-50 border-slate-200 text-slate-800"
+                }`}>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs mt-0.5 ${
+                      hasPresensi ? "bg-emerald-600 text-white" : isTodayAgenda ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
+                    }`}>
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          hasPresensi 
+                            ? "bg-emerald-100 text-emerald-800" 
+                            : isTodayAgenda 
+                              ? "bg-blue-600 text-white animate-pulse" 
+                              : "bg-slate-200 text-slate-700"
+                        }`}>
+                          {hasPresensi ? "✓ Sudah Presensi Hadir" : isTodayAgenda ? "Rapat Hari Ini" : "Agenda Terjadwal"}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {format(parseISO(currentAgenda.date), "EEEE, dd MMM yyyy", { locale: id })}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug truncate">
+                        {currentAgenda.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="font-mono">Pukul {currentAgenda.startTime} – {currentAgenda.endTime} WIB</span>
+                        <span>•</span>
+                        <span className="truncate">{currentAgenda.locationName}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    {hasPresensi ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMusyrifId(targetId);
+                          setTargetMusyrifId(targetId);
+                          setTargetDate(currentAgenda.date);
+                          setTargetTaskKey(taskKey);
+                          setPage("logbook");
+                        }}
+                        className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Lihat Logbook</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMusyrifId(targetId);
+                          setTargetMusyrifId(targetId);
+                          setTargetDate(currentAgenda.date);
+                          setTargetTaskKey(taskKey);
+                          setPage("logbook");
+                        }}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 cursor-pointer"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Presensi Sekarang</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Quick Status Widgets Banner (Logbook, Mutaba'ah, Agenda) */}
             {(() => {
               const myId = authUser.musyrifId || authUser.id;
@@ -6798,7 +6900,34 @@ export default function App() {
             const map = new Map<string, AgendaRapatRecord>();
             prev.filter(a => Boolean(a && a.id)).forEach(a => map.set(a.id, a));
             validCloud.forEach((cr: any) => {
-              map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+              let invited = cr.invitedMusyrifIds;
+              if (typeof invited === "string") {
+                if (invited.trim().startsWith("[")) {
+                  try { invited = JSON.parse(invited); } catch (_) { invited = []; }
+                } else {
+                  invited = invited.split(",").map((s: string) => s.trim()).filter(Boolean);
+                }
+              }
+              if (!Array.isArray(invited)) invited = [];
+
+              let asramaList = cr.targetAsramaList;
+              if (typeof asramaList === "string") {
+                if (asramaList.trim().startsWith("[")) {
+                  try { asramaList = JSON.parse(asramaList); } catch (_) { asramaList = []; }
+                } else {
+                  asramaList = asramaList.split(",").map((s: string) => s.trim()).filter(Boolean);
+                }
+              }
+
+              const normalizedAgenda: AgendaRapatRecord = {
+                ...cr,
+                invitedMusyrifIds: invited,
+                targetAsramaList: Array.isArray(asramaList) ? asramaList : undefined,
+                locationLat: cr.locationLat ? Number(cr.locationLat) : undefined,
+                locationLng: cr.locationLng ? Number(cr.locationLng) : undefined,
+                locationRadius: cr.locationRadius ? Number(cr.locationRadius) : undefined
+              };
+              map.set(cr.id, { ...(map.get(cr.id) || {}), ...normalizedAgenda });
             });
             const merged = Array.from(map.values());
             try { localStorage.setItem(STORAGE_KEY_AGENDA_RAPAT, JSON.stringify(merged)); } catch {}
@@ -6892,13 +7021,45 @@ export default function App() {
               if (!next[mId]) next[mId] = {};
               if (!next[mId][dt]) next[mId][dt] = { ...EMPTY_LOGBOOK };
 
-              if (cr.taskKey && cr.taskData) {
-                (next[mId][dt] as any)[cr.taskKey] = {
-                  ...((next[mId][dt] as any)[cr.taskKey] || {}),
-                  ...cr.taskData
-                };
-              } else if (cr.taskKey === "generalNotes" && cr.generalNotes) {
-                next[mId][dt].generalNotes = cr.generalNotes;
+              if (cr.taskKey) {
+                if (cr.taskKey === "generalNotes") {
+                  next[mId][dt].generalNotes = cr.generalNotes || cr.notes || "";
+                } else {
+                  let taskObj: any = {};
+                  if (typeof cr.taskData === "object" && cr.taskData !== null) {
+                    taskObj = { ...cr.taskData };
+                  } else if (typeof cr.taskData === "string" && cr.taskData.trim().startsWith("{")) {
+                    try { taskObj = JSON.parse(cr.taskData); } catch (_) {}
+                  }
+
+                  const isDone = cr.done === true || cr.done === "TRUE" || cr.done === "true" || cr.done === 1 || Boolean(taskObj.done);
+                  const isGps = cr.gpsVerified === true || cr.gpsVerified === "TRUE" || cr.gpsVerified === "true" || Boolean(taskObj.gpsVerified);
+                  const photoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
+                  const completedAt = cr.completedAt || taskObj.completedAt || undefined;
+                  const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
+                  const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
+                  const photoSource = cr.photoSource || taskObj.photoSource || undefined;
+                  const notes = cr.notes || taskObj.notes || undefined;
+                  const stepsCount = Number(cr.stepsCount || taskObj.stepsCount || 0);
+                  const subChoice = cr.subChoice || taskObj.subChoice || undefined;
+
+                  const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
+
+                  (next[mId][dt] as any)[cr.taskKey] = {
+                    ...existingTask,
+                    ...taskObj,
+                    done: isDone,
+                    ...(photoUrl ? { photoUrl } : {}),
+                    ...(completedAt ? { completedAt } : {}),
+                    ...(photoTakenAt ? { photoTakenAt } : {}),
+                    ...(photoWatermark ? { photoWatermark } : {}),
+                    ...(photoSource ? { photoSource } : {}),
+                    ...(notes ? { notes } : {}),
+                    ...(stepsCount ? { stepsCount } : {}),
+                    ...(subChoice ? { subChoice } : {}),
+                    gpsVerified: isGps
+                  };
+                }
               } else {
                 next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
               }
@@ -6965,6 +7126,48 @@ export default function App() {
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
           });
           return Array.from(map.values());
+        });
+      } else if (tbl === "agenda_rapat" || tbl === "agendarapat") {
+        setAgendaRapatList(prev => {
+          const map = new Map<string, AgendaRapatRecord>();
+          prev.forEach(a => map.set(a.id, a));
+          cloudRecords.forEach(cr => {
+            if (cr.is_deleted || cr._deleted) {
+              map.delete(cr.id);
+            } else {
+              let invited = cr.invitedMusyrifIds;
+              if (typeof invited === "string") {
+                if (invited.trim().startsWith("[")) {
+                  try { invited = JSON.parse(invited); } catch (_) { invited = []; }
+                } else {
+                  invited = invited.split(",").map((s: string) => s.trim()).filter(Boolean);
+                }
+              }
+              if (!Array.isArray(invited)) invited = [];
+
+              let asramaList = cr.targetAsramaList;
+              if (typeof asramaList === "string") {
+                if (asramaList.trim().startsWith("[")) {
+                  try { asramaList = JSON.parse(asramaList); } catch (_) { asramaList = []; }
+                } else {
+                  asramaList = asramaList.split(",").map((s: string) => s.trim()).filter(Boolean);
+                }
+              }
+
+              const normalizedAgenda: AgendaRapatRecord = {
+                ...cr,
+                invitedMusyrifIds: invited,
+                targetAsramaList: Array.isArray(asramaList) ? asramaList : undefined,
+                locationLat: cr.locationLat ? Number(cr.locationLat) : undefined,
+                locationLng: cr.locationLng ? Number(cr.locationLng) : undefined,
+                locationRadius: cr.locationRadius ? Number(cr.locationRadius) : undefined
+              };
+              map.set(cr.id, { ...(map.get(cr.id) || {}), ...normalizedAgenda });
+            }
+          });
+          const updated = Array.from(map.values());
+          try { localStorage.setItem(STORAGE_KEY_AGENDA_RAPAT, JSON.stringify(updated)); } catch {}
+          return updated;
         });
       } else if (tbl === "kegiatan") {
         setKegiatanRecords(prev => {
@@ -7082,13 +7285,45 @@ export default function App() {
                 if (!next[mId]) next[mId] = {};
                 if (!next[mId][dt]) next[mId][dt] = { ...EMPTY_LOGBOOK };
 
-                if (cr.taskKey && cr.taskData) {
-                  (next[mId][dt] as any)[cr.taskKey] = {
-                    ...((next[mId][dt] as any)[cr.taskKey] || {}),
-                    ...cr.taskData
-                  };
-                } else if (cr.taskKey === "generalNotes" && cr.generalNotes) {
-                  next[mId][dt].generalNotes = cr.generalNotes;
+                if (cr.taskKey) {
+                  if (cr.taskKey === "generalNotes") {
+                    next[mId][dt].generalNotes = cr.generalNotes || cr.notes || "";
+                  } else {
+                    let taskObj: any = {};
+                    if (typeof cr.taskData === "object" && cr.taskData !== null) {
+                      taskObj = { ...cr.taskData };
+                    } else if (typeof cr.taskData === "string" && cr.taskData.trim().startsWith("{")) {
+                      try { taskObj = JSON.parse(cr.taskData); } catch (_) {}
+                    }
+
+                    const isDone = cr.done === true || cr.done === "TRUE" || cr.done === "true" || cr.done === 1 || Boolean(taskObj.done);
+                    const isGps = cr.gpsVerified === true || cr.gpsVerified === "TRUE" || cr.gpsVerified === "true" || Boolean(taskObj.gpsVerified);
+                    const photoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
+                    const completedAt = cr.completedAt || taskObj.completedAt || undefined;
+                    const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
+                    const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
+                    const photoSource = cr.photoSource || taskObj.photoSource || undefined;
+                    const notes = cr.notes || taskObj.notes || undefined;
+                    const stepsCount = Number(cr.stepsCount || taskObj.stepsCount || 0);
+                    const subChoice = cr.subChoice || taskObj.subChoice || undefined;
+
+                    const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
+
+                    (next[mId][dt] as any)[cr.taskKey] = {
+                      ...existingTask,
+                      ...taskObj,
+                      done: isDone,
+                      ...(photoUrl ? { photoUrl } : {}),
+                      ...(completedAt ? { completedAt } : {}),
+                      ...(photoTakenAt ? { photoTakenAt } : {}),
+                      ...(photoWatermark ? { photoWatermark } : {}),
+                      ...(photoSource ? { photoSource } : {}),
+                      ...(notes ? { notes } : {}),
+                      ...(stepsCount ? { stepsCount } : {}),
+                      ...(subChoice ? { subChoice } : {}),
+                      gpsVerified: isGps
+                    };
+                  }
                 } else {
                   next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
                 }
@@ -7145,13 +7380,50 @@ export default function App() {
         googleSyncService.enqueue("Musyrif", { id: depId }, "delete");
       });
 
+      // Ensure any locally saved agenda tasks with photo/done are queued and flushed to Google Sheets
+      try {
+        const localLogbookRaw = localStorage.getItem(STORAGE_KEY_LOGBOOK);
+        if (localLogbookRaw) {
+          const parsed = JSON.parse(localLogbookRaw);
+          Object.entries(parsed).forEach(([mId, dateObj]: [string, any]) => {
+            if (dateObj && typeof dateObj === "object") {
+              Object.entries(dateObj).forEach(([dt, taskEntries]: [string, any]) => {
+                if (taskEntries && typeof taskEntries === "object") {
+                  Object.entries(taskEntries).forEach(([tKey, tData]: [string, any]) => {
+                    if (tKey.startsWith("agenda_") && tData && (tData.done || tData.photoUrl)) {
+                      googleSyncService.enqueue("Logbook", {
+                        id: `${mId}_${dt}_${tKey}`,
+                        musyrifId: mId,
+                        date: dt,
+                        taskKey: tKey,
+                        done: tData.done ? "TRUE" : "FALSE",
+                        completedAt: tData.completedAt || "",
+                        photoUrl: tData.photoUrl || "",
+                        photoTakenAt: tData.photoTakenAt || "",
+                        photoWatermark: tData.photoWatermark || "",
+                        photoSource: tData.photoSource || "",
+                        notes: tData.notes || "",
+                        gpsVerified: tData.gpsVerified ? "TRUE" : "FALSE",
+                        stepsCount: tData.stepsCount || 0,
+                        subChoice: tData.subChoice || "",
+                        updated_at: new Date().toISOString()
+                      }, "upsert");
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      } catch (_) {}
+
       if (googleSyncService.getGasUrl() && navigator.onLine) {
         try {
           const syncPromise = googleSyncService.fetchAllFromCloud();
           // Timeout race: maximum 3.5s loading time to prevent hanging on bad/slow connections
           const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3500));
           await Promise.race([syncPromise, timeoutPromise]);
-          // Flush deletions immediately
+          // Flush deletions & pending items immediately
           googleSyncService.flushQueue();
         } catch (_) {}
       }
@@ -7735,15 +8007,17 @@ export default function App() {
     showToast("Data presensi kegiatan berhasil dihapus.", "info");
   };
 
-  // Save Jurnal Logbook (Synchronized to Google Sheet via Granular Per-Task Rows)
+  // Save Jurnal Logbook (Synchronized to Google Sheet via Granular Per-Task Rows: 1 Orang 1 Foto 1 Sel)
   const handleSaveLogbook = (musyrifId: string, date: string, entry: JurnalLogbookEntry) => {
     setLogbookData(prev => {
       const prevEntry = prev[musyrifId]?.[date] || {};
-      const allTaskKeys = [
+      const standardKeys = [
         "tahajjud", "bakdaSubuh", "cekSakit", "sisirSekolah", "jagaGerbang",
         "oprakJumat", "kerjaBakti", "oprakAshar", "oprakMandi", "sisirMaghrib",
         "bakdaMaghrib", "belajarMalam", "cekTidur"
       ];
+      const dynamicKeys = Object.keys({ ...prevEntry, ...entry }).filter(k => k.startsWith("agenda_"));
+      const allTaskKeys = Array.from(new Set([...standardKeys, ...dynamicKeys]));
 
       // Merge tasks deeply so no previous photos or notes are overwritten by subsequent tasks
       const mergedEntry: any = { ...prevEntry, ...entry };
@@ -7789,7 +8063,7 @@ export default function App() {
         mergedEntry[taskKey] = taskObj;
       });
 
-      // 1. Enqueue each active task individually (guaranteed <= 10,000 chars per row, 100% cell overflow-proof!)
+      // 1. Enqueue each active task individually to Sheet Logbook (1 Orang 1 Foto 1 Sel)
       allTaskKeys.forEach((taskKey) => {
         const taskData = mergedEntry[taskKey];
         const hasData = taskData && typeof taskData === "object" && (taskData.done || taskData.photoUrl || taskData.notes || taskData.stepsCount);
@@ -7799,9 +8073,18 @@ export default function App() {
             musyrifId,
             date,
             taskKey,
-            taskData,
+            done: taskData.done ? "TRUE" : "FALSE",
+            completedAt: taskData.completedAt || "",
+            photoUrl: taskData.photoUrl || "",
+            photoTakenAt: taskData.photoTakenAt || "",
+            photoWatermark: taskData.photoWatermark || "",
+            photoSource: taskData.photoSource || "",
+            notes: taskData.notes || "",
+            gpsVerified: taskData.gpsVerified ? "TRUE" : "FALSE",
+            stepsCount: taskData.stepsCount || 0,
+            subChoice: taskData.subChoice || "",
             updated_at: new Date().toISOString()
-          }, "upsert");
+          }, "upsert", Boolean(taskData.photoUrl));
         } else {
           // If task has no photo and no completion/notes, delete/clear granular row in cloud
           googleSyncService.enqueue("Logbook", {

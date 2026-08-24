@@ -6,10 +6,10 @@ export interface AgendaRapatRecord {
   date: string; // "YYYY-MM-DD"
   startTime: string; // "HH:mm", e.g. "09:00"
   endTime: string; // "HH:mm", e.g. "11:30"
-  locationName: string; // e.g. "Masjid Kampus 1", "Aula Gedung Utama", "Kampus 2 Sedayu"
+  locationName: string; // e.g. "Aula Madrasah (Kampus Induk)", "Masjid Hajah Yuliana (Kampus Terpadu)"
   locationLat?: number;
   locationLng?: number;
-  locationRadius?: number; // meters, default 150
+  locationRadius?: number; // meters, default 180
   invitedMusyrifIds: string[]; // List of Musyrif IDs who are invited
   targetScope: "all" | "asrama" | "custom";
   targetAsramaList?: string[]; // If targetScope is 'asrama'
@@ -30,39 +30,71 @@ export interface AgendaVenue {
   desc: string;
 }
 
-// Predefined official campus venues with high-accuracy GPS coordinates
+// Predefined official campus venues with high-accuracy GPS coordinates (Synchronized with geoUtils memory)
 export const PREDEFINED_AGENDA_VENUES: AgendaVenue[] = [
   {
-    id: "masjid_kampus1",
-    name: "Masjid Kampus 1 Muallimin (Wirobrajan)",
-    lat: -7.801194,
-    lng: 110.353889,
+    id: "aula_induk",
+    name: "Aula Madrasah (Kampus Induk)",
+    lat: -7.8071293622895865,
+    lng: 110.35129819288836,
+    radius: 180,
+    desc: "Aula Utama Madrasah Kampus Induk"
+  },
+  {
+    id: "masjid_jami",
+    name: "Masjid Jami' Mu'allimin (Kampus Induk)",
+    lat: -7.807631420483853,
+    lng: 110.35090524266894,
+    radius: 180,
+    desc: "Masjid Jami' Kampus Induk"
+  },
+  {
+    id: "madrasah_induk",
+    name: "Gedung Madrasah (Kampus Induk)",
+    lat: -7.807535148915093,
+    lng: 110.35119022929074,
+    radius: 200,
+    desc: "Kompleks Madrasah Kampus Induk"
+  },
+  {
+    id: "aula_asrama_10",
+    name: "Aula Asrama 10 (Kampus Induk)",
+    lat: -7.807649162283236,
+    lng: 110.35180208935743,
     radius: 150,
-    desc: "Masjid Utama Kampus 1 Wirobrajan"
+    desc: "Aula Pembinaan Asrama 10"
   },
   {
-    id: "aula_kampus1",
-    name: "Aula / Ruang Rapat Utama Kampus 1",
-    lat: -7.801194,
-    lng: 110.353889,
+    id: "aula_asrama_8",
+    name: "Aula Asrama 8 (Kampus Induk)",
+    lat: -7.80670964534532,
+    lng: 110.34871338210505,
     radius: 150,
-    desc: "Gedung Utama Lt. 2 Kampus 1 Wirobrajan"
+    desc: "Aula Pembinaan Asrama 8"
   },
   {
-    id: "kampus2_sedayu",
-    name: "Kampus 2 Muallimin (Sedayu)",
-    lat: -7.818450,
-    lng: 110.270920,
-    radius: 300,
-    desc: "Kompleks Asrama & Masjid Kampus 2 Sedayu"
+    id: "masjid_yuliana",
+    name: "Masjid Hajah Yuliana (Kampus Terpadu)",
+    lat: -7.807283961429371,
+    lng: 110.2664976347712,
+    radius: 250,
+    desc: "Masjid Utama Kampus Terpadu Sedayu"
   },
   {
-    id: "asrama_setempat",
-    name: "Gedung Asrama Masing-Masing",
-    lat: -7.801194,
-    lng: 110.353889,
-    radius: 350,
-    desc: "Lingkup Area Asrama & Kamar Pembinaan"
+    id: "madrasah_sedayu",
+    name: "Gedung Madrasah (Kampus Terpadu)",
+    lat: -7.806272241018772,
+    lng: 110.26723686205816,
+    radius: 250,
+    desc: "Gedung KBM Kampus Terpadu Sedayu"
+  },
+  {
+    id: "asrama_terpadu",
+    name: "Asrama Kampus Terpadu (Gedung A–D)",
+    lat: -7.806500,
+    lng: 110.266200,
+    radius: 250,
+    desc: "Kompleks Asrama Gedung A, B, C, D Kampus Terpadu"
   }
 ];
 
