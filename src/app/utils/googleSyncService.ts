@@ -43,6 +43,23 @@ class GoogleSyncService {
   private isFlushing: boolean = false;
   private isPolling: boolean = false;
 
+  // === PERFORMANCE OPTIMIZATIONS ===
+  // Adaptive polling: dynamically adjust interval based on activity
+  private basePollInterval: number = 20000; // 20s default
+  private minPollInterval: number = 10000;   // 10s minimum (more frequent)
+  private maxPollInterval: number = 120000;  // 2min maximum (battery saver)
+  private consecutiveEmptyPolls: number = 0;
+  private lastActivityTime: number = Date.now();
+  private isUserActive: boolean = true;
+
+  // Connection quality tracking
+  private avgLatency: number = 0;
+  private latencyHistory: number[] = [];
+  private maxLatencySamples: number = 10;
+
+  // Pending sync requests for batching
+  private pendingDeltaRequests: Set<string> = new Set();
+
   constructor() {
     this.init();
   }
@@ -402,16 +419,24 @@ class GoogleSyncService {
 
   /**
    * Fetch Delta updates (only records updated since last sync)
+   * Includes performance tracking for adaptive polling
    */
   public async pollDelta(): Promise<void> {
     if (!this.gasUrl || !navigator.onLine || this.isPolling || this.isFlushing) return;
 
     this.isPolling = true;
+    const startTime = performance.now();
+
     try {
       const since = this.lastSyncedAt || "";
       const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_all_delta&since=${encodeURIComponent(since)}&_t=${Date.now()}`;
-      
+
       const res = await fetch(url, { method: "GET", mode: "cors" });
+      const latency = Math.round(performance.now() - startTime);
+
+      // Track latency for adaptive polling
+      this.trackLatency(latency);
+
       if (res.ok) {
         const json = await res.json();
         if (json.status === "success" && json.data) {
@@ -426,6 +451,16 @@ class GoogleSyncService {
             }
           }
 
+          // Adjust polling based on whether there were updates
+          this.consecutiveEmptyPolls = hasUpdates ? 0 : this.consecutiveEmptyPolls + 1;
+
+          // If no updates for a while, slow down polling
+          if (this.consecutiveEmptyPolls > 5) {
+            this.basePollInterval = Math.min(this.basePollInterval * 1.5, this.maxPollInterval);
+            this.consecutiveEmptyPolls = 0;
+            this.startSmartPolling(this.basePollInterval);
+          }
+
           const nowIso = new Date().toISOString();
           this.lastSyncedAt = nowIso;
           try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
@@ -437,6 +472,9 @@ class GoogleSyncService {
       }
     } catch (_) {
       // Delta polling fail quietly to avoid disturbing user
+      // Slow down polling on errors
+      this.basePollInterval = Math.min(this.basePollInterval * 1.2, this.maxPollInterval);
+      this.startSmartPolling(this.basePollInterval);
     } finally {
       this.isPolling = false;
     }
@@ -508,6 +546,145 @@ class GoogleSyncService {
       clearInterval(this.pollIntervalTimer);
       this.pollIntervalTimer = null;
     }
+  }
+
+  // === PERFORMANCE OPTIMIZATION METHODS ===
+
+  /**
+   * Track user activity to adjust polling frequency
+   */
+  public trackUserActivity(): void {
+    this.lastActivityTime = Date.now();
+    this.isUserActive = true;
+    // Increase polling frequency when user is active
+    this.adjustPollingInterval();
+  }
+
+  /**
+   * Adaptive polling interval based on activity and connection quality
+   */
+  private adjustPollingInterval(): void {
+    if (!this.pollIntervalTimer) return;
+
+    const timeSinceActivity = Date.now() - this.lastActivityTime;
+    const isActive = timeSinceActivity < 5 * 60 * 1000; // Active in last 5 minutes
+
+    let newInterval: number;
+
+    if (isActive) {
+      // User is active: poll more frequently
+      newInterval = this.minPollInterval;
+    } else if (timeSinceActivity < 30 * 60 * 1000) {
+      // User was active in last 30 min: normal interval
+      newInterval = this.basePollInterval;
+    } else {
+      // User inactive: reduce polling to save battery
+      newInterval = Math.min(this.maxPollInterval, this.basePollInterval * 2);
+    }
+
+    // Adjust based on connection quality
+    if (this.avgLatency > 3000) {
+      // Poor connection: poll less frequently
+      newInterval = Math.min(newInterval * 1.5, this.maxPollInterval);
+    }
+
+    // Restart timer with new interval if changed
+    if (newInterval !== this.basePollInterval) {
+      this.startSmartPolling(newInterval);
+    }
+  }
+
+  /**
+   * Track latency for connection quality assessment
+   */
+  public trackLatency(latency: number): void {
+    this.latencyHistory.push(latency);
+    if (this.latencyHistory.length > this.maxLatencySamples) {
+      this.latencyHistory.shift();
+    }
+    this.avgLatency = this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length;
+  }
+
+  /**
+   * Get current sync performance metrics
+   */
+  public getSyncMetrics(): {
+    avgLatency: number;
+    queueSize: number;
+    lastSyncedAt: string | null;
+    isPolling: boolean;
+    isFlushing: boolean;
+    pollInterval: number;
+    connectionQuality: "good" | "medium" | "poor";
+  } {
+    return {
+      avgLatency: Math.round(this.avgLatency),
+      queueSize: this.queue.length,
+      lastSyncedAt: this.lastSyncedAt,
+      isPolling: this.isPolling,
+      isFlushing: this.isFlushing,
+      pollInterval: this.basePollInterval,
+      connectionQuality: this.avgLatency < 1000 ? "good" : this.avgLatency < 3000 ? "medium" : "poor",
+    };
+  }
+
+  /**
+   * Priority sync: force sync specific table immediately
+   * Useful for critical data like attendance
+   */
+  public async syncTable(tableName: string): Promise<boolean> {
+    if (!this.gasUrl || !navigator.onLine) return false;
+
+    try {
+      const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_table&table=${encodeURIComponent(tableName)}&_t=${Date.now()}`;
+      const res = await fetch(url, { method: "GET", mode: "cors" });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "success" && json.data) {
+          const records = Array.isArray(json.data) ? json.data : [];
+          this.dataListeners.forEach(fn => fn(tableName, records, true));
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /**
+   * Batch multiple table syncs into single request
+   * Reduces network overhead for multiple table updates
+   */
+  public async syncTablesBatch(tableNames: string[]): Promise<boolean> {
+    if (!this.gasUrl || !navigator.onLine || tableNames.length === 0) return false;
+
+    try {
+      const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_tables&tables=${encodeURIComponent(tableNames.join(","))}&_t=${Date.now()}`;
+      const res = await fetch(url, { method: "GET", mode: "cors" });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "success" && json.data) {
+          for (const tableName of tableNames) {
+            if (json.data[tableName]) {
+              const records = Array.isArray(json.data[tableName]) ? json.data[tableName] : [];
+              this.dataListeners.forEach(fn => fn(tableName, records, true));
+            }
+          }
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /**
+   * Skip pending items for a specific table (useful when doing full refresh)
+   */
+  public skipTableQueue(tableName: string): void {
+    this.queue = this.queue.filter(q => q.table !== tableName);
+    this.saveQueue();
+    this.updateStatus();
   }
 }
 
