@@ -5,7 +5,7 @@
  * Clean compression without any watermark.
  */
 
-const MAX_SHEET_SAFE_CHARS = 32000; // Safe payload ceiling (<= 32,000 chars / ~24 KB) for Google Sheets cell safety
+const MAX_SHEET_SAFE_CHARS = 15000; // Safe payload ceiling (<= 15,000 chars / ~11 KB) for Google Sheets cell safety
 
 export interface ImageCompressOptions {
   maxDim?: number;
@@ -69,12 +69,12 @@ export async function compressAndWatermarkImage(
   const origWidth = img.naturalWidth || img.width || 1024;
   const origHeight = img.naturalHeight || img.height || 768;
 
-  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 32,000 characters (Zero watermark)
+  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 15,000 characters (Zero watermark)
   let currentMaxDim = options?.maxDim || initialMaxDim;
   let currentQuality = options?.quality || initialQuality;
   let resultDataUrl = "";
 
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     let width = origWidth;
     let height = origHeight;
 
@@ -109,8 +109,8 @@ export async function compressAndWatermarkImage(
     }
 
     // Otherwise downscale dimension & quality progressively
-    currentMaxDim = Math.max(320, Math.round(currentMaxDim * 0.85));
-    currentQuality = Math.max(0.45, currentQuality - 0.05);
+    currentMaxDim = Math.max(160, Math.round(currentMaxDim * 0.80));
+    currentQuality = Math.max(0.30, currentQuality - 0.05);
   }
 
   return resultDataUrl || "";
