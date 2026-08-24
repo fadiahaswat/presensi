@@ -654,6 +654,7 @@ export function JurnalLogbookModal({
   // Photo Upload Status Tracking (subscribed to photoUploadQueue)
   const [photoUploadStatus, setPhotoUploadStatus] = useState<Record<string, "pending" | "uploading" | "uploaded" | "failed">>({});
   const photoUploadStatusRef = useRef<Record<string, "pending" | "uploading" | "uploaded" | "failed">>({});
+  const currentEntryRef = useRef<JurnalLogbookEntry | null>(null);
 
   // Helper to extract taskKey from recordId (format: musyrifId_date_taskKey)
   const extractTaskKeyFromRecordId = (recordId: string): string | null => {
@@ -670,12 +671,29 @@ export function JurnalLogbookModal({
     const unsub = photoUploadQueue.subscribe((pendingPhotos) => {
       const newStatus: Record<string, "pending" | "uploading" | "uploaded" | "failed"> = {};
 
+      // Map pending photos to task status
       pendingPhotos.forEach((p: PendingPhoto) => {
         const taskKey = extractTaskKeyFromRecordId(p.recordId);
         if (taskKey) {
           newStatus[taskKey] = p.status;
         }
       });
+
+      // Also check for uploaded photos (persisted success state)
+      // Use ref to avoid dependency cycle
+      const currentEntry = currentEntryRef.current;
+      if (currentEntry) {
+        Object.keys(currentEntry).forEach((key) => {
+          if (key === "generalNotes") return;
+          const taskData = (currentEntry as any)[key];
+          if (taskData && taskData.photoUrl) {
+            const recordId = `${selectedMusyrifId}_${selectedDate}_${key}`;
+            if (!newStatus[key] && photoUploadQueue.isPhotoUploaded(recordId, "photoUrl")) {
+              newStatus[key] = "uploaded";
+            }
+          }
+        });
+      }
 
       photoUploadStatusRef.current = newStatus;
       setPhotoUploadStatus({ ...newStatus });
@@ -686,7 +704,23 @@ export function JurnalLogbookModal({
 
   // Get photo upload status for a specific task
   const getPhotoStatus = (taskKey: string): "pending" | "uploading" | "uploaded" | "failed" | null => {
-    return photoUploadStatusRef.current[taskKey] || null;
+    // First check ref for current processing status
+    const status = photoUploadStatusRef.current[taskKey];
+    if (status) return status;
+
+    // If no pending status, check if already uploaded (persisted)
+    const currentEntry = currentEntryRef.current;
+    if (currentEntry && (currentEntry as any)[taskKey]) {
+      const taskData = (currentEntry as any)[taskKey];
+      if (taskData && taskData.photoUrl) {
+        const recordId = `${selectedMusyrifId}_${selectedDate}_${taskKey}`;
+        if (photoUploadQueue.isPhotoUploaded(recordId, "photoUrl")) {
+          return "uploaded";
+        }
+      }
+    }
+
+    return null;
   };
 
   // GPS Geofence Check State
@@ -717,6 +751,11 @@ export function JurnalLogbookModal({
       return merged;
     });
   }, [logbookData, selectedMusyrifId, selectedDate]);
+
+  // Keep currentEntryRef in sync with formState
+  useEffect(() => {
+    currentEntryRef.current = formState;
+  }, [formState]);
 
   // SubChoice Map for dynamic tasks
   const subChoiceMap = useMemo(() => {

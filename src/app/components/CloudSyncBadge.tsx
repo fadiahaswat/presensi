@@ -39,10 +39,9 @@ export const CloudSyncBadge: React.FC<{ onClick?: () => void }> = ({ onClick }) 
     if (!hasPendingPhotos && !isUploadingPhoto) return null;
 
     return (
-      <button
-        type="button"
+      <span
         onClick={() => photoUploadQueue.processQueue()}
-        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-md hover:bg-orange-600 transition-all active:scale-95"
+        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-md hover:bg-orange-600 transition-all active:scale-95 cursor-pointer"
         title={isUploadingPhoto ? "Mengunggah foto ke cloud..." : `${pendingPhotoCount} foto sedang diupload`}
       >
         {isUploadingPhoto ? (
@@ -50,7 +49,7 @@ export const CloudSyncBadge: React.FC<{ onClick?: () => void }> = ({ onClick }) 
         ) : (
           <Upload className="w-2.5 h-2.5" />
         )}
-      </button>
+      </span>
     );
   };
 

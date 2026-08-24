@@ -36,10 +36,46 @@ class PhotoUploadQueueService {
   private retryTimer: any = null;
   private isProcessing: boolean = false;
   private gasUrl: string = "";
+  // Track successfully uploaded photos (recordId -> timestamp)
+  private uploadedPhotos: Map<string, string> = new Map();
+  private UPLOADED_KEY = "presensi_uploaded_photos_v1";
 
   constructor() {
     this.loadQueue();
+    this.loadUploadedPhotos();
     this.setupNetworkListener();
+  }
+
+  private loadUploadedPhotos() {
+    try {
+      const saved = localStorage.getItem(this.UPLOADED_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(([key, timestamp]: [string, string]) => {
+            this.uploadedPhotos.set(key, timestamp);
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  private saveUploadedPhotos() {
+    try {
+      const data = Array.from(this.uploadedPhotos.entries());
+      localStorage.setItem(this.UPLOADED_KEY, JSON.stringify(data));
+    } catch (_) {}
+  }
+
+  private markPhotoUploaded(recordId: string, fieldKey: string) {
+    const key = `${recordId}:${fieldKey}`;
+    this.uploadedPhotos.set(key, new Date().toISOString());
+    this.saveUploadedPhotos();
+  }
+
+  public isPhotoUploaded(recordId: string, fieldKey: string): boolean {
+    const key = `${recordId}:${fieldKey}`;
+    return this.uploadedPhotos.has(key);
   }
 
   private loadQueue() {
@@ -297,14 +333,17 @@ class PhotoUploadQueueService {
         throw new Error("Failed to compress photo to acceptable size");
       }
 
-      // Prepare payload for field-specific update
+      // Prepare payload using existing batch_upsert action
       const payload = {
-        action: "field_update",
+        action: "batch_upsert",
         table: photo.table,
-        recordId: photo.recordId,
-        fieldKey: photo.fieldKey,
-        fieldValue: compressedPhoto,
-        watermarkText: photo.watermarkText
+        records: [{
+          id: photo.recordId,
+          [photo.fieldKey]: compressedPhoto,
+          watermarkText: photo.watermarkText,
+          // Add dummy fields to ensure record exists
+          _placeholder: "photo_upload"
+        }]
       };
 
       // Try upload
@@ -322,7 +361,8 @@ class PhotoUploadQueueService {
       const result = await response.json();
 
       if (result.status === "success") {
-        // Success! Remove from queue
+        // Success! Remove from queue and mark as uploaded
+        this.markPhotoUploaded(photo.recordId, photo.fieldKey);
         const idx = this.queue.findIndex(p => p.id === photo.id);
         if (idx !== -1) {
           this.queue.splice(idx, 1);
