@@ -679,7 +679,8 @@ function PageDashboard({
   logbookData = {},
   mutabaahData = {},
   kegiatanRecords = [],
-  isLoadingIzinSedayu = false
+  isLoadingIzinSedayu = false,
+  agendaRapatList = []
 }: {
   records: AttendanceRecord[];
   authUser: AuthUser|null;
@@ -715,6 +716,7 @@ function PageDashboard({
   mutabaahData?: Record<string, any>;
   kegiatanRecords?: any[];
   isLoadingIzinSedayu?: boolean;
+  agendaRapatList?: AgendaRapatRecord[];
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif);
@@ -8723,6 +8725,7 @@ export default function App() {
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
                 isLoadingIzinSedayu={isLoadingIzinSedayu}
+                agendaRapatList={agendaRapatList}
               />
             </motion.div>
           )}
