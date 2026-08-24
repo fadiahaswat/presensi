@@ -1,13 +1,13 @@
 /**
  * Client-side high-performance pure image compressor
  * Uses dual-mode image decoding (ObjectURL + FileReader fallback) & adaptive compression
- * strictly guaranteeing payload is <= 30,000 characters to fit securely inside Google Sheets cell limits.
+ * strictly guaranteeing payload is <= 40,000 characters to fit securely inside Google Sheets cell limits.
+ * Clean compression without any watermark.
  */
 
-const MAX_SHEET_SAFE_CHARS = 10000; // Optimal lightweight payload (<= 8 KB) for Google Sheets cell safety
+const MAX_SHEET_SAFE_CHARS = 40000; // Ultra-HD payload (<= 30 KB) for Google Sheets cell safety
 
 export interface ImageCompressOptions {
-  watermark?: string;
   maxDim?: number;
   quality?: number;
 }
@@ -15,8 +15,8 @@ export interface ImageCompressOptions {
 export async function compressAndWatermarkImage(
   file: File,
   options?: ImageCompressOptions | null,
-  initialMaxDim = 360,
-  initialQuality = 0.50
+  initialMaxDim = 768,
+  initialQuality = 0.80
 ): Promise<string> {
   // Step 1: Decode image with fallback
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -66,14 +66,13 @@ export async function compressAndWatermarkImage(
     }
   });
 
-  const origWidth = img.naturalWidth || img.width || 600;
-  const origHeight = img.naturalHeight || img.height || 450;
+  const origWidth = img.naturalWidth || img.width || 1024;
+  const origHeight = img.naturalHeight || img.height || 768;
 
-  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 10,000 characters
+  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 40,000 characters (Zero watermark)
   let currentMaxDim = options?.maxDim || initialMaxDim;
   let currentQuality = options?.quality || initialQuality;
   let resultDataUrl = "";
-  const watermarkText = options?.watermark;
 
   for (let attempt = 0; attempt < 6; attempt++) {
     let width = origWidth;
@@ -99,29 +98,8 @@ export async function compressAndWatermarkImage(
     if (!ctx) break;
 
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "medium";
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, width, height);
-
-    // Render watermark banner if text is provided
-    if (watermarkText) {
-      const overlayHeight = Math.min(60, Math.round(height * 0.22));
-      const gradient = ctx.createLinearGradient(0, height - overlayHeight, 0, height);
-      gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-      gradient.addColorStop(0.5, "rgba(0, 0, 0, 0.65)");
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0.90)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, height - overlayHeight, width, overlayHeight);
-
-      const fontSize = Math.max(9, Math.round(width * 0.035));
-      ctx.font = `500 ${fontSize}px sans-serif`;
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "bottom";
-      ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-      ctx.shadowBlur = 3;
-      ctx.fillText(watermarkText, 8, height - 6);
-      ctx.shadowColor = "transparent";
-    }
 
     resultDataUrl = canvas.toDataURL("image/jpeg", currentQuality);
 
@@ -131,8 +109,8 @@ export async function compressAndWatermarkImage(
     }
 
     // Otherwise downscale dimension & quality progressively
-    currentMaxDim = Math.max(150, Math.round(currentMaxDim * 0.75));
-    currentQuality = Math.max(0.22, currentQuality - 0.08);
+    currentMaxDim = Math.max(360, Math.round(currentMaxDim * 0.85));
+    currentQuality = Math.max(0.48, currentQuality - 0.06);
   }
 
   return resultDataUrl || "";

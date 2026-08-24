@@ -300,11 +300,11 @@ class GoogleSyncService {
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const k in node) {
-            if (typeof node[k] === "string" && node[k].length > 35000) {
+            if (typeof node[k] === "string" && node[k].length > 46000) {
               if (node[k].startsWith("data:image")) {
                 node[k] = ""; // Clear corrupt/huge base64 to unblock sync
               } else {
-                node[k] = node[k].substring(0, 35000);
+                node[k] = node[k].substring(0, 46000);
               }
             } else if (node[k] && typeof node[k] === "object") {
               sanitizeNode(node[k]);

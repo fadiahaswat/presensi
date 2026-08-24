@@ -799,10 +799,9 @@ export function JurnalLogbookModal({
 
     try {
       const nowIso = new Date().toISOString();
-      const watermark = `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget} • ${format(new Date(), "dd/MM/yyyy HH:mm")}`;
       
-      // Compress with proven imageCompressor adaptive engine (guaranteed <= 10,000 chars & watermarked)
-      const base64 = await compressAndWatermarkImage(file, { watermark }, 360, 0.50);
+      // Compress with ultra-HD engine (768px Ultra-HD, quality 80%, guaranteed <= 40,000 chars, no watermark)
+      const base64 = await compressAndWatermarkImage(file, null, 768, 0.80);
       if (!base64) throw new Error("Gagal mengompresi foto.");
 
       const isPatrolRequired = Boolean(taskDef.isPatrol);
@@ -819,7 +818,6 @@ export function JurnalLogbookModal({
           photoUrl: base64,
           photoTakenAt: nowIso,
           photoSource: source,
-          photoWatermark: watermark,
           photoUserAvatar: authUser?.picture
         }
       };
