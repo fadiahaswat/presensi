@@ -850,8 +850,8 @@ export function JurnalLogbookModal({
     try {
       const nowIso = new Date().toISOString();
       
-      // Compress with ultra-HD engine (768px Ultra-HD, quality 80%, guaranteed <= 40,000 chars, no watermark)
-      const base64 = await compressAndWatermarkImage(file, null, 768, 0.80);
+      // Compress with high-definition clean engine (640px, quality 72%, guaranteed <= 32,000 chars, zero watermark)
+      const base64 = await compressAndWatermarkImage(file, null, 640, 0.72);
       if (!base64) throw new Error("Gagal mengompresi foto.");
 
       const isPatrolRequired = Boolean(taskDef.isPatrol);

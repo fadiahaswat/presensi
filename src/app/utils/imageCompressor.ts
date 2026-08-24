@@ -1,11 +1,11 @@
 /**
  * Client-side high-performance pure image compressor
  * Uses dual-mode image decoding (ObjectURL + FileReader fallback) & adaptive compression
- * strictly guaranteeing payload is <= 40,000 characters to fit securely inside Google Sheets cell limits.
+ * strictly guaranteeing payload is <= 32,000 characters to fit securely inside Google Sheets cell limits.
  * Clean compression without any watermark.
  */
 
-const MAX_SHEET_SAFE_CHARS = 40000; // Ultra-HD payload (<= 30 KB) for Google Sheets cell safety
+const MAX_SHEET_SAFE_CHARS = 32000; // Safe payload ceiling (<= 32,000 chars / ~24 KB) for Google Sheets cell safety
 
 export interface ImageCompressOptions {
   maxDim?: number;
@@ -15,8 +15,8 @@ export interface ImageCompressOptions {
 export async function compressAndWatermarkImage(
   file: File,
   options?: ImageCompressOptions | null,
-  initialMaxDim = 768,
-  initialQuality = 0.80
+  initialMaxDim = 640,
+  initialQuality = 0.72
 ): Promise<string> {
   // Step 1: Decode image with fallback
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -69,7 +69,7 @@ export async function compressAndWatermarkImage(
   const origWidth = img.naturalWidth || img.width || 1024;
   const origHeight = img.naturalHeight || img.height || 768;
 
-  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 40,000 characters (Zero watermark)
+  // Step 2: Iterative adaptive compressor strictly guaranteeing <= 32,000 characters (Zero watermark)
   let currentMaxDim = options?.maxDim || initialMaxDim;
   let currentQuality = options?.quality || initialQuality;
   let resultDataUrl = "";
@@ -109,8 +109,8 @@ export async function compressAndWatermarkImage(
     }
 
     // Otherwise downscale dimension & quality progressively
-    currentMaxDim = Math.max(360, Math.round(currentMaxDim * 0.85));
-    currentQuality = Math.max(0.48, currentQuality - 0.06);
+    currentMaxDim = Math.max(320, Math.round(currentMaxDim * 0.85));
+    currentQuality = Math.max(0.45, currentQuality - 0.05);
   }
 
   return resultDataUrl || "";
