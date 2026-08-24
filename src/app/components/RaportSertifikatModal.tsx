@@ -105,11 +105,21 @@ export function RaportSertifikatModal({
     }
   });
 
-  // 3. Agenda Khusus Asrama Statistics
+  // 3. Agenda Khusus Asrama & Pertemuan Statistics (Kegiatan Asrama + Logbook Dinamis Rapat)
   let totalKegiatanHadir = 0;
   if (musyrif) {
     kegiatanRecords.forEach(k => {
       if (k.attendees?.[musyrif.id] === "hadir") totalKegiatanHadir++;
+    });
+    // Dynamic agenda meeting tasks from logbook
+    Object.entries(mLogbook).forEach(([dt, entry]) => {
+      if (dt >= "2026-08-18") {
+        Object.entries(entry).forEach(([key, task]) => {
+          if (key.startsWith("agenda_") && (task as any)?.done) {
+            totalKegiatanHadir++;
+          }
+        });
+      }
     });
   }
 

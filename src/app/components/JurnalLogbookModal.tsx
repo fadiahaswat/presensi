@@ -15,6 +15,7 @@ import { LogbookStravaStickerModal } from "./LogbookStravaStickerModal";
 import { compressAndWatermarkImage } from "../utils/imageCompressor";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
+import { AgendaRapatRecord } from "../types/agendaRapat";
 
 export interface LogbookTaskItem {
   done: boolean;
@@ -45,6 +46,7 @@ export interface JurnalLogbookEntry {
   belajarMalam: LogbookTaskItem;
   cekTidur: LogbookTaskItem;
   generalNotes?: string;
+  [key: string]: any;
 }
 
 export type LogbookStorage = Record<string, Record<string, JurnalLogbookEntry>>; // musyrifId -> date -> entry
@@ -66,6 +68,8 @@ interface JurnalLogbookModalProps {
   onSaveLogbook: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
   onResetLogbook?: (musyrifId: string, date: string) => void;
   onOpenSantriSakit?: () => void;
+  onOpenAgendaRapat?: () => void;
+  agendaList?: AgendaRapatRecord[];
   isPage?: boolean;
   initialMusyrifId?: string;
   initialDate?: string;
@@ -73,7 +77,7 @@ interface JurnalLogbookModalProps {
 }
 
 export interface TaskDefinition {
-  key: keyof Omit<JurnalLogbookEntry, "generalNotes">;
+  key: string;
   number: number;
   title: string;
   shortDesc: string;
@@ -83,11 +87,13 @@ export interface TaskDefinition {
   endHour: number;
   endMinute: number;
   icon: string;
-  category: "Pagi" | "Siang" | "Sore" | "Malam";
+  category: "Pagi" | "Siang" | "Sore" | "Malam" | "Agenda Rapat";
   isPatrol?: boolean;
   targetSteps?: number;
   allowSubChoice?: boolean;
   photoRequirement?: "mandatory" | "optional";
+  isDynamicAgenda?: boolean;
+  agendaVenue?: { lat?: number; lng?: number; radius?: number; name?: string };
 }
 
 /**
@@ -100,7 +106,12 @@ export interface TaskDefinition {
  * - Ahad Subuh: Mendampingi Muhadatsah (wajib patroli 200 langkah).
  * - Ahad 06:00 - 07:15: Mendampingi Kerja Bakti Asrama (wajib patroli 200 langkah).
  */
-export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<string, "tahfizh" | "piket">): TaskDefinition[] {
+export function getLogbookTasksForDate(
+  dateStr?: string,
+  subChoiceMap?: Record<string, "tahfizh" | "piket">,
+  musyrifId?: string,
+  agendaList?: AgendaRapatRecord[]
+): TaskDefinition[] {
   let dayOfWeek = 1; // Default Senin
   if (dateStr) {
     const parts = dateStr.split("-").map(Number);
@@ -453,6 +464,41 @@ export function getLogbookTasksForDate(dateStr?: string, subChoiceMap?: Record<s
     photoRequirement: "mandatory"
   });
 
+  // Dynamic Agenda & Meeting Tasks Injection (Only for invited musyrif on the event date)
+  if (dateStr && musyrifId && Array.isArray(agendaList) && agendaList.length > 0) {
+    const matchingAgendas = agendaList.filter(ag => 
+      ag.date === dateStr && Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(musyrifId)
+    );
+
+    matchingAgendas.forEach(ag => {
+      const [sH, sM] = (ag.startTime || "09:00").split(":").map(Number);
+      const [eH, eM] = (ag.endTime || "11:30").split(":").map(Number);
+      tasks.push({
+        key: `agenda_${ag.id}`,
+        number: num++,
+        title: ag.title,
+        shortDesc: `${ag.category === "rapat" ? "Rapat Koordinasi" : ag.category === "pengajian" ? "Pengajian & Kajian" : "Pertemuan Musyrif"} • ${ag.locationName} (${ag.startTime} – ${ag.endTime} WIB)`,
+        timeWindow: `${ag.startTime} – ${ag.endTime} WIB`,
+        startHour: isNaN(sH) ? 9 : sH,
+        startMinute: isNaN(sM) ? 0 : sM,
+        endHour: isNaN(eH) ? 11 : eH,
+        endMinute: isNaN(eM) ? 30 : eM,
+        icon: "users",
+        category: "Agenda Rapat",
+        isPatrol: false,
+        targetSteps: 0,
+        photoRequirement: "mandatory",
+        isDynamicAgenda: true,
+        agendaVenue: {
+          lat: ag.locationLat,
+          lng: ag.locationLng,
+          radius: ag.locationRadius || 150,
+          name: ag.locationName
+        }
+      });
+    });
+  }
+
   return tasks;
 }
 
@@ -469,6 +515,7 @@ export function getTaskIconComponent(icon: string) {
     case "sparkles": return <Sparkles className="w-4 h-4 text-emerald-600" />;
     case "graduation": return <GraduationCap className="w-4 h-4 text-indigo-600" />;
     case "bed": return <Bed className="w-4 h-4 text-purple-600" />;
+    case "users": return <Users className="w-4 h-4 text-blue-600" />;
     default: return <Sparkles className="w-4 h-4 text-emerald-600" />;
   }
 }
@@ -497,6 +544,8 @@ export function JurnalLogbookModal({
   onSaveLogbook,
   onResetLogbook,
   onOpenSantriSakit,
+  onOpenAgendaRapat,
+  agendaList = [],
   isPage = false,
   initialMusyrifId,
   initialDate,
@@ -554,7 +603,7 @@ export function JurnalLogbookModal({
 
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(defaultMusyrifId);
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
-  const [filterCategory, setFilterCategory] = useState<"all" | "Pagi" | "Siang" | "Sore" | "Malam" | "patrol">("all");
+  const [filterCategory, setFilterCategory] = useState<"all" | "Pagi" | "Siang" | "Sore" | "Malam" | "patrol" | "Agenda Rapat">("all");
   const [searchTaskQuery, setSearchTaskQuery] = useState<string>("");
   const [expandedTask, setExpandedTask] = useState<string | null>(initialTaskKey || null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
@@ -632,10 +681,10 @@ export function JurnalLogbookModal({
     };
   }, [formState.bakdaSubuh?.subChoice]);
 
-  // Dynamic Tasks for Selected Date
+  // Dynamic Tasks for Selected Date (including injected Agenda Rapat)
   const activeDateTasks = useMemo(() => {
-    return getLogbookTasksForDate(selectedDate, subChoiceMap);
-  }, [selectedDate, subChoiceMap]);
+    return getLogbookTasksForDate(selectedDate, subChoiceMap, selectedMusyrifId, agendaList);
+  }, [selectedDate, subChoiceMap, selectedMusyrifId, agendaList]);
 
   // Reset logbook entries for selected date
   const handleResetLogbook = async () => {
@@ -1274,6 +1323,7 @@ export function JurnalLogbookModal({
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
             {[
               { id: "all", label: "Semua Kategori", icon: null },
+              { id: "Agenda Rapat", label: "Agenda Rapat", icon: Users },
               { id: "Pagi", label: "Pagi", icon: Sunrise },
               { id: "Siang", label: "Siang", icon: Sun },
               { id: "Sore", label: "Sore", icon: Sunset },

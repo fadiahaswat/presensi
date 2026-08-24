@@ -92,10 +92,20 @@ export function LeaderboardModal({
     });
     const logbookScore = logbookTasksDone * 5;
 
-    // 3. Agenda Asrama Score
+    // 3. Agenda Asrama & Pertemuan Score (Kegiatan Asrama + Logbook Dinamis Rapat)
     let kegiatanDone = 0;
     kegiatanRecords.forEach(keg => {
       if (keg.attendees?.[m.id] === "hadir") kegiatanDone++;
+    });
+    // Dynamic agenda meeting tasks from logbook
+    Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
+      if (dt >= "2026-08-18") {
+        Object.entries(dayEntry).forEach(([key, task]) => {
+          if (key.startsWith("agenda_") && (task as any)?.done) {
+            kegiatanDone++;
+          }
+        });
+      }
     });
     const kegiatanScore = kegiatanDone * 15;
 

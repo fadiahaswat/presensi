@@ -61,6 +61,7 @@ export const LOGBOOK_TASK_TITLES: Record<string, { title: string; category: stri
 };
 
 export const getTaskDisplayTitle = (key: string): string => {
+  if (key.startsWith("agenda_")) return "Presensi Agenda Rapat & Pertemuan";
   return LOGBOOK_TASK_TITLES[key]?.title || (
     key === "cekSakit" ? "Memeriksa Santri yang Sakit" :
     key === "kerjaBakti" ? "Mendampingi Kerja Bakti Asrama" :

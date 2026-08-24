@@ -60,6 +60,8 @@ const DataSantriModal = lazy(() => import("./components/DataSantriModal").then(m
 const SantriMapModal = lazy(() => import("./components/SantriMapModal").then(m => ({ default: m.SantriMapModal })));
 const CloudSyncModal = lazy(() => import("./components/CloudSyncModal").then(m => ({ default: m.CloudSyncModal })));
 const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri").then(m => ({ default: m.PagePembinaanSantri })));
+const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
+import type { AgendaRapatRecord } from "./types/agendaRapat";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
@@ -2161,7 +2163,7 @@ function PageDashboard({
                 <button
                   type="button"
                   onClick={() => onGoTo("pembinaan")}
-                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-amber-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98] cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
@@ -2176,6 +2178,28 @@ function PageDashboard({
                     <p className="text-[10px] text-slate-400 mt-0.5 truncate">Poin pelanggaran & sanksi</p>
                   </div>
                 </button>
+
+                {/* 9. Agenda Rapat & Pertemuan Musyrif */}
+                {authUser && (
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("agenda-rapat")}
+                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-blue-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98] cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                        <Calendar className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                        Rapat
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-slate-800 leading-tight">Agenda Rapat</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Pertemuan & Pengajian</p>
+                    </div>
+                  </button>
+                )}
 
                 {/* 9. Master Personel - Rare (Koordinator Only) */}
                 {authUser?.role === "koordinator_musyrif" && (
@@ -5981,6 +6005,7 @@ const STORAGE_KEY_SANTRI = "presensi_santri_master_v10";
 const STORAGE_KEY_SANTRI_REQUESTS = "presensi_santri_change_requests_v1";
 const STORAGE_KEY_MUSYRIF = "presensi_musyrif_master_v5";
 const STORAGE_KEY_AUTH_USERS = "presensi_auth_users_master_v5";
+const STORAGE_KEY_AGENDA_RAPAT = "presensi_agenda_rapat_v5";
 const SYNC_TABLE_AUTH_USERS = "AuthUsers";
 
 const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
@@ -6283,6 +6308,50 @@ export default function App() {
     } catch {}
     return [];
   });
+
+  // State for Agenda Rapat & Pertemuan Musyrif (Logbook Dinamis)
+  const [agendaRapatList, setAgendaRapatList] = useState<AgendaRapatRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_AGENDA_RAPAT);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_AGENDA_RAPAT, JSON.stringify(agendaRapatList)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [agendaRapatList]);
+
+  const handleSaveAgendaRapat = useCallback((agenda: AgendaRapatRecord) => {
+    setAgendaRapatList(prev => {
+      const existingIndex = prev.findIndex(a => a.id === agenda.id);
+      let updated: AgendaRapatRecord[];
+      if (existingIndex >= 0) {
+        updated = [...prev];
+        updated[existingIndex] = agenda;
+      } else {
+        updated = [agenda, ...prev];
+      }
+      try { localStorage.setItem(STORAGE_KEY_AGENDA_RAPAT, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    googleSyncService.enqueue("agenda_rapat", { ...agenda });
+  }, []);
+
+  const handleDeleteAgendaRapat = useCallback((agendaId: string) => {
+    setAgendaRapatList(prev => {
+      const updated = prev.filter(a => a.id !== agendaId);
+      try { localStorage.setItem(STORAGE_KEY_AGENDA_RAPAT, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    googleSyncService.enqueue("agenda_rapat", { id: agendaId, _deleted: true });
+  }, []);
 
   // State for Jurnal Logbook Harian Musyrif (Dimulai Serentak 18 Agustus 2026)
   const [logbookData, setLogbookData] = useState<LogbookStorage>(() => {
@@ -6721,6 +6790,18 @@ export default function App() {
             });
             const merged = Array.from(map.values());
             try { localStorage.setItem(STORAGE_KEY_IZIN, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        } else if ((tbl === "agenda_rapat" || tbl === "agendarapat") && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && !cr._deleted && cr.id);
+          setAgendaRapatList(prev => {
+            const map = new Map<string, AgendaRapatRecord>();
+            prev.filter(a => Boolean(a && a.id)).forEach(a => map.set(a.id, a));
+            validCloud.forEach((cr: any) => {
+              map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_AGENDA_RAPAT, JSON.stringify(merged)); } catch {}
             return merged;
           });
         } else if (tbl === "kegiatan" && Array.isArray(cloudRecords)) {
@@ -8429,12 +8510,14 @@ export default function App() {
                 authUser={authUser}
                 musyrifList={musyrifList}
                 logbookData={logbookData}
+                agendaList={agendaRapatList}
                 initialMusyrifId={targetMusyrifId}
                 initialDate={targetDate}
                 initialTaskKey={targetTaskKey}
                 onSaveLogbook={handleSaveLogbook}
                 onResetLogbook={handleResetLogbook}
                 onOpenSantriSakit={() => setPage("santri-sakit")}
+                onOpenAgendaRapat={() => setPage("agenda-rapat")}
               />
             </motion.div>
           )}
@@ -8698,6 +8781,20 @@ export default function App() {
                 authUser={authUser}
                 musyrifList={musyrifList}
                 santriList={santriList}
+              />
+            </motion.div>
+          )}
+          {page==="agenda-rapat" && (
+            <motion.div key="agenda-rapat" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PageAgendaRapat
+                onGoBack={() => setPage("dashboard")}
+                authUser={authUser}
+                musyrifList={musyrifList}
+                asramaList={ASRAMAS}
+                agendaList={agendaRapatList}
+                logbookData={logbookData}
+                onSaveAgenda={handleSaveAgendaRapat}
+                onDeleteAgenda={handleDeleteAgendaRapat}
               />
             </motion.div>
           )}
