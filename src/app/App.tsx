@@ -1844,7 +1844,7 @@ function PageDashboard({
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedMusyrifId(targetId);
+                          onSelectMusyrif?.(targetId);
                           setTargetMusyrifId(targetId);
                           setTargetDate(currentAgenda.date);
                           setTargetTaskKey(taskKey);
@@ -1859,7 +1859,7 @@ function PageDashboard({
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedMusyrifId(targetId);
+                          onSelectMusyrif?.(targetId);
                           setTargetMusyrifId(targetId);
                           setTargetDate(currentAgenda.date);
                           setTargetTaskKey(taskKey);
