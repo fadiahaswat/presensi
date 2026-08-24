@@ -686,6 +686,197 @@ class GoogleSyncService {
     this.saveQueue();
     this.updateStatus();
   }
+
+  // === PHOTO SYNC OPTIMIZATION METHODS ===
+
+  /**
+   * Photo sync configuration
+   */
+  private photoSyncEnabled: boolean = false;
+  private pendingPhotoUrls: Map<string, string> = new Map(); // url -> table reference
+  private isSyncingPhotos: boolean = false;
+  private photoSyncConcurrency: number = 3; // Concurrent photo downloads
+
+  /**
+   * Enable photo sync with IndexedDB caching
+   */
+  public enablePhotoSync(): void {
+    this.photoSyncEnabled = true;
+  }
+
+  /**
+   * Disable photo sync
+   */
+  public disablePhotoSync(): void {
+    this.photoSyncEnabled = false;
+  }
+
+  /**
+   * Check if photo sync is enabled
+   */
+  public isPhotoSyncEnabled(): boolean {
+    return this.photoSyncEnabled;
+  }
+
+  /**
+   * Queue photos for background download
+   * Extracts photo URLs from records and queues them for lazy loading
+   */
+  public queuePhotosForSync(records: any[], tableName: string): void {
+    if (!this.photoSyncEnabled) return;
+
+    records.forEach((record) => {
+      // Check common photo field names
+      const photoFields = ["photoUrl", "fotoSantriUrl", "lampiranUrl", "imageUrl", "avatarUrl", "pictureUrl"];
+
+      photoFields.forEach((field) => {
+        const url = record[field];
+        if (url && typeof url === "string" && url.startsWith("data:image")) {
+          // This is a base64 image embedded in data
+          // Store the reference so we know it needs caching
+          this.pendingPhotoUrls.set(url, tableName);
+        }
+      });
+    });
+  }
+
+  /**
+   * Fetch only photos that have changed (incremental photo sync)
+   * Returns URLs that need to be downloaded
+   */
+  public async fetchChangedPhotos(
+    previousRecords: any[],
+    currentRecords: any[]
+  ): Promise<string[]> {
+    const previousUrls = this.extractPhotoUrls(previousRecords);
+    const currentUrls = this.extractPhotoUrls(currentRecords);
+
+    // Find new or changed URLs
+    const changedUrls: string[] = [];
+
+    currentUrls.forEach((url) => {
+      if (!previousUrls.has(url)) {
+        changedUrls.push(url);
+      }
+    });
+
+    return changedUrls;
+  }
+
+  /**
+   * Extract all photo URLs from records
+   */
+  private extractPhotoUrls(records: any[]): Set<string> {
+    const urls = new Set<string>();
+    const photoFields = ["photoUrl", "fotoSantriUrl", "lampiranUrl", "imageUrl", "avatarUrl", "pictureUrl"];
+
+    records.forEach((record) => {
+      photoFields.forEach((field) => {
+        const url = record[field];
+        if (url && typeof url === "string") {
+          urls.add(url);
+        }
+      });
+    });
+
+    return urls;
+  }
+
+  /**
+   * Batch sync photos in background with controlled concurrency
+   */
+  public async syncPhotosInBackground(photoUrls: string[]): Promise<void> {
+    if (!this.photoSyncEnabled || this.isSyncingPhotos || photoUrls.length === 0) return;
+
+    this.isSyncingPhotos = true;
+
+    try {
+      // Dynamic import to avoid loading photoCacheService unless needed
+      const { photoCacheService } = await import("./photoCacheService");
+
+      await photoCacheService.init();
+
+      // Process in batches to avoid memory issues
+      const batchSize = this.photoSyncConcurrency;
+
+      for (let i = 0; i < photoUrls.length; i += batchSize) {
+        const batch = photoUrls.slice(i, i + batchSize);
+
+        await Promise.all(
+          batch.map(async (url) => {
+            try {
+              // Check if already cached
+              const cached = await photoCacheService.getPhoto(url);
+              if (!cached) {
+                // Cache the photo
+                await photoCacheService.cachePhoto(url, url);
+              }
+            } catch (_) {
+              // Silently fail individual photos
+            }
+          })
+        );
+
+        // Small delay between batches to prevent blocking
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      console.log(`[PhotoSync] Cached ${photoUrls.length} photos`);
+    } catch (error) {
+      console.warn("[PhotoSync] Failed to sync photos:", error);
+    } finally {
+      this.isSyncingPhotos = false;
+    }
+  }
+
+  /**
+   * Get cached photo from IndexedDB
+   */
+  public async getCachedPhoto(url: string): Promise<string | null> {
+    if (!this.photoSyncEnabled) return null;
+
+    try {
+      const { photoCacheService } = await import("./photoCacheService");
+      const cached = await photoCacheService.getPhoto(url);
+      return cached?.data || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Get photo stats
+   */
+  public async getPhotoCacheStats(): Promise<{ count: number; size: number }> {
+    try {
+      const { photoCacheService } = await import("./photoCacheService");
+      return await photoCacheService.getStats();
+    } catch (_) {
+      return { count: 0, size: 0 };
+    }
+  }
+
+  /**
+   * Clear photo cache
+   */
+  public async clearPhotoCache(): Promise<void> {
+    try {
+      const { photoCacheService } = await import("./photoCacheService");
+      await photoCacheService.clearCache();
+    } catch (_) {}
+  }
+
+  /**
+   * Cleanup old cached photos (LRU eviction)
+   */
+  public async cleanupPhotoCache(maxEntries?: number): Promise<number> {
+    try {
+      const { photoCacheService } = await import("./photoCacheService");
+      return await photoCacheService.cleanup(maxEntries);
+    } catch (_) {
+      return 0;
+    }
+  }
 }
 
 export const googleSyncService = new GoogleSyncService();
