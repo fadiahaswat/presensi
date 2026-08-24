@@ -302,11 +302,7 @@ class GoogleSyncService {
           for (const k in node) {
             if (typeof node[k] === "string" && node[k].length > 46000) {
               if (node[k].startsWith("data:image")) {
-                // For photos > 46k chars: try adaptive compression instead of clearing
-                // The photoUploadQueue will handle retry, so we keep the original
-                // Just log warning - do NOT clear, let the queue retry
-                console.warn(`[SyncService] Photo field "${k}" is ${node[k].length} chars - will be handled by upload queue`);
-                // node[k] = ""; // COMMENTED OUT - let photo upload queue handle it
+                node[k] = ""; // Clear corrupt/huge base64 to unblock sync
               } else {
                 node[k] = node[k].substring(0, 46000);
               }
