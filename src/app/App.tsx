@@ -61,7 +61,7 @@ const SantriMapModal = lazy(() => import("./components/SantriMapModal").then(m =
 const CloudSyncModal = lazy(() => import("./components/CloudSyncModal").then(m => ({ default: m.CloudSyncModal })));
 const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri").then(m => ({ default: m.PagePembinaanSantri })));
 const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
-import type { AgendaRapatRecord } from "./types/agendaRapat";
+import { AgendaRapatRecord, AGENDA_CATEGORIES } from "./types/agendaRapat";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
@@ -655,6 +655,7 @@ function PageDashboard({
   onOpenAlarm,
   onOpenKegiatan,
   onOpenLogbook,
+  onNavigateToLogbook,
   onOpenMutabaah,
   onOpenSantriSakit,
   onOpenSantriIzin,
@@ -691,6 +692,7 @@ function PageDashboard({
   onOpenAlarm: () => void;
   onOpenKegiatan: () => void;
   onOpenLogbook: () => void;
+  onNavigateToLogbook?: (musyrifId: string, date: string, taskKey: string) => void;
   onOpenMutabaah: () => void;
   onOpenSantriSakit: () => void;
   onOpenSantriIzin?: () => void;
@@ -812,6 +814,103 @@ function PageDashboard({
 
   return (
     <div className="flex flex-col gap-5">
+      {/* ── BANNER UNDANGAN RAPAT / AGENDA TERJADWAL (COMPACT 1-2 BARIS, MUNCUL 1 JAM SEBELUM RAPAT) ── */}
+      {(() => {
+        if (!authUser) return null;
+        const myId = authUser.musyrifId || authUser.id;
+        const myCleanEmail = (authUser.email || "").trim().toLowerCase();
+        const matchedMusyrif = musyrifList.find(m => 
+          m.id === myId || 
+          (m.email && myCleanEmail && m.email.toLowerCase().includes(myCleanEmail))
+        );
+        const targetId = matchedMusyrif?.id || myId;
+
+        // Current time calculation in minutes
+        const currentMinutesOfDay = liveNow.getHours() * 60 + liveNow.getMinutes();
+
+        // Filter agendas: only for today, where musyrif is invited, and time is within 1 hour before meeting until end of meeting day
+        const activeAgendas = (agendaRapatList || []).filter(ag => {
+          if (!Array.isArray(ag.invitedMusyrifIds) || !ag.invitedMusyrifIds.includes(targetId)) {
+            return false;
+          }
+          // Only show for today
+          if (ag.date !== today) {
+            return false;
+          }
+
+          // Parse start time (e.g. "20:00" -> 1200 mins)
+          const [shStr, smStr] = (ag.startTime || "09:00").split(":");
+          const startMins = (parseInt(shStr, 10) || 0) * 60 + (parseInt(smStr, 10) || 0);
+
+          // Muncul 1 jam (60 menit) sebelum rapat dimulai
+          const appearThresholdMins = startMins - 60;
+          return currentMinutesOfDay >= appearThresholdMins;
+        }).sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+
+        if (activeAgendas.length === 0) return null;
+
+        const currentAgenda = activeAgendas[0];
+        const taskKey = `agenda_${currentAgenda.id}`;
+        const dayLogbook = logbookData[targetId]?.[currentAgenda.date];
+        const hasPresensi = Boolean(dayLogbook?.[taskKey]?.done);
+        const catConfig = AGENDA_CATEGORIES.find(c => c.id === currentAgenda.category) || AGENDA_CATEGORIES[0];
+
+        return (
+          <div 
+            onClick={() => onNavigateToLogbook ? onNavigateToLogbook(targetId, currentAgenda.date, taskKey) : onGoTo("logbook")}
+            className={`rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-2.5 border shadow-2xs transition-all flex items-center justify-between gap-3 cursor-pointer group active:scale-[0.99] ${
+              hasPresensi 
+                ? "bg-emerald-50/80 hover:bg-emerald-100/70 border-emerald-200/80 text-emerald-950" 
+                : "bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-white hover:border-blue-300 border-blue-200/90 text-blue-950"
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                hasPresensi ? "bg-emerald-600 text-white" : "bg-blue-600 text-white"
+              }`}>
+                {hasPresensi ? <CheckCircle2 className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
+              </div>
+              
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold shrink-0 ${
+                    hasPresensi ? "bg-emerald-200/80 text-emerald-900" : "bg-blue-600 text-white"
+                  }`}>
+                    {hasPresensi ? "✓ Hadir" : "Rapat Hari Ini"}
+                  </span>
+                  <span className="text-[10px] font-bold text-blue-700 font-mono hidden sm:inline">
+                    {catConfig.label}
+                  </span>
+                  <p className="font-bold text-xs sm:text-sm text-slate-900 truncate leading-tight">
+                    {currentAgenda.title}
+                  </p>
+                </div>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                  <span className="font-mono font-semibold text-slate-700">{currentAgenda.startTime}–{currentAgenda.endTime} WIB</span>
+                  <span className="mx-1">•</span>
+                  <span>{currentAgenda.locationName}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-1.5">
+              {hasPresensi ? (
+                <span className="text-[11px] font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-300/80 shadow-2xs flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="hidden sm:inline">Sudah Hadir</span>
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-white bg-blue-600 group-hover:bg-blue-700 px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Presensi</span>
+                  <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Hero card - SYAMSA Brand Deep Blue Gradient */}
       <div 
         className="rounded-[32px] overflow-hidden relative shadow-lg shadow-sky-950/15 ring-1 ring-white/20"
@@ -1774,108 +1873,6 @@ function PageDashboard({
         ) : (authUser.role === "musyrif" || authUser.role === "koordinator_gedung") ? (
           /* Musyrif & Koordinator Gedung Dashboard */
           <div className="space-y-3">
-            {/* Rapat / Agenda Terjadwal Alert Banner (Jika Musyrif Terundang) */}
-            {(() => {
-              const myId = authUser.musyrifId || authUser.id;
-              const myCleanEmail = (authUser.email || "").trim().toLowerCase();
-              const matchedMusyrif = musyrifList.find(m => 
-                m.id === myId || 
-                (m.email && myCleanEmail && m.email.toLowerCase().includes(myCleanEmail))
-              );
-              const targetId = matchedMusyrif?.id || myId;
-
-              // Find active/today or upcoming agendas where this musyrif is invited
-              const myAgendas = (agendaRapatList || []).filter(ag => 
-                Array.isArray(ag.invitedMusyrifIds) && 
-                ag.invitedMusyrifIds.includes(targetId) &&
-                ag.date >= today
-              ).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-
-              if (myAgendas.length === 0) return null;
-
-              const currentAgenda = myAgendas[0];
-              const isTodayAgenda = currentAgenda.date === today;
-              const taskKey = `agenda_${currentAgenda.id}`;
-              const dayLogbook = logbookData[targetId]?.[currentAgenda.date];
-              const hasPresensi = Boolean(dayLogbook?.[taskKey]?.done);
-
-              return (
-                <div className={`p-3.5 sm:p-4 rounded-2xl border shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  hasPresensi 
-                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-950" 
-                    : isTodayAgenda 
-                      ? "bg-gradient-to-r from-blue-50 via-indigo-50 to-white border-blue-200 text-blue-950" 
-                      : "bg-slate-50 border-slate-200 text-slate-800"
-                }`}>
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs mt-0.5 ${
-                      hasPresensi ? "bg-emerald-600 text-white" : isTodayAgenda ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
-                    }`}>
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          hasPresensi 
-                            ? "bg-emerald-100 text-emerald-800" 
-                            : isTodayAgenda 
-                              ? "bg-blue-600 text-white animate-pulse" 
-                              : "bg-slate-200 text-slate-700"
-                        }`}>
-                          {hasPresensi ? "✓ Sudah Presensi Hadir" : isTodayAgenda ? "Rapat Hari Ini" : "Agenda Terjadwal"}
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          {format(parseISO(currentAgenda.date), "EEEE, dd MMM yyyy", { locale: id })}
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug truncate">
-                        {currentAgenda.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <span className="font-mono">Pukul {currentAgenda.startTime} – {currentAgenda.endTime} WIB</span>
-                        <span>•</span>
-                        <span className="truncate">{currentAgenda.locationName}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    {hasPresensi ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onSelectMusyrif?.(targetId);
-                          setTargetMusyrifId(targetId);
-                          setTargetDate(currentAgenda.date);
-                          setTargetTaskKey(taskKey);
-                          setPage("logbook");
-                        }}
-                        className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Lihat Logbook</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onSelectMusyrif?.(targetId);
-                          setTargetMusyrifId(targetId);
-                          setTargetDate(currentAgenda.date);
-                          setTargetTaskKey(taskKey);
-                          setPage("logbook");
-                        }}
-                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 cursor-pointer"
-                      >
-                        <Camera className="w-3.5 h-3.5" />
-                        <span>Presensi Sekarang</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
             {/* Quick Status Widgets Banner (Logbook, Mutaba'ah, Agenda) */}
             {(() => {
               const myId = authUser.musyrifId || authUser.id;
@@ -8699,6 +8696,13 @@ export default function App() {
                   setTargetMusyrifId(undefined);
                   setTargetDate(undefined);
                   setTargetTaskKey(undefined);
+                  setPage("logbook");
+                }}
+                onNavigateToLogbook={(mId, d, tKey) => {
+                  setSelectedMusyrifId(mId);
+                  setTargetMusyrifId(mId);
+                  setTargetDate(d);
+                  setTargetTaskKey(tKey);
                   setPage("logbook");
                 }}
                 onOpenMutabaah={() => setShowMutabaah(true)}
