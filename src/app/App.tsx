@@ -63,6 +63,7 @@ const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri"
 const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
 import { AgendaRapatRecord, AGENDA_CATEGORIES } from "./types/agendaRapat";
 import { googleSyncService } from "./utils/googleSyncService";
+import { photoUploadQueue, type PendingPhoto } from "./utils/photoUploadQueue";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
 import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } from "./utils/khgtCalendar";
 import { motion, AnimatePresence } from "motion/react";
@@ -6479,6 +6480,31 @@ export default function App() {
     return {};
   });
 
+  // State for Pending Photo Upload Queue (Background retry for failed photos)
+  const [pendingPhotoCount, setPendingPhotoCount] = useState<number>(0);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const pendingPhotosRef = useRef<PendingPhoto[]>([]);
+
+  // Initialize Photo Upload Queue Service
+  useEffect(() => {
+    // Set GAS URL for photo uploads
+    photoUploadQueue.setGasUrl(googleSyncService.getGasUrl());
+
+    // Subscribe to queue updates
+    const unsub = photoUploadQueue.subscribe((photos) => {
+      setPendingPhotos(photos);
+      pendingPhotosRef.current = photos; // Keep ref updated
+      setPendingPhotoCount(photos.length);
+    });
+
+    // Start processing queue when online
+    if (navigator.onLine && googleSyncService.getGasUrl()) {
+      photoUploadQueue.processQueue();
+    }
+
+    return unsub;
+  }, []);
+
   // State for Mutabaah Yaumiyah (Ibadah Sunnah - Dimulai Serentak 18 Agustus 2026)
   const [mutabaahData, setMutabaahData] = useState<MutabaahStorage>(() => {
     try {
@@ -7033,7 +7059,6 @@ export default function App() {
 
                   const isDone = cr.done === true || cr.done === "TRUE" || cr.done === "true" || cr.done === 1 || Boolean(taskObj.done);
                   const isGps = cr.gpsVerified === true || cr.gpsVerified === "TRUE" || cr.gpsVerified === "true" || Boolean(taskObj.gpsVerified);
-                  const photoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
                   const completedAt = cr.completedAt || taskObj.completedAt || undefined;
                   const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
                   const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
@@ -7043,6 +7068,17 @@ export default function App() {
                   const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                   const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
+                  const recordId = `${mId}_${dt}_${cr.taskKey}`;
+
+                  // Check if there's a pending photo upload for this record (use ref for latest value)
+                  const hasPendingUpload = pendingPhotosRef.current.some(p =>
+                    p.recordId === recordId && p.fieldKey === "photoUrl"
+                  );
+
+                  // Preserve local photo if there's a pending upload, otherwise use cloud photo
+                  const photoUrl = hasPendingUpload
+                    ? (existingTask.photoUrl || undefined) // Keep local photo
+                    : (cr.photoUrl || taskObj.photoUrl || existingTask.photoUrl || undefined);
 
                   (next[mId][dt] as any)[cr.taskKey] = {
                     ...existingTask,
@@ -8067,14 +8103,15 @@ export default function App() {
         const taskData = mergedEntry[taskKey];
         const hasData = taskData && typeof taskData === "object" && (taskData.done || taskData.photoUrl || taskData.notes || taskData.stepsCount);
         if (hasData) {
+          const recordId = `${musyrifId}_${date}_${taskKey}`;
           googleSyncService.enqueue("Logbook", {
-            id: `${musyrifId}_${date}_${taskKey}`,
+            id: recordId,
             musyrifId,
             date,
             taskKey,
             done: taskData.done ? "TRUE" : "FALSE",
             completedAt: taskData.completedAt || "",
-            photoUrl: taskData.photoUrl || "",
+            photoUrl: taskData.photoUrl || "", // May be empty if sync fails - backup queue will handle it
             photoTakenAt: taskData.photoTakenAt || "",
             photoWatermark: taskData.photoWatermark || "",
             photoSource: taskData.photoSource || "",
@@ -8084,11 +8121,24 @@ export default function App() {
             subChoice: taskData.subChoice || "",
             updated_at: new Date().toISOString()
           }, "upsert", Boolean(taskData.photoUrl));
+
+          // Also enqueue photo to backup upload queue (will retry until successful)
+          if (taskData.photoUrl && taskData.photoUrl.startsWith("data:image")) {
+            photoUploadQueue.enqueue(
+              "Logbook",
+              recordId,
+              "photoUrl",
+              taskData.photoUrl,
+              taskData.photoWatermark || `${musyrifId} - ${date}`
+            );
+          }
         } else {
           // If task has no photo and no completion/notes, delete/clear granular row in cloud
           googleSyncService.enqueue("Logbook", {
             id: `${musyrifId}_${date}_${taskKey}`
           }, "delete");
+          // Remove from pending photo queue if exists
+          photoUploadQueue.remove("Logbook", `${musyrifId}_${date}_${taskKey}`, "photoUrl");
         }
       });
 

@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   X, Check, Clock, Calendar, CheckCircle2,
   AlertCircle, ChevronRight, FileText, Sparkles, Building2, User, Eye, ShieldCheck,
   MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft, Lock,
   Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award,
   Sunrise, Sunset, Star, Camera, Image as ImageIcon, Trash2, Maximize2, ClipboardList,
-  Users
+  Users, Upload, CheckCircle, Loader2, XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -17,6 +17,7 @@ import { compressAndWatermarkImage } from "../utils/imageCompressor";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { AgendaRapatRecord } from "../types/agendaRapat";
+import { photoUploadQueue, type PendingPhoto } from "../utils/photoUploadQueue";
 
 export interface LogbookTaskItem {
   done: boolean;
@@ -30,6 +31,10 @@ export interface LogbookTaskItem {
   photoSource?: "camera" | "preset" | "gallery";
   photoWatermark?: string;
   photoUserAvatar?: string;
+  // Photo upload status tracking
+  photoUploadStatus?: "pending" | "uploading" | "uploaded" | "failed";
+  photoUploadError?: string;
+  photoSyncAttempts?: number;
 }
 
 export interface JurnalLogbookEntry {
@@ -646,6 +651,44 @@ export function JurnalLogbookModal({
   const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
   const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string } | null>(null);
 
+  // Photo Upload Status Tracking (subscribed to photoUploadQueue)
+  const [photoUploadStatus, setPhotoUploadStatus] = useState<Record<string, "pending" | "uploading" | "uploaded" | "failed">>({});
+  const photoUploadStatusRef = useRef<Record<string, "pending" | "uploading" | "uploaded" | "failed">>({});
+
+  // Helper to extract taskKey from recordId (format: musyrifId_date_taskKey)
+  const extractTaskKeyFromRecordId = (recordId: string): string | null => {
+    const parts = recordId.split("_");
+    if (parts.length >= 3) {
+      // RecordId format: musyrifId_date_taskKey
+      return parts.slice(2).join("_"); // Handle task keys with underscores
+    }
+    return null;
+  };
+
+  // Subscribe to photo upload queue updates
+  useEffect(() => {
+    const unsub = photoUploadQueue.subscribe((pendingPhotos) => {
+      const newStatus: Record<string, "pending" | "uploading" | "uploaded" | "failed"> = {};
+
+      pendingPhotos.forEach((p: PendingPhoto) => {
+        const taskKey = extractTaskKeyFromRecordId(p.recordId);
+        if (taskKey) {
+          newStatus[taskKey] = p.status;
+        }
+      });
+
+      photoUploadStatusRef.current = newStatus;
+      setPhotoUploadStatus({ ...newStatus });
+    });
+
+    return unsub;
+  }, [selectedMusyrifId, selectedDate]);
+
+  // Get photo upload status for a specific task
+  const getPhotoStatus = (taskKey: string): "pending" | "uploading" | "uploaded" | "failed" | null => {
+    return photoUploadStatusRef.current[taskKey] || null;
+  };
+
   // GPS Geofence Check State
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
   const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
@@ -849,37 +892,41 @@ export function JurnalLogbookModal({
 
     try {
       const nowIso = new Date().toISOString();
-      
+
       // Compress with high-definition clean engine (640px, quality 72%, guaranteed <= 32,000 chars, zero watermark)
       const base64 = await compressAndWatermarkImage(file, null, 640, 0.72);
       if (!base64) throw new Error("Gagal mengompresi foto.");
 
-      const isPatrolRequired = Boolean(taskDef.isPatrol);
-      const hasEnoughSteps = (cur.stepsCount || 0) >= (taskDef.targetSteps || 200);
-      const isFullyCompleted = !isPatrolRequired || hasEnoughSteps;
+      const recordId = `${selectedMusyrifId}_${selectedDate}_${key}`;
+      const watermarkText = `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget} • ${format(new Date(), "dd/MM/yyyy - HH:mm")}`;
 
       const updatedEntry: JurnalLogbookEntry = {
         ...formState,
         [key]: {
           ...cur,
-          done: isFullyCompleted,
-          completedAt: isFullyCompleted ? (cur.completedAt || format(new Date(), "HH:mm")) : (cur.completedAt || format(new Date(), "HH:mm")),
-          gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : cur.gpsVerified,
+          done: true, // Always mark done when photo is captured
+          completedAt: cur.completedAt || format(new Date(), "HH:mm"),
+          gpsVerified: gpsResult?.isInRange ?? cur.gpsVerified ?? false,
           photoUrl: base64,
           photoTakenAt: nowIso,
           photoSource: source,
-          photoUserAvatar: authUser?.picture
+          photoUserAvatar: authUser?.picture,
+          photoUploadStatus: "uploading" as const
         }
       };
 
       setFormState(updatedEntry);
       onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
+
+      // Trigger background photo upload via queue
+      photoUploadQueue.enqueue("Logbook", recordId, "photoUrl", base64, watermarkText);
+
       setActiveCameraTask(null);
       triggerHaptic("success");
 
-      if (isPatrolRequired && !hasEnoughSteps) {
-        appAlert(`Foto bukti kegiatan berhasil disimpan! Tugas "${taskDef.title}" masih memerlukan patroli langkah (minimal ${taskDef.targetSteps || 200} langkah).`, "Wajib Patroli Langkah", "info");
-      }
+      // Show success feedback
+      appAlert(`✅ Foto "${taskDef.title}" berhasil disimpan!\n\n📤 Foto sedang diunggah ke cloud secara otomatis.\n\n⚠️ Jika foto terlalu besar, sistem akan otomatis mengompres dan mengulang upload.`, "Foto Tersimpan!", "success");
+
     } catch (err: any) {
       appAlert("Gagal memproses foto: " + (err?.message || "Format tidak didukung"), "Error Foto", "danger");
     } finally {
@@ -962,9 +1009,11 @@ export function JurnalLogbookModal({
     const taskDef = activeDateTasks.find(t => t.key === key);
     const isPhotoMandatory = taskDef?.photoRequirement === "mandatory";
     const existingPhoto = formState[key]?.photoUrl;
+    const photoStatus = getPhotoStatus(key);
 
-    // If photo is mandatory and not yet taken, do NOT mark as done yet!
-    const isFullyCompleted = !isPhotoMandatory || Boolean(existingPhoto);
+    // Mark task as DONE as long as patrol is complete (regardless of photo status)
+    // Photo upload will be handled separately by the photo queue
+    const isFullyCompleted = true; // Always mark done when patrol is complete
 
     const updatedEntry: JurnalLogbookEntry = {
       ...formState,
@@ -972,18 +1021,22 @@ export function JurnalLogbookModal({
         ...(formState[key] || { done: false }),
         done: isFullyCompleted,
         stepsCount: steps,
-        completedAt: isFullyCompleted ? format(new Date(), "HH:mm") : undefined,
-        gpsVerified: isFullyCompleted ? (gpsResult?.isInRange ?? false) : false
+        completedAt: format(new Date(), "HH:mm"),
+        gpsVerified: gpsResult?.isInRange ?? false
       }
     };
     setFormState(updatedEntry);
     onSaveLogbook(selectedMusyrifId, selectedDate, updatedEntry);
 
-    if (isPhotoMandatory && !existingPhoto) {
+    // Show feedback about photo requirement
+    if (isPhotoMandatory && !existingPhoto && photoStatus !== "pending" && photoStatus !== "uploading") {
       if (taskDef) {
-        appAlert(`Patroli ${steps} langkah berhasil tercatat! Tugas "${taskDef.title}" mewajibkan foto bukti kegiatan untuk menyelesaikan tugas (Melaksanakan).\n\nSilakan ambil foto bukti sekarang.`, "Wajib Ambil Foto", "info");
-        setActiveCameraTask(taskDef);
+        appAlert(`✅ Patroli ${steps} langkah berhasil tercatat!\n\n📸 "${taskDef.title}" mewajibkan foto bukti kegiatan.\n\nFoto dapat ditambahkan nanti melalui tombol biru (foto). Sistem akan otomatis mengunggah foto ke cloud secara bertahap.`, "Patroli Berhasil", "info");
       }
+    } else if (photoStatus === "pending" || photoStatus === "uploading") {
+      // Photo is queued for upload - show positive feedback
+      triggerHaptic("medium");
+      // No need to prompt for photo
     } else {
       triggerHaptic("medium");
     }
@@ -1545,12 +1598,44 @@ export function JurnalLogbookModal({
                             </span>
                           ) : null}
 
-                          {/* Photo Badge: Only show if photo is uploaded */}
-                          {taskData.photoUrl && (
-                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px]">
-                              <Camera className="w-3 h-3 text-emerald-600" /> Foto ✓
-                            </span>
-                          )}
+                          {/* Photo Status Badge - Shows upload status */}
+                          {(() => {
+                            const photoStatus = getPhotoStatus(t.key);
+                            const hasPhoto = Boolean(taskData.photoUrl);
+
+                            if (photoStatus === "uploading") {
+                              return (
+                                <span className="inline-flex items-center gap-1 font-semibold text-sky-700 bg-sky-50 border border-sky-200/80 px-2 py-0.5 rounded-lg text-[11px] animate-pulse">
+                                  <Loader2 className="w-3 h-3 animate-spin" /> Mengunggah...
+                                </span>
+                              );
+                            } else if (photoStatus === "pending") {
+                              return (
+                                <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                                  <Clock className="w-3 h-3" /> Antri Upload
+                                </span>
+                              );
+                            } else if (photoStatus === "failed") {
+                              return (
+                                <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                                  <XCircle className="w-3 h-3" /> Upload Gagal
+                                </span>
+                              );
+                            } else if (hasPhoto) {
+                              return (
+                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                                  <Camera className="w-3 h-3 text-emerald-600" /> Foto ✓
+                                </span>
+                              );
+                            } else if (t.photoRequirement === "mandatory" && !isDone) {
+                              return (
+                                <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                                  <Camera className="w-3 h-3 text-amber-600" /> Butuh Foto
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -1575,6 +1660,30 @@ export function JurnalLogbookModal({
                             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center text-white">
                               <Eye className="w-3 h-3" />
                             </div>
+                            {/* Upload status overlay */}
+                            {(() => {
+                              const photoStatus = getPhotoStatus(t.key);
+                              if (photoStatus === "uploading") {
+                                return (
+                                  <div className="absolute inset-0 bg-sky-500/60 flex items-center justify-center">
+                                    <Loader2 className="w-3 h-3 animate-spin text-white" />
+                                  </div>
+                                );
+                              } else if (photoStatus === "failed") {
+                                return (
+                                  <div className="absolute inset-0 bg-rose-500/60 flex items-center justify-center">
+                                    <XCircle className="w-3 h-3 text-white" />
+                                  </div>
+                                );
+                              } else if (photoStatus === "pending") {
+                                return (
+                                  <div className="absolute inset-0 bg-amber-500/60 flex items-center justify-center">
+                                    <Clock className="w-3 h-3 text-white" />
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </button>
 
                           {isMusyrifUser && !isLocked && (
@@ -1595,13 +1704,13 @@ export function JurnalLogbookModal({
                             onClick={() => setActiveCameraTask(t)}
                             className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border flex items-center gap-1 transition-all ${
                               t.photoRequirement === "mandatory"
-                                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs font-bold"
+                                ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-2xs font-bold"
                                 : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50"
                             }`}
                             title={t.photoRequirement === "mandatory" ? "Ambil Foto Bukti (Wajib)" : "Lampirkan Foto Bukti"}
                           >
                             <Camera className="w-3.5 h-3.5" />
-                            <span>{t.photoRequirement === "mandatory" ? "Foto (Wajib)" : "+ Foto"}</span>
+                            <span>{t.photoRequirement === "mandatory" ? "📷 Foto" : "+ Foto"}</span>
                           </button>
                         )
                       )}

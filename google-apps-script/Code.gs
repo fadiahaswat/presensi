@@ -105,6 +105,31 @@ function doPost(e) {
       });
     }
 
+    if (action === "field_update") {
+      // Update a single field of an existing record (for photo uploads)
+      const table = payload.table;
+      const recordId = payload.recordId;
+      const fieldKey = payload.fieldKey;
+      const fieldValue = payload.fieldValue;
+
+      if (!table || !recordId || !fieldKey) {
+        throw new Error("Parameter 'table', 'recordId', dan 'fieldKey' wajib disertakan.");
+      }
+
+      const sheet = getOrCreateSheet(ss, table);
+      const affectedRows = executeFieldUpdate(sheet, recordId, fieldKey, fieldValue);
+
+      return createResponse({
+        status: "success",
+        action: "field_update",
+        table: table,
+        recordId: recordId,
+        fieldKey: fieldKey,
+        affectedRows: affectedRows,
+        serverTime: new Date().toISOString()
+      });
+    }
+
     if (action === "reset_all_data") {
       const sheets = ss.getSheets();
       sheets.forEach(sh => {
@@ -304,6 +329,67 @@ function executeBatchUpsert(sheet, records) {
   }
 
   return records.length;
+}
+
+/**
+ * Utility: Update a single field of an existing record (for photo uploads)
+ */
+function executeFieldUpdate(sheet, recordId, fieldKey, fieldValue) {
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  const headers = values[0];
+  const idIdx = headers.indexOf("id");
+
+  if (idIdx === -1) return 0;
+
+  // Find the row with matching ID
+  let targetRow = -1;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idIdx]) === String(recordId)) {
+      targetRow = i + 1; // 1-based
+      break;
+    }
+  }
+
+  if (targetRow === -1) {
+    // Record doesn't exist yet, create it
+    const now = new Date().toISOString();
+    const rowData = [
+      recordId,           // id
+      now,                // created_at
+      now,                // updated_at
+      false,              // is_deleted
+      JSON.stringify({ [fieldKey]: fieldValue }) // data_json with single field
+    ];
+    sheet.appendRow(rowData);
+    return 1;
+  }
+
+  // Update existing record - parse existing data_json and update the field
+  const dataIdx = headers.indexOf("data_json");
+  const updatedIdx = headers.indexOf("updated_at");
+
+  let existingData = {};
+  if (dataIdx !== -1 && values[targetRow - 1][dataIdx]) {
+    try {
+      existingData = JSON.parse(values[targetRow - 1][dataIdx]);
+    } catch (_) {}
+  }
+
+  // Update the specific field
+  existingData[fieldKey] = fieldValue;
+
+  const now = new Date().toISOString();
+
+  // Write back to sheet
+  if (updatedIdx !== -1) {
+    sheet.getRange(targetRow, updatedIdx + 1).setValue(now);
+  }
+  if (dataIdx !== -1) {
+    sheet.getRange(targetRow, dataIdx + 1).setValue(JSON.stringify(existingData));
+  }
+
+  return 1;
 }
 
 /**

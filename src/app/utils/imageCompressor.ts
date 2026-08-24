@@ -5,7 +5,7 @@
  * Clean compression without any watermark.
  */
 
-const MAX_SHEET_SAFE_CHARS = 32000; // Safe payload ceiling (<= 32,000 chars / ~24 KB) for Google Sheets cell safety
+const MAX_SHEET_SAFE_CHARS = 24000; // Safe payload ceiling (<= 24,000 chars / ~18 KB) for Google Sheets cell safety (leaving buffer for JSON overhead)
 
 export interface ImageCompressOptions {
   maxDim?: number;
