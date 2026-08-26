@@ -68,6 +68,7 @@ export function MutabaahYaumiyahModal({
   initialDate
 }: MutabaahYaumiyahModalProps) {
   const isKoordinator = authUser?.role === "koordinator_musyrif";
+  const isKoorGedung = authUser?.role === "koordinator_gedung";
   const isPamong = authUser?.role === "pamong";
   const isAdmin = authUser?.role === "admin";
   const isSpecialBypassUser = Boolean(
@@ -80,19 +81,28 @@ export function MutabaahYaumiyahModal({
   const isCanBypass = isPamong || isKoordinator || isAdmin || isSpecialBypassUser;
   const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
   const canEdit = isMusyrifUser || isCanBypass;
-  
+
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
-  const isDateLocked = selectedDate !== todayStr && !isCanBypass;
+  const isDateLocked = selectedDate !== todayStr && !isCanBypass && !isKoorGedung;
 
   const activeMusyrifList = useMemo(() => {
-    if (isKoordinator) {
+    // Pamong, Koordinator Musyrif, Admin: lihat semua musyrif
+    if (isPamong || isAdmin) {
       return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
     }
+    if (isKoordinator || isSpecialBypassUser) {
+      return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+    }
+    // Koor Gedung: hanya lihat musyrif di asramanya
+    if (isKoorGedung) {
+      return musyrifList.filter(m => m.asrama === authUser.asrama);
+    }
+    // Default: semua musyrif
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
-  }, [musyrifList, authUser, isKoordinator]);
+  }, [musyrifList, authUser, isKoordinator, isPamong, isAdmin, isKoorGedung, isSpecialBypassUser]);
 
-  const isSupervisoryRole = authUser?.role === "pamong" || authUser?.role === "admin" || authUser?.role === "koordinator_musyrif";
+  const isSupervisoryRole = authUser?.role === "pamong" || authUser?.role === "admin" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
 
   const defaultMusyrifId = initialMusyrifId 
     ? initialMusyrifId 
@@ -136,7 +146,8 @@ export function MutabaahYaumiyahModal({
 
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
     if (!canEdit) return;
-    if (selectedDate !== todayStr && !isCanBypass) {
+    // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
+    if (selectedDate !== todayStr && !isCanBypass && !isKoorGedung) {
       appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
@@ -152,7 +163,8 @@ export function MutabaahYaumiyahModal({
 
   const handleTilawahChange = (pages: number) => {
     if (!canEdit) return;
-    if (selectedDate !== todayStr && !isCanBypass) {
+    // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
+    if (selectedDate !== todayStr && !isCanBypass && !isKoorGedung) {
       appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
@@ -167,7 +179,8 @@ export function MutabaahYaumiyahModal({
 
   const handleMarkAll = (done: boolean) => {
     if (!canEdit) return;
-    if (selectedDate !== todayStr && !isCanBypass) {
+    // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
+    if (selectedDate !== todayStr && !isCanBypass && !isKoorGedung) {
       appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
@@ -332,7 +345,7 @@ export function MutabaahYaumiyahModal({
 
           <div>
             <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-              {isMusyrifUser ? "Musyrif (Evaluasi Mandiri)" : "Musyrif yang Dipantau"}
+              {authUser?.role === "musyrif" ? "Musyrif (Evaluasi Mandiri)" : authUser?.role === "koordinator_gedung" ? "Musyrif Asrama" : "Musyrif yang Dipantau"}
             </label>
             {authUser?.role === "musyrif" ? (
               <div className="w-full text-xs bg-emerald-50/80 border border-emerald-200 text-emerald-900 rounded-2xl px-3.5 py-2.5 font-bold truncate flex items-center gap-1.5 shadow-2xs">
