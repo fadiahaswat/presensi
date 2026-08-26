@@ -138,7 +138,7 @@ export function getLogbookTasksForDate(
   const tasks: TaskDefinition[] = [];
   let num = 1;
 
-  // 1. Membangunkan Pagi & Shalat Tahajjud (Setiap Hari - Wajib Patroli 200 Lkg, Opsional Foto)
+  // 1. Membangunkan Pagi & Shalat Tahajjud (Setiap Hari - Wajib Patroli 200 Lkg, Foto Sunnah)
   tasks.push({
     key: "tahajjud",
     number: num++,
@@ -153,7 +153,7 @@ export function getLogbookTasksForDate(
     category: "Pagi",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "mandatory"
+    photoRequirement: "optional"
   });
 
   // 2. Sesi Ba'da Shubuh
@@ -162,7 +162,7 @@ export function getLogbookTasksForDate(
       key: "bakdaSubuh",
       number: num++,
       title: "Mendampingi Muhadatsah Pagi",
-      shortDesc: "Mendampingi latihan percakapan bahasa Arab/Inggris santri di asrama",
+      shortDesc: "Mendampingi latihan percakapan bahasa Arab/Inggris santai di asrama",
       timeWindow: "05:15 – 06:15 WIB",
       startHour: 5,
       startMinute: 15,
@@ -172,7 +172,7 @@ export function getLogbookTasksForDate(
       category: "Pagi",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   } else {
     tasks.push({
@@ -196,7 +196,7 @@ export function getLogbookTasksForDate(
     });
   }
 
-  // 3. Memeriksa Santri yang Sakit (Senin - Sabtu: Wajib Foto & Wajib Patroli, Ahad Libur/Tidak Ada)
+  // 3. Memeriksa Santri yang Sakit (Senin - Sabtu: Wajib Patroli, Foto Sunnah, Ahad Libur/Tidak Ada)
   if (!isAhad) {
     tasks.push({
       key: "cekSakit",
@@ -212,7 +212,7 @@ export function getLogbookTasksForDate(
       category: "Pagi",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   }
 
@@ -232,7 +232,7 @@ export function getLogbookTasksForDate(
       category: "Pagi",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   } else {
     tasks.push({
@@ -249,7 +249,7 @@ export function getLogbookTasksForDate(
       category: "Pagi",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
 
     tasks.push({
@@ -266,11 +266,11 @@ export function getLogbookTasksForDate(
       category: "Pagi",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   }
 
-  // Khusus Hari Jumat: Mengoprak-oprak Shalat Jum'at (11:00 - 12:00 WIB - Wajib Foto)
+  // Khusus Hari Jumat: Mengoprak-oprak Shalat Jum'at (11:00 - 12:00 WIB - Wajib Patroli, Foto Sunnah)
   if (isJumat) {
     tasks.push({
       key: "oprakJumat",
@@ -286,7 +286,7 @@ export function getLogbookTasksForDate(
       category: "Siang",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   }
 
@@ -305,7 +305,7 @@ export function getLogbookTasksForDate(
     category: "Sore",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "mandatory"
+    photoRequirement: "optional"
   });
 
   // 7. Mengoprak-oprak Mandi Sore (Setiap Hari - Wajib Foto & Patroli)
@@ -323,7 +323,7 @@ export function getLogbookTasksForDate(
     category: "Sore",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "mandatory"
+    photoRequirement: "optional"
   });
 
   // 8. Menyisir Kamar Menjelang Maghrib (Setiap Hari - Wajib Patroli 200 Lkg, Opsional Foto)
@@ -341,7 +341,7 @@ export function getLogbookTasksForDate(
     category: "Sore",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "mandatory"
+    photoRequirement: "optional"
   });
 
   // 9. Agenda Ba'da Maghrib
@@ -360,7 +360,7 @@ export function getLogbookTasksForDate(
       category: "Malam",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   } else if (isRabu) {
     tasks.push({
@@ -429,7 +429,7 @@ export function getLogbookTasksForDate(
       category: "Malam",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   } else {
     tasks.push({
@@ -446,7 +446,7 @@ export function getLogbookTasksForDate(
       category: "Malam",
       isPatrol: true,
       targetSteps: 200,
-      photoRequirement: "mandatory"
+      photoRequirement: "optional"
     });
   }
 
@@ -465,7 +465,7 @@ export function getLogbookTasksForDate(
     category: "Malam",
     isPatrol: true,
     targetSteps: 200,
-    photoRequirement: "mandatory"
+    photoRequirement: "optional"
   });
 
   // Dynamic Agenda & Meeting Tasks Injection (Only for invited musyrif on the event date)
@@ -570,7 +570,10 @@ export function JurnalLogbookModal({
   );
 
   // Yang berwenang bypass jadwal (masa depan, masa lalu, dan input tanpa batasan waktu): Pamong, Koordinator Musyrif, Admin, serta akun khusus (Ustaz Afif Nashrul / andiaqillah@muallimin.sch.id)
+  // Koordinator Gedung TIDAK termasuk bypass tanggal lampau - hanya bisa isi untuk HARI INI saja
   const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
+  // Koor Gedung hanya bisa bypass untuk HARI INI (bukan tanggal lampau)
+  const isKoorGedungToday = isKoorGedung;
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
   const activeMusyrifList = useMemo(() => {
@@ -763,13 +766,19 @@ export function JurnalLogbookModal({
     const isFuture = selectedDate > todayStr;
     const isPast = selectedDate < todayStr;
     
-    // 1. Must be today (Strict: only Pamong/Admin can bypass)
+    // 1. Must be today (Strict: only Pamong/Admin can bypass; Koor Gedung hanya bisa hari ini)
+    // Koor Gedung TIDAK bisa isi tanggal lampau
     if (isFuture && !isCanBypass) {
       appAlert("Pengisian dan pencentangan logbook untuk tanggal masa depan tidak diizinkan. Silakan pilih tanggal hari ini.", "Tanggal Belum Tiba", "warning");
       return;
     }
     if (isPast && !isCanBypass) {
       appAlert("Pengisian dan pencentangan logbook untuk tanggal selain hari ini telah terkunci secara otomatis. Hanya Pamong yang berwenang mengubah catatan lampau.", "Waktu Terkunci", "warning");
+      return;
+    }
+    // Koor Gedung hanya bisa isi untuk hari ini (bukan kemarin/lampau)
+    if (isKoorGedung && isPast) {
+      appAlert("Koordinator Gedung hanya dapat mengisi logbook untuk tanggal hari ini. Catatan tanggal lampau terkunci otomatis.", "Waktu Terkunci", "warning");
       return;
     }
 
@@ -796,9 +805,11 @@ export function JurnalLogbookModal({
       return;
     }
 
-    // 4. Strict Mandatory Photo Enforcement (Must take live photo first if mandatory)
-    if (taskDef.photoRequirement === "mandatory" && !cur.photoUrl && !cur.done && !isCanBypass) {
-      appAlert(`Tugas "${taskDef.title}" mewajibkan bukti foto kegiatan langsung dari kamera asrama.\n\nSilakan ambil foto langsung terlebih dahulu untuk menyelesaikan tugas (Melaksanakan).`, "Wajib Foto Dokumentasi", "warning");
+    // 4. Strict Mandatory Photo Enforcement
+    // Logika baru: Jika ADA patrol → foto optional (sunnah). Jika TIDAK ADA patrol → foto wajib.
+    const isPhotoMandatory = !taskDef.isPatrol;
+    if (isPhotoMandatory && !cur.photoUrl && !cur.done && !isCanBypass) {
+      appAlert(`Tugas "${taskDef.title}" tidak memerlukan patroli, sehingga bukti foto kegiatan langsung dari kamera asrama adalah WAJIB.\n\nSilakan ambil foto langsung terlebih dahulu untuk menyelesaikan tugas.`, "Wajib Foto Dokumentasi", "warning");
       setActiveCameraTask(taskDef);
       return;
     }
@@ -922,7 +933,8 @@ export function JurnalLogbookModal({
       const cur = formState[key];
       if (!cur) return;
       const taskDef = activeDateTasks.find(t => t.key === key);
-      const isPhotoMandatory = taskDef?.photoRequirement === "mandatory";
+      // Logika baru: foto wajib hanya jika TIDAK ada patrol
+      const isPhotoMandatory = !taskDef?.isPatrol;
 
       const updatedEntry: JurnalLogbookEntry = {
         ...formState,
@@ -981,7 +993,8 @@ export function JurnalLogbookModal({
     }
 
     const taskDef = activeDateTasks.find(t => t.key === key);
-    const isPhotoMandatory = taskDef?.photoRequirement === "mandatory";
+    // Logika baru: foto wajib hanya jika TIDAK ada patrol
+    const isPhotoMandatory = !taskDef?.isPatrol;
     const existingPhoto = formState[key]?.photoUrl;
 
     // If photo is mandatory and not yet taken, do NOT mark as done yet!
@@ -1002,7 +1015,7 @@ export function JurnalLogbookModal({
 
     if (isPhotoMandatory && !existingPhoto) {
       if (taskDef) {
-        appAlert(`Patroli ${steps} langkah berhasil tercatat! Tugas "${taskDef.title}" mewajibkan foto bukti kegiatan untuk menyelesaikan tugas (Melaksanakan).\n\nSilakan ambil foto bukti sekarang.`, "Wajib Ambil Foto", "info");
+        appAlert(`Patroli ${steps} langkah berhasil tercatat! Tugas "${taskDef.title}" tidak memerlukan patroli, sehingga foto bukti kegiatan adalah WAJIB.\n\nSilakan ambil foto bukti sekarang.`, "Wajib Ambil Foto", "info");
         setActiveCameraTask(taskDef);
       }
     } else {
@@ -1467,13 +1480,14 @@ export function JurnalLogbookModal({
                               setActivePatrolTask(t);
                               return;
                             }
-                            if (t.photoRequirement === "mandatory" && !taskData.photoUrl) {
-                              appAlert(`Patroli langkah telah selesai (${taskData.stepsCount} langkah). Tugas "${t.title}" mewajibkan foto bukti untuk menyelesaikan tugas (Melaksanakan).\n\nSilakan ambil foto bukti sekarang.`, "Wajib Foto Dokumentasi", "info");
+                            // Logika baru: foto wajib hanya jika TIDAK ada patrol
+                            if (!t.isPatrol && !taskData.photoUrl) {
+                              appAlert(`Tugas "${t.title}" tidak memerlukan patroli, sehingga foto bukti kegiatan adalah WAJIB.\n\nSilakan ambil foto bukti sekarang.`, "Wajib Foto Dokumentasi", "info");
                               setActiveCameraTask(t);
                               return;
                             }
                             toggleTask(t);
-                          } else if (t.photoRequirement === "mandatory" && !taskData.photoUrl && !isDone && !isCanBypass && isMusyrifUser) {
+                          } else if (!t.isPatrol && !taskData.photoUrl && !isDone && !isCanBypass && isMusyrifUser) {
                             if (isLocked) {
                               appAlert(`Jadwal tugas "${t.title}" telah lewat dan terkunci.`, "Jadwal Terkunci", "warning");
                               return;
@@ -1491,7 +1505,7 @@ export function JurnalLogbookModal({
                             ? "border-rose-200 bg-rose-50/80 text-rose-400 cursor-not-allowed"
                             : isUpcoming && !isCanBypass
                             ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                            : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))
+                            : (!t.isPatrol && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))
                             ? "border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 active:scale-95 cursor-pointer shadow-2xs"
                             : "border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 text-transparent hover:text-emerald-600 active:scale-95 cursor-pointer shadow-2xs"
                         }`}
@@ -1502,7 +1516,7 @@ export function JurnalLogbookModal({
                             ? "Jadwal Terlewat / Tanggal Lampau (Terkunci)"
                             : isUpcoming && !isCanBypass
                             ? "Belum Masuk Waktu"
-                            : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))
+                            : (!t.isPatrol && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200))
                             ? "Patroli Selesai • Wajib Ambil Foto"
                             : "Klik untuk Selesaikan Tugas"
                         }
@@ -1513,7 +1527,7 @@ export function JurnalLogbookModal({
                           <Lock className="w-3.5 h-3.5 text-rose-400" />
                         ) : isUpcoming && !isCanBypass ? (
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        ) : (t.photoRequirement === "mandatory" && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200)) ? (
+                        ) : (!t.isPatrol && !taskData.photoUrl && (taskData.stepsCount || 0) >= (t.targetSteps || 200)) ? (
                           <Camera className="w-4 h-4 text-amber-600" />
                         ) : (
                           <Check className="w-4 h-4" />
@@ -1578,7 +1592,7 @@ export function JurnalLogbookModal({
                               <Check className="w-3 h-3 text-emerald-600" />
                               <span>Melaksanakan{taskData.completedAt ? ` • ${taskData.completedAt} WIB` : ""}</span>
                             </span>
-                          ) : (!isDone && (taskData.stepsCount || 0) >= (t.targetSteps || 200) && t.photoRequirement === "mandatory" && !taskData.photoUrl) ? (
+                          ) : (!isDone && (taskData.stepsCount || 0) >= (t.targetSteps || 200) && !t.isPatrol && !taskData.photoUrl) ? (
                             <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px]">
                               <Footprints className="w-3 h-3 text-amber-600" />
                               <span>Patroli Selesai ({taskData.stepsCount} Lkg) • Wajib Foto</span>
@@ -1638,14 +1652,14 @@ export function JurnalLogbookModal({
                             type="button"
                             onClick={() => setActiveCameraTask(t)}
                             className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border flex items-center gap-1 transition-all ${
-                              t.photoRequirement === "mandatory"
+                              !t.isPatrol
                                 ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-2xs font-bold"
                                 : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50"
                             }`}
-                            title={t.photoRequirement === "mandatory" ? "Ambil Foto Bukti (Wajib)" : "Lampirkan Foto Bukti"}
+                            title={!t.isPatrol ? "Ambil Foto Bukti (Wajib)" : "Lampirkan Foto Bukti"}
                           >
                             <Camera className="w-3.5 h-3.5" />
-                            <span>{t.photoRequirement === "mandatory" ? "Foto (Wajib)" : "+ Foto"}</span>
+                            <span>{!t.isPatrol ? "Foto (Wajib)" : "+ Foto"}</span>
                           </button>
                         )
                       )}
@@ -1653,29 +1667,20 @@ export function JurnalLogbookModal({
                       {/* Patrol CTA button for active patrol task */}
                       {t.isPatrol && isMusyrifUser && !isDone && (
                         timeInfo.status === "active" ? (
-                          (taskData.stepsCount || 0) >= (t.targetSteps || 200) && t.photoRequirement === "mandatory" && !taskData.photoUrl ? (
-                            <button
-                              type="button"
-                              onClick={() => setActiveCameraTask(t)}
-                              className="text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
-                            >
-                              <Camera className="w-3.5 h-3.5" /> <span>Ambil Foto Wajib</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!isToday && !isCanBypass) {
-                                  appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Patroli Asrama", "warning");
-                                  return;
-                                }
-                                setActivePatrolTask(t);
-                              }}
-                              className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
-                            >
-                              <Footprints className="w-3.5 h-3.5" /> <span>Patroli (200 Lkg)</span>
-                            </button>
-                          )
+                          // Patrol task: show patrol button (photo is optional/sunnah for patrol tasks)
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!isToday && !isCanBypass) {
+                                appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Patroli Asrama", "warning");
+                                return;
+                              }
+                              setActivePatrolTask(t);
+                            }}
+                            className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                          >
+                            <Footprints className="w-3.5 h-3.5" /> <span>Patroli (200 Lkg)</span>
+                          </button>
                         ) : isPassed ? (
                           <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded-xl flex items-center gap-1 opacity-80 cursor-not-allowed">
                             <Lock className="w-3 h-3" /> <span>Terkunci</span>
