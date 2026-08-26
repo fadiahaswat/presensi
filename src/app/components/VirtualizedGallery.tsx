@@ -2,6 +2,12 @@
  * VirtualizedGallery - High Performance Photo Gallery
  * Combines virtualization + lazy loading + progressive images
  * For rendering hundreds/thousands of photos efficiently
+ *
+ * Performance optimizations:
+ * - Virtualization for large photo lists
+ * - Lazy loading with Intersection Observer
+ * - Progressive image loading (thumbnail → full)
+ * - Optimized grid layout
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
@@ -29,6 +35,8 @@ interface VirtualizedGalleryProps {
   aspectRatio?: string;
   /** Enable lightbox on click */
   enableLightbox?: boolean;
+  /** Seamless mode: no rounded corners, no gaps, edge-to-edge */
+  seamless?: boolean;
   /** Custom render for overlay info */
   renderOverlay?: (photo: GalleryPhoto, index: number) => React.ReactNode;
   /** Loading placeholder */
@@ -56,6 +64,7 @@ export const VirtualizedGallery = memo(function VirtualizedGallery({
   gap = 8,
   aspectRatio = "1/1",
   enableLightbox = true,
+  seamless = false,
   renderOverlay,
   loadingPlaceholder,
   onPhotoClick,
@@ -88,15 +97,16 @@ export const VirtualizedGallery = memo(function VirtualizedGallery({
   }, []);
 
   // Calculate item dimensions
+  const effectiveGap = seamless ? 0 : gap;
   const itemSize = useMemo(() => {
     if (containerWidth === 0) return 120; // Default fallback
-    const totalGap = gap * (columns - 1);
+    const totalGap = effectiveGap * (columns - 1);
     return Math.floor((containerWidth - totalGap) / columns);
-  }, [containerWidth, columns, gap]);
+  }, [containerWidth, columns, effectiveGap]);
 
   // Virtual list configuration
   const rowCount = Math.ceil(photos.length / columns);
-  const rowHeight = itemSize + gap;
+  const rowHeight = itemSize + effectiveGap;
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -184,13 +194,20 @@ export const VirtualizedGallery = memo(function VirtualizedGallery({
       <div
         ref={containerRef}
         className="overflow-auto"
-        style={{ height: "100%" }}
+        style={{
+          height: "100%",
+          width: "100%",
+          margin: 0,
+          padding: 0,
+        }}
       >
         <div
           style={{
             height: `${totalHeight}px`,
             width: "100%",
             position: "relative",
+            margin: 0,
+            padding: 0,
           }}
         >
           {items.map((virtualRow) => {
@@ -210,8 +227,8 @@ export const VirtualizedGallery = memo(function VirtualizedGallery({
                   transform: `translateY(${virtualRow.start}px)`,
                   display: "grid",
                   gridTemplateColumns: `repeat(${columns}, 1fr)`,
-                  gap: `${gap}px`,
-                  padding: gap > 0 ? `0 0 ${gap}px 0` : 0,
+                  gap: `${effectiveGap}px`,
+                  padding: effectiveGap > 0 ? `0 0 ${effectiveGap}px 0` : 0,
                 }}
               >
                 {rowPhotos.map((photo, colIndex) => {
@@ -221,6 +238,7 @@ export const VirtualizedGallery = memo(function VirtualizedGallery({
                       key={photo.id}
                       photo={photo}
                       aspectRatio={aspectRatio}
+                      seamless={seamless}
                       onClick={() => handlePhotoClick(photo, globalIndex)}
                       onLoad={handlePhotoLoad}
                       renderOverlay={renderOverlay}
@@ -253,6 +271,7 @@ export const VirtualizedGallery = memo(function VirtualizedGallery({
 const PhotoGridItem = memo(function PhotoGridItem({
   photo,
   aspectRatio,
+  seamless,
   onClick,
   onLoad,
   renderOverlay,
@@ -260,14 +279,18 @@ const PhotoGridItem = memo(function PhotoGridItem({
 }: {
   photo: GalleryPhoto;
   aspectRatio: string;
+  seamless?: boolean;
   onClick: () => void;
   onLoad: () => void;
   renderOverlay?: (photo: GalleryPhoto, index: number) => React.ReactNode;
   loadingPlaceholder?: React.ReactNode;
 }) {
+  const borderRadius = seamless ? "0px" : "0.5rem";
+  const wrapperRadius = seamless ? "0px" : "rounded-lg";
+
   return (
     <div
-      className="relative group cursor-pointer overflow-hidden rounded-lg"
+      className={`relative group cursor-pointer overflow-hidden ${wrapperRadius}`}
       style={{ aspectRatio }}
       onClick={onClick}
     >
@@ -276,30 +299,32 @@ const PhotoGridItem = memo(function PhotoGridItem({
         thumbnail={photo.thumbnail}
         alt={photo.alt}
         className="w-full h-full"
-        style={{ borderRadius: "0.5rem" }}
+        style={{ borderRadius }}
         onLoadComplete={onLoad}
         placeholder={
           loadingPlaceholder || (
-            <div className="w-full h-full bg-slate-200 animate-pulse rounded-lg" />
+            <div className={`w-full h-full bg-slate-200 animate-pulse ${wrapperRadius}`} />
           )
         }
       />
 
       {/* Hover overlay */}
       {renderOverlay && (
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg">
+        <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors ${wrapperRadius}`}>
           <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
             {renderOverlay(photo, 0)}
           </div>
         </div>
       )}
 
-      {/* Zoom indicator */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="bg-white/90 rounded-full p-2 shadow-lg">
-          <ZoomIn className="w-5 h-5 text-slate-700" />
+      {/* Zoom indicator - hidden in seamless mode */}
+      {!seamless && (
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-white/90 rounded-full p-2 shadow-lg">
+            <ZoomIn className="w-5 h-5 text-slate-700" />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 });

@@ -2,10 +2,19 @@
  * LazyImage - High Performance Lazy Loading Image Component
  * Uses Intersection Observer for efficient viewport-based loading
  * Supports thumbnails with progressive loading
+ *
+ * FIXED v2: Better photo resolution using sync service
+ *
+ * Performance optimizations:
+ * - Flexible cache key matching
+ * - Progressive thumbnail → full image loading
+ * - IndexedDB + Memory cache
+ * - Efficient state management
+ * - Memory leak prevention
  */
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
-import { photoCacheService } from "../utils/photoCacheService";
+import { getPhoto, setPhoto } from "../utils/photoCacheService";
 
 interface LazyImageProps {
   /** Image source URL or base64 data */
@@ -36,6 +45,14 @@ interface LazyImageProps {
   wrapperStyle?: React.CSSProperties;
   /** Preload the image (start loading immediately) */
   preload?: boolean;
+  /** Unique ID for this photo (for caching) */
+  cacheId?: string;
+  /** Record ID for photo resolution */
+  recordId?: string;
+  /** Field name for photo resolution */
+  photoField?: string;
+  /** Table name for photo resolution */
+  tableName?: string;
 }
 
 interface ImageState {
@@ -48,7 +65,7 @@ interface ImageState {
  * High-performance lazy image with:
  * - Intersection Observer for viewport detection
  * - Progressive loading (thumbnail → full)
- * - IndexedDB caching
+ * - Memory + IndexedDB caching
  * - Placeholder for CLS prevention
  */
 export const LazyImage = memo(function LazyImage({
@@ -66,10 +83,15 @@ export const LazyImage = memo(function LazyImage({
   style,
   wrapperStyle,
   preload = false,
+  cacheId,
+  recordId,
+  photoField,
+  tableName,
 }: LazyImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const resolvedSrcRef = useRef<string | null>(null);
 
   const [state, setState] = useState<ImageState>({
     loaded: false,
@@ -78,6 +100,28 @@ export const LazyImage = memo(function LazyImage({
   });
 
   const [isInView, setIsInView] = useState(preload);
+  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(null);
+
+  // Resolve photo using sync service if we have record info
+  useEffect(() => {
+    if (!recordId || !photoField) {
+      setResolvedPhoto(src);
+      return;
+    }
+
+    // Import sync service dynamically to avoid circular dependency
+    import('../utils/googleSyncService').then(({ googleSyncService }) => {
+      googleSyncService.getRecordPhoto(recordId!, photoField!, src || null, tableName)
+        .then((resolved) => {
+          setResolvedPhoto(resolved || src);
+        })
+        .catch(() => {
+          setResolvedPhoto(src);
+        });
+    }).catch(() => {
+      setResolvedPhoto(src);
+    });
+  }, [recordId, photoField, tableName, src]);
 
   // Setup Intersection Observer
   useEffect(() => {
@@ -116,16 +160,93 @@ export const LazyImage = memo(function LazyImage({
     };
   }, [preload]);
 
+  // Check if photo data looks like a full photo (>80KB)
+  const isFullPhoto = (data: string): boolean => {
+    return data.length > 80000;
+  };
+
   // Load image from cache or network
   const loadImage = useCallback(async (imageSrc: string) => {
     if (!imageSrc) return;
 
     onLoadStart?.();
 
-    // Try cache first
+    // If inline base64, use directly (fastest path)
+    if (imageSrc.startsWith('data:')) {
+      setState({
+        loaded: true,
+        error: false,
+        currentSrc: imageSrc,
+      });
+      onLoadComplete?.();
+
+      // Cache it for next time using cacheId if provided
+      if (useCache && cacheId) {
+        setPhoto(cacheId, imageSrc).catch(() => {});
+      }
+      return;
+    }
+
+    // If URL, load directly
+    if (imageSrc.startsWith('http')) {
+      const img = new Image();
+      img.onload = () => {
+        setState({
+          loaded: true,
+          error: false,
+          currentSrc: imageSrc,
+        });
+        onLoadComplete?.();
+      };
+      img.onerror = () => {
+        setState({
+          loaded: false,
+          error: true,
+          currentSrc: null,
+        });
+        onError?.(`Failed to load: ${imageSrc}`);
+      };
+      img.src = imageSrc;
+      return;
+    }
+
+    // Try cache first with flexible key matching
     if (useCache) {
       try {
-        const cached = await photoCacheService.getPhoto(imageSrc);
+        // Strategy 1: Use cacheId if provided
+        if (cacheId) {
+          const cached = await getPhoto(cacheId);
+          if (cached?.data) {
+            setState({
+              loaded: true,
+              error: false,
+              currentSrc: cached.data,
+            });
+            onLoadComplete?.();
+            return;
+          }
+        }
+
+        // Strategy 2: For PHOTO_REF format, extract and lookup
+        if (imageSrc.startsWith('[PHOTO_REF:')) {
+          const refMatch = imageSrc.match(/\[PHOTO_REF:([^\]]+)\]/);
+          if (refMatch) {
+            const photoId = refMatch[1];
+            const cached = await getPhoto(photoId);
+            if (cached?.data) {
+              setState({
+                loaded: true,
+                error: false,
+                currentSrc: cached.data,
+              });
+              onLoadComplete?.();
+              return;
+            }
+          }
+        }
+
+        // Strategy 3: Direct key lookup using src as key
+        const cached = await getPhoto(imageSrc);
         if (cached?.data) {
           setState({
             loaded: true,
@@ -136,66 +257,58 @@ export const LazyImage = memo(function LazyImage({
           return;
         }
       } catch (_) {
-        // Cache miss, continue with network
+        // Cache miss or error, continue
       }
     }
 
-    // Load from network
-    const img = new Image();
-
-    img.onload = async () => {
-      // Cache the image
-      if (useCache && imageSrc.startsWith('data:')) {
-        try {
-          await photoCacheService.cachePhoto(imageSrc, imageSrc);
-        } catch (_) {}
-      }
-
+    // If we reach here, no cached version found
+    // For photo refs, try to show placeholder
+    if (imageSrc.startsWith('[PHOTO_REF:') || imageSrc.startsWith('photo:')) {
       setState({
-        loaded: true,
-        error: false,
-        currentSrc: imageSrc,
+        loaded: false,
+        error: true,
+        currentSrc: null,
       });
-      onLoadComplete?.();
-    };
+      onError?.('Photo not found in cache');
+      return;
+    }
 
-    img.onerror = () => {
-      // Try fallback if available
-      if (fallbackSrc && fallbackSrc !== imageSrc) {
-        loadImage(fallbackSrc);
-      } else {
-        setState({
-          loaded: false,
-          error: true,
-          currentSrc: null,
-        });
-        onError?.(`Failed to load image: ${imageSrc}`);
-      }
-    };
-
-    img.src = imageSrc;
-  }, [useCache, fallbackSrc, onLoadStart, onLoadComplete, onError]);
+    // Unknown format
+    setState({
+      loaded: false,
+      error: true,
+      currentSrc: null,
+    });
+    onError?.('Unknown image format');
+  }, [useCache, cacheId, onLoadStart, onLoadComplete, onError]);
 
   // Load when in view
   useEffect(() => {
     if (!isInView) return;
 
+    // Use resolved photo (with full image from cache) if available
+    const photoToLoad = resolvedPhoto || src;
+    if (!photoToLoad) return;
+
     // Prioritize thumbnail if available and not yet showing full image
     if (thumbnail && !state.loaded) {
-      // Load thumbnail first
+      // Load thumbnail first with cache check
       const loadThumbnail = async () => {
         try {
-          const cachedThumb = await photoCacheService.getThumbnail(thumbnail);
-          if (cachedThumb) {
+          // Check cache first
+          const cachedThumb = await getPhoto(`thumb_${thumbnail}`);
+          if (cachedThumb?.data) {
             setState((prev) => ({
               ...prev,
-              currentSrc: cachedThumb,
+              currentSrc: cachedThumb.data,
             }));
           } else {
             setState((prev) => ({
               ...prev,
               currentSrc: thumbnail,
             }));
+            // Cache the thumbnail for next time
+            setPhoto(`thumb_${thumbnail}`, thumbnail).catch(() => {});
           }
         } catch (_) {
           setState((prev) => ({
@@ -207,11 +320,22 @@ export const LazyImage = memo(function LazyImage({
       loadThumbnail();
     }
 
-    // Then load full image
-    if (src) {
-      loadImage(src);
+    // Then load full image (use resolvedPhoto if it's full, otherwise use src)
+    if (photoToLoad) {
+      // If resolved photo is full, use it directly
+      if (photoToLoad.startsWith('data:image') && isFullPhoto(photoToLoad)) {
+        setState({
+          loaded: true,
+          error: false,
+          currentSrc: photoToLoad,
+        });
+        onLoadComplete?.();
+      } else {
+        // Try to load full image
+        loadImage(photoToLoad);
+      }
     }
-  }, [isInView, src, thumbnail, state.loaded, loadImage]);
+  }, [isInView, src, thumbnail, state.loaded, loadImage, resolvedPhoto]);
 
   // Generate placeholder with aspect ratio
   const aspectRatioStyle = aspectRatio

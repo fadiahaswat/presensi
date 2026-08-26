@@ -1,7 +1,7 @@
 /**
  * IZIN SEDAYU REAL-TIME CLOUD SYNC ADAPTER
  * Sinkronisasi Dua Arah Langsung ke Google Sheet Izin Sedayu Backend (Code.gs)
- * Endpoint: https://script.google.com/macros/s/AKfycbwQnacuM2ZsgWYP20M9Gjwi--adZsNxzJk14IyH2l8iBuv_tKZCPPrYKdLeJhZhU7iz/exec
+ * Optimized for reliability and efficiency
  */
 
 import { SantriIzinRecord, JenisIzinSantri, StatusApprovalSantri, StatusPKM } from "../types/izinSantri";
@@ -10,6 +10,128 @@ import { ALL_SANTRI_DATA } from "../data/santriData";
 export const IZIN_SEDAYU_GAS_URL = "https://script.google.com/macros/s/AKfycbzulnnHPTuqMZ6FwkLb1_3ZKgH5HzYvm1zgG1MaxYeXKKoT0BL6W89q8hDmChB5S94aHQ/exec";
 export const STORAGE_KEY_SANTRI_IZIN = "presensi_santri_izin_v5";
 export const STORAGE_KEY_LAST_FETCH = "izin_last_fetch_time";
+
+// === OPTIMIZED CONFIG ===
+const FETCH_TIMEOUT = 20000; // 20 detik - lebih lama untuk data izin
+const MAX_RETRIES = 3; // More retries for reliability
+const RETRY_BASE_DELAY = 1000; // Slightly longer initial retry
+const HEALTH_CHECK_TIMEOUT = 5000;
+
+// === CONNECTION HEALTH ===
+let isHealthy: boolean = true;
+let consecutiveFailures: number = 0;
+const maxConsecutiveFailures: number = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Quick connectivity check
+ */
+export async function checkIzinConnection(): Promise<boolean> {
+  if (!navigator.onLine) {
+    isHealthy = false;
+    return false;
+  }
+
+  try {
+    const pingUrl = `${IZIN_SEDAYU_GAS_URL}?action=ping&_t=${Date.now()}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
+
+    const res = await fetch(pingUrl, { method: "GET", mode: "cors", signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      isHealthy = true;
+      consecutiveFailures = 0;
+      return true;
+    }
+  } catch (_) {}
+
+  consecutiveFailures++;
+  isHealthy = consecutiveFailures < maxConsecutiveFailures;
+  return isHealthy;
+}
+
+/**
+ * Get current connection health status
+ */
+export function getIzinConnectionHealth(): "good" | "degraded" | "poor" {
+  return isHealthy ? "good" : consecutiveFailures < 3 ? "degraded" : "poor";
+}
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  operation: string,
+  timeoutMs: number = FETCH_TIMEOUT,
+  maxAttempts: number = MAX_RETRIES
+): Promise<Response | null> {
+  // Skip if unhealthy
+  if (!isHealthy && consecutiveFailures >= maxConsecutiveFailures) {
+    console.debug(`[IzinSync] Skipping ${operation} - poor connection health`);
+    return null;
+  }
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      if (attempt > 0) {
+        const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+        console.log(`[IzinSync] ${operation} - retry ${attempt + 1}/${maxAttempts} in ${delay}ms...`);
+        await sleep(delay);
+      }
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        consecutiveFailures = 0;
+        isHealthy = true;
+        return response;
+      }
+
+      if (response.status === 429 || response.status >= 500) {
+        lastError = new Error(`HTTP ${response.status}`);
+        continue;
+      }
+
+      throw new Error(`HTTP ${response.status}`);
+
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      lastError = err;
+
+      if (err.name === 'AbortError') {
+        console.warn(`[IzinSync] ${operation} - timeout after ${timeoutMs}ms`);
+        if (attempt === maxAttempts - 1) {
+          handleFailure();
+          break;
+        }
+      } else if (attempt === maxAttempts - 1) {
+        handleFailure();
+        break;
+      }
+    }
+  }
+
+  return null;
+}
+
+function handleFailure() {
+  consecutiveFailures++;
+  isHealthy = consecutiveFailures < maxConsecutiveFailures;
+}
 
 export interface IzinSedayuRow {
   idIzin: string;
@@ -30,14 +152,13 @@ export interface IzinSedayuRow {
   hubunganPenjemput?: string;
   rekomendasiPoskestren?: string;
   pemberiIzin?: string;
-  status: string; // PENDING, APPROVED, REJECTED, RETURNED, CHECKED_OUT
+  status: string;
   catatanAdmin?: string;
   userEmail?: string;
   userRole?: string;
   timestampUpdate?: string;
 }
 
-// Convert Izin Sedayu raw row to Presensi SantriIzinRecord
 export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
   const normalizeStatusApproval = (st?: string): StatusApprovalSantri => {
     const s = String(st || "").trim().toLowerCase();
@@ -59,7 +180,6 @@ export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
   const resolvedStatusApproval = normalizeStatusApproval(rawStatus);
   const resolvedStatusPKM = normalizeStatusPKM(row.status, row.statusPKM);
 
-  // If already in Presensi SantriIzinRecord format
   if (row.tglKeluarRencana || row.santriId) {
     const foto = row.photoUrl || row.fotoSantriUrl || row.lampiranUrl || "";
     return {
@@ -81,14 +201,12 @@ export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
     return "keluar_biasa";
   };
 
-  // Format date helper
   const cleanDate = (d?: string): string => {
     if (!d || d.includes("1899-12-30")) return new Date().toISOString().split("T")[0];
     if (d.includes("T")) return d.split("T")[0];
     return d;
   };
 
-  // Format time helper
   const cleanTime = (t?: string): string => {
     if (!t) return "17:00";
     if (t.includes("1899-12-30")) {
@@ -99,7 +217,6 @@ export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
     return m ? m[1].padStart(5, "0") : t;
   };
 
-  // Lookup in master santri dataset for accurate room/dormitory resolution
   const rawName = (row.namaSantri || "").trim().toLowerCase();
   const matchedSantri = ALL_SANTRI_DATA.find(s => {
     if (!s.nama) return false;
@@ -148,7 +265,6 @@ export function mapIzinSedayuToRecord(row: any): SantriIzinRecord {
   };
 }
 
-// Convert Presensi SantriIzinRecord to Izin Sedayu raw row payload
 export function mapRecordToIzinSedayuPayload(rec: SantriIzinRecord): any {
   const mapJenisLabel = (j: JenisIzinSantri): string => {
     switch (j) {
@@ -198,8 +314,6 @@ export function mapRecordToIzinSedayuPayload(rec: SantriIzinRecord): any {
   };
 }
 
-// Fetch all permissions directly from Izin Sedayu Google Sheet with timeout & resilient fallback
-// Fetch all permissions directly from Google Sheet with timeout & resilient fallback
 export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
   const getCachedRecords = (): SantriIzinRecord[] => {
     try {
@@ -207,6 +321,7 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) {
+          console.log(`[IzinSync] Using ${parsed.length} cached izin records`);
           return parsed;
         }
       }
@@ -215,21 +330,20 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
   };
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
+    console.log('[IzinSync] Offline - using cached data');
     return getCachedRecords();
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
-
   try {
-    const res = await fetch(`${IZIN_SEDAYU_GAS_URL}?action=get_table&table=SantriIzin`, {
-      method: "GET",
-      redirect: "follow",
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+    // OPTIMIZATION: Use lastModified from cache to avoid unnecessary fetches
+    const lastFetch = localStorage.getItem(STORAGE_KEY_LAST_FETCH);
+    const url = `${IZIN_SEDAYU_GAS_URL}?action=get_table&table=SantriIzin${lastFetch ? `&since=${encodeURIComponent(lastFetch)}` : ''}`;
+    console.log(`[IzinSync] fetchIzinSedayu - fetching from cloud...`);
+    const res = await fetchWithRetry(url, { method: "GET", redirect: "follow" }, 'fetchIzinSedayu', FETCH_TIMEOUT);
 
-    if (!res.ok) {
+    if (!res) {
+      // Return cached on failure
+      console.warn('[IzinSync] fetchIzinSedayu - no response, using cached');
       return getCachedRecords();
     }
 
@@ -246,25 +360,21 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
           if (json.meta?.lastModified) {
             localStorage.setItem(STORAGE_KEY_LAST_FETCH, String(json.meta.lastModified));
           }
+          console.log(`[IzinSync] fetchIzinSedayu - success, ${mapped.length} records cached`);
         } catch (_) {}
         return mapped;
       }
     }
   } catch (err: any) {
-    clearTimeout(timeoutId);
-    // Graceful silent fallback to cached records without throwing
-    return getCachedRecords();
+    console.warn(`[IzinSync] fetchIzinSedayu - error: ${err.message}, using cached`);
   }
   return getCachedRecords();
 }
 
-// Create new permission in Google Sheet
 export async function createIzinSedayuInCloud(rec: SantriIzinRecord): Promise<boolean> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-  try {
-    const res = await fetch(IZIN_SEDAYU_GAS_URL, {
+  const res = await fetchWithRetry(
+    IZIN_SEDAYU_GAS_URL,
+    {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
@@ -272,21 +382,22 @@ export async function createIzinSedayuInCloud(rec: SantriIzinRecord): Promise<bo
         table: "SantriIzin",
         records: [rec]
       }),
-      redirect: "follow",
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+      redirect: "follow"
+    },
+    'createIzin'
+  );
 
-    if (!res.ok) return false;
+  if (!res) return false;
+
+  try {
     const json = await res.json();
     return json.status === "success";
   } catch (err) {
-    clearTimeout(timeoutId);
+    console.warn('[IzinSync] createIzinSedayuInCloud failed:', err);
     return false;
   }
 }
 
-// Update status in Google Sheet
 export async function updateIzinSedayuStatusInCloud(
   idIzin: string,
   status: "PENDING" | "APPROVED" | "REJECTED" | "CHECKED_OUT" | "RETURNED",
@@ -295,9 +406,6 @@ export async function updateIzinSedayuStatusInCloud(
   userEmail?: string,
   userRole?: string
 ): Promise<boolean> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
   try {
     const cached = localStorage.getItem(STORAGE_KEY_SANTRI_IZIN);
     let targetRecord: SantriIzinRecord | null = null;
@@ -318,24 +426,27 @@ export async function updateIzinSedayuStatusInCloud(
       updatedAt: new Date().toISOString()
     };
 
-    const res = await fetch(IZIN_SEDAYU_GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "batch_upsert",
-        table: "SantriIzin",
-        records: [payloadRecord]
-      }),
-      redirect: "follow",
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+    const res = await fetchWithRetry(
+      IZIN_SEDAYU_GAS_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "batch_upsert",
+          table: "SantriIzin",
+          records: [payloadRecord]
+        }),
+        redirect: "follow"
+      },
+      'updateStatus'
+    );
 
-    if (!res.ok) return false;
+    if (!res) return false;
+
     const json = await res.json();
     return json.status === "success";
   } catch (err) {
-    clearTimeout(timeoutId);
+    console.warn('[IzinSync] updateIzinSedayuStatusInCloud failed:', err);
     return false;
   }
 }

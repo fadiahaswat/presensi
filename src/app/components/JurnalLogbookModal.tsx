@@ -5,7 +5,7 @@ import {
   MapPin, Footprints, Navigation, RefreshCw, AlertTriangle, Play, ChevronLeft, Lock,
   Moon, BookOpen, Stethoscope, DoorClosed, Sun, Bed, GraduationCap, Award,
   Sunrise, Sunset, Star, Camera, Image as ImageIcon, Trash2, Maximize2, ClipboardList,
-  Users
+  Users, Heart
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -17,6 +17,7 @@ import { compressAndWatermarkImage } from "../utils/imageCompressor";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { AgendaRapatRecord } from "../types/agendaRapat";
+import { generatePhotoThumbnail } from "../utils/photoThumbnailService"; // OPTIMIZATION: Thumbnail generation
 
 export interface LogbookTaskItem {
   done: boolean;
@@ -70,11 +71,13 @@ interface JurnalLogbookModalProps {
   onResetLogbook?: (musyrifId: string, date: string) => void;
   onOpenSantriSakit?: () => void;
   onOpenAgendaRapat?: () => void;
+  onOpenMutabaah?: () => void;
   agendaList?: AgendaRapatRecord[];
   isPage?: boolean;
   initialMusyrifId?: string;
   initialDate?: string;
   initialTaskKey?: string;
+  initialGpsResult?: GeofenceResult | null;
 }
 
 export interface TaskDefinition {
@@ -546,11 +549,13 @@ export function JurnalLogbookModal({
   onResetLogbook,
   onOpenSantriSakit,
   onOpenAgendaRapat,
+  onOpenMutabaah,
   agendaList = [],
   isPage = false,
   initialMusyrifId,
   initialDate,
-  initialTaskKey
+  initialTaskKey,
+  initialGpsResult
 }: JurnalLogbookModalProps) {
   const isKoordinatorMusyrif = authUser?.role === "koordinator_musyrif";
   const isKoorGedung = authUser?.role === "koordinator_gedung";
@@ -646,9 +651,9 @@ export function JurnalLogbookModal({
   const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
   const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string } | null>(null);
 
-  // GPS Geofence Check State
+  // GPS Geofence Check State - use pre-checked GPS if available
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
-  const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
+  const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(initialGpsResult ?? null);
 
   const selectedMusyrif = musyrifList.find(m => m.id === selectedMusyrifId) || null;
   const asramaTarget = selectedMusyrif?.asrama || "Asrama 1";
@@ -877,6 +882,22 @@ export function JurnalLogbookModal({
       setActiveCameraTask(null);
       triggerHaptic("success");
 
+      // OPTIMIZATION: Cache full photo in IndexedDB for reliable photo sync
+      // This ensures we have the full photo even if cloud returns thumbnails
+      // Use consistent key format: logbook_{musyrifId}_{date}_{taskKey}_photoUrl
+      const photoId = `logbook_${selectedMusyrifId}_${selectedDate}_${key}_photoUrl`;
+      generatePhotoThumbnail(photoId, base64).catch(() => {});
+
+      // Also cache using googleSyncService for consistent key format
+      import('../utils/googleSyncService').then(({ googleSyncService }) => {
+        googleSyncService.cacheRecordPhoto(
+          `${selectedMusyrifId}_${selectedDate}_${key}`,
+          'photoUrl',
+          base64,
+          'logbook'
+        ).catch(() => {});
+      }).catch(() => {});
+
       if (isPatrolRequired && !hasEnoughSteps) {
         appAlert(`Foto bukti kegiatan berhasil disimpan! Tugas "${taskDef.title}" masih memerlukan patroli langkah (minimal ${taskDef.targetSteps || 200} langkah).`, "Wajib Patroli Langkah", "info");
       }
@@ -1100,6 +1121,29 @@ export function JurnalLogbookModal({
           </button>
         )}
       </div>
+
+      {/* Logbook / Mutabaah Toggle Row */}
+      {onOpenMutabaah && isPage && (
+        <div className="flex justify-center">
+          <div className="inline-flex bg-white rounded-full border border-slate-200/60 shadow-sm p-1">
+            <button
+              type="button"
+              className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-150 flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm"
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Logbook</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenMutabaah}
+              className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-150 flex items-center gap-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-50"
+            >
+              <Heart className="w-3.5 h-3.5" />
+              <span>Mutabaah</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* GPS Status Banner (Only for standard Musyrif & Koor Gedung doing self-input) */}
       {!isCanBypass && selectedMusyrif && (

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { 
-  X, Check, Flame, Award, BookOpen, 
+import {
+  X, Check, Flame, Award, BookOpen,
   Sparkles, Calendar, TrendingUp, Sun, Moon, Heart, ChevronRight, User, ShieldCheck, Eye, CheckCircle2,
-  ChevronLeft, Sunrise, Sunset, BookMarked, Lock
+  ChevronLeft, Sunrise, Sunset, BookMarked, Lock, ClipboardList
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -38,6 +38,7 @@ interface MutabaahYaumiyahModalProps {
   mutabaahData: MutabaahStorage;
   onSaveMutabaah: (musyrifId: string, date: string, entry: MutabaahEntry) => void;
   onResetMutabaah?: (musyrifId: string, date: string) => void;
+  onOpenLogbook?: () => void;
   isPage?: boolean;
   initialMusyrifId?: string;
   initialDate?: string;
@@ -61,6 +62,7 @@ export function MutabaahYaumiyahModal({
   mutabaahData,
   onSaveMutabaah,
   onResetMutabaah,
+  onOpenLogbook,
   isPage = false,
   initialMusyrifId,
   initialDate
@@ -251,12 +253,12 @@ export function MutabaahYaumiyahModal({
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
       {/* Header Bar */}
       <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${
-        isPage 
-          ? "bg-white rounded-3xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60" 
+        isPage
+          ? "bg-white rounded-3xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60"
           : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"
       }`}>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             type="button"
             onClick={onClose}
             aria-label="Kembali ke Dashboard"
@@ -287,6 +289,29 @@ export function MutabaahYaumiyahModal({
           </button>
         )}
       </div>
+
+      {/* Logbook / Mutabaah Toggle Row */}
+      {onOpenLogbook && isPage && (
+        <div className="flex justify-center">
+          <div className="inline-flex bg-white rounded-full border border-slate-200/60 shadow-sm p-1">
+            <button
+              type="button"
+              onClick={onOpenLogbook}
+              className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-150 flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50"
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Logbook</span>
+            </button>
+            <button
+              type="button"
+              className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-150 flex items-center gap-1.5 bg-rose-500 text-white shadow-sm"
+            >
+              <Heart className="w-3.5 h-3.5" />
+              <span>Mutabaah</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Date & Musyrif Controls & Progress */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">

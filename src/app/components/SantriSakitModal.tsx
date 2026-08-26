@@ -129,6 +129,9 @@ export function SantriSakitModal({
       const compressed = await compressAndWatermarkImage(file);
       setFormPhotoUrl(compressed);
       triggerHaptic("medium");
+
+      // OPTIMIZATION: Cache photo in IndexedDB for reliable photo sync
+      // Will be cached with record ID when saving
     } catch {
       appAlert("Gagal memproses dan mengompres foto.", "Peringatan", "error");
     } finally {
@@ -335,10 +338,23 @@ export function SantriSakitModal({
     };
 
     onSaveSantriSakit(recordToSave);
+
+    // OPTIMIZATION: Cache photo in IndexedDB for reliable photo sync
+    if (formPhotoUrl && formPhotoUrl.startsWith('data:image')) {
+      import('../utils/googleSyncService').then(({ googleSyncService }) => {
+        googleSyncService.cacheRecordPhoto(
+          recordToSave.id,
+          'photoUrl',
+          formPhotoUrl,
+          'santrisakit'
+        ).catch(() => {});
+      }).catch(() => {});
+    }
+
     triggerHaptic("medium");
     appAlert(
-      editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan. Anda dapat langsung menyalin laporan untuk dikirim ke WA.", 
-      "Berhasil Disimpan", 
+      editingRecord ? "Data santri sakit berhasil diperbarui." : "Catatan santri sakit berhasil ditambahkan. Anda dapat langsung menyalin laporan untuk dikirim ke WA.",
+      "Berhasil Disimpan",
       "success"
     );
     resetForm();

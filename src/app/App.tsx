@@ -9,7 +9,8 @@ import {
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send,
-  Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet, Eye
+  Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet, Eye,
+  List, LayoutGrid
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -37,6 +38,7 @@ import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { SantriChangeRequest } from "./types/santriRequest";
 import { CloudSyncBadge } from "./components/CloudSyncBadge";
 import { AppSkeleton } from "./components/AppSkeleton";
+import { useDebouncedPersistence, createDebouncedSave } from "./hooks/useDebouncedPersistence"; // OPTIMIZATION: Efficient persistence
 
 // Dynamic Code Splitting for Heavy Modals & Subpages
 const WhatsAppShareModal = lazy(() => import("./components/WhatsAppShareModal").then(m => ({ default: m.WhatsAppShareModal })));
@@ -161,6 +163,61 @@ export function calcPrayerTimes(date: Date, lat = -7.807631, lon = 110.350905, t
     { key:"maghrib", name:"Maghrib", time: fmt(maghribRaw), raw: maghribRaw },
     { key:"isha",    name:"Isya",    time: fmt(ishaRaw),    raw: ishaRaw },
   ];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRESENSI TIME CONFIGURATOR (Dynamic based on Prayer Time)
+// ─────────────────────────────────────────────────────────────────────────────
+// Konfigurasi waktu presensi: 15 menit SEBELUM waktu sholat
+const PRESENSI_OPEN_BEFORE_MINUTES = 15; // Buka 15 menit sebelum sholat
+const PRESENSI_CLOSE_HOURS_SUBUH = 6.0;  // Tutup jam 06:00 WIB
+const PRESENSI_CLOSE_HOURS_MAGHRIB = 19.5; // Tutup jam 19:30 WIB
+
+export interface PresensiTimeWindow {
+  openTime: number;      // Decimal hour (e.g., 4.25 = 04:15)
+  closeTime: number;     // Decimal hour (e.g., 6.0 = 06:00)
+  openDisplay: string;   // "04:15"
+  closeDisplay: string;  // "06:00"
+  prayerTime: number;    // Raw prayer time decimal (e.g., 4.5 = 04:30)
+  prayerDisplay: string; // "04:30"
+}
+
+/**
+ * Hitung jendela waktu presensi berdasarkan waktu sholat
+ * Buka: 15 menit SEBELUM waktu sholat
+ * Tutup: jam 06:00 (Subuh) atau 19:30 (Maghrib)
+ */
+export function getPresensiTimeWindow(
+  slot: PrayerSlot,
+  date: Date = new Date()
+): PresensiTimeWindow {
+  const prayerTimes = calcPrayerTimes(date, -7.807631, 110.350905, 7);
+  const prayerObj = prayerTimes.find(p => p.key === slot);
+
+  // Get raw prayer time (decimal hours)
+  const prayerRaw = prayerObj?.raw ?? (slot === "subuh" ? 4.5 : 17.75);
+
+  // Open time: 15 minutes before prayer time
+  const openTime = prayerRaw - (PRESENSI_OPEN_BEFORE_MINUTES / 60);
+
+  // Close time: fixed hours
+  const closeTime = slot === "subuh" ? PRESENSI_CLOSE_HOURS_SUBUH : PRESENSI_CLOSE_HOURS_MAGHRIB;
+
+  // Format helpers
+  const fmtHour = (h: number): string => {
+    const hour = Math.floor(h);
+    const min = Math.round((h - hour) * 60);
+    return `${String(hour).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+  };
+
+  return {
+    openTime,
+    closeTime,
+    openDisplay: fmtHour(openTime),
+    closeDisplay: fmtHour(closeTime),
+    prayerTime: prayerRaw,
+    prayerDisplay: prayerObj?.time ?? fmtHour(prayerRaw),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1223,8 +1280,8 @@ function PageDashboard({
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {/* Subuh Action Card */}
           {(() => {
-            const subuhOpenTime = 4.0; // Buka jam 04:00 WIB
-            const isSubuhLocked = nowH < subuhOpenTime;
+            const subuhWindow = getPresensiTimeWindow("subuh", liveNow);
+            const isSubuhLocked = nowH < subuhWindow.openTime;
             const myMid = authUser.musyrifId || authUser.id;
             const mySubuhRec = todayRecs.find(r => r.musyrifId === myMid);
             const isMySubuhHadir = mySubuhRec?.subuh === "hadir";
@@ -1245,12 +1302,12 @@ function PageDashboard({
                     {isSubuhLocked ? <Lock className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
-                    {authUser.role === "musyrif" 
-                      ? (isMySubuhHadir ? "Hadir ✓" : mySubuhStatus ? mySubuhStatus.toUpperCase() : "Belum") 
+                    {authUser.role === "musyrif"
+                      ? (isMySubuhHadir ? "Hadir ✓" : mySubuhStatus ? mySubuhStatus.toUpperCase() : "Belum")
                       : `${sh}/${total}`}
                   </span>
                 </div>
-                
+
                 <div>
                   <p className="font-extrabold text-base leading-tight tracking-tight">Presensi Subuh</p>
                   <div className="flex items-center gap-1.5 mt-1">
@@ -1263,12 +1320,12 @@ function PageDashboard({
                         ? "bg-amber-950/30 text-amber-100"
                         : "bg-emerald-950/30 text-emerald-100"
                     }`}>
-                      {isSubuhLocked 
-                        ? "🔒 Buka 04:00 WIB" 
+                      {isSubuhLocked
+                        ? `🔒 Buka ${subuhWindow.openDisplay} WIB`
                         : authUser.role === "musyrif"
                         ? (isMySubuhHadir ? "Sudah Hadir ✓" : "Isi Presensi Subuh →")
-                        : belumS.length > 0 
-                        ? `${belumS.length} belum terisi` 
+                        : belumS.length > 0
+                        ? `${belumS.length} belum terisi`
                         : "Lengkap ✓"}
                     </span>
                   </div>
@@ -1276,8 +1333,8 @@ function PageDashboard({
 
                 {/* Progress bar inside card */}
                 <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
-                  <div 
-                    className="bg-white h-full rounded-full transition-all duration-500" 
+                  <div
+                    className="bg-white h-full rounded-full transition-all duration-500"
                     style={{ width: authUser.role === "musyrif" ? (isMySubuhHadir ? "100%" : "0%") : `${total ? (sh / total) * 100 : 0}%` }}
                   />
                 </div>
@@ -1287,8 +1344,8 @@ function PageDashboard({
 
           {/* Maghrib Action Card */}
           {(() => {
-            const maghribOpenTime = 17.0; // Buka jam 17:00 WIB (5 sore)
-            const isMaghribLocked = nowH < maghribOpenTime;
+            const maghribWindow = getPresensiTimeWindow("maghrib", liveNow);
+            const isMaghribLocked = nowH < maghribWindow.openTime;
             const myMid = authUser.musyrifId || authUser.id;
             const myMaghribRec = todayRecs.find(r => r.musyrifId === myMid);
             const isMyMaghribHadir = myMaghribRec?.maghrib === "hadir";
@@ -1309,8 +1366,8 @@ function PageDashboard({
                     {isMaghribLocked ? <Lock className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
-                    {authUser.role === "musyrif" 
-                      ? (isMyMaghribHadir ? "Hadir ✓" : myMaghribStatus ? myMaghribStatus.toUpperCase() : "Belum") 
+                    {authUser.role === "musyrif"
+                      ? (isMyMaghribHadir ? "Hadir ✓" : myMaghribStatus ? myMaghribStatus.toUpperCase() : "Belum")
                       : `${mh}/${total}`}
                   </span>
                 </div>
@@ -1327,12 +1384,12 @@ function PageDashboard({
                         ? "bg-cyan-950/40 text-cyan-100"
                         : "bg-sky-950/40 text-sky-100"
                     }`}>
-                      {isMaghribLocked 
-                        ? "🔒 Buka 17:00 WIB" 
+                      {isMaghribLocked
+                        ? `🔒 Buka ${maghribWindow.openDisplay} WIB`
                         : authUser.role === "musyrif"
                         ? (isMyMaghribHadir ? "Sudah Hadir ✓" : "Isi Presensi Maghrib →")
-                        : belumM.length > 0 
-                        ? `${belumM.length} belum terisi` 
+                        : belumM.length > 0
+                        ? `${belumM.length} belum terisi`
                         : "Lengkap ✓"}
                     </span>
                   </div>
@@ -2824,22 +2881,18 @@ function PageInputPrayer({
 
   const isSubuh = slot === "subuh";
 
-  // Calculate prayer times for selected date & check locking
-  const prayerTimesForSelDate = calcPrayerTimes(parseISO(selDate), -7.807631, 110.350905, 7);
-  const targetPrayerObj = prayerTimesForSelDate.find(p => p.key === slot);
-  const prayerTimeStr = targetPrayerObj?.time || (isSubuh ? "04:30" : "17:45");
+  // Calculate dynamic presensi time window based on prayer time (15 min before)
+  const presensiWindow = getPresensiTimeWindow(slot, parseISO(selDate));
+  const openTimeRaw = presensiWindow.openTime;
+  const openTimeDisplayStr = presensiWindow.openDisplay;
+  const closeTimeRaw = presensiWindow.closeTime;
+  const closeTimeDisplayStr = presensiWindow.closeDisplay;
+  const prayerTimeStr = presensiWindow.prayerDisplay;
 
   const now = new Date();
   const curDecimal = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const isTodayDate = selDate === todayStr();
   const isFuture = selDate > todayStr();
-
-  // Presensi Subuh buka jam 04:00 WIB dan Maghrib jam 17:00 WIB
-  const openTimeRaw = isSubuh ? 4.0 : 17.0;
-  const openTimeDisplayStr = isSubuh ? "04:00" : "17:00";
-  // Waktu tutup presensi mandiri musyrif: Subuh 06:00 WIB, Maghrib 19:30 WIB
-  const closeTimeRaw = isSubuh ? 6.0 : 19.5;
-  const closeTimeDisplayStr = isSubuh ? "06:00" : "19:30";
 
   const isNotYetTime = isTodayDate && curDecimal < openTimeRaw;
   const isPastTimeMusyrif = isMusyrifOrKoorGedung && isTodayDate && curDecimal > closeTimeRaw;
@@ -2906,7 +2959,8 @@ function PageInputPrayer({
         {/* Top title & Tab Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div 
+            <Av name={authUser.name} src={authUser.picture} sz="md" />
+            <div
               className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0 transition-colors duration-150 ${
                 isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-[#0C4E8C] text-white shadow-sky-950/25"
               }`}
@@ -3086,7 +3140,7 @@ function PageInputPrayer({
               </span>
             </div>
             <p className="text-xs text-rose-700/90 mt-1 leading-relaxed">
-              Jadwal ibadah {isSubuh ? "Subuh" : "Maghrib"} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> ({isSubuh ? "jam 4 pagi" : "jam 5 sore"}).
+              Jadwal ibadah {isSubuh ? "Subuh" : "Maghrib"} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> (15 menit sebelum sholat).
             </p>
           </div>
         </div>
@@ -3741,15 +3795,16 @@ function PageRekap({
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: RIWAYAT
 // ─────────────────────────────────────────────────────────────────────────────
-function PageRiwayat({ 
-  records, 
+function PageRiwayat({
+  records,
   logbookData = {},
   mutabaahData = {},
   izinList = [],
   kegiatanRecords = [],
-  authUser, 
-  onLogin, 
-  initialMusyrifId, 
+  agendaRapatList = [],
+  authUser,
+  onLogin,
+  initialMusyrifId,
   onSelectMusyrifId,
   onMark,
   showToast,
@@ -3760,6 +3815,7 @@ function PageRiwayat({
   mutabaahData?: MutabaahStorage;
   izinList?: IzinRequest[];
   kegiatanRecords?: KegiatanRecord[];
+  agendaRapatList?: AgendaRapatRecord[];
   authUser: AuthUser | null;
   onLogin: () => void;
   initialMusyrifId?: string | null;
@@ -3933,16 +3989,57 @@ function PageRiwayat({
   }, [musyrifIzinList]);
 
   // Kegiatan / Rapat data for current musyrif
+  // Merge: kegiatanRecords (manual) + agenda rapat from logbookData (dynamic logbook agenda)
   const musyrifKegiatanList = useMemo(() => {
-    return (kegiatanRecords || [])
-      .filter(k => musyrif && ((k.attendees && musyrif.id in k.attendees) || k.asrama === musyrif.asrama))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [kegiatanRecords, musyrif]);
+    const merged: any[] = [];
+
+    // 1. Regular kegiatan records
+    (kegiatanRecords || []).forEach(k => {
+      if (musyrif && ((k.attendees && musyrif.id in k.attendees) || k.asrama === musyrif.asrama)) {
+        merged.push({ ...k, _source: "kegiatan" });
+      }
+    });
+
+    // 2. Agenda rapat from agendaRapatList + logbookData
+    (agendaRapatList || []).forEach(ag => {
+      if (musyrif && Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(musyrif.id)) {
+        const taskKey = `agenda_${ag.id}`;
+        const dayLogbook = logbookData?.[musyrif.id]?.[ag.date];
+        const taskEntry = dayLogbook?.[taskKey];
+        const isDone = Boolean(taskEntry?.done);
+        merged.push({
+          id: ag.id,
+          _source: "agenda_rapat",
+          // Normalize fields to match KegiatanRecord shape
+          activityType: ag.category === "pengajian" ? "kajian" : ag.category === "briefing" ? "apel" : "kajian",
+          activityTitle: ag.title,
+          date: ag.date,
+          asrama: ag.locationName,
+          notes: ag.notes,
+          createdByName: ag.createdByName,
+          startTime: ag.startTime,
+          endTime: ag.endTime,
+          // Attendance
+          _agendaRapatDone: isDone,
+          _agendaRapatPhotoUrl: taskEntry?.photoUrl,
+          _agendaRapatCompletedAt: taskEntry?.completedAt,
+          _agendaRapatGpsVerified: Boolean(taskEntry?.gpsVerified),
+        });
+      }
+    });
+
+    return merged.sort((a, b) => b.date.localeCompare(a.date));
+  }, [kegiatanRecords, agendaRapatList, logbookData, musyrif]);
 
   const kegiatanStats = useMemo(() => {
     let hadir = 0, izin = 0, sakit = 0, alfa = 0;
     musyrifKegiatanList.forEach(k => {
-      const st = musyrif ? k.attendees?.[musyrif.id] : undefined;
+      let st: string | undefined;
+      if (k._source === "agenda_rapat") {
+        st = k._agendaRapatDone ? "hadir" : undefined;
+      } else {
+        st = musyrif ? k.attendees?.[musyrif.id] : undefined;
+      }
       if (st === "hadir") hadir++;
       else if (st === "izin") izin++;
       else if (st === "sakit") sakit++;
@@ -5124,11 +5221,18 @@ function PageRiwayat({
               }/>
             ) : (
               musyrifKegiatanList.map(keg => {
-                const myStatus = musyrif ? (keg.attendees?.[musyrif.id] || "belum") : "belum";
+                let myStatus: string;
+                let agendaCategory: string = "";
+                if (keg._source === "agenda_rapat") {
+                  myStatus = keg._agendaRapatDone ? "hadir" : "belum";
+                  agendaCategory = keg.activityType === "kajian" ? "Pengajian" : keg.activityType === "apel" ? "Briefing" : "Rapat";
+                } else {
+                  myStatus = musyrif ? (keg.attendees?.[musyrif.id] || "belum") : "belum";
+                }
                 const typeLabels: Record<string, string> = {
                   tahfidz: "Tahfidz Al-Qur'an",
-                  kajian: "Kajian & Rapat Asrama",
-                  apel: "Apel / Upacara",
+                  kajian: agendaCategory || "Kajian & Rapat Asrama",
+                  apel: agendaCategory || "Apel / Upacara",
                   piket: "Piket & Gotong Royong"
                 };
 
@@ -5137,16 +5241,28 @@ function PageRiwayat({
                     <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800">
-                            {typeLabels[keg.activityType] || keg.activityType}
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            keg._source === "agenda_rapat"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-teal-100 text-teal-800"
+                          }`}>
+                            {keg._source === "agenda_rapat" ? agendaCategory : typeLabels[keg.activityType] || keg.activityType}
                           </span>
                           <span className="text-xs font-bold text-slate-800">
                             {keg.activityTitle}
                           </span>
+                          {keg._source === "agenda_rapat" && keg.startTime && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {keg.startTime}–{keg.endTime} WIB
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-500 font-mono mt-1">
                           📅 {format(parseISO(keg.date), "EEEE, d MMMM yyyy", { locale: id })} · 📍 {keg.asrama}
                         </p>
+                        {keg._source === "agenda_rapat" && keg._agendaRapatGpsVerified && (
+                          <span className="text-[10px] text-blue-600 font-bold mt-0.5 block">✓ GPS Valid</span>
+                        )}
                       </div>
 
                       <span className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold shrink-0 font-mono ${
@@ -5156,13 +5272,13 @@ function PageRiwayat({
                         myStatus === "alfa"  ? "bg-rose-100 text-rose-800 border border-rose-200" :
                         "bg-slate-100 text-slate-600 border border-slate-200"
                       }`}>
-                        {myStatus === "hadir" ? "✓ Hadir" : myStatus === "izin" ? "📋 Izin" : myStatus === "sakit" ? "🏥 Sakit" : myStatus === "alfa" ? "✕ Alpa" : "Belum Diisi"}
+                        {myStatus === "hadir" ? "✓ Hadir" : myStatus === "izin" ? "📋 Izin" : myStatus === "sakit" ? "🏥 Sakit" : myStatus === "alfa" ? "✕ Alpa" : "⏳ Belum Presensi"}
                       </span>
                     </div>
 
                     {keg.notes && (
                       <div className="bg-slate-50 rounded-2xl p-2.5 text-xs text-slate-600 border border-slate-100 font-mono">
-                        <strong className="text-slate-700 font-sans">Catatan Agenda:</strong> "{keg.notes}"
+                        <strong className="text-slate-700 font-sans">Catatan:</strong> "{keg.notes}"
                       </div>
                     )}
                   </div>
@@ -6637,6 +6753,26 @@ export default function App() {
   const [now, setNow] = useState(() => getTrustedDate());
   const [timeSyncState, setTimeSyncState] = useState<TimeSyncState | null>(null);
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
+  const [galleryViewMode, setGalleryViewMode] = useState<"feed" | "grid">("feed");
+
+  // Global GPS State - checked once when app loads
+  const [globalGpsResult, setGlobalGpsResult] = useState<GeofenceResult | null>(null);
+  const [isCheckingGlobalGps, setIsCheckingGlobalGps] = useState(false);
+
+  // Check GPS on app load (for Musyrif role)
+  useEffect(() => {
+    if (authUser?.role === "musyrif") {
+      const asrama = authUser.asrama || "Asrama 1";
+      setIsCheckingGlobalGps(true);
+      checkAsramaGeofenceBrowser(asrama).then(res => {
+        setGlobalGpsResult(res);
+        setIsCheckingGlobalGps(false);
+      }).catch(() => {
+        setGlobalGpsResult(null);
+        setIsCheckingGlobalGps(false);
+      });
+    }
+  }, [authUser]);
 
   // Sync PWA status bar theme-color and html/body background for Explore page
   useEffect(() => {
@@ -6673,7 +6809,7 @@ export default function App() {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
         { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
-        { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
+        { id: "logbook" as Page, label: "Logbook", Icon: ClipboardList },
         { id: "ibadah" as Page, label: "Ibadah", Icon: Moon },
       ];
     }
@@ -6682,7 +6818,7 @@ export default function App() {
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
         { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
         { id: currentPrayerSlot, label: "Presensi", Icon: Sun },
-        { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
+        { id: "logbook" as Page, label: "Logbook", Icon: ClipboardList },
         { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
       ];
     }
@@ -6690,7 +6826,7 @@ export default function App() {
       { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
       { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
       { id: currentPrayerSlot, label: "Presensi", Icon: Sun },
-      { id: "rekap" as Page, label: "Rekap", Icon: TrendingUp },
+      { id: "logbook" as Page, label: "Logbook", Icon: ClipboardList },
       { id: "riwayat" as Page, label: "Riwayat", Icon: BookOpen },
     ];
   }, [authUser]);
@@ -6753,12 +6889,9 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [kegiatanRecords]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(logbookData)); } catch {}
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [logbookData]);
+  // OPTIMIZATION: Use debounced persistence with change detection for logbookData
+  // This avoids unnecessary JSON.stringify calls when data hasn't changed
+  useDebouncedPersistence(STORAGE_KEY_LOGBOOK, logbookData, 400);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -6785,11 +6918,22 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     const initialStartTime = Date.now();
+    let pollInterval: ReturnType<typeof setInterval>;
+    let isSyncing = false; // GUARD: Prevent overlapping sync calls
+
     const syncIzinSedayu = async (isFirst = false) => {
+      // GUARD: Prevent overlapping sync calls
+      if (isSyncing) {
+        console.log('[App] syncIzinSedayu already running, skipping');
+        return;
+      }
+
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         if (isMounted) setIsLoadingIzinSedayu(false);
         return;
       }
+
+      isSyncing = true;
       try {
         if (isFirst && isMounted) {
           setIsLoadingIzinSedayu(true);
@@ -6810,6 +6954,7 @@ export default function App() {
         }
       } catch (_) {
       } finally {
+        isSyncing = false;
         if (isMounted) {
           if (isFirst) {
             const elapsed = Date.now() - initialStartTime;
@@ -6824,11 +6969,18 @@ export default function App() {
       }
     };
 
-    syncIzinSedayu(true);
-    const interval = setInterval(() => syncIzinSedayu(false), 60000);
+    // Delayed start: wait for main sync to settle first
+    const startTimeout = setTimeout(() => {
+      if (!isMounted) return;
+      syncIzinSedayu(true);
+      // Slower polling interval (2 min instead of 1 min)
+      pollInterval = setInterval(() => syncIzinSedayu(false), 120000);
+    }, 5000);
+
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearTimeout(startTimeout);
+      clearInterval(pollInterval);
     };
   }, []);
 
@@ -6950,12 +7102,46 @@ export default function App() {
             const map = new Map<string, SantriSakitRecord>();
             prev.filter(s => Boolean(s && s.id)).forEach(s => map.set(s.id, s));
             validCloud.forEach((cr: any) => {
-              map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
+              const existing = map.get(cr.id);
+              // FIX: Preserve existing full photo if cloud only has thumbnail
+              const existingPhoto = existing?.photoUrl;
+              const isExistingFull = existingPhoto && existingPhoto.startsWith('data:image') && existingPhoto.length > 80000;
+              const isCloudThumbnail = cr.photoUrl && cr.photoUrl.startsWith('data:image') && cr.photoUrl.length < 50000;
+              const finalPhotoUrl = (isExistingFull && isCloudThumbnail) ? existingPhoto : cr.photoUrl;
+
+              map.set(cr.id, {
+                ...(existing || {}),
+                ...cr,
+                ...(finalPhotoUrl ? { photoUrl: finalPhotoUrl } : {})
+              });
             });
             const merged = Array.from(map.values());
             try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(merged)); } catch {}
             return merged;
           });
+
+          // FIX: After cloud sync, try to upgrade thumbnails to full photos from IndexedDB
+          setTimeout(async () => {
+            try {
+              const { getPhoto } = await import('./utils/photoCacheService');
+              validCloud.forEach((cr: any) => {
+                if (cr.photoUrl) {
+                  const cacheKey = `santrisakit_${cr.id}_photoUrl`;
+                  getPhoto(cacheKey).then(cached => {
+                    if (cached?.data && cached.data.length > 80000) {
+                      setSantriSakitList(prev => {
+                        const existing = prev.find(s => s.id === cr.id);
+                        if (existing && existing.photoUrl && existing.photoUrl.length < cached.data.length) {
+                          return prev.map(s => s.id === cr.id ? { ...s, photoUrl: cached.data } : s);
+                        }
+                        return prev;
+                      });
+                    }
+                  }).catch(() => {});
+                }
+              });
+            } catch (_) {}
+          }, 100);
         } else if ((tbl === "dataperizinansantri" || tbl === "santriizin" || tbl === "dataperizinan") && Array.isArray(cloudRecords)) {
           const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.namaSantri && cr.namaSantri.trim() !== "");
           if (validCloud.length > 0) {
@@ -6993,6 +7179,22 @@ export default function App() {
           setMusyrifList(sanitizeMusyrifList(cloudRecords));
         } else if (tbl === "authusers" && Array.isArray(cloudRecords) && cloudRecords.length > 0) {
           setAuthUsers(cloudRecords);
+          // Cascade picture to current authUser from cloud sync
+          if (authUser) {
+            const myCloudAuth = cloudRecords.find((u: any) => u.id === authUser.id || (u.email && authUser.email && u.email.toLowerCase() === authUser.email.toLowerCase()));
+            if (myCloudAuth?.picture) {
+              setAuthUser(prev => prev ? { ...prev, picture: myCloudAuth.picture } : prev);
+              // Also update localStorage
+              try {
+                const saved = localStorage.getItem("presensi_auth_user");
+                if (saved) {
+                  const parsed = JSON.parse(saved);
+                  parsed.picture = myCloudAuth.picture;
+                  localStorage.setItem("presensi_auth_user", JSON.stringify(parsed));
+                }
+              } catch {}
+            }
+          }
           // Cascading sync: propagate updated pamong names to musyrifList
           const pamongsInAuth = cloudRecords.filter((u: any) => u.role === "pamong");
           if (pamongsInAuth.length > 0) {
@@ -7033,7 +7235,7 @@ export default function App() {
 
                   const isDone = cr.done === true || cr.done === "TRUE" || cr.done === "true" || cr.done === 1 || Boolean(taskObj.done);
                   const isGps = cr.gpsVerified === true || cr.gpsVerified === "TRUE" || cr.gpsVerified === "true" || Boolean(taskObj.gpsVerified);
-                  const photoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
+                  const cloudPhotoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
                   const completedAt = cr.completedAt || taskObj.completedAt || undefined;
                   const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
                   const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
@@ -7044,11 +7246,20 @@ export default function App() {
 
                   const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
 
+                  // FIX: Preserve existing full photo if cloud only has thumbnail
+                  // Full photos are >80KB, thumbnails are usually <50KB
+                  const existingPhoto = existingTask.photoUrl;
+                  const isExistingFull = existingPhoto && existingPhoto.startsWith('data:image') && existingPhoto.length > 80000;
+                  const isCloudThumbnail = cloudPhotoUrl && cloudPhotoUrl.startsWith('data:image') && cloudPhotoUrl.length < 50000;
+
+                  // Use existing full photo if it exists and cloud has only thumbnail
+                  const finalPhotoUrl = (isExistingFull && isCloudThumbnail) ? existingPhoto : cloudPhotoUrl;
+
                   (next[mId][dt] as any)[cr.taskKey] = {
                     ...existingTask,
                     ...taskObj,
                     done: isDone,
-                    ...(photoUrl ? { photoUrl } : {}),
+                    ...(finalPhotoUrl ? { photoUrl: finalPhotoUrl } : {}),
                     ...(completedAt ? { completedAt } : {}),
                     ...(photoTakenAt ? { photoTakenAt } : {}),
                     ...(photoWatermark ? { photoWatermark } : {}),
@@ -7066,6 +7277,44 @@ export default function App() {
             try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
             return next;
           });
+
+          // FIX: After cloud sync, try to upgrade thumbnails to full photos from IndexedDB
+          // This runs in background without blocking UI
+          setTimeout(async () => {
+            try {
+              const { getPhoto } = await import('./utils/photoCacheService');
+              validCloud.forEach((cr: any) => {
+                if (cr.taskKey && cr.taskKey !== "generalNotes" && cr.photoUrl) {
+                  const cacheKey = `logbook_${cr.musyrifId}_${cr.date}_${cr.taskKey}_photoUrl`;
+                  getPhoto(cacheKey).then(cached => {
+                    if (cached?.data && cached.data.length > 80000) {
+                      // We have full photo in cache, update state
+                      setLogbookData(prev => {
+                        const entry = prev[cr.musyrifId]?.[cr.date];
+                        const task = entry?.[cr.taskKey];
+                        if (task && task.photoUrl && task.photoUrl.length < cached.data.length) {
+                          return {
+                            ...prev,
+                            [cr.musyrifId]: {
+                              ...prev[cr.musyrifId],
+                              [cr.date]: {
+                                ...prev[cr.musyrifId]?.[cr.date],
+                                [cr.taskKey]: {
+                                  ...task,
+                                  photoUrl: cached.data
+                                }
+                              }
+                            }
+                          };
+                        }
+                        return prev;
+                      });
+                    }
+                  }).catch(() => {});
+                }
+              });
+            } catch (_) {}
+          }, 100);
         } else if (tbl === "mutabaah" && Array.isArray(cloudRecords)) {
           const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date && cr.date >= "2026-08-18");
           // Proactively purge any legacy cloud records before official start date 18 Agustus 2026
@@ -7251,6 +7500,13 @@ export default function App() {
             else map.set(cr.id, { ...(map.get(cr.id) || {}), ...cr });
           });
           const updatedUsers = Array.from(map.values());
+          // Cascade picture to current authUser
+          if (authUser) {
+            const myCloudAuth = updatedUsers.find(u => u.id === authUser.id || (u.email && authUser.email && u.email.toLowerCase() === authUser.email.toLowerCase()));
+            if (myCloudAuth?.picture) {
+              setAuthUser(prev => prev ? { ...prev, picture: myCloudAuth.picture } : prev);
+            }
+          }
           const pamongs = updatedUsers.filter(u => u.role === "pamong");
           if (pamongs.length > 0) {
             setMusyrifList(mPrev => sanitizeMusyrifList(mPrev.map(m => {
@@ -7374,59 +7630,71 @@ export default function App() {
     // 2. Perform initial full cloud pull — this is the Single Source of Truth
     // Always fetch from Sheet on startup; state will be replaced via isFullReplace flag
     const initSync = async () => {
-      // Proactively purge deprecated test & ghost records from cloud
-      DEPRECATED_PERSONNEL_IDS.forEach(depId => {
-        googleSyncService.enqueue("Musyrif", { id: depId }, "delete");
-      });
-
-      // Ensure any locally saved agenda tasks with photo/done are queued and flushed to Google Sheets
-      try {
-        const localLogbookRaw = localStorage.getItem(STORAGE_KEY_LOGBOOK);
-        if (localLogbookRaw) {
-          const parsed = JSON.parse(localLogbookRaw);
-          Object.entries(parsed).forEach(([mId, dateObj]: [string, any]) => {
-            if (dateObj && typeof dateObj === "object") {
-              Object.entries(dateObj).forEach(([dt, taskEntries]: [string, any]) => {
-                if (taskEntries && typeof taskEntries === "object") {
-                  Object.entries(taskEntries).forEach(([tKey, tData]: [string, any]) => {
-                    if (tKey.startsWith("agenda_") && tData && (tData.done || tData.photoUrl)) {
-                      googleSyncService.enqueue("Logbook", {
-                        id: `${mId}_${dt}_${tKey}`,
-                        musyrifId: mId,
-                        date: dt,
-                        taskKey: tKey,
-                        done: tData.done ? "TRUE" : "FALSE",
-                        completedAt: tData.completedAt || "",
-                        photoUrl: tData.photoUrl || "",
-                        photoTakenAt: tData.photoTakenAt || "",
-                        photoWatermark: tData.photoWatermark || "",
-                        photoSource: tData.photoSource || "",
-                        notes: tData.notes || "",
-                        gpsVerified: tData.gpsVerified ? "TRUE" : "FALSE",
-                        stepsCount: tData.stepsCount || 0,
-                        subChoice: tData.subChoice || "",
-                        updated_at: new Date().toISOString()
-                      }, "upsert");
-                    }
-                  });
-                }
-              });
-            }
-          });
-        }
-      } catch (_) {}
-
-      if (googleSyncService.getGasUrl() && navigator.onLine) {
-        try {
-          const syncPromise = googleSyncService.fetchAllFromCloud();
-          // Timeout race: maximum 3.5s loading time to prevent hanging on bad/slow connections
-          const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3500));
-          await Promise.race([syncPromise, timeoutPromise]);
-          // Flush deletions & pending items immediately
-          googleSyncService.flushQueue();
-        } catch (_) {}
+      // GUARD: Prevent multiple concurrent initial syncs
+      if ((window as any).__initSyncRunning__) {
+        console.log('[App] initSync already running, skipping duplicate call');
+        return;
       }
-      setIsInitialSyncing(false);
+      (window as any).__initSyncRunning__ = true;
+
+      try {
+        // Proactively purge deprecated test & ghost records from cloud
+        DEPRECATED_PERSONNEL_IDS.forEach(depId => {
+          googleSyncService.enqueue("Musyrif", { id: depId }, "delete");
+        });
+
+        // Ensure any locally saved agenda tasks with photo/done are queued and flushed to Google Sheets
+        try {
+          const localLogbookRaw = localStorage.getItem(STORAGE_KEY_LOGBOOK);
+          if (localLogbookRaw) {
+            const parsed = JSON.parse(localLogbookRaw);
+            Object.entries(parsed).forEach(([mId, dateObj]: [string, any]) => {
+              if (dateObj && typeof dateObj === "object") {
+                Object.entries(dateObj).forEach(([dt, taskEntries]: [string, any]) => {
+                  if (taskEntries && typeof taskEntries === "object") {
+                    Object.entries(taskEntries).forEach(([tKey, tData]: [string, any]) => {
+                      if (tKey.startsWith("agenda_") && tData && (tData.done || tData.photoUrl)) {
+                        googleSyncService.enqueue("Logbook", {
+                          id: `${mId}_${dt}_${tKey}`,
+                          musyrifId: mId,
+                          date: dt,
+                          taskKey: tKey,
+                          done: tData.done ? "TRUE" : "FALSE",
+                          completedAt: tData.completedAt || "",
+                          photoUrl: tData.photoUrl || "",
+                          photoTakenAt: tData.photoTakenAt || "",
+                          photoWatermark: tData.photoWatermark || "",
+                          photoSource: tData.photoSource || "",
+                          notes: tData.notes || "",
+                          gpsVerified: tData.gpsVerified ? "TRUE" : "FALSE",
+                          stepsCount: tData.stepsCount || 0,
+                          subChoice: tData.subChoice || "",
+                          updated_at: new Date().toISOString()
+                        }, "upsert");
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        } catch (_) {}
+
+        if (googleSyncService.getGasUrl() && navigator.onLine) {
+          // Stagger sync: flush queue first, then fetch cloud data after
+          try {
+            // Step 1: Flush pending items (fast, local-first)
+            googleSyncService.flushQueue();
+
+            // Step 2: Wait a bit, then fetch cloud data
+            await new Promise(resolve => setTimeout(resolve, 500));
+            googleSyncService.fetchAllFromCloud();
+          } catch (_) {}
+        }
+      } finally {
+        (window as any).__initSyncRunning__ = false;
+        setIsInitialSyncing(false);
+      }
     };
 
     initSync();
@@ -7435,25 +7703,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Timer untuk update jam (tidak perlu sync di sini)
     const t = setInterval(() => {
       setNow(getTrustedDate());
-      if (navigator.onLine && googleSyncService.getGasUrl()) {
-        googleSyncService.pollDelta();
-      }
-    }, 20000);
+    }, 1000);
+
+    // Sync service sekarang handle polling sendiri dengan adaptive interval
+    // Tidak perlu interval polling tambahan di sini
 
     const handleFocus = () => {
+      // Trigger poll on focus (tab becomes visible)
       if (navigator.onLine && googleSyncService.getGasUrl()) {
         googleSyncService.pollDelta();
       }
     };
     window.addEventListener("focus", handleFocus);
-    window.addEventListener("online", handleFocus);
 
     return () => {
       clearInterval(t);
       window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("online", handleFocus);
     };
   }, []);
 
@@ -7508,12 +7776,35 @@ export default function App() {
           googleSyncService.enqueue("Musyrif", matchedMusyrif, "upsert", true);
         }, 0);
       }
+
+      // Sync picture to AuthUsers table for cross-device sync
+      setAuthUsers(prev => {
+        const updated = prev.map(auth =>
+          (auth.id === u.id || (auth.email && u.email && auth.email.toLowerCase() === u.email.toLowerCase()))
+            ? { ...auth, picture: u.picture }
+            : auth
+        );
+        try {
+          localStorage.setItem(STORAGE_KEY_AUTH_USERS, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+
+      setTimeout(() => {
+        googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, { id: u.id, picture: u.picture }, "upsert", true);
+      }, 100);
     }
 
     showToast(`Selamat datang, Ustaz ${getMusyrifCallName(u.name)}!`);
     setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
-    // Immediately sync all data from Sheet after login
-    googleSyncService.fetchAllFromCloud();
+
+    // GUARD: Prevent rapid duplicate fetchAllFromCloud calls
+    const lastFetch = (window as any).__lastFetchAllFromCloud__ || 0;
+    const now = Date.now();
+    if (now - lastFetch > 30000) { // Only fetch if last fetch was > 30 seconds ago
+      (window as any).__lastFetchAllFromCloud__ = now;
+      googleSyncService.fetchAllFromCloud();
+    }
   };
 
   const handleLogout = () => {
@@ -8590,62 +8881,92 @@ export default function App() {
 
           {/* Header Quick Action Icons - Role & Public Aware */}
           <div className="flex items-center gap-1.5 pr-0">
-            {/* Realtime Cloud Sync Badge — Visible for all data senders & receivers */}
-            <CloudSyncBadge onClick={() => setShowCloudSync(true)} />
-
-            {/* Notification Center Bell Button */}
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic("light");
-                setPage("notifikasi");
-              }}
-              title="Pusat Notifikasi & Update Data"
-              className={`w-8 h-8 rounded-full relative flex items-center justify-center transition-all active:scale-95 ${
-                page === "galeri-logbook"
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                  : "bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs"
-              } ${page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""}`}
-            >
-              <Bell className="w-4 h-4"/>
-              {notificationBadgeCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
-                  {notificationBadgeCount > 9 ? "9+" : notificationBadgeCount}
-                </span>
-              )}
-            </button>
-
-            {authUser ? (
-              <div className={`flex items-center gap-1.5 rounded-full p-1 pl-1 ${
-                page === "galeri-logbook"
-                  ? "bg-slate-100"
-                  : "bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs shadow-2xs"
-              }`}>
-                <div title={authUser.name} className="flex items-center justify-center cursor-default">
-                  <Av name={authUser.name} src={authUser.picture} sz="xs" />
-                </div>
-                <button 
-                  type="button"
-                  onClick={handleLogout} 
-                  title={`Keluar akun (${authUser.name})`} 
-                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-all active:scale-95 ${
-                    page === "galeri-logbook"
-                      ? "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-500"
-                      : "bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400"
+            {page === "galeri-logbook" ? (
+              /* Feed/Grid Toggle for Gallery Page */
+              <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+                <button
+                  onClick={() => setGalleryViewMode("feed")}
+                  className={`p-2 rounded-lg transition-all ${
+                    galleryViewMode === "feed"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-400 hover:text-slate-600"
                   }`}
+                  title="Feed View"
                 >
-                  <LogOut className="w-3 h-3"/>
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setGalleryViewMode("grid")}
+                  className={`p-2 rounded-lg transition-all ${
+                    galleryViewMode === "grid"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                  title="Grid View"
+                >
+                  <LayoutGrid className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <button 
-                type="button"
-                onClick={()=>setShowLogin(true)} 
-                className="flex items-center gap-1.5 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-md shadow-sky-600/25 active:scale-95 transition-all"
-              >
-                <LogIn className="w-3.5 h-3.5"/>
-                <span>Masuk</span>
-              </button>
+              <>
+                {/* Realtime Cloud Sync Badge — Visible for all data senders & receivers */}
+                <CloudSyncBadge onClick={() => setShowCloudSync(true)} />
+
+                {/* Notification Center Bell Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic("light");
+                    setPage("notifikasi");
+                  }}
+                  title="Pusat Notifikasi & Update Data"
+                  className={`w-8 h-8 rounded-full relative flex items-center justify-center transition-all active:scale-95 ${
+                    page === "galeri-logbook"
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                      : "bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs"
+                  } ${page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""}`}
+                >
+                  <Bell className="w-4 h-4"/>
+                  {notificationBadgeCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                      {notificationBadgeCount > 9 ? "9+" : notificationBadgeCount}
+                    </span>
+                  )}
+                </button>
+
+                {authUser ? (
+                  <div className={`flex items-center gap-1.5 rounded-full p-1 pl-1 ${
+                    page === "galeri-logbook"
+                      ? "bg-slate-100"
+                      : "bg-white/90 backdrop-blur-xl border border-white/80 shadow-xs shadow-2xs"
+                  }`}>
+                    <div title={authUser.name} className="flex items-center justify-center cursor-default">
+                      <Av name={authUser.name} src={authUser.picture} sz="xs" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      title={`Keluar akun (${authUser.name})`}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                        page === "galeri-logbook"
+                          ? "bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-500"
+                          : "bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400"
+                      }`}
+                    >
+                      <LogOut className="w-3 h-3"/>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={()=>setShowLogin(true)}
+                    className="flex items-center gap-1.5 bg-[#0C81E4] hover:bg-[#0C4E8C] text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-md shadow-sky-600/25 active:scale-95 transition-all"
+                  >
+                    <LogIn className="w-3.5 h-3.5"/>
+                    <span>Masuk</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -8729,7 +9050,6 @@ export default function App() {
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
                 isLoadingIzinSedayu={isLoadingIzinSedayu}
-                agendaRapatList={agendaRapatList}
               />
             </motion.div>
           )}
@@ -8763,12 +9083,13 @@ export default function App() {
           )}
           {page==="riwayat" && (
             <motion.div key="riwayat" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <PageRiwayat 
-                records={records} 
+              <PageRiwayat
+                records={records}
                 logbookData={logbookData}
                 mutabaahData={mutabaahData}
                 izinList={izinList}
                 kegiatanRecords={kegiatanRecords}
+                agendaRapatList={agendaRapatList}
                 authUser={authUser} 
                 onLogin={()=>setShowLogin(true)} 
                 initialMusyrifId={selectedMusyrifId} 
@@ -8804,10 +9125,12 @@ export default function App() {
                 initialMusyrifId={targetMusyrifId}
                 initialDate={targetDate}
                 initialTaskKey={targetTaskKey}
+                initialGpsResult={globalGpsResult}
                 onSaveLogbook={handleSaveLogbook}
                 onResetLogbook={handleResetLogbook}
                 onOpenSantriSakit={() => setPage("santri-sakit")}
                 onOpenAgendaRapat={() => setPage("agenda-rapat")}
+                onOpenMutabaah={() => setPage("mutabaah")}
               />
             </motion.div>
           )}
@@ -8820,6 +9143,8 @@ export default function App() {
                 musyrifList={musyrifList}
                 authUser={authUser}
                 onLogin={() => setShowLogin(true)}
+                viewMode={galleryViewMode}
+                onViewModeChange={setGalleryViewMode}
               />
             </motion.div>
           )}
@@ -8839,6 +9164,7 @@ export default function App() {
                 initialDate={targetDate}
                 onSaveMutabaah={handleSaveMutabaah}
                 onResetMutabaah={handleResetMutabaah}
+                onOpenLogbook={() => setPage("logbook")}
               />
             </motion.div>
           )}

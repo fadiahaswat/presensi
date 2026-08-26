@@ -1,10 +1,25 @@
 /**
  * Thumbnail Generator - Creates optimized thumbnails from images
  * Uses Canvas API for fast client-side resizing
+ *
+ * Performance optimizations:
+ * - Memoization cache for generated thumbnails
+ * - Parallel batch processing
+ * - Memory-efficient image handling
  */
 
 const THUMBNAIL_MAX_DIM = 200; // Max dimension for thumbnail
 const THUMBNAIL_QUALITY = 0.6; // JPEG quality
+
+// Thumbnail cache (LRU with size limit)
+const thumbnailCache = new Map<string, ThumbnailResult>();
+const MAX_THUMBNAIL_CACHE_SIZE = 100;
+
+function getThumbnailCacheKey(source: string, maxDim: number, quality: number): string {
+  // Use first 50 chars of source + params as key
+  const prefix = source.substring(0, Math.min(50, source.length));
+  return `thumb_${prefix.length}_${prefix}_${maxDim}_${quality}`;
+}
 
 export interface ThumbnailResult {
   thumbnail: string;
@@ -16,6 +31,7 @@ export interface ThumbnailResult {
 /**
  * Generate a thumbnail from a data URL or Image
  * Returns base64 data URL of the thumbnail
+ * OPTIMIZED: Uses cache to avoid regenerating same thumbnails
  */
 export async function generateThumbnail(
   source: string | HTMLImageElement | File,
@@ -30,16 +46,28 @@ export async function generateThumbnail(
   const format = options?.format || "jpeg";
 
   let img: HTMLImageElement;
-  const originalSize = typeof source === "string" ? source.length : 0;
+  let originalSize = 0;
+  let sourceString = "";
 
-  // Load image if source is data URL or File
+  // Get source as string for cache key
   if (typeof source === "string") {
+    sourceString = source;
+    originalSize = source.length;
     img = await loadImage(source);
   } else if (source instanceof File) {
-    const dataUrl = await fileToDataUrl(source);
-    img = await loadImage(dataUrl);
+    sourceString = await fileToDataUrl(source);
+    originalSize = source.size;
+    img = await loadImage(sourceString);
   } else {
     img = source;
+    sourceString = "HTMLImageElement";
+  }
+
+  // Check cache first
+  const cacheKey = getThumbnailCacheKey(sourceString, maxDim, quality);
+  const cached = thumbnailCache.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
   // Calculate thumbnail dimensions
@@ -76,17 +104,26 @@ export async function generateThumbnail(
   const mimeType = format === "png" ? "image/png" : format === "webp" ? "image/webp" : "image/jpeg";
   const thumbnail = canvas.toDataURL(mimeType, quality);
 
-  return {
+  const result: ThumbnailResult = {
     thumbnail,
     originalSize,
     thumbnailSize: thumbnail.length,
     reduction: originalSize > 0 ? Math.round((1 - thumbnail.length / originalSize) * 100) : 0,
   };
+
+  // Cache with LRU eviction
+  if (thumbnailCache.size >= MAX_THUMBNAIL_CACHE_SIZE) {
+    const firstKey = thumbnailCache.keys().next().value;
+    if (firstKey) thumbnailCache.delete(firstKey);
+  }
+  thumbnailCache.set(cacheKey, result);
+
+  return result;
 }
 
 /**
  * Generate multiple thumbnails from an array of sources
- * More efficient than calling generateThumbnail multiple times
+ * OPTIMIZED: Parallel processing with concurrency limit
  */
 export async function generateThumbnailsBatch(
   sources: Array<string | File>,
@@ -94,29 +131,79 @@ export async function generateThumbnailsBatch(
     maxDim?: number;
     quality?: number;
     onProgress?: (completed: number, total: number) => void;
+    concurrency?: number; // Max parallel operations
   }
 ): Promise<ThumbnailResult[]> {
-  const results: ThumbnailResult[] = [];
+  const results: ThumbnailResult[] = new Array(sources.length);
   const total = sources.length;
+  const concurrency = options?.concurrency || 3; // Default 3 parallel operations
 
-  for (let i = 0; i < sources.length; i++) {
-    try {
-      const result = await generateThumbnail(sources[i], options);
-      results.push(result);
-    } catch (error) {
-      console.warn(`Failed to generate thumbnail for item ${i}:`, error);
-      results.push({
-        thumbnail: "",
-        originalSize: 0,
-        thumbnailSize: 0,
-        reduction: 0,
-      });
-    }
+  // Process in batches
+  for (let i = 0; i < sources.length; i += concurrency) {
+    const batch = sources.slice(i, i + concurrency);
 
-    options?.onProgress?.(i + 1, total);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (source, batchIdx) => {
+        const globalIdx = i + batchIdx;
+        try {
+          const result = await generateThumbnail(source, options);
+          results[globalIdx] = result;
+          options?.onProgress?.(globalIdx + 1, total);
+          return result;
+        } catch (error) {
+          console.warn(`Failed to generate thumbnail for item ${globalIdx}:`, error);
+          results[globalIdx] = {
+            thumbnail: "",
+            originalSize: 0,
+            thumbnailSize: 0,
+            reduction: 0,
+          };
+          options?.onProgress?.(globalIdx + 1, total);
+          return results[globalIdx];
+        }
+      })
+    );
+
+    // Update results for any that might have failed
+    batchResults.forEach((result, batchIdx) => {
+      const globalIdx = i + batchIdx;
+      if (result.status === "fulfilled") {
+        results[globalIdx] = result.value;
+      }
+    });
   }
 
   return results;
+}
+
+/**
+ * Clear thumbnail cache (call when memory is low)
+ */
+export function clearThumbnailCache(): void {
+  thumbnailCache.clear();
+}
+
+/**
+ * Get existing or generate new thumbnail (convenience function)
+ */
+export async function getOrGenerateThumbnail(
+  source: string,
+  options?: {
+    maxDim?: number;
+    quality?: number;
+  }
+): Promise<string> {
+  const cacheKey = getThumbnailCacheKey(source, options?.maxDim || THUMBNAIL_MAX_DIM, options?.quality || THUMBNAIL_QUALITY);
+
+  // Check cache first
+  const cached = thumbnailCache.get(cacheKey);
+  if (cached && cached.thumbnail) {
+    return cached.thumbnail;
+  }
+
+  // Generate if not cached
+  const result = await generateThumbnail(source, options);
+  return result.thumbnail;
 }
 
 /**

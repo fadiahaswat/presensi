@@ -12,6 +12,25 @@ export interface SpecificBuildingLocation {
   asramaKeys?: string[];
 }
 
+/**
+ * Cek apakah nama asrama termasuk kampus Sedayu
+ */
+export function isSedayuAsrama(asramaName: string): boolean {
+  const name = (asramaName || "").toLowerCase();
+  return name.includes("sedayu") || name.includes("gedung a") ||
+         name.includes("gedung b") || name.includes("gedung c") ||
+         name.includes("gedung d");
+}
+
+/**
+ * Cek apakah nama asrama termasuk kampus Induk
+ */
+export function isKampusInduk(asramaName: string): boolean {
+  const name = (asramaName || "").toLowerCase();
+  return name.includes("asrama 1") || name.includes("asrama 8") ||
+         name.includes("asrama 10");
+}
+
 export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
   // ─── KAMPUS INDUK (Jl. Letjen S. Parman / Wirobrajan) ───
   {
@@ -241,17 +260,21 @@ export function checkAsramaGeofence(
   accuracy?: number
 ): GeofenceResult {
   const safeName = (asramaName || "Asrama 1").trim().toLowerCase();
+  const isUserSedayu = isSedayuAsrama(safeName);
 
   // 1. Try to find the exact building matching asramaName
-  const exactBuilding = MUALLIMIN_LOCATIONS.find(b => 
+  const exactBuilding = MUALLIMIN_LOCATIONS.find(b =>
     b.name.toLowerCase() === safeName ||
     (b.asramaKeys && b.asramaKeys.some(k => k.toLowerCase() === safeName || safeName.includes(k.toLowerCase())))
   );
 
   // 2. Also find which broad campus belongs to this asrama
-  const matchedCampus = CAMPUS_LOCATIONS.find(c => 
+  const matchedCampus = CAMPUS_LOCATIONS.find(c =>
     c.asramas.some(a => a.toLowerCase() === safeName || safeName.includes(a.toLowerCase()))
-  ) || (safeName.includes("sedayu") ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
+  ) || (isUserSedayu ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
+
+  // 3. For Sedayu campus, also check if user is near Masjid Yuliana (shared mosque)
+  const masjidYuliana = MUALLIMIN_LOCATIONS.find(b => b.id === "masjid_yuliana");
 
   // Dynamic indoor GPS tolerance buffer (up to 120m if accuracy reading is degraded indoors due to concrete/roof)
   const accuracyBuffer = typeof accuracy === "number" && accuracy > 0 ? Math.min(accuracy, 120) : 0;
@@ -262,26 +285,80 @@ export function checkAsramaGeofence(
 
   const campusDist = getDistanceFromLatLonInMeters(userLat, userLng, matchedCampus.lat, matchedCampus.lng);
 
-  if (exactBuilding) {
-    distance = getDistanceFromLatLonInMeters(userLat, userLng, exactBuilding.lat, exactBuilding.lng);
-    const buildingRadius = exactBuilding.radiusMeters + accuracyBuffer;
-    const campusRadius = matchedCampus.radiusMeters + accuracyBuffer;
+  if (isUserSedayu) {
+    // ============================================
+    // LOGIKA KHUSUS KAMPUS SEDAYU
+    // Musyrif Sedayu bisa sholat di:
+    // 1. Masjid Yuliana (radius 250m)
+    // 2. Ged A/B/C/D mana saja (radius 200m)
+    // 3. Campus area Sedayu (radius 500m) - sebagai fallback
+    // ============================================
 
-    // In range if within specific building radius OR within broad campus area
-    const inBuilding = distance <= buildingRadius;
-    const inCampus = campusDist <= campusRadius;
-    isInRange = inBuilding || inCampus;
-    matchedAreaName = inBuilding ? exactBuilding.name : inCampus ? matchedCampus.name : undefined;
+    // Check distance to each building in Sedayu campus
+    const sedayuBuildings = MUALLIMIN_LOCATIONS.filter(b => b.campus === "kampus_terpadu");
 
-    // If verified via campus zone, show the campus-level distance for clearer UX
-    if (inCampus && !inBuilding) {
-      distance = campusDist;
+    // Find nearest Sedayu building
+    let minDistToBuilding = Infinity;
+    let nearestBuilding: SpecificBuildingLocation | undefined;
+
+    for (const building of sedayuBuildings) {
+      const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
+      if (dist < minDistToBuilding) {
+        minDistToBuilding = dist;
+        nearestBuilding = building;
+      }
     }
+
+    // Check if within any building radius
+    let inAnyBuilding = false;
+    for (const building of sedayuBuildings) {
+      const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
+      if (dist <= building.radiusMeters + accuracyBuffer) {
+        inAnyBuilding = true;
+        matchedAreaName = building.name;
+        distance = dist;
+        break;
+      }
+    }
+
+    // Check campus radius
+    const inCampus = campusDist <= matchedCampus.radiusMeters + accuracyBuffer;
+
+    isInRange = inAnyBuilding || inCampus;
+    if (!inAnyBuilding && inCampus) {
+      distance = campusDist;
+      matchedAreaName = matchedCampus.name;
+    } else if (!inAnyBuilding && !inCampus && nearestBuilding) {
+      distance = minDistToBuilding;
+      matchedAreaName = nearestBuilding.name;
+    }
+
   } else {
-    distance = campusDist;
-    const campusRadius = matchedCampus.radiusMeters + accuracyBuffer;
-    isInRange = distance <= campusRadius;
-    matchedAreaName = isInRange ? matchedCampus.name : undefined;
+    // ============================================
+    // LOGIKA KAMPUS INDUK (strict - harus di gedung sendiri atau masjid)
+    // ============================================
+
+    if (exactBuilding) {
+      distance = getDistanceFromLatLonInMeters(userLat, userLng, exactBuilding.lat, exactBuilding.lng);
+      const buildingRadius = exactBuilding.radiusMeters + accuracyBuffer;
+      const campusRadius = matchedCampus.radiusMeters + accuracyBuffer;
+
+      // In range if within specific building radius OR within broad campus area
+      const inBuilding = distance <= buildingRadius;
+      const inCampus = campusDist <= campusRadius;
+      isInRange = inBuilding || inCampus;
+      matchedAreaName = inBuilding ? exactBuilding.name : inCampus ? matchedCampus.name : undefined;
+
+      // If verified via campus zone, show the campus-level distance for clearer UX
+      if (inCampus && !inBuilding) {
+        distance = campusDist;
+      }
+    } else {
+      distance = campusDist;
+      const campusRadius = matchedCampus.radiusMeters + accuracyBuffer;
+      isInRange = distance <= campusRadius;
+      matchedAreaName = isInRange ? matchedCampus.name : undefined;
+    }
   }
 
   return {
@@ -310,9 +387,11 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
     }
 
     const safeAsrama = (asramaName || "Asrama 1").toLowerCase();
-    const fallbackCampus = CAMPUS_LOCATIONS.find(c => 
+    const isUserSedayu = isSedayuAsrama(safeAsrama);
+
+    const fallbackCampus = CAMPUS_LOCATIONS.find(c =>
       c.asramas.some(a => a.toLowerCase() === safeAsrama || safeAsrama.includes(a.toLowerCase()))
-    ) || (safeAsrama.includes("sedayu") ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
+    ) || (isUserSedayu ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
 
     // Primary attempt: High accuracy with 15s timeout and 10s maximumAge
     navigator.geolocation.getCurrentPosition(
@@ -344,7 +423,9 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
                 closestCampus: fallbackCampus,
                 distanceMeters: 99999,
                 targetAsrama: asramaName || "Asrama 1",
-                error: "Sinyal GPS lemah di dalam ruangan. Silakan coba refresh GPS atau mendekat ke jendela / luar kamar."
+                error: isUserSedayu
+                  ? "Sinyal GPS lemah. Untuk musyrif Sedayu, Anda bisa verifikasi dari gedung mana saja di kompleks Sedayu atau dekat masjid."
+                  : "Sinyal GPS lemah di dalam ruangan. Silakan coba refresh GPS atau mendekat ke jendela / luar kamar."
               });
             },
             { timeout: 10000, enableHighAccuracy: false, maximumAge: 30000 }

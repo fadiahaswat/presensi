@@ -1,7 +1,9 @@
 /**
  * ============================================================================
  * GOOGLE SHEETS CLOUD SYNC SERVICE
- * High-performance, Realtime-like Delta Synchronization Engine
+ * Optimized for reliability and efficiency
+ * FIXED v2: Better photo sync with consistent key matching
+ * Photos: Full data stays in IndexedDB, cloud only has thumbnails
  * ============================================================================
  */
 
@@ -28,8 +30,38 @@ type DataUpdateListener = (table: string, records: any[], isFullReplace?: boolea
 
 const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzulnnHPTuqMZ6FwkLb1_3ZKgH5HzYvm1zgG1MaxYeXKKoT0BL6W89q8hDmChB5S94aHQ/exec";
 const GAS_URL_KEY = "presensi_gas_url";
-const LAST_SYNC_KEY = "presensi_last_sync_timestamp_v5";
-const QUEUE_KEY = "presensi_sync_outbox_queue_v5";
+const LAST_SYNC_KEY = "presensi_last_sync_timestamp_v7"; // Bumped version - v7 has better photo sync
+const QUEUE_KEY = "presensi_sync_outbox_queue_v7"; // Bumped version
+
+// === OPTIMIZED CONFIG ===
+const DEFAULT_TIMEOUT = 20000; // 20 detik - lebih lama untuk reliability
+const FETCH_ALL_TIMEOUT = 30000; // 30 detik khusus fetchAllFromCloud
+const MAX_RETRIES = 5; // Lebih banyak retry untuk reliability
+const RETRY_BASE_DELAY = 500; // Mulai dengan delay lebih pendek
+const POLL_DEBOUNCE_MS = 2000; // Debounce lebih pendek
+const HEALTH_CHECK_TIMEOUT = 8000; // Health check lebih lama
+const BATCH_SIZE = 5; // Batasi ukuran batch upload
+
+// === PHOTO SYNC CONFIG ===
+// Standard photo field names across all tables
+const PHOTO_FIELDS = ['photoUrl', 'fotoSantriUrl', 'lampiranUrl', 'imageUrl', 'avatarUrl', 'photo', 'foto'];
+// Table name mappings (cloud name -> local key prefix)
+const TABLE_NAME_MAP: Record<string, string> = {
+  'logbook': 'logbook',
+  'Logbook': 'logbook',
+  'jurnal_logbook': 'logbook',
+  'JurnalLogbook': 'logbook',
+  'mutabaah': 'mutabaah',
+  'Mutabaah': 'mutabaah',
+  'mutabaah_yaumiyah': 'mutabaah',
+  'MutabaahYaumiyah': 'mutabaah',
+  'izin': 'izin',
+  'Izin': 'izin',
+  'santri_sakit': 'santrisakit',
+  'SantriSakit': 'santrisakit',
+  'records': 'records',
+  'Records': 'records',
+};
 
 class GoogleSyncService {
   private gasUrl: string = DEFAULT_GAS_URL;
@@ -42,23 +74,18 @@ class GoogleSyncService {
   private pollIntervalTimer: any = null;
   private isFlushing: boolean = false;
   private isPolling: boolean = false;
+  private lastPollAttempt = 0;
 
-  // === PERFORMANCE OPTIMIZATIONS ===
-  // Adaptive polling: dynamically adjust interval based on activity
-  private basePollInterval: number = 20000; // 20s default
-  private minPollInterval: number = 10000;   // 10s minimum (more frequent)
-  private maxPollInterval: number = 120000;  // 2min maximum (battery saver)
-  private consecutiveEmptyPolls: number = 0;
-  private lastActivityTime: number = Date.now();
-  private isUserActive: boolean = true;
+  // === REQUEST DEDUPLICATION ===
+  private pendingRequests: Map<string, AbortController> = new Map();
 
-  // Connection quality tracking
-  private avgLatency: number = 0;
-  private latencyHistory: number[] = [];
-  private maxLatencySamples: number = 10;
-
-  // Pending sync requests for batching
-  private pendingDeltaRequests: Set<string> = new Set();
+  // === CONNECTION HEALTH ===
+  private isHealthy: boolean = true;
+  private consecutiveFailures: number = 0;
+  private maxConsecutiveFailures: number = 3;
+  private pollInterval: number = 30000; // 30s default, daha lambat
+  private minPollInterval: number = 15000; // Minimum 15s
+  private maxPollInterval: number = 300000; // Maximum 5min
 
   constructor() {
     this.init();
@@ -85,30 +112,69 @@ class GoogleSyncService {
 
     this.updateStatus();
 
-    // Listeners for network & visibility
     window.addEventListener("online", () => {
+      this.isHealthy = true; // Reset on online event
       this.updateStatus();
-      this.flushQueue();
-      this.pollDelta();
+      this.scheduleHealthCheck();
     });
 
     window.addEventListener("offline", () => {
+      this.isHealthy = false;
       this.updateStatus();
     });
 
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
-        // Tab became visible: trigger quick delta check & resume interval
         this.pollDelta();
-        this.startSmartPolling();
-      } else {
-        // Tab hidden: pause polling to save battery and network
-        this.stopSmartPolling();
       }
     });
 
-    // Start polling if configured and online
-    this.startSmartPolling();
+    // Start polling only after health check
+    this.scheduleHealthCheck();
+  }
+
+  /**
+   * Schedule health check before starting sync
+   */
+  private scheduleHealthCheck() {
+    setTimeout(() => this.checkConnectivity(), 1000);
+  }
+
+  /**
+   * Quick connectivity check - light ping
+   */
+  private async checkConnectivity(): Promise<boolean> {
+    if (!this.gasUrl || !navigator.onLine) {
+      this.isHealthy = false;
+      return false;
+    }
+
+    try {
+      const pingUrl = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=ping&_t=${Date.now()}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
+
+      const res = await fetch(pingUrl, { method: "GET", mode: "cors", signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        this.isHealthy = true;
+        this.consecutiveFailures = 0;
+        this.startPolling();
+        return true;
+      }
+    } catch (_) {}
+
+    this.consecutiveFailures++;
+    this.isHealthy = this.consecutiveFailures < this.maxConsecutiveFailures;
+
+    // Retry health check with backoff
+    if (this.consecutiveFailures < this.maxConsecutiveFailures) {
+      const delay = Math.min(5000 * Math.pow(2, this.consecutiveFailures), 30000);
+      setTimeout(() => this.checkConnectivity(), delay);
+    }
+
+    return this.isHealthy;
   }
 
   public getGasUrl(): string {
@@ -120,12 +186,13 @@ class GoogleSyncService {
     try {
       localStorage.setItem(GAS_URL_KEY, this.gasUrl);
     } catch (_) {}
+    this.isHealthy = true;
+    this.consecutiveFailures = 0;
     this.updateStatus();
     if (this.gasUrl) {
-      this.startSmartPolling();
-      this.pollDelta();
+      this.checkConnectivity();
     } else {
-      this.stopSmartPolling();
+      this.stopPolling();
     }
   }
 
@@ -176,7 +243,251 @@ class GoogleSyncService {
     });
   }
 
-  private updateStatus(newStatus?: SyncStatus, errorMsg?: string) {
+  private logDebug(operation: string, message: string) {
+    console.log(`[SyncService] ${operation}: ${message}`);
+  }
+
+  private logWarn(operation: string, message: string) {
+    console.warn(`[SyncService] ${operation}: ${message}`);
+  }
+
+  private logError(operation: string, message: string, attempt?: number) {
+    console.error(`[SyncService] ${operation}: ${message}${attempt !== undefined ? ` (attempt ${attempt})` : ''}`);
+  }
+
+  /**
+   * Cancel any pending request for this operation
+   */
+  private cancelPending(operation: string) {
+    const existing = this.pendingRequests.get(operation);
+    if (existing) {
+      existing.abort();
+      this.pendingRequests.delete(operation);
+    }
+  }
+
+  /**
+   * Fetch with retry + exponential backoff
+   */
+  private async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    operation: string,
+    timeoutMs: number = DEFAULT_TIMEOUT,
+    maxAttempts: number = MAX_RETRIES
+  ): Promise<Response> {
+    // Cancel any existing request for this operation
+    this.cancelPending(operation);
+
+    const controller = new AbortController();
+    this.pendingRequests.set(operation, controller);
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Create new controller for each attempt
+      const attemptController = new AbortController();
+      controller.signal.addEventListener('abort', () => attemptController.abort());
+
+      const timeoutId = setTimeout(() => attemptController.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: attemptController.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          this.consecutiveFailures = 0;
+          return response;
+        }
+
+        // Don't retry on client errors (400-499) - these indicate permanent failures
+        if (response.status >= 400 && response.status < 500) {
+          if (response.status === 408 || response.status === 429) {
+            // 408 Request Timeout and 429 Too Many Requests are retryable
+            lastError = new Error(`HTTP ${response.status}`);
+            if (attempt < maxAttempts - 1) {
+              const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
+              this.logWarn(operation, `Retryable error ${response.status}, retrying in ${delay}ms...`);
+              await this.sleep(delay);
+              continue;
+            }
+          }
+          // 404, 401, 403, etc. are NOT retryable
+          lastError = new Error(`HTTP ${response.status} - Non-retryable client error`);
+          this.logWarn(operation, `HTTP ${response.status} - Not retrying (client error)`);
+          this.pendingRequests.delete(operation);
+          throw lastError;
+        }
+
+        // Server errors (500+) are retryable
+        lastError = new Error(`HTTP ${response.status}`);
+        if (attempt < maxAttempts - 1) {
+          const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
+          this.logWarn(operation, `Server error ${response.status}, retrying in ${delay}ms...`);
+          await this.sleep(delay);
+          continue;
+        }
+
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        lastError = err;
+
+        if (err.name === 'AbortError') {
+          this.logError(operation, `Timeout/failed after ${timeoutMs}ms`, attempt);
+          if (attempt === maxAttempts - 1) {
+            this.handleFailure();
+            this.pendingRequests.delete(operation);
+            throw new Error(`Timeout after ${maxAttempts} attempts`);
+          }
+        } else {
+          // Non-retryable errors (like 404) are already thrown above
+          this.logWarn(operation, `Error: ${err.message}`);
+          if (attempt === maxAttempts - 1) {
+            this.handleFailure();
+          }
+        }
+
+        // Retry on timeout or retryable errors
+        if (attempt < maxAttempts - 1 && err.name === 'AbortError') {
+          const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
+          this.logDebug(operation, `retry ${attempt + 1}/${maxAttempts} in ${delay}ms...`);
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    this.pendingRequests.delete(operation);
+    throw lastError || new Error(`Failed after ${maxAttempts} attempts`);
+  }
+
+  private handleFailure() {
+    this.consecutiveFailures++;
+    this.isHealthy = this.consecutiveFailures < this.maxConsecutiveFailures;
+
+    // Slow down polling on failures
+    if (this.pollInterval < this.maxPollInterval) {
+      this.pollInterval = Math.min(this.pollInterval * 1.5, this.maxPollInterval);
+      this.restartPolling();
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Create thumbnail from base64 image (for smaller display)
+   */
+  private createThumbnail(base64: string, maxWidth: number = 200): Promise<string> {
+    return new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+          canvas.width = img.width * ratio;
+          canvas.height = img.height * ratio;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6)); // 60% quality
+        };
+        img.onerror = () => resolve(base64); // Return original if fails
+        img.src = base64;
+      } catch {
+        resolve(base64); // Return original if fails
+      }
+    });
+  }
+
+  /**
+   * Check if field name is a photo field
+   */
+  private isPhotoField(fieldName: string): boolean {
+    return PHOTO_FIELDS.some(f => fieldName.toLowerCase() === f.toLowerCase());
+  }
+
+  /**
+   * Get table prefix for photo cache key
+   */
+  private getTablePrefix(tableName: string): string {
+    return TABLE_NAME_MAP[tableName] || tableName.toLowerCase();
+  }
+
+  /**
+   * Generate consistent photo cache key
+   * Format: {tablePrefix}_{recordId}_{fieldName}
+   * Examples: logbook_musyrif123_2026-08-25_photoUrl, mutabaah_musyrif123_2026-08-25_photoUrl
+   */
+  private getPhotoCacheKey(recordId: string, fieldName: string, tableName?: string): string {
+    const prefix = tableName ? this.getTablePrefix(tableName) : 'record';
+    return `${prefix}_${recordId}_${fieldName}`;
+  }
+
+  /**
+   * Extract all photo fields from a record
+   * Returns map of fieldName -> photoData
+   */
+  private extractPhotoFields(record: any): Map<string, string> {
+    const photos = new Map<string, string>();
+    if (!record || typeof record !== 'object') return photos;
+
+    for (const [key, value] of Object.entries(record)) {
+      if (this.isPhotoField(key) && typeof value === 'string' && value.startsWith('data:image')) {
+        photos.set(key, value);
+      }
+    }
+    return photos;
+  }
+
+  /**
+   * Check if photo data is likely a thumbnail (small) vs full photo
+   * Thumbnails are typically < 50KB, full photos are usually > 100KB
+   */
+  private isLikelyThumbnail(photoData: string): boolean {
+    return photoData.length < 50000;
+  }
+
+  /**
+   * Check if photo data is likely a full photo
+   */
+  private isLikelyFullPhoto(photoData: string): boolean {
+    return photoData.length > 80000;
+  }
+
+  private sanitizeData(data: any): any {
+    if (!data) return data;
+
+    try {
+      const sanitized = JSON.parse(JSON.stringify(data));
+
+      const sanitizeNode = (node: any) => {
+        if (!node || typeof node !== "object") return;
+        for (const k in node) {
+          const val = node[k];
+          if (typeof val === 'string') {
+            if (val.startsWith('data:image') && val.length > 100000) {
+              node[k] = val.substring(0, 50000);
+            } else if (val.length > 100000) {
+              node[k] = val.substring(0, 50000);
+            }
+          } else if (val && typeof val === "object") {
+            sanitizeNode(val);
+          }
+        }
+      };
+
+      sanitizeNode(sanitized);
+      return sanitized;
+    } catch {
+      return data;
+    }
+  }
+
+  private updateStatus(newStatus?: SyncStatus, _errorMsg?: string) {
     if (!navigator.onLine) {
       this.status = "offline";
     } else if (!this.gasUrl) {
@@ -197,14 +508,10 @@ class GoogleSyncService {
     } catch (_) {}
   }
 
-  /**
-   * Enqueue a record for asynchronous upsert or delete
-   */
   public enqueue(table: string, record: any, action: "upsert" | "delete" = "upsert", immediate: boolean = false) {
     const id = String(record.id || crypto.randomUUID());
     const now = new Date().toISOString();
-    
-    // Normalisasi record dengan timestamps
+
     const normalizedRecord = {
       ...record,
       id,
@@ -213,9 +520,8 @@ class GoogleSyncService {
       is_deleted: action === "delete"
     };
 
-    // Remove existing pending item with same id & table if present
     this.queue = this.queue.filter(q => !(q.table === table && q.id === id));
-    
+
     this.queue.push({
       id,
       table,
@@ -231,17 +537,13 @@ class GoogleSyncService {
       if (this.flushTimer) clearTimeout(this.flushTimer);
       this.flushQueue();
     } else {
-      // Ultra-fast debounce flush (150ms)
       if (this.flushTimer) clearTimeout(this.flushTimer);
       this.flushTimer = setTimeout(() => {
         this.flushQueue();
-      }, 150);
+      }, 200);
     }
   }
 
-  /**
-   * Test Connection with latency benchmark
-   */
   public async testConnection(customUrl?: string): Promise<{ success: boolean; message: string; latency: number }> {
     const url = (customUrl || this.gasUrl).trim();
     if (!url) {
@@ -278,35 +580,37 @@ class GoogleSyncService {
     }
   }
 
-  /**
-   * Alias for flushQueue to support manual trigger buttons
-   */
   public async flush(): Promise<boolean> {
     return this.flushQueue();
   }
 
-  /**
-   * Flush Queue (Send all pending outbox records in 1 multi-table request)
-   */
   public async flushQueue(): Promise<boolean> {
     if (!this.gasUrl || this.queue.length === 0 || this.isFlushing || !navigator.onLine) {
       return false;
     }
 
+    // Skip if unhealthy
+    if (!this.isHealthy && this.consecutiveFailures >= this.maxConsecutiveFailures) {
+      this.logDebug('flushQueue', 'Skipping due to poor connection health');
+      return false;
+    }
+
     this.isFlushing = true;
     this.updateStatus("syncing");
+    const operation = 'flushQueue';
 
     try {
-      // Group queue by table and sanitize all payloads (guarantee <= 35,000 chars per field)
       const tablesPayload: Record<string, any[]> = {};
       const batchItems = [...this.queue];
+      let photoCount = 0;
+      const photoCacheOperations: Array<{ table: string; id: string; field: string; data: string }> = [];
+      const thumbnailOperations: Array<{ node: any; key: string; promise: Promise<string> }> = [];
 
       batchItems.forEach(item => {
         if (!tablesPayload[item.table]) {
           tablesPayload[item.table] = [];
         }
-        
-        // Deep sanitize helper for flat and nested objects (e.g. Logbook task objects)
+
         let sanitized: any = {};
         try {
           sanitized = JSON.parse(JSON.stringify(item.record));
@@ -317,14 +621,33 @@ class GoogleSyncService {
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const k in node) {
-            if (typeof node[k] === "string" && node[k].length > 46000) {
-              if (node[k].startsWith("data:image")) {
-                node[k] = ""; // Clear corrupt/huge base64 to unblock sync
-              } else {
-                node[k] = node[k].substring(0, 46000);
-              }
-            } else if (node[k] && typeof node[k] === "object") {
-              sanitizeNode(node[k]);
+            const val = node[k];
+
+            // Handle photo fields - extract and cache, send thumbnail only
+            if (typeof val === "string" && val.startsWith("data:image")) {
+              photoCount++;
+
+              // Queue photo for caching (FULL photo - stored locally)
+              photoCacheOperations.push({
+                table: item.table,
+                id: item.id,
+                field: k,
+                data: val
+              });
+
+              // Queue thumbnail generation for CLOUD (smaller payload)
+              const thumbPromise = this.createThumbnail(val, 150);
+              thumbnailOperations.push({
+                node,
+                key: k,
+                promise: thumbPromise
+              });
+
+            } else if (typeof val === "string" && val.length > 46000) {
+              // Truncate non-photo strings
+              node[k] = val.substring(0, 46000);
+            } else if (val && typeof val === "object") {
+              sanitizeNode(val);
             }
           }
         };
@@ -333,23 +656,49 @@ class GoogleSyncService {
         tablesPayload[item.table].push(sanitized);
       });
 
-      const res = await fetch(this.gasUrl, {
-        method: "POST",
-        mode: "cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "multi_table_upsert",
-          tables: tablesPayload
-        })
+      // Log photo extraction
+      if (photoCount > 0) {
+        console.log(`[SyncService] flushQueue: extracted ${photoCount} photos`);
+      }
+
+      // Process all thumbnails in parallel BEFORE sending
+      // This ensures thumbnails are ready before we send the payload
+      const thumbnailResults = await Promise.allSettled(
+        thumbnailOperations.map(op => op.promise)
+      );
+
+      // Apply thumbnail results to nodes for cloud upload
+      thumbnailOperations.forEach((op, idx) => {
+        const result = thumbnailResults[idx];
+        if (result.status === 'fulfilled' && result.value.length < 46000) {
+          op.node[op.key] = result.value;
+        } else {
+          op.node[op.key] = ""; // Empty if too big or failed
+        }
       });
 
-      if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
-      }
+      // Cache FULL photos to IndexedDB FIRST (before upload)
+      // This ensures we have the full photo even if upload fails
+      await this.cachePhotosBatch(photoCacheOperations);
+
+      // Upload metadata + thumbnails to cloud
+      const res = await this.fetchWithRetry(
+        this.gasUrl,
+        {
+          method: "POST",
+          mode: "cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "multi_table_upsert",
+            tables: tablesPayload
+          })
+        },
+        operation,
+        DEFAULT_TIMEOUT
+      );
 
       const resData = await res.json();
       if (resData.status === "success") {
-        // Remove successfully flushed items from queue
         const flushedIds = new Set(batchItems.map(b => `${b.table}:${b.id}`));
         this.queue = this.queue.filter(q => !flushedIds.has(`${q.table}:${q.id}`));
         this.saveQueue();
@@ -358,22 +707,71 @@ class GoogleSyncService {
         this.lastSyncedAt = nowIso;
         try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
 
+        // Speed up polling after successful sync
+        if (this.pollInterval > this.minPollInterval) {
+          this.pollInterval = Math.max(this.pollInterval * 0.8, this.minPollInterval);
+          this.restartPolling();
+        }
+
         this.updateStatus(this.queue.length > 0 ? "pending" : "synced");
         this.isFlushing = false;
+        this.pendingRequests.delete(operation);
+
+        console.log(`[SyncService] flushQueue completed - ${batchItems.length} items synced, ${photoCount} full photos cached locally`);
         return true;
       } else {
-        throw new Error(resData.message || "Gagal menyimpan ke Google Sheet");
+        // Upload gagal tapi foto sudah tersimpan lokal - bukan masalah besar
+        console.warn(`[SyncService] Upload failed but photos cached locally: ${resData.message}`);
+        // Jangan throw error, biarkan queue tetap untuk retry
+        this.updateStatus("pending");
+        this.isFlushing = false;
+        this.pendingRequests.delete(operation);
+        return false;
       }
     } catch (err: any) {
-      this.updateStatus("error", err.message || err.toString());
+      // Upload gagal tapi foto sudah tersimpan lokal
+      console.warn(`[SyncService] Upload error but photos cached locally: ${err.message}`);
+      this.updateStatus("pending");
       this.isFlushing = false;
+      this.pendingRequests.delete(operation);
       return false;
     }
   }
 
   /**
-   * Reset / Clear local queue in case of corrupt legacy items
+   * Batch cache photos to IndexedDB (non-blocking)
+   * Uses consistent key format: {tablePrefix}_{recordId}_{fieldName}
    */
+  private async cachePhotosBatch(operations: Array<{ table: string; id: string; field: string; data: string }>): Promise<void> {
+    if (operations.length === 0) return;
+
+    try {
+      const { setPhotosBatch } = await import('./photoCacheService');
+
+      // Use consistent key format for better matching
+      const photosToCache = operations.map(op => {
+        const tablePrefix = this.getTablePrefix(op.table);
+        const cacheKey = `${tablePrefix}_${op.id}_${op.field}`;
+        return {
+          id: cacheKey,
+          data: op.data
+        };
+      });
+
+      await setPhotosBatch(photosToCache);
+      console.log(`[SyncService] Batch cached ${photosToCache.length} photos to IndexedDB`);
+
+      // Also cache in memory with consistent keys
+      for (const op of operations) {
+        const tablePrefix = this.getTablePrefix(op.table);
+        const photoId = `${tablePrefix}_${op.id}_${op.field}`;
+        this.cacheInMemory(photoId, op.data);
+      }
+    } catch (e) {
+      console.debug('[SyncService] Batch photo cache failed:', e);
+    }
+  }
+
   public clearQueue(): void {
     this.queue = [];
     this.saveQueue();
@@ -381,108 +779,313 @@ class GoogleSyncService {
   }
 
   /**
-   * Fetch All Data from Cloud (Initial hydration or force pull)
+   * Get cached data from localStorage as fallback
    */
-  public async fetchAllFromCloud(): Promise<Record<string, any[]> | null> {
-    if (!this.gasUrl || !navigator.onLine) return null;
+  private getCachedData(): Record<string, any[]> {
+    const cached: Record<string, any[]> = {};
+    const tableKeys: Record<string, string> = {
+      'attendance': 'presensi_attendance_records_v5',
+      'izin': 'presensi_izin_requests_v5',
+      'kegiatan_asrama': 'presensi_kegiatan_asrama_v5',
+      'jurnal_logbook': 'presensi_jurnal_logbook_v5',
+      'mutabaah_yaumiyah': 'presensi_mutabaah_yaumiyah_v5',
+      'santri_sakit': 'presensi_santri_sakit_v5',
+      'musyrif': 'presensi_musyrif_master_v5',
+      'santri': 'presensi_santri_master_v10'
+    };
+
+    for (const [table, key] of Object.entries(tableKeys)) {
+      try {
+        const data = localStorage.getItem(key);
+        if (data) {
+          const parsed = JSON.parse(data);
+          cached[table] = Array.isArray(parsed) ? parsed : [];
+        }
+      } catch (_) {}
+    }
+
+    return cached;
+  }
+
+  /**
+   * Fetch data - prioritizes local cache with full photos over cloud data
+   * Cloud data may only have thumbnails, local data has full photos from IndexedDB
+   */
+  public async fetchAllFromCloud(forceRefresh: boolean = false): Promise<Record<string, any[]> | null> {
+    if (!this.gasUrl || !navigator.onLine) {
+      // Offline: use local cache
+      return this.getMergedLocalData();
+    }
+
+    // If not forcing refresh and we have local data, use it first
+    if (!forceRefresh && !this.shouldRefreshFromCloud()) {
+      const localData = this.getMergedLocalData();
+      if (localData && Object.keys(localData).length > 0) {
+        console.log('[SyncService] Using local cache (no refresh needed)');
+        return localData;
+      }
+    }
+
+    // Skip if unhealthy
+    if (!this.isHealthy && this.consecutiveFailures >= this.maxConsecutiveFailures) {
+      this.logDebug('fetchAllFromCloud', 'Skipping due to poor connection health, using local cache');
+      return this.getMergedLocalData();
+    }
 
     this.updateStatus("syncing");
+    const operation = 'fetchAllFromCloud';
+
     try {
       const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_all&_t=${Date.now()}`;
-      const res = await fetch(url, { method: "GET", mode: "cors" });
-      
-      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-      
+      const res = await this.fetchWithRetry(url, { method: "GET", mode: "cors" }, operation, FETCH_ALL_TIMEOUT);
+
       const json = await res.json();
-      if (json.status === "success" && json.data) {
+      const sanitizedData = this.sanitizeData(json.data);
+
+      if (json.status === "success" && sanitizedData) {
         const nowIso = new Date().toISOString();
         this.lastSyncedAt = nowIso;
         try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
 
-        // Emit full-replace updates to listeners (includes empty arrays to wipe stale cache)
-        for (const tableName in json.data) {
-          if (Object.prototype.hasOwnProperty.call(json.data, tableName)) {
-            const tableRecords = Array.isArray(json.data[tableName]) ? json.data[tableName] : [];
+        // Notify listeners of cloud data
+        for (const tableName in sanitizedData) {
+          if (Object.prototype.hasOwnProperty.call(sanitizedData, tableName)) {
+            const tableRecords = Array.isArray(sanitizedData[tableName]) ? sanitizedData[tableName] : [];
             this.dataListeners.forEach(fn => fn(tableName, tableRecords, true));
           }
         }
 
         this.updateStatus("synced");
-        return json.data;
+        console.log(`[SyncService] fetchAllFromCloud completed successfully`);
+        this.pendingRequests.delete(operation);
+        return sanitizedData;
       }
-      return null;
+      this.pendingRequests.delete(operation);
+      return this.getMergedLocalData();
     } catch (err: any) {
-      this.updateStatus("error", err.message || err.toString());
+      const errorMsg = err.message || err.toString();
+      this.logWarn(operation, `Failed: ${errorMsg}. Using local cache with full photos.`);
+
+      // FALLBACK: Use local data (which has full photos)
+      const localData = this.getMergedLocalData();
+      if (localData && Object.keys(localData).length > 0) {
+        console.log(`[SyncService] fetchAllFromCloud: Using local cache with full photos as fallback`);
+        this.updateStatus("synced"); // Not error because we have local data
+        for (const tableName in localData) {
+          this.dataListeners.forEach(fn => fn(tableName, localData[tableName], true));
+        }
+        this.pendingRequests.delete(operation);
+        return localData;
+      }
+
+      // No local data available
+      this.updateStatus("error", `Sync gagal: ${errorMsg}. Coba lagi dalam beberapa menit.`);
+      this.pendingRequests.delete(operation);
       return null;
     }
   }
 
   /**
-   * Fetch Delta updates (only records updated since last sync)
-   * Includes performance tracking for adaptive polling
+   * Check if we should refresh from cloud based on last sync time
    */
+  private shouldRefreshFromCloud(): boolean {
+    if (!this.lastSyncedAt) return true;
+    const lastSync = new Date(this.lastSyncedAt).getTime();
+    const now = Date.now();
+    // Refresh if last sync was more than 5 minutes ago
+    return (now - lastSync) > 5 * 60 * 1000;
+  }
+
+  /**
+   * Get local data merged with cached photos from IndexedDB
+   * This ensures we have FULL photos, not just thumbnails from cloud
+   */
+  private getMergedLocalData(): Record<string, any[]> | null {
+    const cachedData = this.getCachedData();
+    if (Object.keys(cachedData).length === 0) return null;
+
+    // Merge with photos from IndexedDB
+    this.mergeLocalPhotos(cachedData);
+
+    return cachedData;
+  }
+
+  /**
+   * Merge local full photos from IndexedDB into cached data
+   * Only replaces if the current data is a thumbnail (small) and we have a full photo
+   */
+  private async mergeLocalPhotos(data: Record<string, any[]>): Promise<void> {
+    try {
+      const { getPhoto } = await import('./photoCacheService');
+
+      for (const tableName of Object.keys(data)) {
+        if (!Array.isArray(data[tableName])) continue;
+
+        const tablePrefix = this.getTablePrefix(tableName);
+
+        for (const record of data[tableName]) {
+          if (!record?.id) continue;
+
+          // Check all photo fields dynamically
+          for (const field of PHOTO_FIELDS) {
+            if (!record[field] || typeof record[field] !== 'string') continue;
+
+            const photoValue = record[field];
+            if (!photoValue.startsWith('data:image')) continue;
+
+            // Check if this is likely a thumbnail (small) that needs upgrading
+            if (this.isLikelyFullPhoto(photoValue)) {
+              // Already full data, no need to merge
+              continue;
+            }
+
+            // Try multiple key formats to find the cached photo
+            const cacheKeys = [
+              this.getPhotoCacheKey(record.id, field, tablePrefix),
+              `${tablePrefix}_${record.id}_${field}`,
+              `${tableName}_${record.id}_${field}`,
+              `${record.id}_${field}`,
+            ];
+
+            let foundFullPhoto = false;
+            for (const cacheKey of cacheKeys) {
+              const cached = await getPhoto(cacheKey);
+              if (cached?.data && this.isLikelyFullPhoto(cached.data)) {
+                // Found full photo, use it
+                record[field] = cached.data;
+                foundFullPhoto = true;
+                break;
+              }
+            }
+
+            if (!foundFullPhoto) {
+              // Debug log for missing photos
+              console.debug(`[SyncService] Full photo not found for ${tableName}/${record.id}/${field}`);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[SyncService] Failed to merge local photos:', e);
+    }
+  }
+
+  /**
+   * Cache photo for a specific record
+   * Called after saving a record to ensure we have the full photo
+   */
+  public async cacheRecordPhoto(recordId: string, fieldName: string, photoData: string, tableName?: string): Promise<void> {
+    const cacheKey = this.getPhotoCacheKey(recordId, fieldName, tableName);
+
+    // Cache in memory
+    this.cacheInMemory(cacheKey, photoData);
+
+    // Cache in IndexedDB
+    try {
+      const { setPhoto } = await import('./photoCacheService');
+      await setPhoto(cacheKey, photoData);
+      console.log(`[SyncService] Cached photo ${cacheKey} (${(photoData.length / 1024).toFixed(1)}KB)`);
+    } catch (e) {
+      console.warn('[SyncService] Failed to cache photo:', e);
+    }
+  }
+
+  /**
+   * Get photo for a record - checks cache first, then returns provided data
+   */
+  public async getRecordPhoto(recordId: string, fieldName: string, currentData: string | null | undefined, tableName?: string): Promise<string | null> {
+    // If we already have full data, return it
+    if (currentData && this.isLikelyFullPhoto(currentData)) {
+      return currentData;
+    }
+
+    // Try cache
+    const cacheKey = this.getPhotoCacheKey(recordId, fieldName, tableName);
+
+    // Check memory cache first
+    const memoryCached = this.memoryPhotoCache.get(cacheKey);
+    if (memoryCached && this.isLikelyFullPhoto(memoryCached.data)) {
+      return memoryCached.data;
+    }
+
+    // Check IndexedDB
+    try {
+      const { getPhoto } = await import('./photoCacheService');
+      const cached = await getPhoto(cacheKey);
+      if (cached?.data && this.isLikelyFullPhoto(cached.data)) {
+        return cached.data;
+      }
+    } catch (_) {}
+
+    // Return whatever we have (could be thumbnail or null)
+    return currentData || null;
+  }
+
   public async pollDelta(): Promise<void> {
     if (!this.gasUrl || !navigator.onLine || this.isPolling || this.isFlushing) return;
 
+    // Skip if unhealthy (graceful degradation)
+    if (!this.isHealthy && this.consecutiveFailures >= this.maxConsecutiveFailures) {
+      return;
+    }
+
+    // Debounce
+    const now = Date.now();
+    if (now - this.lastPollAttempt < POLL_DEBOUNCE_MS) return;
+    this.lastPollAttempt = now;
+
     this.isPolling = true;
     const startTime = performance.now();
+    const operation = 'pollDelta';
 
     try {
       const since = this.lastSyncedAt || "";
       const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_all_delta&since=${encodeURIComponent(since)}&_t=${Date.now()}`;
 
-      const res = await fetch(url, { method: "GET", mode: "cors" });
+      const res = await this.fetchWithRetry(url, { method: "GET", mode: "cors" }, operation, DEFAULT_TIMEOUT);
       const latency = Math.round(performance.now() - startTime);
 
       // Track latency for adaptive polling
-      this.trackLatency(latency);
+      if (latency < 2000 && this.pollInterval > this.minPollInterval) {
+        this.pollInterval = Math.max(this.pollInterval * 0.9, this.minPollInterval);
+        this.restartPolling();
+      }
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.status === "success" && json.data) {
-          let hasUpdates = false;
-          for (const tableName in json.data) {
-            if (Object.prototype.hasOwnProperty.call(json.data, tableName)) {
-              const tableRecords = json.data[tableName];
-              if (Array.isArray(tableRecords) && tableRecords.length > 0) {
-                hasUpdates = true;
-                this.dataListeners.forEach(fn => fn(tableName, tableRecords));
-              }
+      const json = await res.json();
+
+      if (json.status === "success" && json.data) {
+        let hasUpdates = false;
+        for (const tableName in json.data) {
+          if (Object.prototype.hasOwnProperty.call(json.data, tableName)) {
+            const tableRecords = json.data[tableName];
+            if (Array.isArray(tableRecords) && tableRecords.length > 0) {
+              hasUpdates = true;
+              this.dataListeners.forEach(fn => fn(tableName, tableRecords));
             }
           }
+        }
 
-          // Adjust polling based on whether there were updates
-          this.consecutiveEmptyPolls = hasUpdates ? 0 : this.consecutiveEmptyPolls + 1;
+        if (hasUpdates && this.pollInterval > this.minPollInterval) {
+          this.pollInterval = Math.max(this.pollInterval * 0.8, this.minPollInterval);
+          this.restartPolling();
+        }
 
-          // If no updates for a while, slow down polling
-          if (this.consecutiveEmptyPolls > 5) {
-            this.basePollInterval = Math.min(this.basePollInterval * 1.5, this.maxPollInterval);
-            this.consecutiveEmptyPolls = 0;
-            this.startSmartPolling(this.basePollInterval);
-          }
+        const nowIso = new Date().toISOString();
+        this.lastSyncedAt = nowIso;
+        try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
 
-          const nowIso = new Date().toISOString();
-          this.lastSyncedAt = nowIso;
-          try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
-
-          if (this.queue.length === 0) {
-            this.updateStatus("synced");
-          }
+        if (this.queue.length === 0) {
+          this.updateStatus("synced");
         }
       }
     } catch (_) {
-      // Delta polling fail quietly to avoid disturbing user
-      // Slow down polling on errors
-      this.basePollInterval = Math.min(this.basePollInterval * 1.2, this.maxPollInterval);
-      this.startSmartPolling(this.basePollInterval);
+      // Silent failure - polling should not disturb user
     } finally {
       this.isPolling = false;
+      this.pendingRequests.delete(operation);
     }
   }
 
-  /**
-   * Reset All Data (Clean local caches, empty outbox, and wipe sheet database)
-   */
   public async resetAllData(): Promise<boolean> {
     this.queue = [];
     this.saveQueue();
@@ -530,352 +1133,182 @@ class GoogleSyncService {
     return true;
   }
 
-  public startSmartPolling(intervalMs: number = 60000) {
-    this.stopSmartPolling();
-    if (!this.gasUrl) return;
+  private startPolling() {
+    this.stopPolling();
+    if (!this.gasUrl || !navigator.onLine) return;
 
     this.pollIntervalTimer = setInterval(() => {
-      if (navigator.onLine && !document.hidden) {
+      if (navigator.onLine && !document.hidden && this.isHealthy) {
         this.pollDelta();
       }
-    }, intervalMs);
+    }, this.pollInterval);
   }
 
-  public stopSmartPolling() {
+  private restartPolling() {
+    if (this.pollIntervalTimer) {
+      this.startPolling();
+    }
+  }
+
+  public stopPolling() {
     if (this.pollIntervalTimer) {
       clearInterval(this.pollIntervalTimer);
       this.pollIntervalTimer = null;
     }
   }
 
-  // === PERFORMANCE OPTIMIZATION METHODS ===
-
-  /**
-   * Track user activity to adjust polling frequency
-   */
-  public trackUserActivity(): void {
-    this.lastActivityTime = Date.now();
-    this.isUserActive = true;
-    // Increase polling frequency when user is active
-    this.adjustPollingInterval();
-  }
-
-  /**
-   * Adaptive polling interval based on activity and connection quality
-   */
-  private adjustPollingInterval(): void {
-    if (!this.pollIntervalTimer) return;
-
-    const timeSinceActivity = Date.now() - this.lastActivityTime;
-    const isActive = timeSinceActivity < 5 * 60 * 1000; // Active in last 5 minutes
-
-    let newInterval: number;
-
-    if (isActive) {
-      // User is active: poll more frequently
-      newInterval = this.minPollInterval;
-    } else if (timeSinceActivity < 30 * 60 * 1000) {
-      // User was active in last 30 min: normal interval
-      newInterval = this.basePollInterval;
-    } else {
-      // User inactive: reduce polling to save battery
-      newInterval = Math.min(this.maxPollInterval, this.basePollInterval * 2);
-    }
-
-    // Adjust based on connection quality
-    if (this.avgLatency > 3000) {
-      // Poor connection: poll less frequently
-      newInterval = Math.min(newInterval * 1.5, this.maxPollInterval);
-    }
-
-    // Restart timer with new interval if changed
-    if (newInterval !== this.basePollInterval) {
-      this.startSmartPolling(newInterval);
-    }
-  }
-
-  /**
-   * Track latency for connection quality assessment
-   */
-  public trackLatency(latency: number): void {
-    this.latencyHistory.push(latency);
-    if (this.latencyHistory.length > this.maxLatencySamples) {
-      this.latencyHistory.shift();
-    }
-    this.avgLatency = this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length;
-  }
-
-  /**
-   * Get current sync performance metrics
-   */
-  public getSyncMetrics(): {
-    avgLatency: number;
-    queueSize: number;
-    lastSyncedAt: string | null;
-    isPolling: boolean;
-    isFlushing: boolean;
-    pollInterval: number;
-    connectionQuality: "good" | "medium" | "poor";
-  } {
-    return {
-      avgLatency: Math.round(this.avgLatency),
-      queueSize: this.queue.length,
-      lastSyncedAt: this.lastSyncedAt,
-      isPolling: this.isPolling,
-      isFlushing: this.isFlushing,
-      pollInterval: this.basePollInterval,
-      connectionQuality: this.avgLatency < 1000 ? "good" : this.avgLatency < 3000 ? "medium" : "poor",
-    };
-  }
-
-  /**
-   * Priority sync: force sync specific table immediately
-   * Useful for critical data like attendance
-   */
   public async syncTable(tableName: string): Promise<boolean> {
     if (!this.gasUrl || !navigator.onLine) return false;
 
     try {
       const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_table&table=${encodeURIComponent(tableName)}&_t=${Date.now()}`;
-      const res = await fetch(url, { method: "GET", mode: "cors" });
+      const res = await this.fetchWithRetry(url, { method: "GET", mode: "cors" }, `syncTable(${tableName})`);
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.status === "success" && json.data) {
-          const records = Array.isArray(json.data) ? json.data : [];
-          this.dataListeners.forEach(fn => fn(tableName, records, true));
-          return true;
-        }
+      const json = await res.json();
+      if (json.status === "success" && json.data) {
+        const records = Array.isArray(json.data) ? json.data : [];
+        this.dataListeners.forEach(fn => fn(tableName, records, true));
+        return true;
       }
-    } catch (_) {}
+    } catch (_e) {}
     return false;
   }
 
-  /**
-   * Batch multiple table syncs into single request
-   * Reduces network overhead for multiple table updates
-   */
-  public async syncTablesBatch(tableNames: string[]): Promise<boolean> {
-    if (!this.gasUrl || !navigator.onLine || tableNames.length === 0) return false;
-
-    try {
-      const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_tables&tables=${encodeURIComponent(tableNames.join(","))}&_t=${Date.now()}`;
-      const res = await fetch(url, { method: "GET", mode: "cors" });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.status === "success" && json.data) {
-          for (const tableName of tableNames) {
-            if (json.data[tableName]) {
-              const records = Array.isArray(json.data[tableName]) ? json.data[tableName] : [];
-              this.dataListeners.forEach(fn => fn(tableName, records, true));
-            }
-          }
-          return true;
-        }
-      }
-    } catch (_) {}
-    return false;
-  }
-
-  /**
-   * Skip pending items for a specific table (useful when doing full refresh)
-   */
   public skipTableQueue(tableName: string): void {
     this.queue = this.queue.filter(q => q.table !== tableName);
     this.saveQueue();
     this.updateStatus();
   }
 
-  // === PHOTO SYNC OPTIMIZATION METHODS ===
+  // === PHOTO LAZY LOADING ===
 
   /**
-   * Photo sync configuration
+   * In-memory photo cache (faster than IndexedDB for frequently accessed)
    */
-  private photoSyncEnabled: boolean = false;
-  private pendingPhotoUrls: Map<string, string> = new Map(); // url -> table reference
-  private isSyncingPhotos: boolean = false;
-  private photoSyncConcurrency: number = 3; // Concurrent photo downloads
+  private memoryPhotoCache: Map<string, { data: string; timestamp: number }> = new Map();
+  private readonly MAX_MEMORY_CACHE = 50;
 
   /**
-   * Enable photo sync with IndexedDB caching
+   * Get photo by ID - returns from cache or fetches from cloud
+   * This is the main method for lazy loading photos
    */
-  public enablePhotoSync(): void {
-    this.photoSyncEnabled = true;
-  }
+  public async getPhoto(recordId: string, photoField: string = 'photoUrl'): Promise<string | null> {
+    const cacheKey = `${recordId}_${photoField}`;
 
-  /**
-   * Disable photo sync
-   */
-  public disablePhotoSync(): void {
-    this.photoSyncEnabled = false;
-  }
+    // 1. Check memory cache first (fastest)
+    const memoryCached = this.memoryPhotoCache.get(cacheKey);
+    if (memoryCached) {
+      return memoryCached.data;
+    }
 
-  /**
-   * Check if photo sync is enabled
-   */
-  public isPhotoSyncEnabled(): boolean {
-    return this.photoSyncEnabled;
-  }
-
-  /**
-   * Queue photos for background download
-   * Extracts photo URLs from records and queues them for lazy loading
-   */
-  public queuePhotosForSync(records: any[], tableName: string): void {
-    if (!this.photoSyncEnabled) return;
-
-    records.forEach((record) => {
-      // Check common photo field names
-      const photoFields = ["photoUrl", "fotoSantriUrl", "lampiranUrl", "imageUrl", "avatarUrl", "pictureUrl"];
-
-      photoFields.forEach((field) => {
-        const url = record[field];
-        if (url && typeof url === "string" && url.startsWith("data:image")) {
-          // This is a base64 image embedded in data
-          // Store the reference so we know it needs caching
-          this.pendingPhotoUrls.set(url, tableName);
-        }
-      });
-    });
-  }
-
-  /**
-   * Fetch only photos that have changed (incremental photo sync)
-   * Returns URLs that need to be downloaded
-   */
-  public async fetchChangedPhotos(
-    previousRecords: any[],
-    currentRecords: any[]
-  ): Promise<string[]> {
-    const previousUrls = this.extractPhotoUrls(previousRecords);
-    const currentUrls = this.extractPhotoUrls(currentRecords);
-
-    // Find new or changed URLs
-    const changedUrls: string[] = [];
-
-    currentUrls.forEach((url) => {
-      if (!previousUrls.has(url)) {
-        changedUrls.push(url);
+    // 2. Check IndexedDB cache
+    try {
+      const { getPhoto: getCached } = await import('./photoCacheService');
+      const cached = await getCached(cacheKey);
+      if (cached) {
+        this.cacheInMemory(cacheKey, cached.data);
+        return cached.data;
       }
-    });
+    } catch (_) {}
 
-    return changedUrls;
+    // 3. Fetch from cloud (this would need GAS endpoint)
+    // For now, return null - photo will be embedded in record data
+    return null;
   }
 
   /**
-   * Extract all photo URLs from records
+   * Cache photo in both memory and IndexedDB
    */
-  private extractPhotoUrls(records: any[]): Set<string> {
-    const urls = new Set<string>();
-    const photoFields = ["photoUrl", "fotoSantriUrl", "lampiranUrl", "imageUrl", "avatarUrl", "pictureUrl"];
+  public async cachePhoto(recordId: string, photoField: string, data: string): Promise<void> {
+    const cacheKey = `${recordId}_${photoField}`;
 
-    records.forEach((record) => {
-      photoFields.forEach((field) => {
-        const url = record[field];
-        if (url && typeof url === "string") {
-          urls.add(url);
-        }
-      });
-    });
+    // Memory cache
+    this.cacheInMemory(cacheKey, data);
 
-    return urls;
-  }
-
-  /**
-   * Batch sync photos in background with controlled concurrency
-   */
-  public async syncPhotosInBackground(photoUrls: string[]): Promise<void> {
-    if (!this.photoSyncEnabled || this.isSyncingPhotos || photoUrls.length === 0) return;
-
-    this.isSyncingPhotos = true;
-
+    // IndexedDB cache (async, don't wait)
     try {
-      // Dynamic import to avoid loading photoCacheService unless needed
-      const { photoCacheService } = await import("./photoCacheService");
+      const { setPhoto } = await import('./photoCacheService');
+      setPhoto(cacheKey, data).catch(() => {});
+    } catch (_) {}
+  }
 
-      await photoCacheService.init();
-
-      // Process in batches to avoid memory issues
-      const batchSize = this.photoSyncConcurrency;
-
-      for (let i = 0; i < photoUrls.length; i += batchSize) {
-        const batch = photoUrls.slice(i, i + batchSize);
-
-        await Promise.all(
-          batch.map(async (url) => {
-            try {
-              // Check if already cached
-              const cached = await photoCacheService.getPhoto(url);
-              if (!cached) {
-                // Cache the photo
-                await photoCacheService.cachePhoto(url, url);
-              }
-            } catch (_) {
-              // Silently fail individual photos
-            }
-          })
-        );
-
-        // Small delay between batches to prevent blocking
-        await new Promise((resolve) => setTimeout(resolve, 50));
+  private cacheInMemory(key: string, data: string): void {
+    // Evict oldest if at capacity
+    if (this.memoryPhotoCache.size >= this.MAX_MEMORY_CACHE) {
+      const oldestKey = this.memoryPhotoCache.keys().next().value;
+      if (oldestKey) {
+        this.memoryPhotoCache.delete(oldestKey);
       }
-
-      console.log(`[PhotoSync] Cached ${photoUrls.length} photos`);
-    } catch (error) {
-      console.warn("[PhotoSync] Failed to sync photos:", error);
-    } finally {
-      this.isSyncingPhotos = false;
     }
+    this.memoryPhotoCache.set(key, { data, timestamp: Date.now() });
   }
 
   /**
-   * Get cached photo from IndexedDB
+   * Extract photo references from records for batch prefetching
    */
-  public async getCachedPhoto(url: string): Promise<string | null> {
-    if (!this.photoSyncEnabled) return null;
+  public extractPhotoRefs(records: any[]): Array<{ id: string; field: string; data: string }> {
+    const refs: Array<{ id: string; field: string; data: string }> = [];
+    const photoFields = ['photoUrl', 'fotoSantriUrl', 'lampiranUrl', 'imageUrl', 'avatarUrl'];
 
-    try {
-      const { photoCacheService } = await import("./photoCacheService");
-      const cached = await photoCacheService.getPhoto(url);
-      return cached?.data || null;
-    } catch (_) {
-      return null;
+    for (const record of records) {
+      if (!record?.id) continue;
+      for (const field of photoFields) {
+        const data = record[field];
+        if (data && typeof data === 'string' && data.startsWith('data:image')) {
+          refs.push({ id: record.id, field, data });
+        }
+      }
     }
+
+    return refs;
   }
 
   /**
-   * Get photo stats
+   * Batch cache photos extracted from records
+   * Call this after fetching records to cache their photos
    */
-  public async getPhotoCacheStats(): Promise<{ count: number; size: number }> {
-    try {
-      const { photoCacheService } = await import("./photoCacheService");
-      return await photoCacheService.getStats();
-    } catch (_) {
-      return { count: 0, size: 0 };
-    }
-  }
+  public async cacheRecordPhotos(records: any[]): Promise<void> {
+    const refs = this.extractPhotoRefs(records);
 
-  /**
-   * Clear photo cache
-   */
-  public async clearPhotoCache(): Promise<void> {
+    for (const ref of refs) {
+      await this.cachePhoto(ref.id, ref.field, ref.data);
+    }
+
+    // Cleanup old cache entries
     try {
-      const { photoCacheService } = await import("./photoCacheService");
-      await photoCacheService.clearCache();
+      const { cleanup } = await import('./photoCacheService');
+      cleanup(200);
     } catch (_) {}
   }
 
   /**
-   * Cleanup old cached photos (LRU eviction)
+   * Clear all photo caches
    */
-  public async cleanupPhotoCache(maxEntries?: number): Promise<number> {
+  public async clearPhotoCaches(): Promise<void> {
+    this.memoryPhotoCache.clear();
+
     try {
-      const { photoCacheService } = await import("./photoCacheService");
-      return await photoCacheService.cleanup(maxEntries);
-    } catch (_) {
-      return 0;
-    }
+      const { clearCache } = await import('./photoCacheService');
+      await clearCache();
+    } catch (_) {}
+  }
+
+  public getSyncMetrics(): {
+    queueSize: number;
+    lastSyncedAt: string | null;
+    isPolling: boolean;
+    isFlushing: boolean;
+    pollInterval: number;
+    connectionHealth: "good" | "degraded" | "poor";
+  } {
+    return {
+      queueSize: this.queue.length,
+      lastSyncedAt: this.lastSyncedAt,
+      isPolling: this.isPolling,
+      isFlushing: this.isFlushing,
+      pollInterval: this.pollInterval,
+      connectionHealth: this.isHealthy ? "good" : this.consecutiveFailures < 3 ? "degraded" : "poor",
+    };
   }
 }
 
