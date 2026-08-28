@@ -38,7 +38,11 @@ const TABLES = {
   SUNNAH_FASTS: "SunnahFasts",
   SANTRI_IZIN: "SantriIzin",
   DATA_PERIZINAN: "DataPerizinan",
-  SANTRI_REQUESTS: "SantriRequests"
+  SANTRI_REQUESTS: "SantriRequests",
+  PHOTOS: "Photos",
+  FOTO_LOGBOOK: "Foto_Logbook",
+  FOTO_IZIN: "Foto_Izin",
+  FOTO_SANTRI_SAKIT: "Foto_SantriSakit"
 };
 
 const STANDARD_HEADERS = ["id", "created_at", "updated_at", "is_deleted", "data_json"];
@@ -120,6 +124,16 @@ function doPost(e) {
         status: "success",
         action: "reset_all_data",
         message: "Seluruh data sheet berhasil di-reset bersih",
+        serverTime: new Date().toISOString()
+      });
+    }
+
+    if (action === "migrate_photos") {
+      const result = migrateExistingPhotosToPhotoTable();
+      return createResponse({
+        status: "success",
+        action: "migrate_photos",
+        result: result,
         serverTime: new Date().toISOString()
       });
     }
@@ -326,4 +340,97 @@ function createResponse(data, statusCode) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
   return output;
+}
+
+/**
+ * Migration Utility: Memindahkan foto Base64 yang sudah terlanjur ada di sheet utama ke sheet Photos
+ * Dapat dijalankan langsung dari Apps Script editor atau dipanggil via POST action: "migrate_photos"
+ */
+function migrateExistingPhotosToPhotoTable() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const targetTables = ["Logbook", "Izin", "SantriSakit", "Mutabaah", "SantriIzin", "DataPerizinan"];
+  const photoFields = ["photoUrl", "fotoSantriUrl", "lampiranUrl", "imageUrl", "avatarUrl", "photo", "foto"];
+  
+  const photoSheet = getOrCreateSheet(ss, TABLES.PHOTOS);
+  const extractedPhotos = [];
+  let migratedCount = 0;
+
+  targetTables.forEach(tableName => {
+    const sheet = ss.getSheetByName(tableName);
+    if (!sheet) return;
+
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+    if (values.length <= 1) return;
+
+    const headers = values[0];
+    const idIdx = headers.indexOf("id");
+    const dataIdx = headers.indexOf("data_json");
+    if (idIdx === -1 || dataIdx === -1) return;
+
+    let modified = false;
+
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      const id = row[idIdx];
+      const rawJson = row[dataIdx];
+      if (!id || !rawJson) continue;
+
+      let obj = {};
+      try {
+        obj = JSON.parse(rawJson);
+      } catch (_) {
+        continue;
+      }
+
+      let rowHasPhoto = false;
+
+      // Recursive scan untuk menemukan base64 image
+      function scanAndExtract(node, path) {
+        if (!node || typeof node !== "object") return;
+        for (const k in node) {
+          const val = node[k];
+          if (typeof val === "string" && val.startsWith("data:image")) {
+            const photoId = "photo_" + id + "_" + k + "_" + Date.now();
+            extractedPhotos.push({
+              id: photoId,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              is_deleted: false,
+              record_id: id,
+              table_source: tableName,
+              field_key: k,
+              photo_data: val
+            });
+            node[k] = "photo:" + photoId;
+            rowHasPhoto = true;
+            migratedCount++;
+          } else if (val && typeof val === "object") {
+            scanAndExtract(val, path + "." + k);
+          }
+        }
+      }
+
+      scanAndExtract(obj, "");
+
+      if (rowHasPhoto) {
+        row[dataIdx] = JSON.stringify(obj);
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      sheet.getDataRange().setValues(values);
+    }
+  });
+
+  if (extractedPhotos.length > 0) {
+    executeBatchUpsert(photoSheet, extractedPhotos);
+  }
+
+  return {
+    success: true,
+    totalMigrated: migratedCount,
+    extractedPhotosCount: extractedPhotos.length
+  };
 }

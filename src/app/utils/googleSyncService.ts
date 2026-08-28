@@ -28,7 +28,7 @@ export interface SyncState {
 type SyncListener = (state: SyncState) => void;
 type DataUpdateListener = (table: string, records: any[], isFullReplace?: boolean) => void;
 
-const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzulnnHPTuqMZ6FwkLb1_3ZKgH5HzYvm1zgG1MaxYeXKKoT0BL6W89q8hDmChB5S94aHQ/exec";
+const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycby9N-DKmk-UmVZrt31b6uhX7OlpqJLtrSi5fwmkZxFXXxBTca25RedQUzeRzK6OizwGGA/exec";
 const GAS_URL_KEY = "presensi_gas_url";
 const LAST_SYNC_KEY = "presensi_last_sync_timestamp_v7"; // Bumped version - v7 has better photo sync
 const QUEUE_KEY = "presensi_sync_outbox_queue_v7"; // Bumped version
@@ -96,7 +96,7 @@ class GoogleSyncService {
 
     try {
       const saved = localStorage.getItem(GAS_URL_KEY);
-      if (saved && !saved.includes("AKfycbxX2GM9")) {
+      if (saved && !saved.includes("AKfycbxX2GM9") && !saved.includes("AKfycbzulnnHPTuqMZ6FwkLb1_3ZKgH5HzYvm1zgG1MaxYeXKKoT0BL6W89q8hDmChB5S94aHQ") && !saved.includes("AKfycbynVevPWfXU1u6ylxyM6Fn8-NRqBsnz2N4LJHrv6FNru5zqD0DrmH5Slw-_cZ1aJO3nOw")) {
         this.gasUrl = saved;
       } else {
         this.gasUrl = DEFAULT_GAS_URL;
@@ -603,8 +603,8 @@ class GoogleSyncService {
       const tablesPayload: Record<string, any[]> = {};
       const batchItems = [...this.queue];
       let photoCount = 0;
-      const photoCacheOperations: Array<{ table: string; id: string; field: string; data: string }> = [];
-      const thumbnailOperations: Array<{ node: any; key: string; promise: Promise<string> }> = [];
+      const photoCacheOperations: Array<{ table: string; id: string; field: string; data: string; photoId: string }> = [];
+      const thumbnailOperations: Array<{ photoId: string; recordId: string; table: string; field: string; promise: Promise<string> }> = [];
 
       batchItems.forEach(item => {
         if (!tablesPayload[item.table]) {
@@ -618,30 +618,40 @@ class GoogleSyncService {
           sanitized = { ...item.record };
         }
 
+        const tablePrefix = this.getTablePrefix(item.table);
+
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const k in node) {
             const val = node[k];
 
-            // Handle photo fields - extract and cache, send thumbnail only
+            // Handle photo fields - extract and cache locally, send reference only in main table
             if (typeof val === "string" && val.startsWith("data:image")) {
               photoCount++;
+              const photoId = `photo_${tablePrefix}_${item.id}_${k}`;
 
-              // Queue photo for caching (FULL photo - stored locally)
+              // Queue photo for caching (FULL photo - stored locally in IndexedDB)
               photoCacheOperations.push({
                 table: item.table,
                 id: item.id,
                 field: k,
+                photoId,
                 data: val
               });
 
-              // Queue thumbnail generation for CLOUD (smaller payload)
-              const thumbPromise = this.createThumbnail(val, 150);
+              // Queue thumbnail generation for separate Photos table
+              const thumbPromise = this.createThumbnail(val, 180);
               thumbnailOperations.push({
-                node,
-                key: k,
+                photoId,
+                recordId: item.id,
+                table: item.table,
+                field: k,
                 promise: thumbPromise
               });
+
+              // In main table: only store lightweight reference!
+              node[k] = `photo:${photoId}`;
+              node[`hasPhoto_${k}`] = true;
 
             } else if (typeof val === "string" && val.length > 46000) {
               // Truncate non-photo strings
@@ -658,30 +668,13 @@ class GoogleSyncService {
 
       // Log photo extraction
       if (photoCount > 0) {
-        console.log(`[SyncService] flushQueue: extracted ${photoCount} photos`);
+        console.log(`[SyncService] flushQueue: extracted ${photoCount} photos for isolated sync`);
       }
 
-      // Process all thumbnails in parallel BEFORE sending
-      // This ensures thumbnails are ready before we send the payload
-      const thumbnailResults = await Promise.allSettled(
-        thumbnailOperations.map(op => op.promise)
-      );
-
-      // Apply thumbnail results to nodes for cloud upload
-      thumbnailOperations.forEach((op, idx) => {
-        const result = thumbnailResults[idx];
-        if (result.status === 'fulfilled' && result.value.length < 46000) {
-          op.node[op.key] = result.value;
-        } else {
-          op.node[op.key] = ""; // Empty if too big or failed
-        }
-      });
-
-      // Cache FULL photos to IndexedDB FIRST (before upload)
-      // This ensures we have the full photo even if upload fails
+      // Cache FULL photos to IndexedDB FIRST (before network call)
       await this.cachePhotosBatch(photoCacheOperations);
 
-      // Upload metadata + thumbnails to cloud
+      // PHASE 1: Upload text metadata to cloud (super lightweight, < 1KB per record)
       const res = await this.fetchWithRetry(
         this.gasUrl,
         {
@@ -717,19 +710,22 @@ class GoogleSyncService {
         this.isFlushing = false;
         this.pendingRequests.delete(operation);
 
-        console.log(`[SyncService] flushQueue completed - ${batchItems.length} items synced, ${photoCount} full photos cached locally`);
+        console.log(`[SyncService] Phase 1 text sync completed - ${batchItems.length} items synced, ${photoCount} full photos cached locally`);
+
+        // PHASE 2: Upload photos to separate "Photos" table in background (Non-blocking & isolated)
+        if (thumbnailOperations.length > 0) {
+          this.uploadPhotosBackground(thumbnailOperations);
+        }
+
         return true;
       } else {
-        // Upload gagal tapi foto sudah tersimpan lokal - bukan masalah besar
         console.warn(`[SyncService] Upload failed but photos cached locally: ${resData.message}`);
-        // Jangan throw error, biarkan queue tetap untuk retry
         this.updateStatus("pending");
         this.isFlushing = false;
         this.pendingRequests.delete(operation);
         return false;
       }
     } catch (err: any) {
-      // Upload gagal tapi foto sudah tersimpan lokal
       console.warn(`[SyncService] Upload error but photos cached locally: ${err.message}`);
       this.updateStatus("pending");
       this.isFlushing = false;
@@ -739,33 +735,90 @@ class GoogleSyncService {
   }
 
   /**
-   * Batch cache photos to IndexedDB (non-blocking)
-   * Uses consistent key format: {tablePrefix}_{recordId}_{fieldName}
+   * Phase 2: Background upload for photos to dedicated Photos sheet
+   * Isolated from main text queue so failure never affects core data
    */
-  private async cachePhotosBatch(operations: Array<{ table: string; id: string; field: string; data: string }>): Promise<void> {
+  private async uploadPhotosBackground(
+    thumbnailOperations: Array<{ photoId: string; recordId: string; table: string; field: string; promise: Promise<string> }>
+  ): Promise<void> {
+    try {
+      const thumbnailResults = await Promise.allSettled(
+        thumbnailOperations.map(op => op.promise)
+      );
+
+      const photoRecords: any[] = [];
+      thumbnailOperations.forEach((op, idx) => {
+        const result = thumbnailResults[idx];
+        const thumbData = (result.status === 'fulfilled' && result.value.length < 46000) ? result.value : "";
+        if (thumbData) {
+          photoRecords.push({
+            id: op.photoId,
+            record_id: op.recordId,
+            table_source: op.table,
+            field_key: op.field,
+            photo_data: thumbData,
+            timestamp: Date.now()
+          });
+        }
+      });
+
+      if (photoRecords.length === 0) return;
+
+      console.log(`[SyncService] Phase 2: Uploading ${photoRecords.length} photo(s) to separate Photos table...`);
+
+      const res = await fetch(this.gasUrl, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "batch_upsert",
+          table: "Photos",
+          records: photoRecords
+        })
+      });
+
+      const json = await res.json();
+      if (json.status === "success") {
+        console.log(`[SyncService] Phase 2 photo upload successful (${photoRecords.length} photos synced to Photos tab)`);
+      } else {
+        console.warn(`[SyncService] Phase 2 photo upload responded with non-success:`, json.message);
+      }
+    } catch (e) {
+      console.warn('[SyncService] Phase 2 photo upload error (core text data remains safe):', e);
+    }
+  }
+
+  /**
+   * Batch cache photos to IndexedDB (non-blocking)
+   * Uses consistent key format: {tablePrefix}_{recordId}_{fieldName} and photoId
+   */
+  private async cachePhotosBatch(operations: Array<{ table: string; id: string; field: string; data: string; photoId?: string }>): Promise<void> {
     if (operations.length === 0) return;
 
     try {
       const { setPhotosBatch } = await import('./photoCacheService');
 
-      // Use consistent key format for better matching
-      const photosToCache = operations.map(op => {
+      const photosToCache: Array<{ id: string; data: string }> = [];
+      operations.forEach(op => {
         const tablePrefix = this.getTablePrefix(op.table);
         const cacheKey = `${tablePrefix}_${op.id}_${op.field}`;
-        return {
-          id: cacheKey,
-          data: op.data
-        };
+        photosToCache.push({ id: cacheKey, data: op.data });
+        if (op.photoId && op.photoId !== cacheKey) {
+          photosToCache.push({ id: op.photoId, data: op.data });
+        }
       });
 
       await setPhotosBatch(photosToCache);
-      console.log(`[SyncService] Batch cached ${photosToCache.length} photos to IndexedDB`);
+      console.log(`[SyncService] Batch cached ${photosToCache.length} photo entries to IndexedDB`);
 
       // Also cache in memory with consistent keys
       for (const op of operations) {
         const tablePrefix = this.getTablePrefix(op.table);
-        const photoId = `${tablePrefix}_${op.id}_${op.field}`;
-        this.cacheInMemory(photoId, op.data);
+        const cacheKey = `${tablePrefix}_${op.id}_${op.field}`;
+        this.cacheInMemory(cacheKey, op.data);
+        if (op.photoId) {
+          this.cacheInMemory(op.photoId, op.data);
+        }
       }
     } catch (e) {
       console.debug('[SyncService] Batch photo cache failed:', e);
@@ -847,6 +900,25 @@ class GoogleSyncService {
         this.lastSyncedAt = nowIso;
         try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
 
+        // Cache any incoming Photos table records to IndexedDB
+        if (Array.isArray(sanitizedData["Photos"]) && sanitizedData["Photos"].length > 0) {
+          try {
+            const { setPhotosBatch } = await import('./photoCacheService');
+            const photoItems = sanitizedData["Photos"]
+              .map((p: any) => ({
+                id: p.id,
+                data: p.photo_data || p.photoUrl || p.data || p.photoData
+              }))
+              .filter((p: any) => Boolean(p.id && p.data));
+            if (photoItems.length > 0) {
+              await setPhotosBatch(photoItems);
+            }
+          } catch (_) {}
+        }
+
+        // Merge local photos & resolve photo references
+        await this.mergeLocalPhotos(sanitizedData);
+
         // Notify listeners of cloud data
         for (const tableName in sanitizedData) {
           if (Object.prototype.hasOwnProperty.call(sanitizedData, tableName)) {
@@ -912,7 +984,7 @@ class GoogleSyncService {
 
   /**
    * Merge local full photos from IndexedDB into cached data
-   * Only replaces if the current data is a thumbnail (small) and we have a full photo
+   * Resolves photo: references and upgrades small thumbnails to full photos
    */
   private async mergeLocalPhotos(data: Record<string, any[]>): Promise<void> {
     try {
@@ -928,18 +1000,39 @@ class GoogleSyncService {
 
           // Check all photo fields dynamically
           for (const field of PHOTO_FIELDS) {
-            if (!record[field] || typeof record[field] !== 'string') continue;
+            if (!record[field]) continue;
 
             const photoValue = record[field];
-            if (!photoValue.startsWith('data:image')) continue;
+            if (typeof photoValue !== 'string') continue;
 
-            // Check if this is likely a thumbnail (small) that needs upgrading
-            if (this.isLikelyFullPhoto(photoValue)) {
-              // Already full data, no need to merge
+            // 1. Handle photo reference format (e.g. "photo:photo_logbook_123_photoUrl")
+            if (photoValue.startsWith('photo:')) {
+              const photoId = photoValue.replace('photo:', '');
+              const cacheKeys = [
+                photoId,
+                this.getPhotoCacheKey(record.id, field, tablePrefix),
+                `${tablePrefix}_${record.id}_${field}`,
+                `${tableName}_${record.id}_${field}`,
+                `${record.id}_${field}`,
+              ];
+
+              for (const cacheKey of cacheKeys) {
+                const cached = await getPhoto(cacheKey);
+                if (cached?.data) {
+                  record[field] = cached.data;
+                  break;
+                }
+              }
               continue;
             }
 
-            // Try multiple key formats to find the cached photo
+            // 2. Handle legacy inline Base64 format (Upgrade thumbnail to full photo if available in IDB)
+            if (!photoValue.startsWith('data:image')) continue;
+
+            if (this.isLikelyFullPhoto(photoValue)) {
+              continue;
+            }
+
             const cacheKeys = [
               this.getPhotoCacheKey(record.id, field, tablePrefix),
               `${tablePrefix}_${record.id}_${field}`,
@@ -947,20 +1040,12 @@ class GoogleSyncService {
               `${record.id}_${field}`,
             ];
 
-            let foundFullPhoto = false;
             for (const cacheKey of cacheKeys) {
               const cached = await getPhoto(cacheKey);
               if (cached?.data && this.isLikelyFullPhoto(cached.data)) {
-                // Found full photo, use it
                 record[field] = cached.data;
-                foundFullPhoto = true;
                 break;
               }
-            }
-
-            if (!foundFullPhoto) {
-              // Debug log for missing photos
-              console.debug(`[SyncService] Full photo not found for ${tableName}/${record.id}/${field}`);
             }
           }
         }
@@ -1055,6 +1140,26 @@ class GoogleSyncService {
 
       if (json.status === "success" && json.data) {
         let hasUpdates = false;
+
+        // Cache any delta Photos table records to IndexedDB
+        if (Array.isArray(json.data["Photos"]) && json.data["Photos"].length > 0) {
+          try {
+            const { setPhotosBatch } = await import('./photoCacheService');
+            const photoItems = json.data["Photos"]
+              .map((p: any) => ({
+                id: p.id,
+                data: p.photo_data || p.photoUrl || p.data || p.photoData
+              }))
+              .filter((p: any) => Boolean(p.id && p.data));
+            if (photoItems.length > 0) {
+              await setPhotosBatch(photoItems);
+            }
+          } catch (_) {}
+        }
+
+        // Merge local photos & resolve references
+        await this.mergeLocalPhotos(json.data);
+
         for (const tableName in json.data) {
           if (Object.prototype.hasOwnProperty.call(json.data, tableName)) {
             const tableRecords = json.data[tableName];
