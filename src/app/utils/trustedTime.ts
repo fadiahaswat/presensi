@@ -17,6 +17,7 @@ let lastSyncTimestamp: number | null = null;
 let currentStatus: TimeSyncState["status"] = "syncing";
 let currentDriftMinutes = 0;
 let syncSource = "Local Clock";
+let isSyncing = false; // Prevent concurrent sync attempts
 
 const listeners = new Set<(state: TimeSyncState) => void>();
 
@@ -46,22 +47,39 @@ export function getTrustedTimeOffset(): number {
 
 /**
  * Melakukan sinkronisasi waktu ke server waktu otoritatif.
- * Menggunakan multiple fallbacks (WorldTimeAPI -> TimeAPI -> HEAD request ke origin).
+ * Menggunakan multiple fallbacks dengan error handling yang robust.
  */
 export async function syncServerTime(): Promise<TimeSyncState> {
+  // Prevent concurrent sync attempts
+  if (isSyncing) {
+    return {
+      offsetMs: currentOffsetMs,
+      lastSynced: lastSyncTimestamp,
+      status: currentStatus,
+      driftMinutes: currentDriftMinutes,
+      serverDate: getTrustedDate(),
+      source: syncSource,
+    };
+  }
+
+  isSyncing = true;
   currentStatus = "syncing";
   notifyListeners();
 
+  // Priority: use APIs that support CORS and are allowed by CSP
+  // Note: Google generate_204 doesn't support CORS from localhost (dev only)
   const apis = [
-    {
-      name: "WorldTimeAPI (WIB)",
-      url: "https://worldtimeapi.org/api/timezone/Asia/Jakarta",
-      parse: (data: any) => new Date(data.datetime).getTime(),
-    },
     {
       name: "TimeAPI.io (WIB)",
       url: "https://timeapi.io/api/time/current/zone?timeZone=Asia%2FJakarta",
       parse: (data: any) => new Date(data.dateTime).getTime(),
+      timeout: 5000,
+    },
+    {
+      name: "WorldTimeAPI (WIB)",
+      url: "https://worldtimeapi.org/api/timezone/Asia/Jakarta",
+      parse: (data: any) => new Date(data.datetime).getTime(),
+      timeout: 5000,
     },
   ];
 
@@ -72,9 +90,12 @@ export async function syncServerTime(): Promise<TimeSyncState> {
     try {
       const startTime = Date.now();
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), api.timeout);
 
-      const res = await fetch(api.url, { signal: controller.signal });
+      const res = await fetch(api.url, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
       clearTimeout(timeoutId);
 
       if (res.ok) {
@@ -82,14 +103,14 @@ export async function syncServerTime(): Promise<TimeSyncState> {
         const serverTime = api.parse(data);
         const endTime = Date.now();
         const roundTrip = (endTime - startTime) / 2;
-        
+
         // Offset = (ServerTime + NetworkDelay) - LocalTime
         calculatedOffset = serverTime + roundTrip - endTime;
         usedSource = api.name;
         break;
       }
     } catch {
-      // Lanjut ke fallback berikutnya
+      // Silently continue to next fallback
     }
   }
 
@@ -97,7 +118,11 @@ export async function syncServerTime(): Promise<TimeSyncState> {
   if (calculatedOffset === null) {
     try {
       const startTime = Date.now();
-      const res = await fetch(window.location.href, { method: "HEAD", cache: "no-store" });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const res = await fetch(window.location.href, { method: "HEAD", cache: "no-store", signal: controller.signal });
+      clearTimeout(timeoutId);
       const dateHeader = res.headers.get("Date");
       if (dateHeader) {
         const serverTime = new Date(dateHeader).getTime();
@@ -107,7 +132,7 @@ export async function syncServerTime(): Promise<TimeSyncState> {
         usedSource = "HTTP Server Header";
       }
     } catch {
-      // Offline fallback
+      // Offline fallback - use local device time
     }
   }
 
@@ -124,11 +149,12 @@ export async function syncServerTime(): Promise<TimeSyncState> {
       currentStatus = "synced";
     }
   } else {
-    // Mode offline / gagal terhubung ke server waktu
+    // Mode offline / gagal terhubung ke server waktu - tetap pakai jam perangkat
     currentStatus = "error";
     syncSource = "Perangkat (Offline)";
   }
 
+  isSyncing = false;
   notifyListeners();
 
   return {
@@ -161,8 +187,16 @@ export function subscribeTimeSync(listener: (state: TimeSyncState) => void): () 
 
 // Inisialisasi sinkronisasi otomatis saat modul dimuat & berkala setiap 10 menit
 if (typeof window !== "undefined") {
-  syncServerTime();
+  // Delay initial sync to not block page load
+  setTimeout(() => {
+    syncServerTime().catch(() => {
+      // Silent catch - error status will be set internally
+    });
+  }, 2000);
+
   setInterval(() => {
-    syncServerTime();
+    syncServerTime().catch(() => {
+      // Silent catch
+    });
   }, 10 * 60 * 1000);
 }
