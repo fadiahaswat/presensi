@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   X, Check, Flame, Award, BookOpen,
   Sparkles, Calendar, TrendingUp, Sun, Moon, Heart, ChevronRight, User, ShieldCheck, Eye, CheckCircle2,
-  ChevronLeft, Sunrise, Sunset, BookMarked, Lock, ClipboardList
+  ChevronLeft, Sunrise, Sunset, BookMarked, Lock, ClipboardList, Search, ChevronDown
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -124,7 +124,38 @@ export function MutabaahYaumiyahModal({
       setSelectedDate(initialDate);
     }
   }, [initialMusyrifId, initialDate]);
+
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
+
+  // Searchable Musyrif Dropdown state
+  const [isMusyrifDropdownOpen, setIsMusyrifDropdownOpen] = useState(false);
+  const [musyrifSearchQuery, setMusyrifSearchQuery] = useState("");
+  const musyrifDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (musyrifDropdownRef.current && !musyrifDropdownRef.current.contains(event.target as Node)) {
+        setIsMusyrifDropdownOpen(false);
+      }
+    };
+    if (isMusyrifDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMusyrifDropdownOpen]);
+
+  const filteredDropdownMusyrifList = useMemo(() => {
+    if (!musyrifSearchQuery.trim()) return activeMusyrifList;
+    const q = musyrifSearchQuery.toLowerCase();
+    return activeMusyrifList.filter(m =>
+      (m.name || "").toLowerCase().includes(q) ||
+      (m.asrama || "").toLowerCase().includes(q) ||
+      (m.kamar || "").toLowerCase().includes(q) ||
+      (m.role || "").toLowerCase().includes(q)
+    );
+  }, [activeMusyrifList, musyrifSearchQuery]);
 
   // Form State
   const [entry, setEntry] = useState<MutabaahEntry>(() => {
@@ -265,66 +296,79 @@ export function MutabaahYaumiyahModal({
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
       {/* Header Bar */}
-      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${
+      <div className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 ${
         isPage
           ? "bg-white rounded-3xl border border-slate-100 shadow-sm ring-1 ring-slate-200/60"
           : "bg-slate-900 text-white rounded-t-3xl sm:rounded-t-[28px]"
       }`}>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Kembali ke Dashboard"
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-2xs ${
-              isPage ? "bg-slate-50 border border-slate-200/80 hover:bg-slate-100 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"
-            }`}
-          >
-            {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
-          </button>
-          <div>
-            <h2 className={`font-black text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-              Mutaba'ah Yaumiyah Ibadah
-            </h2>
-            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-400" : "text-slate-300"}`}>
-              Pencatatan amalan sunnah, tilawah Al-Qur'an & dzikir harian (Mulai 18 Agustus 2026)
-            </p>
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Kembali ke Dashboard"
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-2xs shrink-0 ${
+                isPage ? "bg-slate-50 border border-slate-200/80 hover:bg-slate-100 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"
+              }`}
+            >
+              {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
+            </button>
+            <div className="min-w-0">
+              <h2 className={`font-black text-base sm:text-lg leading-tight truncate ${isPage ? "text-slate-900" : "text-white"}`}>
+                Mutaba'ah Yaumiyah Ibadah
+              </h2>
+              <p className={`text-xs mt-0.5 truncate ${isPage ? "text-slate-400" : "text-slate-300"}`}>
+                Pencatatan amalan sunnah, tilawah Al-Qur'an & dzikir harian (Mulai 18 Agustus 2026)
+              </p>
+            </div>
           </div>
+
+          {isMusyrifUser && (
+            <button
+              type="button"
+              onClick={handleSave}
+              className="sm:hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0"
+            >
+              <Check className="w-4 h-4" />
+              <span>{savedSuccess ? "Tersimpan!" : "Simpan"}</span>
+            </button>
+          )}
         </div>
 
-        {isMusyrifUser && (
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all"
-          >
-            <Check className="w-4 h-4" />
-            <span>{savedSuccess ? "Tersimpan!" : "Simpan"}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2.5 sm:shrink-0 w-full sm:w-auto">
+          {/* Segmented Logbook / Mutabaah Toggle */}
+          {onOpenLogbook && isPage && (
+            <div className="grid grid-cols-2 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 shadow-inner w-full sm:w-60">
+              <button
+                type="button"
+                onClick={onOpenLogbook}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white/40"
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+                <span>Logbook</span>
+              </button>
+              <button
+                type="button"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 bg-rose-500 text-white shadow-sm shadow-rose-500/25 scale-[1.01]"
+              >
+                <Heart className="w-3.5 h-3.5" />
+                <span>Mutabaah</span>
+              </button>
+            </div>
+          )}
+
+          {isMusyrifUser && (
+            <button
+              type="button"
+              onClick={handleSave}
+              className="hidden sm:flex px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-xs items-center gap-1.5 active:scale-95 transition-all shrink-0"
+            >
+              <Check className="w-4 h-4" />
+              <span>{savedSuccess ? "Tersimpan!" : "Simpan"}</span>
+            </button>
+          )}
+        </div>
       </div>
-
-      {/* Logbook / Mutabaah Toggle Row */}
-      {onOpenLogbook && isPage && (
-        <div className="flex justify-center">
-          <div className="inline-flex bg-white rounded-full border border-slate-200/60 shadow-sm p-1">
-            <button
-              type="button"
-              onClick={onOpenLogbook}
-              className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-150 flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-50"
-            >
-              <ClipboardList className="w-3.5 h-3.5" />
-              <span>Logbook</span>
-            </button>
-            <button
-              type="button"
-              className="px-4 py-2 rounded-full text-xs font-bold transition-all duration-150 flex items-center gap-1.5 bg-rose-500 text-white shadow-sm"
-            >
-              <Heart className="w-3.5 h-3.5" />
-              <span>Mutabaah</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Date & Musyrif Controls & Progress */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">
@@ -353,16 +397,106 @@ export function MutabaahYaumiyahModal({
                 <span className="truncate">{authUser?.name} ({asramaDisplay})</span>
               </div>
             ) : (
-              <select
-                value={selectedMusyrifId}
-                onChange={(e) => handleDateOrMusyrifChange(e.target.value, selectedDate)}
-                className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 outline-none cursor-pointer shadow-2xs"
-              >
-                {isSupervisoryRole && <option value="">-- Silakan Pilih Musyrif --</option>}
-                {activeMusyrifList.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.asrama}{m.kamar ? ` - Kmr ${m.kamar}` : ""})</option>
-                ))}
-              </select>
+              <div className="relative" ref={musyrifDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMusyrifDropdownOpen(!isMusyrifDropdownOpen);
+                    setMusyrifSearchQuery("");
+                  }}
+                  className="w-full text-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-2xl px-3.5 py-2.5 font-bold text-slate-800 flex items-center justify-between gap-2 shadow-2xs transition-all text-left"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="truncate">
+                      {selectedMusyrif
+                        ? `${selectedMusyrif.name} (${selectedMusyrif.asrama}${selectedMusyrif.kamar ? ` - Kmr ${selectedMusyrif.kamar}` : ""})`
+                        : "-- Silakan Pilih Musyrif --"}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isMusyrifDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isMusyrifDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border border-slate-200/90 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-72">
+                    {/* Search Input */}
+                    <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={musyrifSearchQuery}
+                          onChange={(e) => setMusyrifSearchQuery(e.target.value)}
+                          placeholder="Cari nama musyrif atau asrama..."
+                          className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs"
+                          autoFocus
+                        />
+                        {musyrifSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setMusyrifSearchQuery("")}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* List */}
+                    <div className="overflow-y-auto divide-y divide-slate-50 p-1">
+                      {isSupervisoryRole && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDateOrMusyrifChange("", selectedDate);
+                            setIsMusyrifDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors ${
+                            !selectedMusyrifId ? "bg-emerald-50 text-emerald-800 font-bold" : "text-slate-500 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>-- Silakan Pilih Musyrif --</span>
+                          {!selectedMusyrifId && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                        </button>
+                      )}
+
+                      {filteredDropdownMusyrifList.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400">
+                          Tidak ada musyrif yang cocok dengan "{musyrifSearchQuery}"
+                        </div>
+                      ) : (
+                        filteredDropdownMusyrifList.map(m => {
+                          const isSelected = m.id === selectedMusyrifId;
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => {
+                                handleDateOrMusyrifChange(m.id, selectedDate);
+                                setIsMusyrifDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between gap-2 transition-colors ${
+                                isSelected ? "bg-emerald-50 text-emerald-900 font-bold" : "hover:bg-slate-50 text-slate-700 font-medium"
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate font-bold text-slate-800">
+                                  {m.name}
+                                </div>
+                                <div className="text-[10px] text-slate-400 truncate">
+                                  {m.asrama}{m.kamar ? ` · Kamar ${m.kamar}` : ""}{m.role ? ` · ${m.role}` : ""}
+                                </div>
+                              </div>
+                              {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

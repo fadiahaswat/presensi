@@ -98,6 +98,8 @@ interface Musyrif {
   email?: string;
   phone?: string;
   photo?: string;
+  picture?: string;
+  avatar?: string;
   role?: Role;
 }
 interface AttendanceRecord {
@@ -2903,7 +2905,8 @@ function PageInputPrayer({
   onLogin,
   onSwitchSlot,
   showToast,
-  musyrifListAll
+  musyrifListAll,
+  authUsers,
 }: {
   initialSlot?: PrayerSlot;
   initialAsrama?: string;
@@ -2916,6 +2919,7 @@ function PageInputPrayer({
   onSwitchSlot?: (slot: PrayerSlot) => void;
   showToast?: (msg: string, type?: "success" | "info" | "error") => void;
   musyrifListAll?: Musyrif[];
+  authUsers?: AuthUser[];
 }) {
   const [slot, setSlot] = useState<PrayerSlot>(initialSlot);
   const [selDate, setSelDate] = useState(todayStr());
@@ -2926,6 +2930,20 @@ function PageInputPrayer({
   const [confirmAll, setConfirmAll] = useState<PrayerSlot | null>(null);
   const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
+
+  // Helper to resolve Google avatar photo for each musyrif
+  const getMusyrifAvatar = useCallback((m: Musyrif) => {
+    if (m.photo) return m.photo;
+    if (m.picture) return m.picture;
+    if (m.avatar) return m.avatar;
+    const foundAuth = authUsers?.find(u =>
+      (u.musyrifId && u.musyrifId === m.id) ||
+      u.id === m.id ||
+      (m.email && u.email && u.email.toLowerCase() === m.email.toLowerCase()) ||
+      (u.name && m.name && u.name.toLowerCase() === m.name.toLowerCase())
+    );
+    return foundAuth?.picture;
+  }, [authUsers]);
 
   // Sync if initialSlot changed from external navigation
   useEffect(() => {
@@ -3084,7 +3102,6 @@ function PageInputPrayer({
         {/* Top title & Tab Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <Av name={authUser.name} src={authUser.picture} sz="md" />
             <div
               className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0 transition-colors duration-150 ${
                 isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-[#0C4E8C] text-white shadow-sky-950/25"
@@ -3354,7 +3371,7 @@ function PageInputPrayer({
           return (
             <Card key={m.id} cls={`${isDone ? "ring-2 ring-emerald-200" : isNotYetTime ? "opacity-75 bg-slate-50/40" : ""} ${isMusyrifOnly && isMe ? "ring-2 ring-amber-400/80 bg-amber-50/10" : ""}`} ch={<div className="p-3.5 sm:p-4">
               <div className="flex items-center gap-3 mb-3">
-                <Av name={m.name} src={m.photo}/>
+                <Av name={m.name} src={getMusyrifAvatar(m)}/>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="font-bold text-sm text-slate-800 truncate">{m.name}</p>
@@ -4527,95 +4544,95 @@ function PageRiwayat({
           )}
         </div>
 
-        {/* Integrated Multi-Category Horizontal Tab Selector */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100/80">
+        {/* Integrated Multi-Category Tab Selector - Compact & Concise */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 shadow-inner">
           <button
             onClick={() => setActiveTab("sholat")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-xl text-xs font-bold transition-all truncate ${
               activeTab === "sholat"
                 ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <Sun className={`w-3.5 h-3.5 ${activeTab === "sholat" ? "text-emerald-600" : "text-slate-400"}`} />
-            <span>Shalat & Presensi</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
+            <Sun className={`w-3.5 h-3.5 shrink-0 ${activeTab === "sholat" ? "text-emerald-600" : "text-slate-400"}`} />
+            <span className="truncate">Shalat</span>
+            <span className="text-[10px] px-1 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono shrink-0">
               {pct}%
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab("logbook")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-xl text-xs font-bold transition-all truncate ${
               activeTab === "logbook"
                 ? "bg-white text-indigo-800 shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <ClipboardList className={`w-3.5 h-3.5 ${activeTab === "logbook" ? "text-indigo-600" : "text-slate-400"}`} />
-            <span>Jurnal Logbook</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-mono">
-              {logbookMonthStats.totalTasksDone} Tugas
+            <ClipboardList className={`w-3.5 h-3.5 shrink-0 ${activeTab === "logbook" ? "text-indigo-600" : "text-slate-400"}`} />
+            <span className="truncate">Logbook</span>
+            <span className="text-[10px] px-1 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-mono shrink-0">
+              {logbookMonthStats.totalTasksDone}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab("pengasuhan")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-xl text-xs font-bold transition-all truncate ${
               activeTab === "pengasuhan"
                 ? "bg-white text-rose-800 shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <HeartHandshake className={`w-3.5 h-3.5 ${activeTab === "pengasuhan" ? "text-rose-600" : "text-slate-400"}`} />
-            <span>Pengasuhan & RS</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-rose-50 text-rose-700 font-mono">
-              +{pengasuhanStats.totalPoin} Pts ({pengasuhanStats.total})
+            <HeartHandshake className={`w-3.5 h-3.5 shrink-0 ${activeTab === "pengasuhan" ? "text-rose-600" : "text-slate-400"}`} />
+            <span className="truncate">Pengasuhan</span>
+            <span className="text-[10px] px-1 py-0.2 rounded-md bg-rose-50 text-rose-700 font-mono shrink-0">
+              +{pengasuhanStats.totalPoin}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab("mutabaah")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-xl text-xs font-bold transition-all truncate ${
               activeTab === "mutabaah"
                 ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <Sparkles className={`w-3.5 h-3.5 ${activeTab === "mutabaah" ? "text-emerald-600" : "text-slate-400"}`} />
-            <span>Mutaba'ah Yaumiyah</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono">
-              {mutabaahMonthStats.totalPoints} Poin
+            <Sparkles className={`w-3.5 h-3.5 shrink-0 ${activeTab === "mutabaah" ? "text-emerald-600" : "text-slate-400"}`} />
+            <span className="truncate">Mutabaah</span>
+            <span className="text-[10px] px-1 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-mono shrink-0">
+              {mutabaahMonthStats.totalPoints}p
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab("izin")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-xl text-xs font-bold transition-all truncate ${
               activeTab === "izin"
                 ? "bg-white text-blue-800 shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <FileCheck2 className={`w-3.5 h-3.5 ${activeTab === "izin" ? "text-blue-600" : "text-slate-400"}`} />
-            <span>Pengajuan Izin</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 font-mono">
+            <FileCheck2 className={`w-3.5 h-3.5 shrink-0 ${activeTab === "izin" ? "text-blue-600" : "text-slate-400"}`} />
+            <span className="truncate">Izin</span>
+            <span className="text-[10px] px-1 py-0.2 rounded-md bg-blue-50 text-blue-700 font-mono shrink-0">
               {izinStats.total}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab("kegiatan")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center justify-center gap-1 px-1.5 py-2 rounded-xl text-xs font-bold transition-all truncate ${
               activeTab === "kegiatan"
                 ? "bg-white text-teal-800 shadow-xs ring-1 ring-slate-200/80 font-black"
                 : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
             }`}
           >
-            <Building2 className={`w-3.5 h-3.5 ${activeTab === "kegiatan" ? "text-teal-600" : "text-slate-400"}`} />
-            <span>Rapat & Agenda</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-teal-50 text-teal-700 font-mono">
-              {kegiatanStats.hadir} Hadir
+            <Building2 className={`w-3.5 h-3.5 shrink-0 ${activeTab === "kegiatan" ? "text-teal-600" : "text-slate-400"}`} />
+            <span className="truncate">Agenda</span>
+            <span className="text-[10px] px-1 py-0.2 rounded-md bg-teal-50 text-teal-700 font-mono shrink-0">
+              {kegiatanStats.hadir}
             </span>
           </button>
         </div>
@@ -10087,6 +10104,7 @@ export default function App() {
                 onSwitchSlot={(s)=>setPage(s)}
                 showToast={showToast}
                 musyrifListAll={musyrifList}
+                authUsers={authUsers}
               />
             </motion.div>
           )}
