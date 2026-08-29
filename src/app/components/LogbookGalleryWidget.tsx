@@ -248,7 +248,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
   }, [logbookData, musyrifMap]);
 
   const displayPosts = allPosts;
-  const showSkeleton = isLoading || (isSyncing && allPosts.length === 0);
+  const showSkeleton = isLoading && allPosts.length === 0;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden space-y-0">
@@ -357,20 +357,14 @@ const PhotoGridItem = memo(({ post, onClick }: { post: GalleryPostItem; onClick:
     whileHover={{ opacity: 0.92 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer select-none"
+    className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer select-none border-[0.5px] border-slate-900/50"
   >
-    {/* OPTIMIZATION: Use LazyImage for progressive loading with intersection observer */}
-    <LazyImage
+    <img
       src={post.photoUrl}
       alt={post.taskTitle}
-      thumbnail={post.photoThumbnailUrl}
-      className="w-full h-full"
-      style={{ objectFit: "cover" }}
-      placeholder={
-        <div className="w-full h-full bg-slate-800 animate-pulse flex items-center justify-center">
-          <ImageIcon className="w-6 h-6 text-slate-600" />
-        </div>
-      }
+      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+      loading="lazy"
+      decoding="async"
     />
   </motion.div>
 ));

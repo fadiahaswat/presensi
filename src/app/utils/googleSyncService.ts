@@ -445,17 +445,16 @@ class GoogleSyncService {
 
   /**
    * Check if photo data is likely a thumbnail (small) vs full photo
-   * Thumbnails are typically < 50KB, full photos are usually > 100KB
    */
   private isLikelyThumbnail(photoData: string): boolean {
-    return photoData.length < 50000;
+    return Boolean(photoData && photoData.length < 1000);
   }
 
   /**
-   * Check if photo data is likely a full photo
+   * Check if photo data is a valid photo
    */
   private isLikelyFullPhoto(photoData: string): boolean {
-    return photoData.length > 80000;
+    return Boolean(photoData && (photoData.startsWith('data:image') || photoData.startsWith('http') || photoData.length > 500));
   }
 
   private sanitizeData(data: any): any {

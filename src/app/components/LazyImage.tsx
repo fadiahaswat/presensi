@@ -93,23 +93,37 @@ export const LazyImage = memo(function LazyImage({
   const observerRef = useRef<IntersectionObserver | null>(null);
   const resolvedSrcRef = useRef<string | null>(null);
 
-  const [state, setState] = useState<ImageState>({
-    loaded: false,
+  const isDirectImage = Boolean(
+    src && (src.startsWith('data:image') || src.startsWith('http') || src.startsWith('/'))
+  );
+
+  const [state, setState] = useState<ImageState>(() => ({
+    loaded: isDirectImage,
     error: false,
-    currentSrc: null,
-  });
+    currentSrc: isDirectImage ? src : null,
+  }));
 
-  const [isInView, setIsInView] = useState(preload);
-  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(null);
+  const [isInView, setIsInView] = useState(preload || isDirectImage);
+  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(isDirectImage ? src : null);
 
-  // Resolve photo using sync service if we have record info
+  // Synchronize when src changes
   useEffect(() => {
+    if (src && (src.startsWith('data:image') || src.startsWith('http') || src.startsWith('/'))) {
+      setState({
+        loaded: true,
+        error: false,
+        currentSrc: src,
+      });
+      setResolvedPhoto(src);
+      return;
+    }
+
     if (!recordId || !photoField) {
       setResolvedPhoto(src);
       return;
     }
 
-    // Import sync service dynamically to avoid circular dependency
+    // Resolve photo using sync service if we have record info
     import('../utils/googleSyncService').then(({ googleSyncService }) => {
       googleSyncService.getRecordPhoto(recordId!, photoField!, src || null, tableName)
         .then((resolved) => {
@@ -123,16 +137,14 @@ export const LazyImage = memo(function LazyImage({
     });
   }, [recordId, photoField, tableName, src]);
 
-  // Setup Intersection Observer
+  // Setup Intersection Observer for deferred / non-direct images
   useEffect(() => {
-    if (preload) return; // Already in view if preloading
+    if (preload || isDirectImage) return; // Already in view if preloading or direct
 
     const container = containerRef.current;
     if (!container) return;
 
-    // Check if IntersectionObserver is available
     if (!("IntersectionObserver" in window)) {
-      // Fallback: load immediately
       setIsInView(true);
       return;
     }
@@ -142,13 +154,12 @@ export const LazyImage = memo(function LazyImage({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setIsInView(true);
-            // Stop observing once in view
             observerRef.current?.unobserve(entry.target);
           }
         });
       },
       {
-        rootMargin: "100px", // Start loading 100px before entering viewport
+        rootMargin: "200px", // Generous margin for smooth scrolling
         threshold: 0,
       }
     );
@@ -158,11 +169,11 @@ export const LazyImage = memo(function LazyImage({
     return () => {
       observerRef.current?.disconnect();
     };
-  }, [preload]);
+  }, [preload, isDirectImage]);
 
-  // Check if photo data looks like a full photo (>80KB)
-  const isFullPhoto = (data: string): boolean => {
-    return data.length > 80000;
+  // Check if photo data is a valid image
+  const isValidPhoto = (data: string): boolean => {
+    return Boolean(data && (data.startsWith('data:image') || data.startsWith('http') || data.length > 500));
   };
 
   // Load image from cache or network
@@ -322,8 +333,8 @@ export const LazyImage = memo(function LazyImage({
 
     // Then load full image (use resolvedPhoto if it's full, otherwise use src)
     if (photoToLoad) {
-      // If resolved photo is full, use it directly
-      if (photoToLoad.startsWith('data:image') && isFullPhoto(photoToLoad)) {
+      // If resolved photo is valid, use it directly
+      if (isValidPhoto(photoToLoad)) {
         setState({
           loaded: true,
           error: false,

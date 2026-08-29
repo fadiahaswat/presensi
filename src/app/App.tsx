@@ -7074,11 +7074,7 @@ export default function App() {
             prev.filter(s => Boolean(s && s.id)).forEach(s => map.set(s.id, s));
             validCloud.forEach((cr: any) => {
               const existing = map.get(cr.id);
-              // FIX: Preserve existing full photo if cloud only has thumbnail
-              const existingPhoto = existing?.photoUrl;
-              const isExistingFull = existingPhoto && existingPhoto.startsWith('data:image') && existingPhoto.length > 80000;
-              const isCloudThumbnail = cr.photoUrl && cr.photoUrl.startsWith('data:image') && cr.photoUrl.length < 50000;
-              const finalPhotoUrl = (isExistingFull && isCloudThumbnail) ? existingPhoto : cr.photoUrl;
+              const finalPhotoUrl = cr.photoUrl || existing?.photoUrl;
 
               map.set(cr.id, {
                 ...(existing || {}),
@@ -7090,29 +7086,6 @@ export default function App() {
             try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(merged)); } catch {}
             return merged;
           });
-
-          // FIX: After cloud sync, try to upgrade thumbnails to full photos from IndexedDB
-          setTimeout(async () => {
-            try {
-              const { getPhoto } = await import('./utils/photoCacheService');
-              validCloud.forEach((cr: any) => {
-                if (cr.photoUrl) {
-                  const cacheKey = `santrisakit_${cr.id}_photoUrl`;
-                  getPhoto(cacheKey).then(cached => {
-                    if (cached?.data && cached.data.length > 80000) {
-                      setSantriSakitList(prev => {
-                        const existing = prev.find(s => s.id === cr.id);
-                        if (existing && existing.photoUrl && existing.photoUrl.length < cached.data.length) {
-                          return prev.map(s => s.id === cr.id ? { ...s, photoUrl: cached.data } : s);
-                        }
-                        return prev;
-                      });
-                    }
-                  }).catch(() => {});
-                }
-              });
-            } catch (_) {}
-          }, 100);
         } else if ((tbl === "dataperizinansantri" || tbl === "santriizin" || tbl === "dataperizinan") && Array.isArray(cloudRecords)) {
           const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.namaSantri && cr.namaSantri.trim() !== "");
           if (validCloud.length > 0) {
@@ -7216,15 +7189,7 @@ export default function App() {
                   const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                   const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
-
-                  // FIX: Preserve existing full photo if cloud only has thumbnail
-                  // Full photos are >80KB, thumbnails are usually <50KB
-                  const existingPhoto = existingTask.photoUrl;
-                  const isExistingFull = existingPhoto && existingPhoto.startsWith('data:image') && existingPhoto.length > 80000;
-                  const isCloudThumbnail = cloudPhotoUrl && cloudPhotoUrl.startsWith('data:image') && cloudPhotoUrl.length < 50000;
-
-                  // Use existing full photo if it exists and cloud has only thumbnail
-                  const finalPhotoUrl = (isExistingFull && isCloudThumbnail) ? existingPhoto : cloudPhotoUrl;
+                  const finalPhotoUrl = cloudPhotoUrl || existingTask.photoUrl;
 
                   (next[mId][dt] as any)[cr.taskKey] = {
                     ...existingTask,
@@ -7248,44 +7213,6 @@ export default function App() {
             try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
             return next;
           });
-
-          // FIX: After cloud sync, try to upgrade thumbnails to full photos from IndexedDB
-          // This runs in background without blocking UI
-          setTimeout(async () => {
-            try {
-              const { getPhoto } = await import('./utils/photoCacheService');
-              validCloud.forEach((cr: any) => {
-                if (cr.taskKey && cr.taskKey !== "generalNotes" && cr.photoUrl) {
-                  const cacheKey = `logbook_${cr.musyrifId}_${cr.date}_${cr.taskKey}_photoUrl`;
-                  getPhoto(cacheKey).then(cached => {
-                    if (cached?.data && cached.data.length > 80000) {
-                      // We have full photo in cache, update state
-                      setLogbookData(prev => {
-                        const entry = prev[cr.musyrifId]?.[cr.date];
-                        const task = entry?.[cr.taskKey];
-                        if (task && task.photoUrl && task.photoUrl.length < cached.data.length) {
-                          return {
-                            ...prev,
-                            [cr.musyrifId]: {
-                              ...prev[cr.musyrifId],
-                              [cr.date]: {
-                                ...prev[cr.musyrifId]?.[cr.date],
-                                [cr.taskKey]: {
-                                  ...task,
-                                  photoUrl: cached.data
-                                }
-                              }
-                            }
-                          };
-                        }
-                        return prev;
-                      });
-                    }
-                  }).catch(() => {});
-                }
-              });
-            } catch (_) {}
-          }, 100);
         } else if (tbl === "mutabaah" && Array.isArray(cloudRecords)) {
           const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.musyrifId && cr.date && cr.date >= "2026-08-18");
           // Proactively purge any legacy cloud records before official start date 18 Agustus 2026
