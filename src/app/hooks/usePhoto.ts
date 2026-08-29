@@ -58,13 +58,15 @@ export function usePhoto(
     // Try to get from cache
     isProcessedRef.current.add(cacheKey);
     setLoading(true);
-    getCachedPhoto(recordId, photoField)
+    getCachedPhoto(recordId, photoField, initialPhoto)
       .then(cached => {
         if (cached) {
           setPhoto(cached);
-        } else if (initialPhoto) {
-          // No cached version, use initial if available
+        } else if (initialPhoto && (initialPhoto.startsWith('data:image') || initialPhoto.startsWith('http'))) {
+          // No cached version, use initial only if valid image URL
           setPhoto(initialPhoto);
+        } else {
+          setPhoto(null);
         }
         setLoading(false);
       })
@@ -80,16 +82,34 @@ export function usePhoto(
 /**
  * Get photo from cache (memory or IndexedDB)
  */
-async function getCachedPhoto(recordId: string, photoField: string): Promise<string | null> {
+async function getCachedPhoto(recordId: string, photoField: string, initialPhoto?: string | null): Promise<string | null> {
   const cacheKey = `${recordId}_${photoField}`;
 
   try {
     const { getPhoto, getPhotoByPrefix } = await import('../utils/photoCacheService');
 
-    // Try direct lookup first
-    const cached = await getPhoto(cacheKey);
-    if (cached?.data) {
-      return cached.data;
+    // If initialPhoto is a reference (photo: or [PHOTO_REF:]), extract and lookup photo ID first
+    if (initialPhoto && (initialPhoto.startsWith('photo:') || initialPhoto.startsWith('[PHOTO_REF:'))) {
+      const refId = initialPhoto.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '').trim();
+      if (refId) {
+        const cachedRef = await getPhoto(refId);
+        if (cachedRef?.data) return cachedRef.data;
+      }
+    }
+
+    // Try candidate cache keys
+    const candidateKeys = [
+      cacheKey,
+      `photo_logbook_${cacheKey}`,
+      `logbook_${cacheKey}`,
+      `photo_${cacheKey}`,
+    ];
+
+    for (const key of candidateKeys) {
+      const cached = await getPhoto(key);
+      if (cached?.data) {
+        return cached.data;
+      }
     }
 
     // Try prefix match for inline data URLs

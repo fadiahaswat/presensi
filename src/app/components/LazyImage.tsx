@@ -238,11 +238,10 @@ export const LazyImage = memo(function LazyImage({
           }
         }
 
-        // Strategy 2: For PHOTO_REF format, extract and lookup
-        if (imageSrc.startsWith('[PHOTO_REF:')) {
-          const refMatch = imageSrc.match(/\[PHOTO_REF:([^\]]+)\]/);
-          if (refMatch) {
-            const photoId = refMatch[1];
+        // Strategy 2: For photo: or [PHOTO_REF:] format, extract and lookup
+        if (imageSrc.startsWith('photo:') || imageSrc.startsWith('[PHOTO_REF:')) {
+          const photoId = imageSrc.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '').trim();
+          if (photoId) {
             const cached = await getPhoto(photoId);
             if (cached?.data) {
               setState({

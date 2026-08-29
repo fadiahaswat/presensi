@@ -7515,10 +7515,14 @@ export default function App() {
                   const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                   const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
-                  let finalPhotoUrl = cloudPhotoUrl || existingTask.photoUrl;
-                  if (existingTask.photoUrl && typeof existingTask.photoUrl === "string" && existingTask.photoUrl.startsWith("data:image")) {
-                    if (!cloudPhotoUrl || !cloudPhotoUrl.startsWith("data:image") || existingTask.photoUrl.length > cloudPhotoUrl.length) {
-                      finalPhotoUrl = existingTask.photoUrl;
+                  let finalPhotoUrl = existingTask.photoUrl;
+                  if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("data:image") || cloudPhotoUrl.startsWith("http"))) {
+                    if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image") || cloudPhotoUrl.length >= existingTask.photoUrl.length) {
+                      finalPhotoUrl = cloudPhotoUrl;
+                    }
+                  } else if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("photo:") || cloudPhotoUrl.startsWith("[PHOTO_REF:"))) {
+                    if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image")) {
+                      finalPhotoUrl = cloudPhotoUrl;
                     }
                   }
 
@@ -7792,12 +7796,22 @@ export default function App() {
                     const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                     const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
+                    let finalPhotoUrl = existingTask.photoUrl;
+                    if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("data:image") || cloudPhotoUrl.startsWith("http"))) {
+                      if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image") || cloudPhotoUrl.length >= existingTask.photoUrl.length) {
+                        finalPhotoUrl = cloudPhotoUrl;
+                      }
+                    } else if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("photo:") || cloudPhotoUrl.startsWith("[PHOTO_REF:"))) {
+                      if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image")) {
+                        finalPhotoUrl = cloudPhotoUrl;
+                      }
+                    }
 
                     (next[mId][dt] as any)[cr.taskKey] = {
                       ...existingTask,
                       ...taskObj,
                       done: isDone,
-                      ...(photoUrl ? { photoUrl } : {}),
+                      ...(finalPhotoUrl ? { photoUrl: finalPhotoUrl } : {}),
                       ...(completedAt ? { completedAt } : {}),
                       ...(photoTakenAt ? { photoTakenAt } : {}),
                       ...(photoWatermark ? { photoWatermark } : {}),
