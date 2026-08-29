@@ -447,43 +447,19 @@ class GoogleSyncService {
    * Check if photo data is likely a thumbnail (small) vs full photo
    */
   private isLikelyThumbnail(photoData: string): boolean {
-    return Boolean(photoData && photoData.length < 1000);
+    return Boolean(photoData && (photoData.length < 30000 || photoData.startsWith('photo:') || photoData.startsWith('[PHOTO_REF:')));
   }
 
   /**
-   * Check if photo data is a valid photo
+   * Check if photo data is a valid full resolution photo
    */
   private isLikelyFullPhoto(photoData: string): boolean {
-    return Boolean(photoData && (photoData.startsWith('data:image') || photoData.startsWith('http') || photoData.length > 500));
+    return Boolean(photoData && (photoData.startsWith('http') || (photoData.startsWith('data:image') && photoData.length >= 30000)));
   }
 
   private sanitizeData(data: any): any {
-    if (!data) return data;
-
-    try {
-      const sanitized = JSON.parse(JSON.stringify(data));
-
-      const sanitizeNode = (node: any) => {
-        if (!node || typeof node !== "object") return;
-        for (const k in node) {
-          const val = node[k];
-          if (typeof val === 'string') {
-            if (val.startsWith('data:image') && val.length > 100000) {
-              node[k] = val.substring(0, 50000);
-            } else if (val.length > 100000) {
-              node[k] = val.substring(0, 50000);
-            }
-          } else if (val && typeof val === "object") {
-            sanitizeNode(val);
-          }
-        }
-      };
-
-      sanitizeNode(sanitized);
-      return sanitized;
-    } catch {
-      return data;
-    }
+    // Preserve data integrity without truncating base64 images
+    return data;
   }
 
   private updateStatus(newStatus?: SyncStatus, _errorMsg?: string) {
@@ -1002,37 +978,13 @@ class GoogleSyncService {
             if (!record[field]) continue;
 
             const photoValue = record[field];
-            if (typeof photoValue !== 'string') continue;
+            if (typeof photoValue !== 'string' || !photoValue.trim()) continue;
 
-            // 1. Handle photo reference format (e.g. "photo:photo_logbook_123_photoUrl")
-            if (photoValue.startsWith('photo:')) {
-              const photoId = photoValue.replace('photo:', '');
-              const cacheKeys = [
-                photoId,
-                this.getPhotoCacheKey(record.id, field, tablePrefix),
-                `${tablePrefix}_${record.id}_${field}`,
-                `${tableName}_${record.id}_${field}`,
-                `${record.id}_${field}`,
-              ];
-
-              for (const cacheKey of cacheKeys) {
-                const cached = await getPhoto(cacheKey);
-                if (cached?.data) {
-                  record[field] = cached.data;
-                  break;
-                }
-              }
-              continue;
-            }
-
-            // 2. Handle legacy inline Base64 format (Upgrade thumbnail to full photo if available in IDB)
-            if (!photoValue.startsWith('data:image')) continue;
-
-            if (this.isLikelyFullPhoto(photoValue)) {
-              continue;
-            }
+            const isRef = photoValue.startsWith('photo:') || photoValue.startsWith('[PHOTO_REF:');
+            const photoId = isRef ? photoValue.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '') : '';
 
             const cacheKeys = [
+              ...(photoId ? [photoId] : []),
               this.getPhotoCacheKey(record.id, field, tablePrefix),
               `${tablePrefix}_${record.id}_${field}`,
               `${tableName}_${record.id}_${field}`,
@@ -1041,9 +993,11 @@ class GoogleSyncService {
 
             for (const cacheKey of cacheKeys) {
               const cached = await getPhoto(cacheKey);
-              if (cached?.data && this.isLikelyFullPhoto(cached.data)) {
-                record[field] = cached.data;
-                break;
+              if (cached?.data && cached.data.startsWith('data:image')) {
+                if (isRef || cached.data.length > photoValue.length) {
+                  record[field] = cached.data;
+                  break;
+                }
               }
             }
           }

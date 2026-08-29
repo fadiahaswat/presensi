@@ -7515,7 +7515,12 @@ export default function App() {
                   const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                   const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
-                  const finalPhotoUrl = cloudPhotoUrl || existingTask.photoUrl;
+                  let finalPhotoUrl = cloudPhotoUrl || existingTask.photoUrl;
+                  if (existingTask.photoUrl && typeof existingTask.photoUrl === "string" && existingTask.photoUrl.startsWith("data:image")) {
+                    if (!cloudPhotoUrl || !cloudPhotoUrl.startsWith("data:image") || existingTask.photoUrl.length > cloudPhotoUrl.length) {
+                      finalPhotoUrl = existingTask.photoUrl;
+                    }
+                  }
 
                   (next[mId][dt] as any)[cr.taskKey] = {
                     ...existingTask,
