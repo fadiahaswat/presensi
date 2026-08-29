@@ -117,12 +117,25 @@ export function exportComprehensiveReportCSV({
     });
     const logbookScore = logbookDone * 2;
 
-    // Agenda Asrama
+    // Agenda Asrama & Pertemuan Rapat
     let kegiatanHadir = 0;
     kegiatanRecords.forEach(k => {
       if (startDate && k.date < startDate) return;
       if (endDate && k.date > endDate) return;
       if (k.attendees?.[m.id] === "hadir") kegiatanHadir++;
+    });
+    // Dynamic agenda meeting tasks from logbook
+    const mLogbook = (logbookData as any)?.[m.id] || {};
+    Object.entries(mLogbook).forEach(([d, entry]: [string, any]) => {
+      if (startDate && d < startDate) return;
+      if (endDate && d > endDate) return;
+      if (entry && typeof entry === "object") {
+        Object.entries(entry).forEach(([key, task]: [string, any]) => {
+          if (key.startsWith("agenda_") && (task?.done === true || task?.done === "TRUE" || task?.done === "true" || task?.photoUrl || task?.completedAt)) {
+            kegiatanHadir++;
+          }
+        });
+      }
     });
     const kegiatanScore = kegiatanHadir * 5;
 

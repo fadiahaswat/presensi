@@ -4350,11 +4350,21 @@ function PageRiwayat({
       if (musyrif && Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(musyrif.id)) {
         const cleanId = ag.id.replace(/^agenda_/, "");
         const dayLogbook = logbookData?.[musyrif.id]?.[ag.date];
-        const taskEntry = 
+        let taskEntry = 
           dayLogbook?.[`agenda_${ag.id}`] ||
           dayLogbook?.[ag.id] ||
           dayLogbook?.[`agenda_${cleanId}`] ||
           dayLogbook?.[cleanId];
+
+        // Robust fallback: if not matched by exact ID, find any completed agenda task on that date
+        if (!taskEntry && dayLogbook && typeof dayLogbook === "object") {
+          for (const [k, v] of Object.entries(dayLogbook)) {
+            if (k.startsWith("agenda_") && v && ((v as any).done || (v as any).photoUrl || (v as any).completedAt)) {
+              taskEntry = v;
+              break;
+            }
+          }
+        }
 
         const isDone = Boolean(
           taskEntry?.done === true || 

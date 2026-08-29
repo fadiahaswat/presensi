@@ -119,7 +119,7 @@ export function LeaderboardModal({
     Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
       if (dt >= "2026-08-18") {
         Object.entries(dayEntry).forEach(([key, task]) => {
-          if (key.startsWith("agenda_") && (task as any)?.done) {
+          if (key.startsWith("agenda_") && ((task as any)?.done === true || (task as any)?.done === "TRUE" || (task as any)?.done === "true" || (task as any)?.photoUrl || (task as any)?.completedAt)) {
             kegiatanDone++;
           }
         });

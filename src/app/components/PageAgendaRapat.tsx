@@ -276,11 +276,21 @@ export function PageAgendaRapat({
 
     ag.invitedMusyrifIds.forEach(mId => {
       const musyrifDayLogbook = logbookData[mId]?.[ag.date];
-      const taskEntry = 
+      let taskEntry = 
         musyrifDayLogbook?.[`agenda_${ag.id}`] ||
         musyrifDayLogbook?.[ag.id] ||
         musyrifDayLogbook?.[`agenda_${cleanId}`] ||
         musyrifDayLogbook?.[cleanId];
+
+      if (!taskEntry && musyrifDayLogbook && typeof musyrifDayLogbook === "object") {
+        for (const [k, v] of Object.entries(musyrifDayLogbook)) {
+          if (k.startsWith("agenda_") && v && ((v as any).done || (v as any).photoUrl || (v as any).completedAt)) {
+            taskEntry = v;
+            break;
+          }
+        }
+      }
+
       if (taskEntry && (taskEntry.done === true || taskEntry.done === "TRUE" || taskEntry.done === "true" || taskEntry.done === 1 || taskEntry.photoUrl || taskEntry.completedAt)) {
         checkedInCount++;
       }
@@ -301,11 +311,21 @@ export function PageAgendaRapat({
     const attendanceList = ag.invitedMusyrifIds.map(mId => {
       const m = musyrifList.find(item => item.id === mId) || { id: mId, name: "Musyrif", asrama: "-", kamar: "" };
       const dayLogbook = logbookData[mId]?.[ag.date];
-      const taskEntry = 
+      let taskEntry = 
         dayLogbook?.[`agenda_${ag.id}`] ||
         dayLogbook?.[ag.id] ||
         dayLogbook?.[`agenda_${cleanId}`] ||
         dayLogbook?.[cleanId];
+
+      if (!taskEntry && dayLogbook && typeof dayLogbook === "object") {
+        for (const [k, v] of Object.entries(dayLogbook)) {
+          if (k.startsWith("agenda_") && v && ((v as any).done || (v as any).photoUrl || (v as any).completedAt)) {
+            taskEntry = v;
+            break;
+          }
+        }
+      }
+
       const isDone = Boolean(
         taskEntry?.done === true || 
         taskEntry?.done === "TRUE" || 

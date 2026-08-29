@@ -1,63 +1,83 @@
-async function diagnose() {
-  const url = "https://script.google.com/macros/s/AKfycbynVevPWfXU1u6ylxyM6Fn8-NRqBsnz2N4LJHrv6FNru5zqD0DrmH5Slw-_cZ1aJO3nOw/exec";
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxDargFr4lg3KqDkXZRHGzHvpEUgAZsGKgMKiuyFAlXz0l0MwsOUhXyA7dbbYuiscEe/exec';
+
+async function deepAudit() {
+  console.log('Fetching all tables from GAS...');
+  const res = await fetch(GAS_URL + '?action=get_all&_t=' + Date.now());
+  const json = await res.json();
+  const tables = json.data;
+
+  console.log('\n--- 1. AGENDA RAPAT TABLES ---');
+  const agendas = tables.agenda_rapat || [];
+  console.log('Total Agendas in Cloud:', agendas.length);
+  agendas.forEach(a => {
+    console.log({
+      id: a.id,
+      title: a.title,
+      date: a.date,
+      invitedCount: (a.invitedMusyrifIds || []).length,
+      is_deleted: a.is_deleted,
+      _deleted: a._deleted
+    });
+  });
+
+  console.log('\n--- 2. ALL LOGBOOK ENTRIES RELATED TO MEETINGS / RAPAT ---');
+  const logbook = tables.Logbook || [];
+  console.log('Total Logbook rows:', logbook.length);
   
-  console.log("=== DIAGNOSTIC TESTS ===");
+  const meetingLogs = logbook.filter(l => {
+    const k = (l.taskKey || '').toLowerCase();
+    const id = (l.id || '').toLowerCase();
+    const notes = (l.notes || '').toLowerCase();
+    return k.includes('agenda') || k.includes('rapat') || id.includes('agenda') || id.includes('rapat') || notes.includes('rapat');
+  });
 
-  // 1. GET actions
-  const getActions = ["ping", "get_all", "get_delta", "get_table", "sync", "read", "health"];
-  for (const act of getActions) {
-    try {
-      const res = await fetch(`${url}?action=${act}`);
-      const json = await res.json();
-      console.log(`GET ?action=${act}:`, json);
-    } catch (e) {
-      console.log(`GET ?action=${act} ERROR:`, e.message);
+  console.log('Meeting related logbook rows found:', meetingLogs.length);
+  meetingLogs.forEach((l, idx) => {
+    console.log(`[${idx+1}] ID: ${l.id} | Musyrif: ${l.musyrifId} | Date: ${l.date} | TaskKey: ${l.taskKey} | Done: ${l.done} | CompletedAt: ${l.completedAt} | HasPhoto: ${Boolean(l.photoUrl)} | Notes: ${l.notes || '-'}`);
+  });
+
+  console.log('\n--- 3. CHECKING WHY THEY MIGHT NOT MATCH ---');
+  agendas.forEach(ag => {
+    console.log(`\nAgenda [${ag.id}] "${ag.title}" (Date: ${ag.date}, Deleted: ${ag._deleted || ag.is_deleted}):`);
+    let invited = ag.invitedMusyrifIds;
+    if (typeof invited === 'string') {
+      try { invited = JSON.parse(invited); } catch (_) { invited = invited.split(',').map(s => s.trim()); }
     }
-  }
+    if (!Array.isArray(invited)) invited = [];
+    console.log(`Invited Musyrifs (${invited.length}):`, invited.join(', '));
+    
+    // Find logs on that date
+    const logsOnDate = meetingLogs.filter(l => l.date === ag.date);
+    console.log(`Logs on date ${ag.date}: ${logsOnDate.length}`);
+    logsOnDate.forEach(l => {
+      const isInvited = invited.includes(l.musyrifId);
+      const cleanAgId = ag.id.replace(/^agenda_/, '');
+      const cleanLogKey = (l.taskKey || '').replace(/^agenda_/, '');
+      const isKeyMatch = (l.taskKey === ag.id) || 
+                         (l.taskKey === `agenda_${ag.id}`) || 
+                         (cleanLogKey === cleanAgId) ||
+                         (l.taskKey.includes(cleanAgId));
+      console.log(` - Musyrif: ${l.musyrifId} | TaskKey: "${l.taskKey}" | In InvitedList: ${isInvited} | Matches Key: ${isKeyMatch} | Done: ${l.done}`);
+    });
+  });
 
-  // 2. POST actions variations
-  // Let's test different body payload formats
-  const variations = [
-    { action: "ping" },
-    { action: "multi_table_upsert", tables: {} },
-    { action: "batch_upsert", table: "Logbook", records: [] },
-    { type: "ping" },
-    { type: "sync" },
-    { action: "sync", data: {} },
-    { action: "save", data: {} },
-    { action: "upsert", table: "Logbook", records: [] },
-    { action: "insert", table: "Logbook", data: [] }
-  ];
-
-  for (const v of variations) {
-    try {
-      // POST with JSON string
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(v)
-      });
-      const json = await res.json();
-      console.log(`POST ${JSON.stringify(v)}:`, json);
-    } catch (e) {
-      console.log(`POST ${JSON.stringify(v)} ERROR:`, e.message);
+  console.log('\n--- 4. CHECKING LOGBOOK ENTRIES THAT HAVE NO MATCHING AGENDA ---');
+  meetingLogs.forEach(l => {
+    const matchingAg = agendas.find(a => {
+      const cleanAgId = a.id.replace(/^agenda_/, '');
+      const cleanLogKey = (l.taskKey || '').replace(/^agenda_/, '');
+      return (l.taskKey === a.id) || (l.taskKey === `agenda_${a.id}`) || (cleanLogKey === cleanAgId) || (l.taskKey.includes(cleanAgId));
+    });
+    if (!matchingAg) {
+      console.log(`ORPHAN LOGBOOK ENTRY: Musyrif ${l.musyrifId} on ${l.date} with TaskKey "${l.taskKey}" (ID: ${l.id}) - NO AGENDA RECORD IN agenda_rapat!`);
+    } else if (matchingAg._deleted || matchingAg.is_deleted) {
+      console.log(`DELETED AGENDA LOGBOOK ENTRY: Musyrif ${l.musyrifId} on ${l.date} with TaskKey "${l.taskKey}" references DELETED agenda "${matchingAg.id}"!`);
     }
-  }
+  });
 
-  // 3. POST with URL parameter ?action=...
-  for (const act of ["multi_table_upsert", "batch_upsert", "sync", "save"]) {
-    try {
-      const res = await fetch(`${url}?action=${act}`, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ records: [] })
-      });
-      const json = await res.json();
-      console.log(`POST ?action=${act} body={records:[]}:`, json);
-    } catch (e) {
-      console.log(`POST ?action=${act} ERROR:`, e.message);
-    }
-  }
+  console.log('\n--- 5. MUSYRIF LIST CHECK ---');
+  const musyrifs = tables.Musyrif || [];
+  console.log('Total Musyrif in Cloud:', musyrifs.length);
 }
 
-diagnose();
+deepAudit().catch(console.error);
