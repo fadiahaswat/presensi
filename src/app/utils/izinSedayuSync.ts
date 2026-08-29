@@ -7,7 +7,7 @@
 import { SantriIzinRecord, JenisIzinSantri, StatusApprovalSantri, StatusPKM } from "../types/izinSantri";
 import { ALL_SANTRI_DATA } from "../data/santriData";
 
-export const IZIN_SEDAYU_GAS_URL = "https://script.google.com/macros/s/AKfycby9N-DKmk-UmVZrt31b6uhX7OlpqJLtrSi5fwmkZxFXXxBTca25RedQUzeRzK6OizwGGA/exec";
+export const IZIN_SEDAYU_GAS_URL = "https://script.google.com/macros/s/AKfycbxDargFr4lg3KqDkXZRHGzHvpEUgAZsGKgMKiuyFAlXz0l0MwsOUhXyA7dbbYuiscEe/exec";
 export const STORAGE_KEY_SANTRI_IZIN = "presensi_santri_izin_v5";
 export const STORAGE_KEY_LAST_FETCH = "izin_last_fetch_time";
 

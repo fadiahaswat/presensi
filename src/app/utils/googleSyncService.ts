@@ -28,7 +28,7 @@ export interface SyncState {
 type SyncListener = (state: SyncState) => void;
 type DataUpdateListener = (table: string, records: any[], isFullReplace?: boolean) => void;
 
-const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycby9N-DKmk-UmVZrt31b6uhX7OlpqJLtrSi5fwmkZxFXXxBTca25RedQUzeRzK6OizwGGA/exec";
+const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxDargFr4lg3KqDkXZRHGzHvpEUgAZsGKgMKiuyFAlXz0l0MwsOUhXyA7dbbYuiscEe/exec";
 const GAS_URL_KEY = "presensi_gas_url";
 const LAST_SYNC_KEY = "presensi_last_sync_timestamp_v7"; // Bumped version - v7 has better photo sync
 const QUEUE_KEY = "presensi_sync_outbox_queue_v7"; // Bumped version

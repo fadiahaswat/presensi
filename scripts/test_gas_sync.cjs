@@ -1,6 +1,6 @@
 const https = require('https');
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycby9N-DKmk-UmVZrt31b6uhX7OlpqJLtrSi5fwmkZxFXXxBTca25RedQUzeRzK6OizwGGA/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxDargFr4lg3KqDkXZRHGzHvpEUgAZsGKgMKiuyFAlXz0l0MwsOUhXyA7dbbYuiscEe/exec";
 
 // Use native fetch in Node.js 24 for proper GAS 302 redirect handling
 async function request(url, options = {}, body = null) {

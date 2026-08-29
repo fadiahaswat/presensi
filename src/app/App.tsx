@@ -7786,7 +7786,7 @@ export default function App() {
 
                     const isDone = cr.done === true || cr.done === "TRUE" || cr.done === "true" || cr.done === 1 || Boolean(taskObj.done);
                     const isGps = cr.gpsVerified === true || cr.gpsVerified === "TRUE" || cr.gpsVerified === "true" || Boolean(taskObj.gpsVerified);
-                    const photoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
+                    const cloudPhotoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
                     const completedAt = cr.completedAt || taskObj.completedAt || undefined;
                     const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
                     const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
