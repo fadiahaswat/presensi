@@ -30,6 +30,7 @@ import type { KegiatanRecord } from "./components/KegiatanAsramaModal";
 import { type LogbookStorage, type JurnalLogbookEntry, EMPTY_LOGBOOK } from "./components/JurnalLogbookModal";
 import type { MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
 import type { SantriSakitRecord } from "./components/SantriSakitModal";
+import type { PengasuhanKhususRecord } from "./types/pengasuhanKhusus";
 import type { Pamong } from "./components/PamongManagerModal";
 import type { IzinRequest } from "./components/IzinPengajuanModal";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
@@ -49,6 +50,7 @@ const KegiatanAsramaModal = lazy(() => import("./components/KegiatanAsramaModal"
 const JurnalLogbookModal = lazy(() => import("./components/JurnalLogbookModal").then(m => ({ default: m.JurnalLogbookModal })));
 const MutabaahYaumiyahModal = lazy(() => import("./components/MutabaahYaumiyahModal").then(m => ({ default: m.MutabaahYaumiyahModal })));
 const SantriSakitModal = lazy(() => import("./components/SantriSakitModal").then(m => ({ default: m.SantriSakitModal })));
+const PengasuhanKhususModal = lazy(() => import("./components/PengasuhanKhususModal").then(m => ({ default: m.PengasuhanKhususModal })));
 const LeaderboardModal = lazy(() => import("./components/LeaderboardModal").then(m => ({ default: m.LeaderboardModal })));
 const RaportSertifikatModal = lazy(() => import("./components/RaportSertifikatModal").then(m => ({ default: m.RaportSertifikatModal })));
 const MusyrifManagerModal = lazy(() => import("./components/MusyrifManagerModal").then(m => ({ default: m.MusyrifManagerModal })));
@@ -3782,6 +3784,7 @@ function PageRiwayat({
   izinList = [],
   kegiatanRecords = [],
   agendaRapatList = [],
+  pengasuhanList = [],
   authUser,
   onLogin,
   initialMusyrifId,
@@ -3797,6 +3800,7 @@ function PageRiwayat({
   izinList?: IzinRequest[];
   kegiatanRecords?: KegiatanRecord[];
   agendaRapatList?: AgendaRapatRecord[];
+  pengasuhanList?: PengasuhanKhususRecord[];
   authUser: AuthUser | null;
   onLogin: () => void;
   initialMusyrifId?: string | null;
@@ -3820,7 +3824,7 @@ function PageRiwayat({
       : (authUser?.musyrifId || authUser?.id || allM[0]?.id || "m1");
 
   const [selId, setSelId] = useState(defaultRiwayatMusyrifId);
-  const [activeTab, setActiveTab] = useState<"sholat" | "logbook" | "mutabaah" | "izin" | "kegiatan">("sholat");
+  const [activeTab, setActiveTab] = useState<"sholat" | "logbook" | "pengasuhan" | "mutabaah" | "izin" | "kegiatan">("sholat");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
   const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
   const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
@@ -4061,6 +4065,29 @@ function PageRiwayat({
     return { totalPoints, totalTilawah, totalTahajjud, totalPuasa, daysFilled: mutabaahDatesThisMonth.length };
   }, [musyrifMutabaah, mutabaahDatesThisMonth]);
 
+  // Pengasuhan Khusus data for current musyrif
+  const musyrifPengasuhanList = useMemo(() => {
+    return (pengasuhanList || [])
+      .filter(p => musyrif && p.musyrifId === musyrif.id)
+      .sort((a, b) => (b.date + b.waktu).localeCompare(a.date + a.waktu));
+  }, [pengasuhanList, musyrif]);
+
+  const pengasuhanStats = useMemo(() => {
+    let totalPoin = 0;
+    let antarPku = 0;
+    let binaSantri = 0;
+    let antarLain = 0;
+
+    musyrifPengasuhanList.forEach(p => {
+      totalPoin += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+      if (p.kategori === "antar_pku_rs") antarPku++;
+      else if (p.kategori === "bina_santri") binaSantri++;
+      else antarLain++;
+    });
+
+    return { total: musyrifPengasuhanList.length, totalPoin, antarPku, binaSantri, antarLain };
+  }, [musyrifPengasuhanList]);
+
   // Izin data for current musyrif
   const musyrifIzinList = useMemo(() => {
     return (izinList || [])
@@ -4233,6 +4260,21 @@ function PageRiwayat({
             <span>Jurnal Logbook</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-700 font-mono">
               {logbookMonthStats.totalTasksDone} Tugas
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("pengasuhan")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === "pengasuhan"
+                ? "bg-white text-rose-800 shadow-xs ring-1 ring-slate-200/80 font-black"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+            }`}
+          >
+            <HeartHandshake className={`w-3.5 h-3.5 ${activeTab === "pengasuhan" ? "text-rose-600" : "text-slate-400"}`} />
+            <span>Pengasuhan & RS</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-rose-50 text-rose-700 font-mono">
+              +{pengasuhanStats.totalPoin} Pts ({pengasuhanStats.total})
             </span>
           </button>
 
@@ -5072,6 +5114,135 @@ function PageRiwayat({
                         })}
                       </div>
                     )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 2.5: PENGASUHAN KHUSUS & RUJUKAN PKU/RS */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === "pengasuhan" && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          {/* Header & Month Filter */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 flex flex-col gap-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                  <HeartHandshake className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">Riwayat Tugas Pengasuhan & Bimbingan</h4>
+                  <p className="text-[11px] text-slate-400 font-medium">Rujukan PKU/RS & Bimbingan Santri Bulan {format(viewMonth, "MMMM yyyy", { locale: id })}</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-xl font-mono">
+                +{pengasuhanStats.totalPoin} Poin Akumulasi
+              </span>
+            </div>
+
+            {/* 4 Clean Metric Pills for Pengasuhan */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+              <div className="bg-rose-50/60 border border-rose-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-rose-700 block mb-0.5">Rujukan PKU/RS</span>
+                <p className="text-xl sm:text-2xl font-black text-rose-950 font-mono">{pengasuhanStats.antarPku}</p>
+                <span className="text-[10px] text-rose-600/80 font-medium block mt-0.5">penugasan (+10 Pts)</span>
+              </div>
+
+              <div className="bg-indigo-50/60 border border-indigo-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-indigo-700 block mb-0.5">Bimbingan Santri</span>
+                <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{pengasuhanStats.binaSantri}</p>
+                <span className="text-[10px] text-indigo-600/80 font-medium block mt-0.5">sesi (+5 Pts)</span>
+              </div>
+
+              <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">Pengantaran Lain</span>
+                <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{pengasuhanStats.antarLain}</p>
+                <span className="text-[10px] text-amber-600/80 font-medium block mt-0.5">kegiatan (+5 Pts)</span>
+              </div>
+
+              <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-2.5 text-center">
+                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Total Poin</span>
+                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">+{pengasuhanStats.totalPoin}</p>
+                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">masuk Pilar 2</span>
+              </div>
+            </div>
+          </div>
+
+          {/* List of Pengasuhan Records */}
+          <div className="space-y-3">
+            <Label ch={`Daftar Penugasan Pengasuhan (${musyrifPengasuhanList.length})`}/>
+            {musyrifPengasuhanList.length === 0 ? (
+              <Card ch={
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-slate-500">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mb-1">
+                    <HeartHandshake className="w-6 h-6"/>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800">Belum Ada Tugas Pengasuhan</p>
+                  <p className="text-xs text-slate-400 max-w-xs">Musyrif belum memiliki catatan rujukan medis ke RS/PKU atau bimbingan santri khusus.</p>
+                </div>
+              }/>
+            ) : (
+              musyrifPengasuhanList.map(rec => {
+                const isPku = rec.kategori === "antar_pku_rs";
+                const isBina = rec.kategori === "bina_santri";
+                return (
+                  <div key={rec.id} className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        {rec.photoUrl ? (
+                          <div
+                            onClick={() => setPreviewPhotoModal({ id: rec.id, photoUrl: rec.photoUrl, taskTitle: `Pengasuhan: ${rec.namaSantri}` })}
+                            className="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 cursor-pointer group shadow-2xs shrink-0"
+                          >
+                            <img src={rec.photoUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                              <Eye className="w-4 h-4" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                            isPku ? "bg-rose-100 text-rose-700" : isBina ? "bg-indigo-100 text-indigo-700" : "bg-amber-100 text-amber-700"
+                          }`}>
+                            {isPku ? <HeartPulse className="w-5 h-5" /> : isBina ? <HeartHandshake className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                          </div>
+                        )}
+
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isPku ? "bg-rose-100 text-rose-800" : isBina ? "bg-indigo-100 text-indigo-800" : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {isPku ? "Rujukan Medis / RS" : isBina ? "Bimbingan Santri" : "Pengantaran Lain"}
+                            </span>
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                              +{rec.poin || (isPku ? 10 : 5)} Poin
+                            </span>
+                          </div>
+
+                          <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">
+                            {rec.namaSantri} {rec.kelasSantri ? `(Kelas ${rec.kelasSantri})` : ""}
+                          </h4>
+
+                          <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="font-semibold text-slate-700">{rec.lokasiTujuan}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                        {rec.date} • {rec.waktu}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-2xl p-3 text-xs text-slate-700 border border-slate-100 space-y-1">
+                      <span className="font-bold text-[11px] text-slate-500 block">Keterangan / Hasil Pendampingan:</span>
+                      <p className="leading-relaxed">{rec.catatan}</p>
+                    </div>
                   </div>
                 );
               })
@@ -6523,6 +6694,7 @@ const STORAGE_KEY_KEGIATAN = "presensi_kegiatan_asrama_v5";
 const STORAGE_KEY_LOGBOOK = "presensi_jurnal_logbook_v5";
 const STORAGE_KEY_MUTABAAH = "presensi_mutabaah_yaumiyah_v5";
 const STORAGE_KEY_SANTRI_SAKIT = "presensi_santri_sakit_v5";
+const STORAGE_KEY_PENGASUHAN_KHUSUS = "presensi_pengasuhan_khusus_v5";
 const STORAGE_KEY_SANTRI_IZIN = "presensi_santri_izin_v5";
 const STORAGE_KEY_SANTRI = "presensi_santri_master_v10";
 const STORAGE_KEY_SANTRI_REQUESTS = "presensi_santri_change_requests_v1";
@@ -6938,6 +7110,18 @@ export default function App() {
     return [];
   });
 
+  // State for Tugas Pengasuhan Khusus (Antar PKU/RS & Bimbingan Santri)
+  const [pengasuhanKhususList, setPengasuhanKhususList] = useState<PengasuhanKhususRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PENGASUHAN_KHUSUS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
   // State for Perizinan Santri Asrama (SOP Sedayu)
   const [santriIzinList, setSantriIzinList] = useState<SantriIzinRecord[]>(() => {
     try {
@@ -7005,6 +7189,7 @@ export default function App() {
   const [showLogbook, setShowLogbook] = useState(false);
   const [showMutabaah, setShowMutabaah] = useState(false);
   const [showSantriSakit, setShowSantriSakit] = useState(false);
+  const [showPengasuhanKhusus, setShowPengasuhanKhusus] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
   const [showMusyrifManager, setShowMusyrifManager] = useState(false);
@@ -7214,6 +7399,13 @@ export default function App() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY_PENGASUHAN_KHUSUS, JSON.stringify(pengasuhanKhususList)); } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [pengasuhanKhususList]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
       try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(santriIzinList)); } catch {}
     }, 400);
     return () => clearTimeout(timer);
@@ -7418,6 +7610,25 @@ export default function App() {
             });
             const merged = Array.from(map.values());
             try { localStorage.setItem(STORAGE_KEY_SANTRI_SAKIT, JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        } else if ((tbl === "pengasuhankhusus" || tbl === "pengasuhan_khusus") && Array.isArray(cloudRecords)) {
+          const validCloud = cloudRecords.filter((cr: any) => !cr.is_deleted && cr.id);
+          setPengasuhanKhususList(prev => {
+            const map = new Map<string, PengasuhanKhususRecord>();
+            prev.filter(p => Boolean(p && p.id)).forEach(p => map.set(p.id, p));
+            validCloud.forEach((cr: any) => {
+              const existing = map.get(cr.id);
+              const finalPhotoUrl = cr.photoUrl || existing?.photoUrl;
+
+              map.set(cr.id, {
+                ...(existing || {}),
+                ...cr,
+                ...(finalPhotoUrl ? { photoUrl: finalPhotoUrl } : {})
+              });
+            });
+            const merged = Array.from(map.values());
+            try { localStorage.setItem(STORAGE_KEY_PENGASUHAN_KHUSUS, JSON.stringify(merged)); } catch {}
             return merged;
           });
         } else if ((tbl === "dataperizinansantri" || tbl === "santriizin" || tbl === "dataperizinan") && Array.isArray(cloudRecords)) {
@@ -8744,6 +8955,54 @@ export default function App() {
     showToast("Data santri sakit dihapus", "info");
   };
 
+  // Handlers for Tugas Pengasuhan Khusus (Antar PKU/RS & Bimbingan Santri)
+  const handleSavePengasuhanKhusus = (rec: PengasuhanKhususRecord) => {
+    setPengasuhanKhususList(prev => {
+      const idx = prev.findIndex(p => p.id === rec.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = rec;
+        return next;
+      }
+      return [rec, ...prev];
+    });
+    googleSyncService.enqueue("PengasuhanKhusus", rec, "upsert", true);
+
+    // Auto sync to Santri Sakit if category is "antar_pku_rs" and not yet exists
+    if (rec.kategori === "antar_pku_rs") {
+      const existingSakit = santriSakitList.find(
+        s => s.namaSantri.toLowerCase() === rec.namaSantri.toLowerCase() && s.date === rec.date
+      );
+      if (!existingSakit) {
+        const newSakitRecord: SantriSakitRecord = {
+          id: "sakit_pku_" + Date.now(),
+          musyrifId: rec.musyrifId,
+          musyrifName: rec.musyrifName,
+          asrama: rec.asrama,
+          kamar: rec.kamar,
+          date: rec.date,
+          namaSantri: rec.namaSantri,
+          kelasSantri: rec.kelasSantri,
+          keluhan: rec.catatan,
+          lokasiPerawatan: "rs_pku",
+          catatanTindakan: `Dirujuk ke ${rec.lokasiTujuan} oleh ${rec.musyrifName}`,
+          status: "dalam_perawatan",
+          photoUrl: rec.photoUrl,
+          createdAt: rec.createdAt
+        };
+        handleSaveSantriSakit(newSakitRecord);
+      }
+    }
+
+    showToast(`Tugas pengasuhan (${rec.namaSantri}) berhasil disimpan (+${rec.poin} Poin)!`, "success");
+  };
+
+  const handleDeletePengasuhanKhusus = (id: string) => {
+    setPengasuhanKhususList(prev => prev.filter(p => p.id !== id));
+    googleSyncService.enqueue("PengasuhanKhusus", { id }, "delete");
+    showToast("Catatan tugas pengasuhan dihapus", "info");
+  };
+
   const activeSantriSakitCount = (() => {
     const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
     if (authUser?.role === "koordinator_musyrif") return active.length;
@@ -9361,6 +9620,7 @@ export default function App() {
                 izinList={izinList}
                 kegiatanRecords={kegiatanRecords}
                 agendaRapatList={agendaRapatList}
+                pengasuhanList={pengasuhanKhususList}
                 authUser={authUser} 
                 onLogin={()=>setShowLogin(true)} 
                 initialMusyrifId={selectedMusyrifId} 
@@ -9403,6 +9663,7 @@ export default function App() {
                 onOpenSantriSakit={() => setPage("santri-sakit")}
                 onOpenAgendaRapat={() => setPage("agenda-rapat")}
                 onOpenMutabaah={() => setPage("mutabaah")}
+                onOpenPengasuhanKhusus={() => setShowPengasuhanKhusus(true)}
               />
             </motion.div>
           )}
@@ -9846,6 +10107,22 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* 7.5. Tugas Pengasuhan Khusus & Bimbingan Santri Modal */}
+      <AnimatePresence>
+        {showPengasuhanKhusus && (
+          <PengasuhanKhususModal
+            onClose={() => setShowPengasuhanKhusus(false)}
+            authUser={authUser}
+            musyrifList={musyrifList}
+            santriList={santriList}
+            pengasuhanList={pengasuhanKhususList}
+            onSavePengasuhan={handleSavePengasuhanKhusus}
+            onDeletePengasuhan={handleDeletePengasuhanKhusus}
+            initialMusyrifId={selectedMusyrifId}
+          />
+        )}
+      </AnimatePresence>
+
       {/* 8. Leaderboard Modal (4 Pilar Terpadu) */}
       <AnimatePresence>
         {showLeaderboard && (
@@ -9856,6 +10133,7 @@ export default function App() {
             logbookData={logbookData}
             kegiatanRecords={kegiatanRecords}
             mutabaahData={mutabaahData}
+            pengasuhanList={pengasuhanKhususList}
             onSelectMusyrif={(mid, mode) => {
               setSelectedMusyrifId(mid);
               setShowLeaderboard(false);
@@ -9879,6 +10157,7 @@ export default function App() {
             logbookData={logbookData}
             kegiatanRecords={kegiatanRecords}
             mutabaahData={mutabaahData}
+            pengasuhanList={pengasuhanKhususList}
           />
         )}
       </AnimatePresence>

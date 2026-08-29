@@ -12,6 +12,7 @@ import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../u
 import { LogbookStorage, LOGBOOK_TASKS } from "./JurnalLogbookModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
 import { MutabaahStorage } from "./MutabaahYaumiyahModal";
+import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
 
 interface Musyrif {
   id: string;
@@ -40,6 +41,7 @@ interface RaportSertifikatModalProps {
   logbookData?: LogbookStorage;
   kegiatanRecords?: KegiatanRecord[];
   mutabaahData?: MutabaahStorage;
+  pengasuhanList?: PengasuhanKhususRecord[];
   isPage?: boolean;
 }
 
@@ -50,6 +52,7 @@ export function RaportSertifikatModal({
   logbookData = {},
   kegiatanRecords = [],
   mutabaahData = {},
+  pengasuhanList = [],
   isPage = false
 }: RaportSertifikatModalProps) {
   const activeMusyrifList = musyrifList.filter(m => m.role !== "pamong" && m.role !== "koordinator_musyrif");
@@ -94,7 +97,7 @@ export function RaportSertifikatModal({
   const totalHadir = totalSubuhHadir + totalMaghribHadir;
   const attendanceRate = totalSlots > 0 ? Math.round((totalHadir / totalSlots) * 100) : 0;
 
-  // 2. Logbook 11 Tasks Statistics (Hanya dihitung serentak mulai 18 Agustus 2026)
+  // 2. Logbook & Pengasuhan Khusus Statistics (Hanya dihitung serentak mulai 18 Agustus 2026)
   let totalLogbookDone = 0;
   const mLogbook = musyrif ? (logbookData[musyrif.id] || {}) : {};
   Object.entries(mLogbook).forEach(([dt, entry]) => {
@@ -104,6 +107,17 @@ export function RaportSertifikatModal({
       });
     }
   });
+
+  let totalPengasuhanDone = 0;
+  let totalPengasuhanPoints = 0;
+  if (musyrif) {
+    pengasuhanList.forEach(p => {
+      if (p.musyrifId === musyrif.id && p.date >= "2026-08-18") {
+        totalPengasuhanDone++;
+        totalPengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+      }
+    });
+  }
 
   // 3. Agenda Khusus Asrama & Pertemuan Statistics (Kegiatan Asrama + Logbook Dinamis Rapat)
   let totalKegiatanHadir = 0;
@@ -337,17 +351,19 @@ export function RaportSertifikatModal({
                 </div>
               </div>
 
-              {/* 2. Jurnal Logbook */}
+              {/* 2. Jurnal Logbook & Pengasuhan */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="w-4 h-4 text-emerald-600" />
-                    <h4 className="font-bold text-xs text-slate-900">2. Kedisiplinan Logbook 11 Tugas</h4>
+                    <h4 className="font-bold text-xs text-slate-900">2. Logbook & Tugas Pengasuhan</h4>
                   </div>
-                  <span className="text-xs font-bold text-emerald-700 font-mono">{totalLogbookDone} Tugas Tuntas</span>
+                  <span className="text-xs font-bold text-emerald-700 font-mono">
+                    {totalLogbookDone + totalPengasuhanDone} Tuntas ({totalPengasuhanDone} Pengasuhan)
+                  </span>
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed pt-1 border-t border-slate-200/60">
-                  Telah melaksanakan tugas piket, cek santri sakit, pembangunan pagi, dan ronda malam secara bertanggung jawab.
+                  Melaksanakan tugas logbook asrama, rujukan medis ke PKU/RS ({totalPengasuhanDone > 0 ? `${totalPengasuhanDone}x` : "0x"}), serta bimbingan santri binaan.
                 </p>
               </div>
 

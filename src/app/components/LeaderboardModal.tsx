@@ -8,6 +8,7 @@ import { motion } from "motion/react";
 import { LogbookStorage, LOGBOOK_TASKS } from "./JurnalLogbookModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
 import { MutabaahStorage } from "./MutabaahYaumiyahModal";
+import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 
 interface Musyrif {
@@ -35,6 +36,7 @@ interface LeaderboardModalProps {
   logbookData?: LogbookStorage;
   kegiatanRecords?: KegiatanRecord[];
   mutabaahData?: MutabaahStorage;
+  pengasuhanList?: PengasuhanKhususRecord[];
   onSelectMusyrif?: (id: string, mode?: "raport" | "riwayat") => void;
   isPage?: boolean;
 }
@@ -46,6 +48,7 @@ export function LeaderboardModal({
   logbookData = {},
   kegiatanRecords = [],
   mutabaahData = {},
+  pengasuhanList = [],
   onSelectMusyrif,
   isPage = false
 }: LeaderboardModalProps) {
@@ -80,7 +83,7 @@ export function LeaderboardModal({
 
     const sholatScore = Math.max(0, hadirCount * 10 - alfaCount * 15);
 
-    // 2. Logbook Harian Score (Hanya dihitung serentak mulai 18 Agustus 2026)
+    // 2. Logbook Harian Score & Pengasuhan Khusus (Hanya dihitung serentak mulai 18 Agustus 2026)
     let logbookTasksDone = 0;
     const musyrifLogbooks = logbookData[m.id] || {};
     Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
@@ -90,7 +93,17 @@ export function LeaderboardModal({
         });
       }
     });
-    const logbookScore = logbookTasksDone * 5;
+
+    let pengasuhanPoints = 0;
+    let pengasuhanCount = 0;
+    pengasuhanList.forEach(p => {
+      if (p.musyrifId === m.id && p.date >= "2026-08-18") {
+        pengasuhanCount++;
+        pengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+      }
+    });
+
+    const logbookScore = (logbookTasksDone * 5) + pengasuhanPoints;
 
     // 3. Agenda Asrama & Pertemuan Score (Kegiatan Asrama + Logbook Dinamis Rapat)
     let kegiatanDone = 0;
@@ -132,6 +145,8 @@ export function LeaderboardModal({
       score: totalScore,
       sholatScore,
       logbookScore,
+      pengasuhanCount,
+      pengasuhanPoints,
       kegiatanScore,
       mutabaahScore: mutabaahPoints,
       hadirCount,
@@ -366,9 +381,11 @@ export function LeaderboardModal({
 
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <ClipboardList className="w-3.5 h-3.5 text-indigo-500" /> Logbook 11 Tugas:
+                  <ClipboardList className="w-3.5 h-3.5 text-indigo-500" /> Logbook & Pengasuhan:
                 </span>
-                <span className="font-bold font-mono text-slate-900">{selectedDetailMusyrif.logbookScore} Pts ({selectedDetailMusyrif.logbookTasksDone} Tugas)</span>
+                <span className="font-bold font-mono text-slate-900">
+                  {selectedDetailMusyrif.logbookScore} Pts ({selectedDetailMusyrif.logbookTasksDone} Tugas{selectedDetailMusyrif.pengasuhanCount > 0 ? ` + ${selectedDetailMusyrif.pengasuhanCount} Pengasuhan` : ""})
+                </span>
               </div>
 
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
