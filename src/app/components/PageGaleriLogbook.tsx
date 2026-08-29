@@ -4,7 +4,7 @@ import {
   Footprints, User,
   X, Image as ImageIcon,
   MessageCircle, Send,
-  LayoutGrid, List
+  LayoutGrid, List, Trash2, MoreVertical
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format } from "date-fns";
@@ -13,6 +13,7 @@ import { triggerHaptic } from "../utils/animations";
 import { LogbookStorage, getLogbookTasksForDate } from "./JurnalLogbookModal";
 import { getMusyrifCallName } from "../utils/notificationUtils";
 import { googleSyncService } from "../utils/googleSyncService";
+import { appAlert, appConfirm } from "../utils/customDialog";
 import { VirtualizedGallery, GalleryPhoto } from "./VirtualizedGallery";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -163,6 +164,8 @@ interface PageGaleriLogbookProps {
   onLogin?: () => void;
   viewMode?: "feed" | "grid";
   onViewModeChange?: (mode: "feed" | "grid") => void;
+  onSaveLogbook?: (musyrifId: string, date: string, entry: any) => void;
+  showToast?: (msg: string, type?: "success" | "info" | "error") => void;
 }
 
 export interface GalleryPostItem {
@@ -214,8 +217,18 @@ const AvatarImage = memo(({ src, name, size = "w-8 h-8", iconSize = "w-4 h-4", c
   );
 });
 
-// Post header component
-const PostHeader = memo(({ post, timeString }: { post: GalleryPostItem; timeString: string }) => (
+// Post header component with 3-dots menu for Koordinator
+const PostHeader = memo(({
+  post,
+  timeString,
+  canDeletePhoto,
+  onOpenMenu
+}: {
+  post: GalleryPostItem;
+  timeString: string;
+  canDeletePhoto?: boolean;
+  onOpenMenu?: (post: GalleryPostItem) => void;
+}) => (
   <div className="flex items-center justify-between px-3.5 py-2.5">
     <div className="flex items-center gap-2.5 min-w-0">
       <AvatarImage src={post.musyrifAvatar} name={post.musyrifName} size="w-8 h-8" iconSize="w-4 h-4" />
@@ -226,9 +239,20 @@ const PostHeader = memo(({ post, timeString }: { post: GalleryPostItem; timeStri
         <p className="text-[11px] text-sky-600 font-medium truncate">{post.asrama}</p>
       </div>
     </div>
-    <span className="text-[11px] font-medium text-slate-400 shrink-0 ml-2">
-      {timeString}
-    </span>
+    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+      <span className="text-[11px] font-medium text-slate-400">
+        {timeString}
+      </span>
+      {canDeletePhoto && onOpenMenu && (
+        <button
+          onClick={() => onOpenMenu(post)}
+          className="w-7 h-7 -mr-1 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors active:scale-90"
+          title="Menu opsi koordinator"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      )}
+    </div>
   </div>
 ));
 
@@ -353,6 +377,7 @@ const PostArticle = memo(({
   post,
   postInter,
   isLiked,
+  canDeletePhoto,
   currentUserId,
   currentUserName,
   currentUserAvatar,
@@ -360,6 +385,7 @@ const PostArticle = memo(({
   inlineInputValue,
   onToggleLike,
   onViewComments,
+  onOpenMenu,
   onShare,
   onInlineInputChange,
   onInlineSubmit,
@@ -368,6 +394,7 @@ const PostArticle = memo(({
   post: GalleryPostItem;
   postInter: GalleryPostInteraction;
   isLiked: boolean;
+  canDeletePhoto?: boolean;
   currentUserId: string;
   currentUserName: string;
   currentUserAvatar?: string;
@@ -375,13 +402,19 @@ const PostArticle = memo(({
   inlineInputValue: string;
   onToggleLike: () => void;
   onViewComments: () => void;
+  onOpenMenu?: (post: GalleryPostItem) => void;
   onShare: () => void;
   onInlineInputChange: (v: string) => void;
   onInlineSubmit: () => void;
   onLogin: () => void;
 }) => (
   <article className="bg-white pb-3">
-    <PostHeader post={post} timeString={getRelativeTimeString(post.date, post.completedAt, post.photoTakenAt)} />
+    <PostHeader
+      post={post}
+      timeString={getRelativeTimeString(post.date, post.completedAt, post.photoTakenAt)}
+      canDeletePhoto={canDeletePhoto}
+      onOpenMenu={onOpenMenu}
+    />
 
     <div onClick={onViewComments} className="relative w-full aspect-square bg-slate-950 cursor-pointer">
       <img src={post.photoUrl} className="w-full h-full object-cover" loading="lazy" decoding="async" />
@@ -422,24 +455,159 @@ const PostArticle = memo(({
   </article>
 ));
 
-// Photo modal
-const PhotoModal = memo(({ photoUrl, taskTitle, onClose }: { photoUrl: string; taskTitle: string; onClose: () => void }) => (
-  <div className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md flex items-center justify-center" onClick={onClose}>
+// Koordinator Action Modal (3-dots bottom sheet)
+const KoordinatorActionModal = memo(({
+  post,
+  onDelete,
+  onViewFull,
+  onClose
+}: {
+  post: GalleryPostItem;
+  onDelete: () => void;
+  onViewFull: () => void;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-[160] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <motion.div
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl p-4 space-y-3 pb-8 sm:pb-4"
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Post Summary */}
+      <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+        <img src={post.photoUrl} alt="" className="w-12 h-12 rounded-2xl object-cover ring-1 ring-slate-200" />
+        <div className="min-w-0 flex-1">
+          <h4 className="text-xs font-bold text-slate-900 truncate">Ustaz {getMusyrifCallName(post.musyrifName)} • {post.asrama}</h4>
+          <p className="text-[11px] text-slate-500 truncate">{post.taskTitle}</p>
+          <p className="text-[10px] text-slate-400">{format(new Date(`${post.date}T12:00:00`), "EEEE, d MMM yyyy", { locale: id })}</p>
+        </div>
+        <button onClick={onClose} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Action options */}
+      <div className="space-y-1.5 pt-1">
+        <button
+          onClick={() => { onClose(); onViewFull(); }}
+          className="w-full p-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3 text-xs font-bold text-slate-700 transition-colors text-left"
+        >
+          <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+            <Camera className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-800">Lihat Foto Ukuran Penuh</p>
+            <p className="text-[10px] text-slate-400 font-normal">Buka pratinjau gambar resolusi tinggi</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => { onClose(); onDelete(); }}
+          className="w-full p-3 rounded-2xl hover:bg-rose-50 bg-rose-50/50 border border-rose-100 flex items-center gap-3 text-xs font-bold text-rose-700 transition-colors text-left"
+        >
+          <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <Trash2 className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-bold text-rose-800">Hapus Foto Dokumentasi</p>
+            <p className="text-[10px] text-rose-500 font-normal">Hapus foto ini dari logbook dan server cloud</p>
+          </div>
+        </button>
+      </div>
+
+      <button
+        onClick={onClose}
+        className="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+      >
+        Batal
+      </button>
+    </motion.div>
+  </div>
+));
+
+// Photo modal (Lightbox)
+const PhotoModal = memo(({
+  post,
+  photoUrl,
+  taskTitle,
+  canDeletePhoto,
+  onDelete,
+  onClose
+}: {
+  post?: GalleryPostItem | null;
+  photoUrl: string;
+  taskTitle: string;
+  canDeletePhoto?: boolean;
+  onDelete?: () => void;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-[140] bg-black/95 backdrop-blur-md flex items-center justify-center p-0 sm:p-4" onClick={onClose}>
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="relative w-full h-full flex flex-col"
+      className="relative w-full max-w-lg h-full sm:h-auto sm:max-h-[90vh] bg-slate-950 rounded-none sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl"
       onClick={e => e.stopPropagation()}
     >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors backdrop-blur-sm shadow-lg active:scale-95"
-      >
-        <X className="w-6 h-6" />
-      </button>
-      <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
-        <img src={photoUrl} alt={taskTitle} className="max-w-full max-h-full object-contain" />
+      {/* Header */}
+      <div className="p-3.5 bg-black/60 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-3 text-white z-10 shrink-0">
+        <div className="min-w-0">
+          <h4 className="text-xs font-bold truncate">{taskTitle}</h4>
+          {post && (
+            <p className="text-[11px] text-white/70 truncate">
+              Ustaz {getMusyrifCallName(post.musyrifName)} • {post.asrama} • {format(new Date(`${post.date}T12:00:00`), "d MMM yyyy", { locale: id })}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors active:scale-95 shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Main Image */}
+      <div className="flex-1 flex items-center justify-center p-2 min-h-[300px] overflow-hidden">
+        <img src={photoUrl} alt={taskTitle} className="max-w-full max-h-full object-contain select-none" />
+      </div>
+
+      {/* Footer Details & Delete Action */}
+      <div className="p-3.5 bg-black/60 backdrop-blur-sm border-t border-white/10 space-y-2.5 text-white z-10 shrink-0">
+        {post?.notes && (
+          <p className="text-xs text-white/90 bg-white/10 rounded-xl p-2.5 italic">
+            "{post.notes}"
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 text-[11px] text-white/80 font-mono">
+            {post?.completedAt && (
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
+                ⏰ {post.completedAt} WIB
+              </span>
+            )}
+            {post?.stepsCount ? (
+              <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg">
+                👣 {post.stepsCount} langkah
+              </span>
+            ) : null}
+          </div>
+
+          {canDeletePhoto && onDelete && (
+            <button
+              onClick={onDelete}
+              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md ml-auto"
+              title="Hapus foto ini dari logbook dan cloud"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Foto</span>
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   </div>
@@ -582,12 +750,76 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   authUser,
   onLogin,
   viewMode = "feed",
-  onViewModeChange
+  onViewModeChange,
+  onSaveLogbook,
+  showToast
 }) => {
   const [selectedPost, setSelectedPost] = useState<GalleryPostItem | null>(null);
   const [activeCommentsPost, setActiveCommentsPost] = useState<GalleryPostItem | null>(null);
+  const [actionMenuPost, setActionMenuPost] = useState<GalleryPostItem | null>(null);
   const [commentInput, setCommentInput] = useState("");
   const [inlineInputs, setInlineInputs] = useState<Record<string, string>>({}); // Default: feed view (Instagram-style)
+
+  const canDeletePhoto = Boolean(
+    authUser && (
+      authUser.role === "koordinator_musyrif" ||
+      authUser.role === "admin" ||
+      authUser.role === "wadir4" ||
+      authUser.role === "kaur_kis" ||
+      authUser.role === "pamong"
+    )
+  );
+
+  const handleDeletePost = async (post: GalleryPostItem) => {
+    if (!canDeletePhoto) {
+      appAlert("Hanya Koordinator Musyrif atau Pamong/Admin yang berwenang menghapus foto dokumentasi ini.", "Akses Ditolak", "warning");
+      return;
+    }
+
+    const ok = await appConfirm(
+      `Apakah Anda yakin ingin menghapus foto dokumentasi "${post.taskTitle}" tanggal ${format(new Date(`${post.date}T12:00:00`), "d MMMM yyyy", { locale: id })} oleh Ustaz ${getMusyrifCallName(post.musyrifName)}? Foto akan dihapus secara permanen dari logbook dan server cloud.`,
+      "Hapus Foto Logbook",
+      "danger"
+    );
+
+    if (!ok) return;
+
+    if (onSaveLogbook) {
+      const dayEntry = logbookData[post.musyrifId]?.[post.date] || {};
+      const currentTask = (dayEntry as any)?.[post.taskKey] || {};
+
+      const updatedEntry = {
+        ...dayEntry,
+        [post.taskKey]: {
+          ...currentTask,
+          photoUrl: "", // Explicit signal to remove photo
+          photoTakenAt: undefined,
+          photoSource: undefined,
+          photoWatermark: undefined
+        }
+      };
+
+      onSaveLogbook(post.musyrifId, post.date, updatedEntry);
+
+      try {
+        const { deletePhoto } = await import("../utils/photoCacheService");
+        const cacheKey = `logbook_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`;
+        await deletePhoto(cacheKey);
+      } catch (_) {}
+
+      if (selectedPost?.id === post.id) {
+        setSelectedPost(null);
+      }
+      if (activeCommentsPost?.id === post.id) {
+        setActiveCommentsPost(null);
+      }
+      if (actionMenuPost?.id === post.id) {
+        setActionMenuPost(null);
+      }
+
+      showToast?.("Foto dokumentasi logbook berhasil dihapus!", "success");
+    }
+  };
 
   // Load interactions from localStorage once
   const [interactions, setInteractions] = useState<Record<string, GalleryPostInteraction>>(() => {
@@ -870,6 +1102,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
                     post={post}
                     postInter={postInter}
                     isLiked={isLiked}
+                    canDeletePhoto={canDeletePhoto}
                     currentUserId={currentUserId}
                     currentUserName={currentUserName}
                     currentUserAvatar={currentUserAvatar}
@@ -877,6 +1110,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
                     inlineInputValue={inlineInputs[post.id] || ""}
                     onToggleLike={() => handleToggleLike(post.id)}
                     onViewComments={() => setActiveCommentsPost(post)}
+                    onOpenMenu={(p) => setActionMenuPost(p)}
                     onShare={() => handleShareWhatsApp(post)}
                     onInlineInputChange={(v) => handleInlineInputChange(post.id, v)}
                     onInlineSubmit={() => handleInlineSubmit(post.id)}
@@ -891,10 +1125,24 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
 
       {/* Modals */}
       <AnimatePresence>
+        {actionMenuPost && (
+          <KoordinatorActionModal
+            post={actionMenuPost}
+            onViewFull={() => setSelectedPost(actionMenuPost)}
+            onDelete={() => handleDeletePost(actionMenuPost)}
+            onClose={() => setActionMenuPost(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {selectedPost && (
           <PhotoModal
+            post={selectedPost}
             photoUrl={selectedPost.photoUrl}
             taskTitle={selectedPost.taskTitle}
+            canDeletePhoto={canDeletePhoto}
+            onDelete={() => handleDeletePost(selectedPost)}
             onClose={() => setSelectedPost(null)}
           />
         )}

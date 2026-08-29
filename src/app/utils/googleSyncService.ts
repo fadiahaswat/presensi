@@ -876,19 +876,22 @@ class GoogleSyncService {
         try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
 
         // Cache any incoming Photos table records to IndexedDB
-        if (Array.isArray(sanitizedData["Photos"]) && sanitizedData["Photos"].length > 0) {
-          try {
-            const { setPhotosBatch } = await import('./photoCacheService');
-            const photoItems = sanitizedData["Photos"]
-              .map((p: any) => ({
-                id: p.id,
-                data: p.photo_data || p.photoUrl || p.data || p.photoData
-              }))
-              .filter((p: any) => Boolean(p.id && p.data));
-            if (photoItems.length > 0) {
-              await setPhotosBatch(photoItems);
-            }
-          } catch (_) {}
+        const photoTableNames = ["Photos", "Foto_Logbook", "Foto_SantriSakit", "Foto_Izin"];
+        for (const ptName of photoTableNames) {
+          if (Array.isArray(sanitizedData[ptName]) && sanitizedData[ptName].length > 0) {
+            try {
+              const { setPhotosBatch } = await import('./photoCacheService');
+              const photoItems = sanitizedData[ptName]
+                .map((p: any) => ({
+                  id: p.id,
+                  data: p.photo_data || p.photoUrl || p.data || p.photoData
+                }))
+                .filter((p: any) => Boolean(p.id && p.data && typeof p.data === 'string' && p.data.trim() !== ''));
+              if (photoItems.length > 0) {
+                await setPhotosBatch(photoItems);
+              }
+            } catch (_) {}
+          }
         }
 
         // Merge local photos & resolve photo references

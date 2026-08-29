@@ -9395,6 +9395,8 @@ export default function App() {
                 onLogin={() => setShowLogin(true)}
                 viewMode={galleryViewMode}
                 onViewModeChange={setGalleryViewMode}
+                onSaveLogbook={handleSaveLogbook}
+                showToast={showToast}
               />
             </motion.div>
           )}
