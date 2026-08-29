@@ -192,24 +192,65 @@ function doGet(e) {
       });
     }
 
-    // 3. Fetch All Tables in 1 Request (Initial App Hydration)
+    // 3. Fetch All Core Tables in 1 Request (Initial Fast App Hydration - excludes heavy photo tables by default)
     if (action === "get_all" || action === "get_all_delta") {
       const since = params.since ? new Date(params.since).getTime() : 0;
+      const includePhotos = params.include_photos === "true";
       const allData = {};
       const sheets = ss.getSheets();
 
       sheets.forEach(sh => {
         const name = sh.getName();
         // Skip sheet sistem jika ada
-        if (!name.startsWith("_")) {
-          allData[name] = readSheetData(sh, since);
+        if (name.startsWith("_")) return;
+
+        // Skip photo sheets secara default agar respons super cepat dan tidak timeout
+        const isPhotoSheet = name === TABLES.PHOTOS || 
+                             name === TABLES.FOTO_LOGBOOK || 
+                             name === TABLES.FOTO_IZIN || 
+                             name === TABLES.FOTO_SANTRI_SAKIT || 
+                             name.toLowerCase().startsWith("foto_") || 
+                             name.toLowerCase() === "photos";
+                             
+        if (!includePhotos && isPhotoSheet) {
+          return;
+        }
+
+        allData[name] = readSheetData(sh, since);
+      });
+
+      return createResponse({
+        status: "success",
+        action: action,
+        data: allData,
+        serverTime: new Date().toISOString()
+      });
+    }
+
+    // 4. Fetch Photo Tables Separately (Isolated & Non-blocking)
+    if (action === "get_photos" || action === "get_photos_delta") {
+      const since = params.since ? new Date(params.since).getTime() : 0;
+      const photoData = {};
+      const sheets = ss.getSheets();
+
+      sheets.forEach(sh => {
+        const name = sh.getName();
+        const isPhotoSheet = name === TABLES.PHOTOS || 
+                             name === TABLES.FOTO_LOGBOOK || 
+                             name === TABLES.FOTO_IZIN || 
+                             name === TABLES.FOTO_SANTRI_SAKIT || 
+                             name.toLowerCase().startsWith("foto_") || 
+                             name.toLowerCase() === "photos";
+                             
+        if (isPhotoSheet) {
+          photoData[name] = readSheetData(sh, since);
         }
       });
 
       return createResponse({
         status: "success",
-        action: "get_all",
-        data: allData,
+        action: action,
+        data: photoData,
         serverTime: new Date().toISOString()
       });
     }

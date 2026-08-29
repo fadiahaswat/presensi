@@ -912,6 +912,7 @@ class GoogleSyncService {
     const operation = 'fetchAllFromCloud';
 
     try {
+      // Step 1: Fetch all core tables (lightweight, excludes heavy photo sheets)
       const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_all&_t=${Date.now()}`;
       const res = await this.fetchWithRetry(url, { method: "GET", mode: "cors" }, operation, FETCH_ALL_TIMEOUT);
 
@@ -923,7 +924,7 @@ class GoogleSyncService {
         this.lastSyncedAt = nowIso;
         try { localStorage.setItem(LAST_SYNC_KEY, nowIso); } catch (_) {}
 
-        // Cache any incoming Photos table records to IndexedDB
+        // Cache any incoming Photos table records to IndexedDB if present
         const photoTableNames = ["Photos", "Foto_Logbook", "Foto_SantriSakit", "Foto_Izin"];
         for (const ptName of photoTableNames) {
           if (Array.isArray(sanitizedData[ptName]) && sanitizedData[ptName].length > 0) {
@@ -942,10 +943,10 @@ class GoogleSyncService {
           }
         }
 
-        // Merge local photos & resolve photo references in fast batch
+        // Merge local photos & resolve photo references from IndexedDB
         await this.mergeLocalPhotos(sanitizedData);
 
-        // Notify listeners of cloud data
+        // Notify listeners of cloud data immediately (Priority 1: Fast UI Hydration)
         for (const tableName in sanitizedData) {
           if (Object.prototype.hasOwnProperty.call(sanitizedData, tableName)) {
             const tableRecords = Array.isArray(sanitizedData[tableName]) ? sanitizedData[tableName] : [];
@@ -954,8 +955,12 @@ class GoogleSyncService {
         }
 
         this.updateStatus("synced");
-        console.log(`[SyncService] fetchAllFromCloud completed successfully`);
+        console.log(`[SyncService] fetchAllFromCloud completed successfully (core text data hydrated)`);
         this.pendingRequests.delete(operation);
+
+        // Priority 2: Asynchronously fetch photos in background (isolated, non-blocking)
+        this.fetchPhotosFromCloudBackground().catch(() => {});
+
         return sanitizedData;
       }
       this.pendingRequests.delete(operation);
@@ -1206,12 +1211,82 @@ class GoogleSyncService {
         if (this.queue.length === 0) {
           this.updateStatus("synced");
         }
+
+        // Asynchronously check for photo updates in the background (non-blocking)
+        if (since) {
+          this.fetchPhotosDeltaBackground(since).catch(() => {});
+        }
       }
     } catch (_) {
       // Silent failure - polling should not disturb user
     } finally {
       this.isPolling = false;
       this.pendingRequests.delete(operation);
+    }
+  }
+
+  /**
+   * Background photo fetcher - completely isolated from core data hydration
+   */
+  public async fetchPhotosFromCloudBackground(): Promise<void> {
+    if (!this.gasUrl || !navigator.onLine) return;
+    try {
+      const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_photos&_t=${Date.now()}`;
+      const res = await this.fetchWithRetry(url, { method: "GET", mode: "cors" }, "fetchPhotosBackground", FETCH_ALL_TIMEOUT, 2);
+      const json = await res.json();
+      if (json.status === "success" && json.data) {
+        const { setPhotosBatch } = await import('./photoCacheService');
+        const photoItems: Array<{ id: string; data: string }> = [];
+        for (const ptName of Object.keys(json.data)) {
+          const records = json.data[ptName];
+          if (Array.isArray(records)) {
+            for (const p of records) {
+              const photoData = p.photo_data || p.photoUrl || p.data || p.photoData;
+              if (p.id && photoData && typeof photoData === 'string' && photoData.trim() !== '') {
+                photoItems.push({ id: p.id, data: photoData });
+              }
+            }
+          }
+        }
+        if (photoItems.length > 0) {
+          await setPhotosBatch(photoItems);
+          console.log(`[SyncService] Background photos loaded: ${photoItems.length} photos cached`);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[SyncService] Background photo fetch failed (non-critical): ${err.message}`);
+    }
+  }
+
+  /**
+   * Background delta photo fetcher
+   */
+  public async fetchPhotosDeltaBackground(since: string): Promise<void> {
+    if (!this.gasUrl || !navigator.onLine || !since) return;
+    try {
+      const url = `${this.gasUrl}${this.gasUrl.includes("?") ? "&" : "?"}action=get_photos_delta&since=${encodeURIComponent(since)}&_t=${Date.now()}`;
+      const res = await this.fetchWithRetry(url, { method: "GET", mode: "cors" }, "fetchPhotosDeltaBackground", DEFAULT_TIMEOUT, 2);
+      const json = await res.json();
+      if (json.status === "success" && json.data) {
+        const { setPhotosBatch } = await import('./photoCacheService');
+        const photoItems: Array<{ id: string; data: string }> = [];
+        for (const ptName of Object.keys(json.data)) {
+          const records = json.data[ptName];
+          if (Array.isArray(records)) {
+            for (const p of records) {
+              const photoData = p.photo_data || p.photoUrl || p.data || p.photoData;
+              if (p.id && photoData && typeof photoData === 'string' && photoData.trim() !== '') {
+                photoItems.push({ id: p.id, data: photoData });
+              }
+            }
+          }
+        }
+        if (photoItems.length > 0) {
+          await setPhotosBatch(photoItems);
+        }
+      }
+    } catch (err: any) {
+      // Non-critical background failure
     }
   }
 
