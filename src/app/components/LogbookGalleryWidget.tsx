@@ -1,10 +1,14 @@
 import React, { useState, useMemo, useEffect, useCallback, memo, useRef } from "react";
 import {
-  Camera, ChevronRight, X, Image as ImageIcon, RefreshCw
+  Camera, ChevronRight, X, Image as ImageIcon, RefreshCw, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { LogbookStorage } from "./JurnalLogbookModal";
+import { format, parseISO } from "date-fns";
+import { id } from "date-fns/locale";
+import { LogbookStorage, JurnalLogbookEntry } from "./JurnalLogbookModal";
 import { googleSyncService } from "../utils/googleSyncService";
+import { appAlert, appConfirm } from "../utils/customDialog";
+import { getMusyrifCallName } from "../utils/notificationUtils";
 import { LazyImage } from "./LazyImage"; // OPTIMIZATION: Use LazyImage for progressive loading
 
 interface Musyrif {
@@ -20,6 +24,9 @@ interface LogbookGalleryWidgetProps {
   logbookData: LogbookStorage;
   musyrifList: Musyrif[];
   isLoading?: boolean;
+  canDeletePhoto?: boolean;
+  onSaveLogbook?: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
+  showToast?: (msg: string, type: "success" | "error" | "info") => void;
   onOpenLogbook?: () => void;
   onOpenFullGallery?: () => void;
 }
@@ -136,6 +143,9 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
   logbookData = {},
   musyrifList = [],
   isLoading = false,
+  canDeletePhoto = false,
+  onSaveLogbook,
+  showToast,
   onOpenLogbook,
   onOpenFullGallery
 }) => {
@@ -161,6 +171,55 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
   const handleClosePost = useCallback(() => {
     setSelectedPost(null);
   }, []);
+
+  const handleDeletePost = useCallback(async (post: GalleryPostItem) => {
+    if (!canDeletePhoto) {
+      appAlert("Hanya Koordinator Musyrif atau Pamong/Admin yang berwenang menghapus foto dokumentasi ini.", "Akses Ditolak", "warning");
+      return;
+    }
+
+    const ok = await appConfirm(
+      `Apakah Anda yakin ingin menghapus foto dokumentasi "${post.taskTitle}" tanggal ${format(new Date(`${post.date}T12:00:00`), "d MMMM yyyy", { locale: id })} oleh Ustaz ${getMusyrifCallName(post.musyrifName)}? Foto akan dihapus secara permanen dari logbook dan server cloud.`,
+      "Hapus Foto Logbook",
+      "danger"
+    );
+
+    if (!ok) return;
+
+    if (onSaveLogbook) {
+      const dayEntry = logbookData[post.musyrifId]?.[post.date] || {};
+      const currentTask = (dayEntry as any)?.[post.taskKey] || {};
+
+      const updatedEntry = {
+        ...dayEntry,
+        [post.taskKey]: {
+          ...currentTask,
+          photoUrl: "", // Explicit signal to remove photo
+          photoTakenAt: undefined,
+          photoSource: undefined,
+          photoWatermark: undefined
+        }
+      };
+
+      onSaveLogbook(post.musyrifId, post.date, updatedEntry);
+
+      try {
+        const { deletePhotosBatch } = await import("../utils/photoCacheService");
+        const cacheKeys = [
+          `logbook_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`,
+          `photo_logbook_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`,
+          `photo_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`,
+          `photo_logbook_${post.musyrifId}_${post.date}_${post.taskKey}`,
+          `logbook_${post.musyrifId}_${post.date}_${post.taskKey}`,
+          post.id
+        ];
+        await deletePhotosBatch(cacheKeys);
+      } catch (_) {}
+
+      setSelectedPost(null);
+      showToast?.("Foto dokumentasi logbook berhasil dihapus!", "success");
+    }
+  }, [canDeletePhoto, logbookData, onSaveLogbook, showToast]);
 
   // Subscribe to real-time Google Cloud Sync status
   useEffect(() => {
@@ -269,10 +328,15 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
         </>
       )}
 
-      {/* Simple Photo View Modal - Full Screen */}
+      {/* Photo View Modal */}
       <AnimatePresence>
         {selectedPost && (
-          <PhotoModal post={selectedPost} onClose={handleClosePost} />
+          <PhotoModal
+            post={selectedPost}
+            onClose={handleClosePost}
+            canDeletePhoto={canDeletePhoto}
+            onDelete={handleDeletePost}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -390,31 +454,89 @@ const GalleryCTAButton = memo(({ onClick }: { onClick: () => void }) => (
   </div>
 ));
 
-const PhotoModal = memo(({ post, onClose }: { post: GalleryPostItem; onClose: () => void }) => (
+const PhotoModal = memo(({ 
+  post, 
+  onClose, 
+  canDeletePhoto, 
+  onDelete 
+}: { 
+  post: GalleryPostItem; 
+  onClose: () => void; 
+  canDeletePhoto?: boolean; 
+  onDelete?: (post: GalleryPostItem) => void; 
+}) => (
   <div
-    className="fixed inset-0 z-[120] bg-black flex items-center justify-center"
+    className="fixed inset-0 z-[120] bg-black/90 flex items-center justify-center p-0 sm:p-4 backdrop-blur-xs"
     onClick={onClose}
   >
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative w-full h-full flex flex-col"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="relative max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] bg-slate-900 border border-slate-700/80 rounded-none sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col"
       onClick={e => e.stopPropagation()}
     >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors backdrop-blur-sm"
-      >
-        <X className="w-6 h-6" />
-      </button>
-      <div className="flex-1 flex items-center justify-center p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/80 shrink-0">
+        <div className="min-w-0 pr-2">
+          <h4 className="text-xs sm:text-sm font-bold text-white leading-tight truncate">
+            {post.taskTitle}
+          </h4>
+          <p className="text-[11px] text-slate-400 truncate">
+            Ustaz {getMusyrifCallName(post.musyrifName)} • {post.asrama} • {format(parseISO(post.date), "d MMM yyyy", { locale: id })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {canDeletePhoto && onDelete && (
+            <button
+              onClick={() => onDelete(post)}
+              className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+              title="Hapus foto dokumentasi ini"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Hapus Foto</span>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Image body */}
+      <div className="flex-1 flex items-center justify-center p-3 bg-black min-h-0 overflow-hidden">
         <img
           src={post.photoUrl}
           alt={post.taskTitle}
-          className="max-w-full max-h-full object-contain"
+          className="max-w-full max-h-[65vh] object-contain rounded-lg"
         />
       </div>
+
+      {/* Footer details */}
+      {(post.completedAt || post.notes || post.stepsCount) && (
+        <div className="p-3 bg-slate-950/90 border-t border-slate-800/80 text-xs text-slate-300 space-y-1.5 shrink-0">
+          {post.notes && (
+            <p className="text-xs text-slate-200 italic bg-white/5 rounded-xl p-2 border border-white/5">
+              "{post.notes}"
+            </p>
+          )}
+          <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono text-slate-400">
+            {post.completedAt && (
+              <span className="bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 px-2 py-0.5 rounded-lg">
+                ⏰ {post.completedAt} WIB
+              </span>
+            )}
+            {post.stepsCount ? (
+              <span className="bg-purple-950/60 text-purple-300 border border-purple-800/60 px-2 py-0.5 rounded-lg">
+                👣 {post.stepsCount} langkah
+              </span>
+            ) : null}
+          </div>
+        </div>
+      )}
     </motion.div>
   </div>
 ));

@@ -72,7 +72,11 @@ export function PageAgendaRapat({
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // Tab & Filter States (for list view)
-  const [scopeFilter, setScopeFilter] = useState<"hari_ini" | "upcoming" | "past" | "semua">("hari_ini");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [scopeFilter, setScopeFilter] = useState<"hari_ini" | "upcoming" | "past" | "semua">(() => {
+    const hasTodayAgenda = agendaList.some(a => a.date === todayStr);
+    return hasTodayAgenda ? "hari_ini" : "semua";
+  });
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
 
@@ -95,8 +99,6 @@ export function PageAgendaRapat({
   const [selectedAgendaForAttendance, setSelectedAgendaForAttendance] = useState<AgendaRapatRecord | null>(null);
   const [attendanceFilter, setAttendanceFilter] = useState<"all" | "hadir" | "belum">("all");
   const [activePhotoPreview, setActivePhotoPreview] = useState<{ url: string; musyrifName: string; title: string; time: string } | null>(null);
-
-  const todayStr = format(new Date(), "yyyy-MM-dd");
 
   // Sorted Agendas
   const sortedAgendas = useMemo(() => {
@@ -270,11 +272,16 @@ export function PageAgendaRapat({
   const getAgendaAttendanceStats = (ag: AgendaRapatRecord) => {
     const totalInvited = ag.invitedMusyrifIds.length;
     let checkedInCount = 0;
-    const taskKey = `agenda_${ag.id}`;
+    const cleanId = ag.id.replace(/^agenda_/, "");
 
     ag.invitedMusyrifIds.forEach(mId => {
       const musyrifDayLogbook = logbookData[mId]?.[ag.date];
-      if (musyrifDayLogbook && musyrifDayLogbook[taskKey]?.done) {
+      const taskEntry = 
+        musyrifDayLogbook?.[`agenda_${ag.id}`] ||
+        musyrifDayLogbook?.[ag.id] ||
+        musyrifDayLogbook?.[`agenda_${cleanId}`] ||
+        musyrifDayLogbook?.[cleanId];
+      if (taskEntry && (taskEntry.done === true || taskEntry.done === "TRUE" || taskEntry.done === "true" || taskEntry.done === 1 || taskEntry.photoUrl || taskEntry.completedAt)) {
         checkedInCount++;
       }
     });
@@ -289,13 +296,24 @@ export function PageAgendaRapat({
     const ag = selectedAgendaForAttendance;
     const stats = getAgendaAttendanceStats(ag);
     const catConfig = AGENDA_CATEGORIES.find(c => c.id === ag.category) || AGENDA_CATEGORIES[0];
+    const cleanId = ag.id.replace(/^agenda_/, "");
 
     const attendanceList = ag.invitedMusyrifIds.map(mId => {
       const m = musyrifList.find(item => item.id === mId) || { id: mId, name: "Musyrif", asrama: "-", kamar: "" };
-      const taskKey = `agenda_${ag.id}`;
       const dayLogbook = logbookData[mId]?.[ag.date];
-      const taskEntry = dayLogbook?.[taskKey];
-      const isDone = Boolean(taskEntry?.done);
+      const taskEntry = 
+        dayLogbook?.[`agenda_${ag.id}`] ||
+        dayLogbook?.[ag.id] ||
+        dayLogbook?.[`agenda_${cleanId}`] ||
+        dayLogbook?.[cleanId];
+      const isDone = Boolean(
+        taskEntry?.done === true || 
+        taskEntry?.done === "TRUE" || 
+        taskEntry?.done === "true" || 
+        taskEntry?.done === 1 || 
+        taskEntry?.photoUrl || 
+        taskEntry?.completedAt
+      );
       const photoUrl = taskEntry?.photoUrl;
       const completedAt = taskEntry?.completedAt || "-";
       const gpsVerified = Boolean(taskEntry?.gpsVerified);

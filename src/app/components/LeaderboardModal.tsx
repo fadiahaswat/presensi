@@ -10,6 +10,7 @@ import { KegiatanRecord } from "./KegiatanAsramaModal";
 import { MutabaahStorage } from "./MutabaahYaumiyahModal";
 import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
+import { getEffectiveAttendanceStatus } from "../App";
 
 interface Musyrif {
   id: string;
@@ -58,6 +59,7 @@ export function LeaderboardModal({
 
   // Calculate scores across the 4 Pillars for each musyrif
   const activeMusyrifList = musyrifList.filter(m => m.role !== "pamong" && m.role !== "koordinator_musyrif");
+  const now = new Date();
   const leaderboardData = activeMusyrifList.map(m => {
     // 1. Shalat Fardhu Score (Subuh & Maghrib)
     let hadirCount = 0;
@@ -69,15 +71,18 @@ export function LeaderboardModal({
 
     Object.entries(records).forEach(([_, rec]) => {
       if (rec.musyrifId === m.id) {
-        if (rec.subuh === "hadir") { hadirCount++; subuhCount++; }
-        else if (rec.subuh === "izin") izinCount++;
-        else if (rec.subuh === "sakit") sakitCount++;
-        else if (rec.subuh === "alfa") alfaCount++;
+        const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now);
+        const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now);
 
-        if (rec.maghrib === "hadir") { hadirCount++; maghribCount++; }
-        else if (rec.maghrib === "izin") izinCount++;
-        else if (rec.maghrib === "sakit") sakitCount++;
-        else if (rec.maghrib === "alfa") alfaCount++;
+        if (subSt === "hadir") { hadirCount++; subuhCount++; }
+        else if (subSt === "izin") izinCount++;
+        else if (subSt === "sakit") sakitCount++;
+        else if (subSt === "alfa") alfaCount++;
+
+        if (magSt === "hadir") { hadirCount++; maghribCount++; }
+        else if (magSt === "izin") izinCount++;
+        else if (magSt === "sakit") sakitCount++;
+        else if (magSt === "alfa") alfaCount++;
       }
     });
 

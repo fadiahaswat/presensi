@@ -9,7 +9,7 @@ import {
   Bell, BarChart2, Heart, Sunrise, User, Phone, Mail, MessageCircle, ExternalLink,
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send,
-  Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet, Eye,
+  Smartphone, HeartPulse, HeartHandshake, Building2, Medal, Wrench, Wallet, Eye,
   List, LayoutGrid, Trash2
 } from "lucide-react";
 import {
@@ -51,6 +51,7 @@ const JurnalLogbookModal = lazy(() => import("./components/JurnalLogbookModal").
 const MutabaahYaumiyahModal = lazy(() => import("./components/MutabaahYaumiyahModal").then(m => ({ default: m.MutabaahYaumiyahModal })));
 const SantriSakitModal = lazy(() => import("./components/SantriSakitModal").then(m => ({ default: m.SantriSakitModal })));
 const PengasuhanKhususModal = lazy(() => import("./components/PengasuhanKhususModal").then(m => ({ default: m.PengasuhanKhususModal })));
+const PagePengasuhanSantri = lazy(() => import("./components/PagePengasuhanSantri").then(m => ({ default: m.PagePengasuhanSantri })));
 const LeaderboardModal = lazy(() => import("./components/LeaderboardModal").then(m => ({ default: m.LeaderboardModal })));
 const RaportSertifikatModal = lazy(() => import("./components/RaportSertifikatModal").then(m => ({ default: m.RaportSertifikatModal })));
 const MusyrifManagerModal = lazy(() => import("./components/MusyrifManagerModal").then(m => ({ default: m.MusyrifManagerModal })));
@@ -220,6 +221,46 @@ export function getPresensiTimeWindow(
     prayerTime: prayerRaw,
     prayerDisplay: prayerObj?.time ?? fmtHour(prayerRaw),
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OTOMATIS ALPA CONFIGURATOR (Mulai 1 September 2026)
+// ─────────────────────────────────────────────────────────────────────────────
+export const AUTO_ALFA_START_DATE = "2026-09-01";
+
+/**
+ * Evaluasi status presensi efektif:
+ * - Mengembalikan status aktual jika sudah ada data tersimpan (hadir/sakit/izin/alfa).
+ * - Tanggal sebelum 1 September 2026 (< AUTO_ALFA_START_DATE): TIDAK dijadikan alfa (return undefined).
+ * - Tanggal >= 1 September 2026:
+ *   - Jika tanggal lampau (< hari ini): otomatis "alfa"
+ *   - Jika hari ini dan waktu saat ini > jam tutup presensi: otomatis "alfa"
+ *   - Selain itu (masih dalam jam buka atau tanggal mendatang): return undefined
+ */
+export function getEffectiveAttendanceStatus(
+  record: AttendanceRecord | undefined,
+  slot: PrayerSlot,
+  dateStr: string,
+  now: Date = new Date()
+): AttendanceStatus | undefined {
+  if (record?.[slot]) return record[slot];
+  if (dateStr < AUTO_ALFA_START_DATE) return undefined;
+
+  const today = format(now, "yyyy-MM-dd");
+  if (dateStr > today) return undefined;
+
+  if (dateStr < today) {
+    return "alfa";
+  }
+
+  // dateStr === today
+  const timeWindow = getPresensiTimeWindow(slot, now);
+  const nowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  if (nowH > timeWindow.closeTime) {
+    return "alfa";
+  }
+
+  return undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,8 +688,11 @@ function computeStreak(mid: string, records: AttendanceRecord[]) {
   const base = new Date(); base.setDate(base.getDate() - 1);
   for (let i = 0; i < 90; i++) {
     const d = new Date(base); d.setDate(d.getDate() - i);
-    const r = records.find(x => x.musyrifId === mid && x.date === format(d,"yyyy-MM-dd"));
-    if (r?.subuh === "hadir" && r?.maghrib === "hadir") { 
+    const dateStr = format(d, "yyyy-MM-dd");
+    const r = records.find(x => x.musyrifId === mid && x.date === dateStr);
+    const sSub = getEffectiveAttendanceStatus(r, "subuh", dateStr);
+    const sMag = getEffectiveAttendanceStatus(r, "maghrib", dateStr);
+    if (sSub === "hadir" && sMag === "hadir") { 
       tmp++; 
       if (!streakBroken) {
         cur = tmp;
@@ -674,8 +718,23 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
 
   const rows = list.map((m,i) => {
     const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
-    const sh=rs.filter(r=>r.subuh==="hadir").length, ss=rs.filter(r=>r.subuh==="sakit").length, si=rs.filter(r=>r.subuh==="izin").length, sa=rs.filter(r=>r.subuh==="alfa").length;
-    const mh=rs.filter(r=>r.maghrib==="hadir").length, ms=rs.filter(r=>r.maghrib==="sakit").length, mi=rs.filter(r=>r.maghrib==="izin").length, ma=rs.filter(r=>r.maghrib==="alfa").length;
+    let sh = 0, ss = 0, si = 0, sa = 0;
+    let mh = 0, ms = 0, mi = 0, ma = 0;
+    days.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      const r = rs.find(x => x.date === ds);
+      const subuhSt = getEffectiveAttendanceStatus(r, "subuh", ds);
+      const maghribSt = getEffectiveAttendanceStatus(r, "maghrib", ds);
+      if (subuhSt === "hadir") sh++;
+      else if (subuhSt === "sakit") ss++;
+      else if (subuhSt === "izin") si++;
+      else if (subuhSt === "alfa") sa++;
+
+      if (maghribSt === "hadir") mh++;
+      else if (maghribSt === "sakit") ms++;
+      else if (maghribSt === "izin") mi++;
+      else if (maghribSt === "alfa") ma++;
+    });
     const pct = days.length ? Math.round(((sh+mh)/(days.length*2))*100) : 0;
     return `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.kelas}</td><td>${m.pamong||"-"}</td><td>${m.phone||"-"}</td><td style="color:#16a34a">${sh}</td><td style="color:#d97706">${ss}</td><td style="color:#2563eb">${si}</td><td style="color:#dc2626">${sa}</td><td style="color:#16a34a">${mh}</td><td style="color:#d97706">${ms}</td><td style="color:#2563eb">${mi}</td><td style="color:#dc2626">${ma}</td><td><b>${pct}%</b></td></tr>`;
   }).join("");
@@ -740,7 +799,10 @@ function PageDashboard({
   mutabaahData = {},
   kegiatanRecords = [],
   isLoadingIzinSedayu = false,
-  agendaRapatList = []
+  agendaRapatList = [],
+  canDeletePhoto = false,
+  onSaveLogbook,
+  showToast
 }: {
   records: AttendanceRecord[];
   authUser: AuthUser|null;
@@ -778,28 +840,37 @@ function PageDashboard({
   kegiatanRecords?: any[];
   isLoadingIzinSedayu?: boolean;
   agendaRapatList?: AgendaRapatRecord[];
+  canDeletePhoto?: boolean;
+  onSaveLogbook?: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
+  showToast?: (msg: string, type: "success" | "error" | "info") => void;
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif);
   const today = todayStr();
   const todayRecs = records.filter(r => r.date === today);
   const total = mList.length;
-  const sh = todayRecs.filter(r => r.subuh   === "hadir").length;
-  const mh = todayRecs.filter(r => r.maghrib === "hadir").length;
-  const belumS = mList.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.subuh));
-  const belumM = mList.filter(m => !todayRecs.find(r => r.musyrifId === m.id && r.maghrib));
 
-  const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
-  const [asramaCampus, setAsramaCampus] = useState<"all" | "sparman" | "sedayu">("all");
-  const [expandedAsrama, setExpandedAsrama] = useState<string | null>(null);
-  const [previewWidgetPhoto, setPreviewWidgetPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
-
-  // Live 1-second interval for real-time MM:SS countdown
+  // Live 1-second interval for real-time MM:SS countdown & status sync
   const [liveNow, setLiveNow] = useState<Date>(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setLiveNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const getSubuh = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "subuh", today, liveNow);
+  const getMaghrib = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "maghrib", today, liveNow);
+
+  const sh = mList.filter(m => getSubuh(m.id) === "hadir").length;
+  const mh = mList.filter(m => getMaghrib(m.id) === "hadir").length;
+  const sa = mList.filter(m => getSubuh(m.id) === "alfa").length;
+  const ma = mList.filter(m => getMaghrib(m.id) === "alfa").length;
+  const belumS = mList.filter(m => !getSubuh(m.id));
+  const belumM = mList.filter(m => !getMaghrib(m.id));
+
+  const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
+  const [asramaCampus, setAsramaCampus] = useState<"all" | "sparman" | "sedayu">("all");
+  const [expandedAsrama, setExpandedAsrama] = useState<string | null>(null);
+  const [previewWidgetPhoto, setPreviewWidgetPhoto] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
 
   const prayerTimes = calcPrayerTimes(liveNow, -7.807631, 110.350905, 7);
   const hijri = toHijri(liveNow);
@@ -840,8 +911,8 @@ function PageDashboard({
     const rs = records.filter(r => r.date === ds);
     return {
       day: format(d,"EEE",{locale:id}).slice(0,2),
-      subuh:   total ? Math.round(rs.filter(r=>r.subuh==="hadir").length/total*100)   : 0,
-      maghrib: total ? Math.round(rs.filter(r=>r.maghrib==="hadir").length/total*100) : 0,
+      subuh:   total ? Math.round(mList.filter(m=>getEffectiveAttendanceStatus(rs.find(r=>r.musyrifId===m.id), "subuh", ds, liveNow)==="hadir").length/total*100)   : 0,
+      maghrib: total ? Math.round(mList.filter(m=>getEffectiveAttendanceStatus(rs.find(r=>r.musyrifId===m.id), "maghrib", ds, liveNow)==="hadir").length/total*100) : 0,
     };
   });
 
@@ -857,13 +928,23 @@ function PageDashboard({
   // Who needs attention (most alfa this month)
   const alfaRank = mList.map(m => {
     const rs = records.filter(r=>r.musyrifId===m.id&&r.date.startsWith(thisMK));
-    return { ...m, alfa: rs.filter(r=>r.subuh==="alfa"||r.maghrib==="alfa").length };
+    const startD = startOfMonth(now);
+    const endD = isBefore(now, endOfMonth(now)) ? now : endOfMonth(now);
+    const daysInMonth = eachDayOfInterval({ start: startD, end: endD });
+    let mAlfa = 0;
+    daysInMonth.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      const r = rs.find(x => x.date === ds);
+      if (getEffectiveAttendanceStatus(r, "subuh", ds, liveNow) === "alfa") mAlfa++;
+      if (getEffectiveAttendanceStatus(r, "maghrib", ds, liveNow) === "alfa") mAlfa++;
+    });
+    return { ...m, alfa: mAlfa };
   }).filter(m=>m.alfa>0).sort((a,b)=>b.alfa-a.alfa).slice(0,5);
 
   // Overview donut data
   const allTodayPossible = total * 2;
   const todayHadir = sh + mh;
-  const todayBelum = mList.filter(m=>!todayRecs.find(r=>r.musyrifId === m.id)).length * 2;
+  const todayBelum = belumS.length + belumM.length;
   const todayLain = allTodayPossible - todayHadir - todayBelum;
   const donutData = [
     { name:"Hadir", value: todayHadir, color:"#0C81E4" },
@@ -1061,8 +1142,8 @@ function PageDashboard({
             if (isMusyrifOrKoorGedung) {
               const myId = authUser.musyrifId || authUser.id;
               const myRec = todayRecs.find(r => r.musyrifId === myId);
-              const subuhStatus = myRec?.subuh;
-              const maghribStatus = myRec?.maghrib;
+              const subuhStatus = getEffectiveAttendanceStatus(myRec, "subuh", today, liveNow);
+              const maghribStatus = getEffectiveAttendanceStatus(myRec, "maghrib", today, liveNow);
 
               // Current time-window logbook session
               const currentHour = liveNow.getHours();
@@ -1286,8 +1367,8 @@ function PageDashboard({
             const isSubuhLocked = nowH < subuhWindow.openTime;
             const myMid = authUser.musyrifId || authUser.id;
             const mySubuhRec = todayRecs.find(r => r.musyrifId === myMid);
-            const isMySubuhHadir = mySubuhRec?.subuh === "hadir";
-            const mySubuhStatus = mySubuhRec?.subuh;
+            const mySubuhStatus = getEffectiveAttendanceStatus(mySubuhRec, "subuh", today, liveNow);
+            const isMySubuhHadir = mySubuhStatus === "hadir";
 
             return (
               <button
@@ -1350,8 +1431,8 @@ function PageDashboard({
             const isMaghribLocked = nowH < maghribWindow.openTime;
             const myMid = authUser.musyrifId || authUser.id;
             const myMaghribRec = todayRecs.find(r => r.musyrifId === myMid);
-            const isMyMaghribHadir = myMaghribRec?.maghrib === "hadir";
-            const myMaghribStatus = myMaghribRec?.maghrib;
+            const myMaghribStatus = getEffectiveAttendanceStatus(myMaghribRec, "maghrib", today, liveNow);
+            const isMyMaghribHadir = myMaghribStatus === "hadir";
 
             return (
               <button
@@ -1414,6 +1495,9 @@ function PageDashboard({
       <LogbookGalleryWidget
         logbookData={logbookData}
         musyrifList={musyrifList}
+        canDeletePhoto={canDeletePhoto}
+        onSaveLogbook={onSaveLogbook}
+        showToast={showToast}
         onOpenLogbook={authUser ? () => onGoTo("logbook") : undefined}
         onOpenFullGallery={() => onGoTo("galeri-logbook")}
       />
@@ -1935,8 +2019,8 @@ function PageDashboard({
               }
 
               return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {/* Status Logbook Hari Ini */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {/* 1. Status Logbook Hari Ini */}
                   <div 
                     onClick={() => onGoTo("logbook")}
                     className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-indigo-400 cursor-pointer transition-all flex items-center justify-between gap-2"
@@ -1948,7 +2032,7 @@ function PageDashboard({
                       <div className="min-w-0">
                         <p className="font-bold text-xs text-slate-800 truncate">Jurnal Logbook</p>
                         <p className="text-[10px] text-slate-500 truncate">
-                          {isLogComplete ? "11/11 Tugas Lengkap ✓" : `${logDoneCount}/11 tugas terisi`}
+                          {isLogComplete ? "11/11 Tugas ✓" : `${logDoneCount}/11 tugas`}
                         </p>
                       </div>
                     </div>
@@ -1959,7 +2043,7 @@ function PageDashboard({
                     </span>
                   </div>
 
-                  {/* Status Mutaba'ah Hari Ini */}
+                  {/* 2. Status Mutaba'ah Hari Ini */}
                   <div 
                     onClick={() => onGoTo("mutabaah")}
                     className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-emerald-400 cursor-pointer transition-all flex items-center justify-between gap-2"
@@ -1969,9 +2053,9 @@ function PageDashboard({
                         <Sparkles className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-xs text-slate-800 truncate">Mutaba'ah Yaumiyah</p>
+                        <p className="font-bold text-xs text-slate-800 truncate">Mutaba'ah</p>
                         <p className="text-[10px] text-slate-500 truncate">
-                          {mutDoneCount > 0 ? `${mutDoneCount} amalan sunnah ✓` : "Belum dicatat hari ini"}
+                          {mutDoneCount > 0 ? `${mutDoneCount} amalan ✓` : "Belum diisi"}
                         </p>
                       </div>
                     </div>
@@ -1982,10 +2066,31 @@ function PageDashboard({
                     </span>
                   </div>
 
-                  {/* Agenda Asrama */}
+                  {/* 3. Tugas Pengasuhan (RS/PKU & Bimbingan) */}
+                  <div 
+                    onClick={() => onGoTo("pengasuhan-santri")}
+                    className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-rose-400 cursor-pointer transition-all flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                        <HeartHandshake className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-slate-800 truncate">Tugas Pengasuhan</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          RS/PKU & Bimbingan
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono bg-rose-100 text-rose-800 shrink-0">
+                      Pilar 2
+                    </span>
+                  </div>
+
+                  {/* 4. Agenda Asrama */}
                   <div 
                     onClick={() => onOpenKegiatan ? onOpenKegiatan() : onGoTo("kegiatan")}
-                    className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between gap-2 sm:col-span-1"
+                    className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -1995,8 +2100,8 @@ function PageDashboard({
                         <p className="font-bold text-xs text-slate-800 truncate">Agenda Asrama</p>
                         <p className="text-[10px] text-slate-500 truncate">
                           {kegiatanRecords && kegiatanRecords.length > 0 
-                            ? `${kegiatanRecords.length} agenda terjadwal` 
-                            : "Kajian & Piket Asrama"}
+                            ? `${kegiatanRecords.length} agenda` 
+                            : "Kajian & Piket"}
                         </p>
                       </div>
                     </div>
@@ -2025,6 +2130,24 @@ function PageDashboard({
                 <div>
                   <p className="font-bold text-xs text-slate-800 leading-tight">Riwayat Presensi</p>
                   <p className="text-[10px] text-slate-500 mt-0.5">Kalender kehadiran</p>
+                </div>
+              </button>
+
+              {/* 1.5. Tugas Pengasuhan (Pilar 2) */}
+              <button
+                type="button"
+                onClick={() => onGoTo("pengasuhan-santri")}
+                className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-rose-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                    <HeartHandshake className="w-4 h-4"/>
+                  </div>
+                  <span className="text-[10px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-lg font-mono">Pilar 2</span>
+                </div>
+                <div>
+                  <p className="font-bold text-xs text-slate-800 leading-tight">Tugas Pengasuhan</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Antar PKU/RS & Bimbingan</p>
                 </div>
               </button>
 
@@ -2178,6 +2301,26 @@ function PageDashboard({
                   <div>
                     <p className="font-bold text-xs text-slate-800 leading-tight">Jurnal Logbook</p>
                     <p className="text-[10px] text-slate-400 mt-0.5 truncate">Pantau tugas harian</p>
+                  </div>
+                </button>
+
+                {/* 1.5. Tugas Pengasuhan & RS (Pilar 2) */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("pengasuhan-santri")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-rose-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                      <HeartHandshake className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      Pilar 2
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Tugas Pengasuhan</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Antar PKU/RS & Bimbingan</p>
                   </div>
                 </button>
 
@@ -2431,9 +2574,8 @@ function PageDashboard({
                 return true;
               }).map(a => {
                 const ins = mList.filter(m => m.asrama === a);
-                const rs = todayRecs.filter(r => ins.some(m => m.id === r.musyrifId));
-                const sh2 = rs.filter(r => r.subuh === "hadir").length;
-                const mh2 = rs.filter(r => r.maghrib === "hadir").length;
+                const sh2 = ins.filter(m => getSubuh(m.id) === "hadir").length;
+                const mh2 = ins.filter(m => getMaghrib(m.id) === "hadir").length;
                 const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
                 const isExpanded = expandedAsrama === a;
 
@@ -2487,6 +2629,8 @@ function PageDashboard({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {ins.map(m => {
                             const rec = todayRecs.find(r => r.musyrifId === m.id);
+                            const stS = getEffectiveAttendanceStatus(rec, "subuh", today, liveNow);
+                            const stM = getEffectiveAttendanceStatus(rec, "maghrib", today, liveNow);
                             return (
                               <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
@@ -2498,11 +2642,11 @@ function PageDashboard({
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
-                                    rec?.subuh === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                                  }`}>S:{rec?.subuh ? S[rec.subuh].short : "–"}</span>
+                                    stS === "hadir" ? "bg-emerald-100 text-emerald-800" : stS === "alfa" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
+                                  }`}>S:{stS ? S[stS].short : "–"}</span>
                                   <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
-                                    rec?.maghrib === "hadir" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                                  }`}>M:{rec?.maghrib ? S[rec.maghrib].short : "–"}</span>
+                                    stM === "hadir" ? "bg-emerald-100 text-emerald-800" : stM === "alfa" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
+                                  }`}>M:{stM ? S[stM].short : "–"}</span>
                                 </div>
                               </div>
                             );
@@ -2859,7 +3003,8 @@ function PageInputPrayer({
   }, [isMusyrifOrKoorGedung, activeAsrama]);
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
-  const doneCount = musyrifList.filter(m => Boolean(getRecord(m.id)?.[slot])).length;
+  const now = new Date();
+  const doneCount = musyrifList.filter(m => Boolean(getEffectiveAttendanceStatus(getRecord(m.id), slot, selDate, now))).length;
 
   const isSubuh = slot === "subuh";
 
@@ -2870,8 +3015,6 @@ function PageInputPrayer({
   const closeTimeRaw = presensiWindow.closeTime;
   const closeTimeDisplayStr = presensiWindow.closeDisplay;
   const prayerTimeStr = presensiWindow.prayerDisplay;
-
-  const now = new Date();
   const curDecimal = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const isTodayDate = selDate === todayStr();
   const isFuture = selDate > todayStr();
@@ -3201,7 +3344,8 @@ function PageInputPrayer({
       <div className="flex flex-col gap-3">
         {filtered.map(m=>{
           const rec = getRecord(m.id);
-          const cur = rec?.[slot];
+          const cur = getEffectiveAttendanceStatus(rec, slot, selDate, now);
+          const isAutoAlfa = cur === "alfa" && !rec?.[slot];
           const note = slot === "subuh" ? rec?.subuhNote : rec?.maghribNote;
           const isDone = Boolean(cur);
           const isMe = m.id === myMusyrifId || matchesEmail(authUser.email, m.email || "");
@@ -3231,7 +3375,7 @@ function PageInputPrayer({
                     "bg-red-100 text-red-800 border border-red-200"
                   }`}>
                     {cur === "hadir" && <CheckCircle2 className="w-3.5 h-3.5"/>}
-                    {S[cur].label}
+                    {isAutoAlfa ? "Alfa (Otomatis)" : S[cur].label}
                   </span>
                 ) : isNotYetTime ? (
                   <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
@@ -3394,24 +3538,56 @@ function PageRekap({
     return l;
   },[allM,filterAsrama,search]);
 
+  const now = new Date();
+
   const rate = (p: PrayerSlot) => {
     if(!fMusyrif.length||!days.length) return 0;
-    return Math.round(mRecs.filter(r=>fMusyrif.some(m=>m.id===r.musyrifId)&&r[p]==="hadir").length/(fMusyrif.length*days.length)*100);
+    let totalHadir = 0;
+    days.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      fMusyrif.forEach(m => {
+        const r = records.find(x => x.musyrifId === m.id && x.date === ds);
+        if (getEffectiveAttendanceStatus(r, p, ds, now) === "hadir") totalHadir++;
+      });
+    });
+    return Math.round(totalHadir / (fMusyrif.length * days.length) * 100);
   };
 
   const ranked = useMemo(()=>fMusyrif.map(m=>{
-    const rs=mRecs.filter(r=>r.musyrifId===m.id);
-    const sh=rs.filter(r=>r.subuh==="hadir").length,ss=rs.filter(r=>r.subuh==="sakit").length,si=rs.filter(r=>r.subuh==="izin").length,sa=rs.filter(r=>r.subuh==="alfa").length;
-    const mh=rs.filter(r=>r.maghrib==="hadir").length,ms=rs.filter(r=>r.maghrib==="sakit").length,mi=rs.filter(r=>r.maghrib==="izin").length,ma=rs.filter(r=>r.maghrib==="alfa").length;
+    let sh = 0, ss = 0, si = 0, sa = 0;
+    let mh = 0, ms = 0, mi = 0, ma = 0;
+    days.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      const r = mRecs.find(x => x.musyrifId === m.id && x.date === ds);
+      const subSt = getEffectiveAttendanceStatus(r, "subuh", ds, now);
+      const magSt = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+      if (subSt === "hadir") sh++;
+      else if (subSt === "sakit") ss++;
+      else if (subSt === "izin") si++;
+      else if (subSt === "alfa") sa++;
+
+      if (magSt === "hadir") mh++;
+      else if (magSt === "sakit") ms++;
+      else if (magSt === "izin") mi++;
+      else if (magSt === "alfa") ma++;
+    });
     const pct=days.length?Math.round((sh+mh)/(days.length*2)*100):0;
     return {...m,sh,ss,si,sa,mh,ms,mi,ma,pct};
   }).sort((a,b)=>sortBy==="pct"?b.pct-a.pct:a.name.localeCompare(b.name)),[fMusyrif,mRecs,days,sortBy]);
 
   const weeklyData = Array.from({length:Math.max(1,Math.ceil(days.length/7))},(_,wi)=>{
     const wDays=days.slice(wi*7,wi*7+7);
-    const wRecs=mRecs.filter(r=>wDays.some(d=>format(d,"yyyy-MM-dd")===r.date)&&fMusyrif.some(m=>m.id===r.musyrifId));
+    let subuhH = 0, maghribH = 0;
+    wDays.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      fMusyrif.forEach(m => {
+        const r = mRecs.find(x => x.musyrifId === m.id && x.date === ds);
+        if (getEffectiveAttendanceStatus(r, "subuh", ds, now) === "hadir") subuhH++;
+        if (getEffectiveAttendanceStatus(r, "maghrib", ds, now) === "hadir") maghribH++;
+      });
+    });
     const den=wDays.length*fMusyrif.length||1;
-    return {week:`Mgg ${wi+1}`,subuh:Math.round(wRecs.filter(r=>r.subuh==="hadir").length/den*100),maghrib:Math.round(wRecs.filter(r=>r.maghrib==="hadir").length/den*100)};
+    return {week:`Mgg ${wi+1}`,subuh:Math.round(subuhH/den*100),maghrib:Math.round(maghribH/den*100)};
   });
 
   const detailM = detail ? ranked.find(r=>r.id===detail.id) : null;
@@ -3885,25 +4061,72 @@ function PageRiwayat({
   const adj = (startOfMonth(viewMonth).getDay()||7)-1;
   const getR = (d: Date) => mRecs.find(r=>r.date===format(d,"yyyy-MM-dd"));
   const streak = useMemo(()=>musyrif ? computeStreak(musyrif.id,records) : 0,[musyrif,records]);
-  const pct = pastDays.length?Math.round((mRecs.filter(r=>r.subuh==="hadir").length+mRecs.filter(r=>r.maghrib==="hadir").length)/(pastDays.length*2)*100):0;
+  const now = new Date();
+
+  const getEffectiveSubuh = (ds: string) => {
+    const r = mRecs.find(x => x.date === ds);
+    return getEffectiveAttendanceStatus(r, "subuh", ds, now);
+  };
+  const getEffectiveMaghrib = (ds: string) => {
+    const r = mRecs.find(x => x.date === ds);
+    return getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+  };
+
+  let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlfa = 0;
+  pastDays.forEach(d => {
+    const ds = format(d, "yyyy-MM-dd");
+    const sSub = getEffectiveSubuh(ds);
+    const sMag = getEffectiveMaghrib(ds);
+    if (sSub === "hadir") totalHadir++;
+    else if (sSub === "sakit") totalSakit++;
+    else if (sSub === "izin") totalIzin++;
+    else if (sSub === "alfa") totalAlfa++;
+
+    if (sMag === "hadir") totalHadir++;
+    else if (sMag === "sakit") totalSakit++;
+    else if (sMag === "izin") totalIzin++;
+    else if (sMag === "alfa") totalAlfa++;
+  });
+
+  const pct = pastDays.length ? Math.round(totalHadir / (pastDays.length * 2) * 100) : 0;
 
   const trendData = [-2,-1,0].map(off=>{
     const m2=addMonths(viewMonth,off), mk2=format(m2,"yyyy-MM");
     const rs=allRecs.filter(r=>r.date.startsWith(mk2));
     const md=eachDayOfInterval({start:startOfMonth(m2),end:endOfMonth(m2)}).filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d));
-    return {month:format(m2,"MMM",{locale:id}),subuh:md.length?Math.round(rs.filter(r=>r.subuh==="hadir").length/md.length*100):0,maghrib:md.length?Math.round(rs.filter(r=>r.maghrib==="hadir").length/md.length*100):0};
+    let subuhCount = 0, maghribCount = 0;
+    md.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      const r = rs.find(x => x.date === ds);
+      if (getEffectiveAttendanceStatus(r, "subuh", ds, now) === "hadir") subuhCount++;
+      if (getEffectiveAttendanceStatus(r, "maghrib", ds, now) === "hadir") maghribCount++;
+    });
+    return {
+      month: format(m2,"MMM",{locale:id}),
+      subuh: md.length ? Math.round(subuhCount / md.length * 100) : 0,
+      maghrib: md.length ? Math.round(maghribCount / md.length * 100) : 0
+    };
   });
 
-  const totalHadir = mRecs.filter(r=>r.subuh==="hadir").length + mRecs.filter(r=>r.maghrib==="hadir").length;
-  const totalSakit = mRecs.filter(r=>r.subuh==="sakit").length + mRecs.filter(r=>r.maghrib==="sakit").length;
-  const totalIzin  = mRecs.filter(r=>r.subuh==="izin").length  + mRecs.filter(r=>r.maghrib==="izin").length;
-  const totalAlfa  = mRecs.filter(r=>r.subuh==="alfa").length  + mRecs.filter(r=>r.maghrib==="alfa").length;
-
   const nonHadirRecs = useMemo(() => {
-    return mRecs
-      .filter(r => (r.subuh && r.subuh !== "hadir") || (r.maghrib && r.maghrib !== "hadir"))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [mRecs]);
+    const list: { date: string; subuh?: AttendanceStatus; maghrib?: AttendanceStatus; subuhNote?: string; maghribNote?: string }[] = [];
+    pastDays.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      const r = mRecs.find(x => x.date === ds);
+      const sSub = getEffectiveAttendanceStatus(r, "subuh", ds, now);
+      const sMag = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+      if ((sSub && sSub !== "hadir") || (sMag && sMag !== "hadir")) {
+        list.push({
+          date: ds,
+          subuh: sSub,
+          maghrib: sMag,
+          subuhNote: r?.subuhNote,
+          maghribNote: r?.maghribNote
+        });
+      }
+    });
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [pastDays, mRecs, now]);
 
   // Logbook data for current musyrif
   const musyrifLogbooks = useMemo(() => {
@@ -4020,9 +4243,16 @@ function PageRiwayat({
       onSaveLogbook(photoItem.musyrifId, photoItem.date, updatedEntry);
 
       try {
-        const { deletePhoto } = await import("./utils/photoCacheService");
-        const cacheKey = `logbook_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}_photoUrl`;
-        await deletePhoto(cacheKey);
+        const { deletePhotosBatch } = await import("./utils/photoCacheService");
+        const cacheKeys = [
+          `logbook_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}_photoUrl`,
+          `photo_logbook_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}_photoUrl`,
+          `photo_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}_photoUrl`,
+          `photo_logbook_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}`,
+          `logbook_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}`,
+          photoItem.id
+        ];
+        await deletePhotosBatch(cacheKeys);
       } catch (_) {}
 
       if (previewPhotoModal?.id === photoItem.id) {
@@ -4115,12 +4345,31 @@ function PageRiwayat({
     });
 
     // 2. Agenda rapat from agendaRapatList + logbookData
+    const seenMeetingKeys = new Set<string>();
     (agendaRapatList || []).forEach(ag => {
       if (musyrif && Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(musyrif.id)) {
-        const taskKey = `agenda_${ag.id}`;
+        const cleanId = ag.id.replace(/^agenda_/, "");
         const dayLogbook = logbookData?.[musyrif.id]?.[ag.date];
-        const taskEntry = dayLogbook?.[taskKey];
-        const isDone = Boolean(taskEntry?.done);
+        const taskEntry = 
+          dayLogbook?.[`agenda_${ag.id}`] ||
+          dayLogbook?.[ag.id] ||
+          dayLogbook?.[`agenda_${cleanId}`] ||
+          dayLogbook?.[cleanId];
+
+        const isDone = Boolean(
+          taskEntry?.done === true || 
+          taskEntry?.done === "TRUE" || 
+          taskEntry?.done === "true" || 
+          taskEntry?.done === 1 || 
+          taskEntry?.photoUrl ||
+          taskEntry?.completedAt
+        );
+
+        seenMeetingKeys.add(`agenda_${ag.id}`);
+        seenMeetingKeys.add(ag.id);
+        seenMeetingKeys.add(`agenda_${cleanId}`);
+        seenMeetingKeys.add(cleanId);
+
         merged.push({
           id: ag.id,
           _source: "agenda_rapat",
@@ -4141,6 +4390,43 @@ function PageRiwayat({
         });
       }
     });
+
+    // 3. Any additional dynamic agenda/meeting tasks present in musyrif's logbookData
+    if (musyrif && logbookData?.[musyrif.id]) {
+      Object.entries(logbookData[musyrif.id]).forEach(([dt, dayEntry]) => {
+        if (dayEntry && typeof dayEntry === "object") {
+          Object.entries(dayEntry).forEach(([k, t]: [string, any]) => {
+            if (k.startsWith("agenda_") && !seenMeetingKeys.has(k) && t) {
+              seenMeetingKeys.add(k);
+              const isDone = Boolean(
+                t.done === true || 
+                t.done === "TRUE" || 
+                t.done === "true" || 
+                t.done === 1 || 
+                t.photoUrl || 
+                t.completedAt
+              );
+              merged.push({
+                id: k,
+                _source: "agenda_rapat",
+                activityType: "kajian",
+                activityTitle: t.title || "Agenda Rapat Koordinasi",
+                date: dt,
+                asrama: t.locationName || "Asrama",
+                notes: t.notes,
+                createdByName: t.createdByName || "Koordinator",
+                startTime: t.startTime || "",
+                endTime: t.endTime || "",
+                _agendaRapatDone: isDone,
+                _agendaRapatPhotoUrl: t.photoUrl,
+                _agendaRapatCompletedAt: t.completedAt,
+                _agendaRapatGpsVerified: Boolean(t.gpsVerified),
+              });
+            }
+          });
+        }
+      });
+    }
 
     return merged.sort((a, b) => b.date.localeCompare(a.date));
   }, [kegiatanRecords, agendaRapatList, logbookData, musyrif]);
@@ -4663,12 +4949,15 @@ function PageRiwayat({
                 const r=getR(day);
                 const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);
                 const last=(adj+i+1)%7===0;
-                const perfect=r?.subuh==="hadir"&&r?.maghrib==="hadir";
+                const dayStr = format(day, "yyyy-MM-dd");
+                const stSub = getEffectiveAttendanceStatus(r, "subuh", dayStr, now);
+                const stMag = getEffectiveAttendanceStatus(r, "maghrib", dayStr, now);
+                const perfect = stSub === "hadir" && stMag === "hadir";
 
                 return (
                   <div 
                     key={day.toISOString()} 
-                    onClick={() => !future && setSelectedDay({ date: day, record: r })}
+                    onClick={() => !future && setSelectedDay({ date: day, record: r ? { ...r, subuh: stSub, maghrib: stMag } : { musyrifId: musyrif?.id || "", date: dayStr, subuh: stSub, maghrib: stMag } })}
                     className={`min-h-[44px] border-b border-r border-slate-100/70 p-1 flex flex-col justify-between transition-all select-none ${
                       isToday(day) ? "bg-emerald-50/80 ring-1 ring-emerald-400 inset-0 z-10" : perfect&&!future ? "bg-emerald-50/30" : "bg-white"
                     } ${future ? "opacity-25 cursor-default bg-slate-50/30" : "cursor-pointer hover:bg-emerald-50/60 active:scale-95"} ${last ? "border-r-0" : ""}`}
@@ -4687,17 +4976,17 @@ function PageRiwayat({
                         {calendarSlotFilter !== "maghrib" && (
                           <div 
                             className={`h-1.5 rounded-full transition-all ${
-                              r?.subuh ? S[r.subuh].dot : "bg-slate-200"
+                              stSub ? S[stSub].dot : "bg-slate-200"
                             }`} 
-                            title={`Subuh: ${r?.subuh ?? "Belum"}`}
+                            title={`Subuh: ${stSub ? S[stSub].label : "Belum"}`}
                           />
                         )}
                         {calendarSlotFilter !== "subuh" && (
                           <div 
                             className={`h-1.5 rounded-full transition-all ${
-                              r?.maghrib ? S[r.maghrib].dot : "bg-slate-200"
+                              stMag ? S[stMag].dot : "bg-slate-200"
                             }`} 
-                            title={`Maghrib: ${r?.maghrib ?? "Belum"}`}
+                            title={`Maghrib: ${stMag ? S[stMag].label : "Belum"}`}
                           />
                         )}
                       </div>
@@ -7246,6 +7535,16 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string; type?: "success" | "info" | "error" } | null>(null);
   const [galleryViewMode, setGalleryViewMode] = useState<"feed" | "grid">("feed");
 
+  const canDeletePhoto = Boolean(
+    authUser && (
+      authUser.role === "koordinator_musyrif" ||
+      authUser.role === "admin" ||
+      authUser.role === "wadir4" ||
+      authUser.role === "kaur_kis" ||
+      authUser.role === "pamong"
+    )
+  );
+
   // Global GPS State - checked once when app loads
   const [globalGpsResult, setGlobalGpsResult] = useState<GeofenceResult | null>(null);
   const [isCheckingGlobalGps, setIsCheckingGlobalGps] = useState(false);
@@ -7734,31 +8033,41 @@ export default function App() {
                   const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                   const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
-                  let finalPhotoUrl = existingTask.photoUrl;
+                  let finalPhotoUrl: string | undefined = undefined;
                   if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("data:image") || cloudPhotoUrl.startsWith("http"))) {
-                    if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image") || cloudPhotoUrl.length >= existingTask.photoUrl.length) {
-                      finalPhotoUrl = cloudPhotoUrl;
-                    }
+                    finalPhotoUrl = cloudPhotoUrl;
                   } else if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("photo:") || cloudPhotoUrl.startsWith("[PHOTO_REF:"))) {
-                    if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image")) {
-                      finalPhotoUrl = cloudPhotoUrl;
-                    }
+                    finalPhotoUrl = cloudPhotoUrl;
+                  } else if (cloudPhotoUrl === undefined && existingTask.photoUrl) {
+                    // Retain local photo only if cloud record did not send/clear the photoUrl field
+                    finalPhotoUrl = existingTask.photoUrl;
                   }
 
-                  (next[mId][dt] as any)[cr.taskKey] = {
+                  const updatedTaskObj: any = {
                     ...existingTask,
                     ...taskObj,
                     done: isDone,
-                    ...(finalPhotoUrl ? { photoUrl: finalPhotoUrl } : {}),
-                    ...(completedAt ? { completedAt } : {}),
-                    ...(photoTakenAt ? { photoTakenAt } : {}),
-                    ...(photoWatermark ? { photoWatermark } : {}),
-                    ...(photoSource ? { photoSource } : {}),
-                    ...(notes ? { notes } : {}),
-                    ...(stepsCount ? { stepsCount } : {}),
-                    ...(subChoice ? { subChoice } : {}),
                     gpsVerified: isGps
                   };
+
+                  if (finalPhotoUrl) {
+                    updatedTaskObj.photoUrl = finalPhotoUrl;
+                    if (photoTakenAt) updatedTaskObj.photoTakenAt = photoTakenAt;
+                    if (photoWatermark) updatedTaskObj.photoWatermark = photoWatermark;
+                    if (photoSource) updatedTaskObj.photoSource = photoSource;
+                  } else {
+                    delete updatedTaskObj.photoUrl;
+                    delete updatedTaskObj.photoTakenAt;
+                    delete updatedTaskObj.photoWatermark;
+                    delete updatedTaskObj.photoSource;
+                  }
+
+                  if (completedAt) updatedTaskObj.completedAt = completedAt;
+                  if (notes) updatedTaskObj.notes = notes;
+                  if (stepsCount) updatedTaskObj.stepsCount = stepsCount;
+                  if (subChoice) updatedTaskObj.subChoice = subChoice;
+
+                  (next[mId][dt] as any)[cr.taskKey] = updatedTaskObj;
                 }
               } else {
                 next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
@@ -8015,31 +8324,41 @@ export default function App() {
                     const subChoice = cr.subChoice || taskObj.subChoice || undefined;
 
                     const existingTask = (next[mId][dt] as any)?.[cr.taskKey] || {};
-                    let finalPhotoUrl = existingTask.photoUrl;
+                    let finalPhotoUrl: string | undefined = undefined;
                     if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("data:image") || cloudPhotoUrl.startsWith("http"))) {
-                      if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image") || cloudPhotoUrl.length >= existingTask.photoUrl.length) {
-                        finalPhotoUrl = cloudPhotoUrl;
-                      }
+                      finalPhotoUrl = cloudPhotoUrl;
                     } else if (cloudPhotoUrl && typeof cloudPhotoUrl === "string" && (cloudPhotoUrl.startsWith("photo:") || cloudPhotoUrl.startsWith("[PHOTO_REF:"))) {
-                      if (!existingTask.photoUrl || !existingTask.photoUrl.startsWith("data:image")) {
-                        finalPhotoUrl = cloudPhotoUrl;
-                      }
+                      finalPhotoUrl = cloudPhotoUrl;
+                    } else if (cloudPhotoUrl === undefined && existingTask.photoUrl) {
+                      // Retain local photo only if cloud record did not send/clear the photoUrl field
+                      finalPhotoUrl = existingTask.photoUrl;
                     }
 
-                    (next[mId][dt] as any)[cr.taskKey] = {
+                    const updatedTaskObj: any = {
                       ...existingTask,
                       ...taskObj,
                       done: isDone,
-                      ...(finalPhotoUrl ? { photoUrl: finalPhotoUrl } : {}),
-                      ...(completedAt ? { completedAt } : {}),
-                      ...(photoTakenAt ? { photoTakenAt } : {}),
-                      ...(photoWatermark ? { photoWatermark } : {}),
-                      ...(photoSource ? { photoSource } : {}),
-                      ...(notes ? { notes } : {}),
-                      ...(stepsCount ? { stepsCount } : {}),
-                      ...(subChoice ? { subChoice } : {}),
                       gpsVerified: isGps
                     };
+
+                    if (finalPhotoUrl) {
+                      updatedTaskObj.photoUrl = finalPhotoUrl;
+                      if (photoTakenAt) updatedTaskObj.photoTakenAt = photoTakenAt;
+                      if (photoWatermark) updatedTaskObj.photoWatermark = photoWatermark;
+                      if (photoSource) updatedTaskObj.photoSource = photoSource;
+                    } else {
+                      delete updatedTaskObj.photoUrl;
+                      delete updatedTaskObj.photoTakenAt;
+                      delete updatedTaskObj.photoWatermark;
+                      delete updatedTaskObj.photoSource;
+                    }
+
+                    if (completedAt) updatedTaskObj.completedAt = completedAt;
+                    if (notes) updatedTaskObj.notes = notes;
+                    if (stepsCount) updatedTaskObj.stepsCount = stepsCount;
+                    if (subChoice) updatedTaskObj.subChoice = subChoice;
+
+                    (next[mId][dt] as any)[cr.taskKey] = updatedTaskObj;
                   }
                 } else {
                   next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
@@ -8766,9 +9085,9 @@ export default function App() {
       const standardKeys = [
         "tahajjud", "bakdaSubuh", "cekSakit", "sisirSekolah", "jagaGerbang",
         "oprakJumat", "kerjaBakti", "oprakAshar", "oprakMandi", "sisirMaghrib",
-        "bakdaMaghrib", "belajarMalam", "cekTidur"
+        "bakdaMaghrib", "belajarMalam", "cekTidur", "muhadatsah", "piketSubuh", "ashar", "maghrib", "bahasa", "sisirMalam", "jumat", "mandiSore"
       ];
-      const dynamicKeys = Object.keys({ ...prevEntry, ...entry }).filter(k => k.startsWith("agenda_"));
+      const dynamicKeys = Object.keys({ ...prevEntry, ...entry }).filter(k => k !== "generalNotes");
       const allTaskKeys = Array.from(new Set([...standardKeys, ...dynamicKeys]));
 
       // Merge tasks deeply so no previous photos or notes are overwritten by subsequent tasks
@@ -8788,6 +9107,17 @@ export default function App() {
           finalPhotoTakenAt = undefined;
           finalPhotoWatermark = undefined;
           finalPhotoSource = undefined;
+
+          // Proactively purge local cache keys for this task photo
+          import("./utils/photoCacheService").then(({ deletePhotosBatch }) => {
+            deletePhotosBatch([
+              `logbook_${musyrifId}_${date}_${taskKey}_photoUrl`,
+              `photo_logbook_${musyrifId}_${date}_${taskKey}_photoUrl`,
+              `photo_${musyrifId}_${date}_${taskKey}_photoUrl`,
+              `photo_logbook_${musyrifId}_${date}_${taskKey}`,
+              `logbook_${musyrifId}_${date}_${taskKey}`
+            ]).catch(() => {});
+          }).catch(() => {});
         } else if (incomingTask.photoUrl) {
           finalPhotoUrl = incomingTask.photoUrl;
           finalPhotoTakenAt = incomingTask.photoTakenAt || new Date().toISOString();
@@ -8995,6 +9325,153 @@ export default function App() {
     }
 
     showToast(`Tugas pengasuhan (${rec.namaSantri}) berhasil disimpan (+${rec.poin} Poin)!`, "success");
+  };
+
+  const handleSaveBatchPengasuhanKhusus = (records: PengasuhanKhususRecord[]) => {
+    if (!records || records.length === 0) return;
+
+    // 1. Simpan ke PengasuhanKhususList
+    setPengasuhanKhususList(prev => {
+      const map = new Map<string, PengasuhanKhususRecord>();
+      prev.forEach(p => map.set(p.id, p));
+      records.forEach(r => map.set(r.id, r));
+      return Array.from(map.values());
+    });
+
+    const nowIso = new Date().toISOString();
+    const newIzinListToSave: any[] = [];
+    const newPembinaanRecords: any[] = [];
+
+    records.forEach(rec => {
+      // Sync to Google Apps Script backend
+      googleSyncService.enqueue("PengasuhanKhusus", rec, "upsert", true);
+
+      // SINKRONISASI 1: JURNAL LOGBOOK (Pilar 2)
+      // Otomatis tandai tugas logbook 'cekSakit' jika mengantar PKU/RS
+      if (rec.kategori === "antar_pku_rs" && rec.musyrifId) {
+        const dayEntry = logbookData[rec.musyrifId]?.[rec.date] || {};
+        const existingTask = (dayEntry as any)?.cekSakit || {};
+        if (!existingTask.done) {
+          const updatedEntry: JurnalLogbookEntry = {
+            ...dayEntry,
+            cekSakit: {
+              ...existingTask,
+              done: true,
+              completedAt: rec.waktu || format(new Date(), "HH:mm"),
+              notes: `Rujukan Medis PKU/RS: ${rec.namaSantri} ke ${rec.lokasiTujuan}`,
+              photoUrl: rec.photoUrl || existingTask.photoUrl
+            }
+          };
+          handleSaveLogbook(rec.musyrifId, rec.date, updatedEntry);
+        }
+      }
+
+      // SINKRONISASI 2: IZIN SAKIT / PANTAUAN SANTRI SAKIT
+      if (rec.kategori === "antar_pku_rs") {
+        const existingSakit = santriSakitList.find(
+          s => s.namaSantri.toLowerCase() === rec.namaSantri.toLowerCase() && s.date === rec.date
+        );
+        if (!existingSakit) {
+          const newSakitRecord: SantriSakitRecord = {
+            id: "sakit_pku_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+            musyrifId: rec.musyrifId,
+            musyrifName: rec.musyrifName,
+            asrama: rec.asrama,
+            kamar: rec.kamar,
+            date: rec.date,
+            namaSantri: rec.namaSantri,
+            kelasSantri: rec.kelasSantri,
+            keluhan: rec.catatan,
+            lokasiPerawatan: "rs_pku",
+            catatanTindakan: `Dirujuk ke ${rec.lokasiTujuan} oleh ${rec.musyrifName}`,
+            status: "dalam_perawatan",
+            photoUrl: rec.photoUrl,
+            createdAt: rec.createdAt
+          };
+          handleSaveSantriSakit(newSakitRecord);
+        }
+
+        // SINKRONISASI 3: SANTRI IZIN KELUAR (Kategori Kesehatan / Berobat)
+        const idSurat = `IZN-MED-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+        newIzinListToSave.push({
+          id: idSurat,
+          nomorSurat: idSurat,
+          santriId: rec.santriId,
+          nisn: rec.nisn || "-",
+          namaSantri: rec.namaSantri,
+          kelas: rec.kelasSantri,
+          asrama: rec.asrama,
+          kamar: rec.kamar || "Kamar",
+          jenisIzin: "kesehatan_berobat",
+          keperluan: `Rujukan Medis: ${rec.lokasiTujuan} (${rec.catatan})`,
+          tujuan: rec.lokasiTujuan,
+          startDate: rec.date,
+          endDate: rec.date,
+          jamKeluarRencana: rec.waktu,
+          jamKembaliRencana: "21:00",
+          namaPenjemput: rec.musyrifName,
+          hubunganPenjemput: "Pihak Sekolah / Guru",
+          statusApproval: "approved",
+          status: "APPROVED",
+          disetujuiOleh: rec.musyrifName,
+          catatanPamong: `Didampingi musyrif ${rec.musyrifName}`,
+          photoUrl: rec.photoUrl,
+          createdAt: nowIso,
+          updatedAt: nowIso
+        });
+      }
+
+      // SINKRONISASI 4: LEMBAR PEMBINAAN (Jika kategori bina_santri)
+      if (rec.kategori === "bina_santri") {
+        newPembinaanRecords.push({
+          id: "bina_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+          tanggal: rec.date,
+          waktu: rec.waktu,
+          santriId: rec.santriId,
+          nisn: rec.nisn,
+          namaSantri: rec.namaSantri,
+          kelasSantri: rec.kelasSantri,
+          asrama: rec.asrama,
+          kamar: rec.kamar,
+          jenis: "prestasi",
+          kategori: "akhlak_adab",
+          tingkat: "prestasi",
+          poin: 5,
+          judulPeristiwa: `Bimbingan & Konseling Bersama Musyrif di ${rec.lokasiTujuan}`,
+          deskripsi: rec.catatan,
+          lokasiKejadian: rec.lokasiTujuan,
+          tindakanPembinaan: "Sesi bimbingan, konseling motivasi, dan evaluasi adab",
+          status: "selesai",
+          pelaporId: rec.musyrifId,
+          pelaporName: rec.musyrifName,
+          pelaporRole: "Musyrif",
+          createdAt: nowIso
+        });
+      }
+    });
+
+    // Jalankan simpan batch izin keluar santri
+    if (newIzinListToSave.length > 0) {
+      setSantriIzinList(prev => {
+        const next = [...newIzinListToSave, ...prev];
+        try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      newIzinListToSave.forEach(r => googleSyncService.enqueue("SantriIzin", r, "upsert"));
+    }
+
+    // Jalankan simpan ke lembar pembinaan
+    if (newPembinaanRecords.length > 0) {
+      try {
+        const raw = localStorage.getItem("syamsa_lembar_pembinaan_v1");
+        const existing = raw ? JSON.parse(raw) : [];
+        const merged = [...newPembinaanRecords, ...(Array.isArray(existing) ? existing : [])];
+        localStorage.setItem("syamsa_lembar_pembinaan_v1", JSON.stringify(merged));
+      } catch {}
+    }
+
+    const totalPts = records.reduce((acc, curr) => acc + curr.poin, 0);
+    showToast(`Tugas pengasuhan ${records.length} santri tersimpan & tersinkron ke Logbook, Sakit, Izin Keluar & Pembinaan (+${totalPts} Poin)!`, "success");
   };
 
   const handleDeletePengasuhanKhusus = (id: string) => {
@@ -9580,6 +10057,9 @@ export default function App() {
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
                 isLoadingIzinSedayu={isLoadingIzinSedayu}
+                canDeletePhoto={canDeletePhoto}
+                onSaveLogbook={handleSaveLogbook}
+                showToast={showToast}
               />
             </motion.div>
           )}
@@ -9663,7 +10143,7 @@ export default function App() {
                 onOpenSantriSakit={() => setPage("santri-sakit")}
                 onOpenAgendaRapat={() => setPage("agenda-rapat")}
                 onOpenMutabaah={() => setPage("mutabaah")}
-                onOpenPengasuhanKhusus={() => setShowPengasuhanKhusus(true)}
+                onOpenPengasuhanKhusus={() => setPage("pengasuhan-santri")}
               />
             </motion.div>
           )}
@@ -9948,6 +10428,21 @@ export default function App() {
                 logbookData={logbookData}
                 onSaveAgenda={handleSaveAgendaRapat}
                 onDeleteAgenda={handleDeleteAgendaRapat}
+              />
+            </motion.div>
+          )}
+          {page==="pengasuhan-santri" && (
+            <motion.div key="pengasuhan-santri" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <PagePengasuhanSantri
+                onBack={() => setPage("dashboard")}
+                authUser={authUser}
+                musyrifList={musyrifList}
+                santriList={santriList}
+                pengasuhanList={pengasuhanKhususList}
+                onSavePengasuhan={handleSavePengasuhanKhusus}
+                onSaveBatchPengasuhan={handleSaveBatchPengasuhanKhusus}
+                onDeletePengasuhan={handleDeletePengasuhanKhusus}
+                initialMusyrifId={selectedMusyrifId}
               />
             </motion.div>
           )}

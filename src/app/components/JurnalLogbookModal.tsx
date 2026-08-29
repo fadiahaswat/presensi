@@ -1357,36 +1357,6 @@ export function JurnalLogbookModal({
                   </div>
                 </div>
               )}
-
-              {/* Tugas Pengasuhan & Rujukan PKU/RS Shortcut Banner */}
-              {onOpenPengasuhanKhusus && (
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic("selection");
-                      onOpenPengasuhanKhusus();
-                    }}
-                    className="w-full py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-sm flex items-center justify-between gap-2 active:scale-[0.99] transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center text-white">
-                        <Heart className="w-4 h-4 text-emerald-200" />
-                      </div>
-                      <div className="text-left">
-                        <p className="leading-tight flex items-center gap-1.5 font-extrabold">
-                          Tugas Pengasuhan & Bimbingan Santri
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-900 font-black">+10 / +5 Poin</span>
-                        </p>
-                        <p className="text-[10px] text-emerald-100 font-normal">Antar rujukan ke PKU/RS, bimbingan/konseling santri & foto kegiatan</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-bold text-white group-hover:translate-x-1 transition-transform flex items-center gap-0.5 shrink-0">
-                      Buka ➔
-                    </span>
-                  </button>
-                </div>
-              )}
             </div>
 
         {/* Task Search & Category Filter Pills */}

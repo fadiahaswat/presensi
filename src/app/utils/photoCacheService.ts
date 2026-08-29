@@ -319,6 +319,35 @@ export async function deletePhoto(id: string): Promise<void> {
 }
 
 /**
+ * Batch delete multiple photos from cache
+ */
+export async function deletePhotosBatch(ids: string[]): Promise<void> {
+  await init();
+  const validIds = ids.filter(Boolean);
+  if (validIds.length === 0) return;
+
+  for (const id of validIds) {
+    memoryCache.delete(id);
+  }
+
+  if (!db) return;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db!.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      for (const id of validIds) {
+        store.delete(id);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (_) {
+      resolve();
+    }
+  });
+}
+
+/**
  * Clear all cached photos (both memory and IndexedDB)
  */
 export async function clearCache(): Promise<void> {

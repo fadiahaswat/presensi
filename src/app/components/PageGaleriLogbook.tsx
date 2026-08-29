@@ -878,9 +878,16 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
       onSaveLogbook(post.musyrifId, post.date, updatedEntry);
 
       try {
-        const { deletePhoto } = await import("../utils/photoCacheService");
-        const cacheKey = `logbook_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`;
-        await deletePhoto(cacheKey);
+        const { deletePhotosBatch } = await import("../utils/photoCacheService");
+        const cacheKeys = [
+          `logbook_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`,
+          `photo_logbook_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`,
+          `photo_${post.musyrifId}_${post.date}_${post.taskKey}_photoUrl`,
+          `photo_logbook_${post.musyrifId}_${post.date}_${post.taskKey}`,
+          `logbook_${post.musyrifId}_${post.date}_${post.taskKey}`,
+          post.id
+        ];
+        await deletePhotosBatch(cacheKeys);
       } catch (_) {}
 
       if (selectedPost?.id === post.id) {
