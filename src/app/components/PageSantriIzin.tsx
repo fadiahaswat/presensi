@@ -242,7 +242,7 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   // Photo State & Modal (Mandatory Pure Compressed Photo)
   const [fotoSantriUrl, setFotoSantriUrl] = useState<string>("");
   const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
-  const [photoModalItem, setPhotoModalItem] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [photoModalItem, setPhotoModalItem] = useState<{ url: string; title: string; subtitle?: string; record?: SantriIzinRecord } | null>(null);
 
   // Handle Photo Compression (Tanpa Watermark untuk Izin Santri)
   const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -523,6 +523,30 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   const isPamongOrAdmin = isPamong || isKoorMusyrif || isKoorGedung;
   const isMusyrif = authUser?.role === "musyrif" || isKoorGedung;
   const isPKM = authUser?.role === "keamanan" || authUser?.role === "admin" || isPamongOrAdmin;
+  const canDeletePhoto = isKoorMusyrif || isPamong || isMusyrif || !isPublic;
+
+  const handleDeletePhoto = (record: SantriIzinRecord) => {
+    appConfirm(
+      `Hapus foto bukti perizinan ananda ${record.namaSantri}?`,
+      "Hapus Foto Izin",
+      { type: "danger", confirmText: "Hapus Foto" }
+    ).then((ok) => {
+      if (!ok) return;
+      const updated: SantriIzinRecord = {
+        ...record,
+        photoUrl: undefined,
+        fotoSantriUrl: undefined,
+        lampiranUrl: undefined,
+        updatedAt: new Date().toISOString()
+      };
+      if (onUpdateSantriIzin) {
+        onUpdateSantriIzin(updated);
+      }
+      setPhotoModalItem(null);
+      triggerHaptic("medium");
+      appAlert("Foto Dihapus", "Foto bukti perizinan santri berhasil dihapus.");
+    });
+  };
 
   // Handler submit form izin (Mendukung satu atau banyak santri sekaligus)
   const handleSubmitForm = (e: React.FormEvent) => {
@@ -1048,7 +1072,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                     {(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl) && (
                       <div 
                         className="relative rounded-2xl overflow-hidden border border-amber-200/80 bg-slate-950 group cursor-pointer"
-                        onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
+                        onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}`, record: item })}
                       >
                         <img 
                           src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl} 
@@ -1060,6 +1084,20 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                           <Eye className="w-3 h-3 text-sky-400" />
                           <span>Klik untuk Perbesar Foto</span>
                         </div>
+                        {canDeletePhoto && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePhoto(item);
+                            }}
+                            title="Hapus Foto Izin Santri"
+                            className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm flex items-center gap-1 transition-all active:scale-95 z-10"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Hapus Foto</span>
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -1230,7 +1268,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                         {(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl) && (
                           <div 
                             className="relative rounded-2xl overflow-hidden border border-slate-200/80 bg-slate-950 group cursor-pointer"
-                            onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}` })}
+                            onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}`, record: item })}
                           >
                             <img 
                               src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl} 
@@ -1242,6 +1280,20 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                               <Eye className="w-3 h-3 text-sky-400" />
                               <span>Klik untuk Perbesar Foto</span>
                             </div>
+                            {canDeletePhoto && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeletePhoto(item);
+                                }}
+                                title="Hapus Foto Izin Santri"
+                                className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm flex items-center gap-1 transition-all active:scale-95 z-10"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Hapus Foto</span>
+                              </button>
+                            )}
                           </div>
                         )}
 
@@ -2210,7 +2262,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                           <img
                             src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl}
                             alt={item.namaSantri}
-                            onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • No: ${item.nomorSurat}` })}
+                            onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • No: ${item.nomorSurat}`, record: item })}
                             className="w-12 h-12 rounded-xl object-cover ring-1 ring-slate-300 shrink-0 cursor-pointer hover:scale-105 transition-transform"
                           />
                         ) : (
@@ -2373,7 +2425,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                       <img
                         src={selectedIzin.fotoSantriUrl || selectedIzin.lampiranUrl}
                         alt={selectedIzin.namaSantri}
-                        onClick={() => setPhotoModalItem({ url: (selectedIzin.fotoSantriUrl || selectedIzin.lampiranUrl)!, title: selectedIzin.namaSantri, subtitle: `${selectedIzin.asrama} • Kelas ${selectedIzin.kelas}` })}
+                        onClick={() => setPhotoModalItem({ url: (selectedIzin.fotoSantriUrl || selectedIzin.lampiranUrl)!, title: selectedIzin.namaSantri, subtitle: `${selectedIzin.asrama} • Kelas ${selectedIzin.kelas}`, record: selectedIzin })}
                         className="w-16 h-16 rounded-xl object-cover ring-1 ring-slate-300 cursor-pointer hover:scale-105 transition-transform"
                       />
                     ) : (
@@ -2594,12 +2646,25 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
               className="relative w-full h-full flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <button
-                onClick={() => setPhotoModalItem(null)}
-                className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg active:scale-95"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                {photoModalItem.record && canDeletePhoto && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePhoto(photoModalItem.record!)}
+                    className="px-3 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg active:scale-95"
+                    title="Hapus Foto Bukti Perizinan"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Hapus Foto</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setPhotoModalItem(null)}
+                  className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg active:scale-95"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
               <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
                 <img

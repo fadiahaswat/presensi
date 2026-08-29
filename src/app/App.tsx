@@ -8602,6 +8602,24 @@ export default function App() {
     });
   };
 
+  const handleUpdateSantriIzin = (updatedRecord: SantriIzinRecord) => {
+    setSantriIzinList(prev => {
+      const next = prev.map(item => {
+        if (item.id === updatedRecord.id || item.nomorSurat === updatedRecord.nomorSurat) {
+          return {
+            ...item,
+            ...updatedRecord,
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return item;
+      });
+      try { localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    googleSyncService.enqueue("SantriIzin", updatedRecord, "upsert", true);
+  };
+
   const handleDeleteSantriIzin = (id: string) => {
     setSantriIzinList(prev => prev.filter(item => item.id !== id && item.nomorSurat !== id));
     googleSyncService.enqueue("SantriIzin", { id }, "delete", true);
@@ -9181,6 +9199,7 @@ export default function App() {
                 santriList={santriList}
                 santriIzinList={santriIzinList}
                 onSaveSantriIzin={handleSaveSantriIzin}
+                onUpdateSantriIzin={handleUpdateSantriIzin}
                 onApproveSantriIzin={handleApproveSantriIzin}
                 onPKMTap={handlePKMTap}
                 onDeleteSantriIzin={handleDeleteSantriIzin}

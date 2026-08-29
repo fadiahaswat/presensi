@@ -4,7 +4,7 @@
  */
 
 import React, { memo } from "react";
-import { Clock, Check, Ban, Eye, Stethoscope, Building2, UserCheck } from "lucide-react";
+import { Clock, Check, Ban, Eye, Stethoscope, Building2, UserCheck, Trash2 } from "lucide-react";
 import { SantriIzinRecord, JenisIzinSantri } from "../types/izinSantri";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -13,9 +13,11 @@ import { appConfirm } from "../utils/customDialog";
 
 interface PendingIzinItemProps {
   item: SantriIzinRecord;
+  authUser?: any;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onViewDetail: (item: SantriIzinRecord) => void;
+  onDeletePhoto?: (item: SantriIzinRecord) => void;
   onPhotoClick?: (url: string, title: string, subtitle: string) => void;
 }
 
@@ -34,9 +36,11 @@ const getJenisIzinBadge = (jenis: JenisIzinSantri) => {
 
 export const PendingIzinItem = memo(function PendingIzinItem({
   item,
+  authUser,
   onApprove,
   onReject,
   onViewDetail,
+  onDeletePhoto,
   onPhotoClick,
 }: PendingIzinItemProps) {
   const fotoUrl = item.photoUrl || item.fotoSantriUrl || item.lampiranUrl;
@@ -136,6 +140,20 @@ export const PendingIzinItem = memo(function PendingIzinItem({
             <Eye className="w-3 h-3 text-sky-400" />
             <span>Klik untuk Perbesar Foto</span>
           </div>
+          {onDeletePhoto && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeletePhoto(item);
+              }}
+              title="Hapus Foto Izin"
+              className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm flex items-center gap-1 transition-all active:scale-95 z-10"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Hapus Foto</span>
+            </button>
+          )}
         </div>
       )}
 

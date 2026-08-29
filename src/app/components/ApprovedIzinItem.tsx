@@ -22,6 +22,7 @@ interface ApprovedIzinItemProps {
   onViewDetail: (item: SantriIzinRecord) => void;
   onGenerateWA: (item: SantriIzinRecord) => void;
   onDelete?: (id: string) => void;
+  onDeletePhoto?: (item: SantriIzinRecord) => void;
   onPhotoClick?: (url: string, title: string, subtitle: string) => void;
   /** Callback when PKM status changes */
   onPKMTap?: (id: string, type: "keluar" | "kembali", petugasName: string) => void;
@@ -69,6 +70,7 @@ export const ApprovedIzinItem = memo(function ApprovedIzinItem({
   onViewDetail,
   onGenerateWA,
   onDelete,
+  onDeletePhoto,
   onPhotoClick,
 }: ApprovedIzinItemProps) {
   const isNew = item.createdAt && item.createdAt.startsWith(format(new Date(), "yyyy-MM-dd"));
@@ -205,6 +207,20 @@ export const ApprovedIzinItem = memo(function ApprovedIzinItem({
             <Eye className="w-3 h-3 text-sky-400" />
             <span>Foto Izin</span>
           </div>
+          {isAuthorized && onDeletePhoto && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeletePhoto(item);
+              }}
+              title="Hapus Foto Izin"
+              className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm flex items-center gap-1 transition-all active:scale-95 z-10"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Hapus Foto</span>
+            </button>
+          )}
         </div>
       )}
 

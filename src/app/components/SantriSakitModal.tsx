@@ -10,7 +10,7 @@ import { id } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { searchSantri, getSantriForMusyrif, SantriData } from "../data/santriData";
-import { appAlert } from "../utils/customDialog";
+import { appAlert, appConfirm } from "../utils/customDialog";
 import { getPamongAssignedAsramas } from "../utils/roleAccessUtils";
 import { compressAndWatermarkImage } from "../utils/imageCompressor";
 
@@ -84,7 +84,7 @@ export function SantriSakitModal({
   // Photo state & modal
   const [formPhotoUrl, setFormPhotoUrl] = useState<string>("");
   const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
-  const [photoModalItem, setPhotoModalItem] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+  const [photoModalItem, setPhotoModalItem] = useState<{ url: string; title: string; subtitle?: string; record?: SantriSakitRecord } | null>(null);
 
   const activeMusyrifList = useMemo(() => {
     return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
@@ -358,6 +358,20 @@ export function SantriSakitModal({
       "success"
     );
     resetForm();
+  };
+
+  const handleDeletePhoto = (rec: SantriSakitRecord) => {
+    appConfirm("Apakah Anda yakin ingin menghapus foto dokumentasi santri sakit ini?", "Hapus Foto", "danger").then(ok => {
+      if (!ok) return;
+      const updated: SantriSakitRecord = {
+        ...rec,
+        photoUrl: ""
+      };
+      onSaveSantriSakit(updated);
+      setPhotoModalItem(null);
+      triggerHaptic("medium");
+      appAlert("Foto dokumentasi santri sakit berhasil dihapus.", "Foto Dihapus", "info");
+    });
   };
 
   // Filtered List — scope by role first
@@ -855,7 +869,18 @@ export function SantriSakitModal({
             </p>
           </div>
         ) : (
-          filteredList.map((item) => (
+          filteredList.map((item) => {
+            const canEditDelete = isSuperAdmin ||
+              (isPamong && (pamongAsramas.length > 0 ? (pamongAsramas.includes(item.asrama) || pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) : item.asrama === authUser?.asrama)) ||
+              (isKoorGedung && item.asrama === authUser?.asrama) ||
+              (isMusyrif && (
+                item.musyrifId === authUser?.id || 
+                item.musyrifId === authUser?.musyrifId || 
+                (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
+                (authUser?.kamar && item.kamar === authUser.kamar)
+              ));
+
+            return (
             <div 
               key={item.id}
               className={`bg-white rounded-3xl p-4 sm:p-5 border shadow-xs transition-all ${
@@ -924,38 +949,27 @@ export function SantriSakitModal({
                         </button>
                       )}
 
-                      {(() => {
-                        const canEditDelete = isSuperAdmin ||
-                          (isPamong && (pamongAsramas.length > 0 ? (pamongAsramas.includes(item.asrama) || pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) : item.asrama === authUser?.asrama)) ||
-                          (isKoorGedung && item.asrama === authUser?.asrama) ||
-                          (isMusyrif && (
-                            item.musyrifId === authUser?.id || 
-                            item.musyrifId === authUser?.musyrifId || 
-                            (authUser?.kelas && item.kelasSantri === authUser.kelas) ||
-                            (authUser?.kamar && item.kamar === authUser.kamar)
-                          ));
-                        return canEditDelete ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleStartEdit(item)}
-                              title="Edit Data Santri Sakit"
-                              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
+                      {canEditDelete && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(item)}
+                            title="Edit Data Santri Sakit"
+                            className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition-all active:scale-95"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
 
-                            <button
-                              type="button"
-                              onClick={() => onDeleteSantriSakit(item.id)}
-                              aria-label="Hapus Catatan Medis"
-                              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        ) : null;
-                      })()}
+                          <button
+                            type="button"
+                            onClick={() => onDeleteSantriSakit(item.id)}
+                            aria-label="Hapus Catatan Medis"
+                            className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition-all active:scale-95"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -965,7 +979,7 @@ export function SantriSakitModal({
               {item.photoUrl && (
                 <div 
                   className="mb-3 relative rounded-2xl overflow-hidden border border-slate-200/80 bg-slate-950 group cursor-pointer"
-                  onClick={() => setPhotoModalItem({ url: item.photoUrl!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelasSantri} • Keluhan: ${item.keluhan}` })}
+                  onClick={() => setPhotoModalItem({ url: item.photoUrl!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelasSantri} • Keluhan: ${item.keluhan}`, record: item })}
                 >
                   <img 
                     src={item.photoUrl} 
@@ -977,6 +991,20 @@ export function SantriSakitModal({
                     <Eye className="w-3 h-3 text-sky-400" />
                     <span>Klik untuk Perbesar Foto</span>
                   </div>
+                  {canEditDelete && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePhoto(item);
+                      }}
+                      title="Hapus Foto Santri Sakit"
+                      className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-[10px] font-bold backdrop-blur-sm shadow-sm flex items-center gap-1 transition-all active:scale-95 z-10"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Hapus Foto</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1041,7 +1069,8 @@ export function SantriSakitModal({
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -1059,12 +1088,25 @@ export function SantriSakitModal({
               className="relative w-full h-full flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <button
-                onClick={() => setPhotoModalItem(null)}
-                className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg active:scale-95"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                {photoModalItem.record && (isSuperAdmin || isKoor || isPamong || !isPublic) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePhoto(photoModalItem.record!)}
+                    className="px-3 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg active:scale-95"
+                    title="Hapus Foto Dokumentasi"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Hapus Foto</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setPhotoModalItem(null)}
+                  className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg active:scale-95"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
               <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
                 <img

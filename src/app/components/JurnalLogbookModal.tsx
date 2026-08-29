@@ -652,7 +652,7 @@ export function JurnalLogbookModal({
   // Active Camera Task State & Fullscreen Photo Preview
   const [activeCameraTask, setActiveCameraTask] = useState<TaskDefinition | null>(null);
   const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string; taskKey?: keyof Omit<JurnalLogbookEntry, "generalNotes"> } | null>(null);
 
   // GPS Geofence Check State - use pre-checked GPS if available
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
@@ -1624,7 +1624,8 @@ export function JurnalLogbookModal({
                               url: taskData.photoUrl!,
                               title: t.title,
                               subtitle: `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget}`,
-                              watermark: taskData.photoWatermark
+                              watermark: taskData.photoWatermark,
+                              taskKey: t.key
                             })}
                             className="relative w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/60 group hover:opacity-90 transition-opacity"
                             title="Lihat Foto Dokumentasi"
@@ -1635,7 +1636,7 @@ export function JurnalLogbookModal({
                             </div>
                           </button>
 
-                          {isMusyrifUser && !isLocked && (
+                          {((isMusyrifUser && !isLocked) || isCanBypass) && (
                             <button
                               type="button"
                               onClick={() => handleRemovePhoto(t.key)}
@@ -1859,12 +1860,29 @@ export function JurnalLogbookModal({
                 <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">{previewPhoto.title}</h4>
                 <p className="text-[11px] text-slate-400">{previewPhoto.subtitle}</p>
               </div>
-              <button
-                onClick={() => setPreviewPhoto(null)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {previewPhoto.taskKey && ((isMusyrifUser && !isLocked) || isCanBypass) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const k = previewPhoto.taskKey!;
+                      setPreviewPhoto(null);
+                      handleRemovePhoto(k);
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1 transition-colors shadow-xs"
+                    title="Hapus Foto Dokumentasi"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus Foto</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setPreviewPhoto(null)}
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <div className="p-3 bg-black flex items-center justify-center overflow-auto max-h-[70vh]">
               <img src={previewPhoto.url} alt={previewPhoto.title} className="w-full h-auto max-h-[66vh] object-contain rounded-lg" />
