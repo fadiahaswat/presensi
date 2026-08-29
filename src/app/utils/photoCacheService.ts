@@ -455,30 +455,66 @@ export async function getMissingPhotos(ids: string[]): Promise<string[]> {
 }
 
 /**
- * Get multiple photos at once (for batch loading)
+ * Get multiple photos at once in a single transaction (ultra fast batch resolution)
  */
-export async function getPhotosBatch(ids: string[]): Promise<Map<string, string>> {
+export async function getPhotosMap(ids: string[]): Promise<Map<string, string>> {
   await init();
-  if (!db || ids.length === 0) return new Map();
-
   const results = new Map<string, string>();
+  if (!ids || ids.length === 0) return results;
 
-  // Parallel fetch with batching
-  const BATCH_SIZE = 20;
-  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-    const batch = ids.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map(async (id) => {
-        const cached = await getPhoto(id);
-        return cached ? { id, data: cached.data } : null;
-      })
-    );
-    for (const result of batchResults) {
-      if (result) {
-        results.set(result.id, result.data);
-      }
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  const idsToFetchFromDb: string[] = [];
+
+  // Check memory cache first
+  for (const id of uniqueIds) {
+    const mem = memoryCache.get(id);
+    if (mem?.data) {
+      results.set(id, mem.data);
+    } else {
+      idsToFetchFromDb.push(id);
     }
   }
 
-  return results;
+  if (!db || idsToFetchFromDb.length === 0) return results;
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db!.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      let pending = idsToFetchFromDb.length;
+
+      for (const id of idsToFetchFromDb) {
+        const req = store.get(id);
+        req.onsuccess = () => {
+          if (req.result?.data) {
+            results.set(id, req.result.data);
+            addToMemoryCache(id, req.result.data, req.result.timestamp || Date.now());
+          }
+          pending--;
+          if (pending === 0) resolve(results);
+        };
+        req.onerror = () => {
+          pending--;
+          if (pending === 0) resolve(results);
+        };
+      }
+
+      tx.oncomplete = () => {
+        resolve(results);
+      };
+      tx.onerror = () => {
+        resolve(results);
+      };
+    } catch (_) {
+      resolve(results);
+    }
+  });
 }
+
+/**
+ * Get multiple photos at once (for batch loading)
+ */
+export async function getPhotosBatch(ids: string[]): Promise<Map<string, string>> {
+  return getPhotosMap(ids);
+}
+

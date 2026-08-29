@@ -40,7 +40,7 @@ const MAX_RETRIES = 5; // Lebih banyak retry untuk reliability
 const RETRY_BASE_DELAY = 500; // Mulai dengan delay lebih pendek
 const POLL_DEBOUNCE_MS = 2000; // Debounce lebih pendek
 const HEALTH_CHECK_TIMEOUT = 8000; // Health check lebih lama
-const BATCH_SIZE = 5; // Batasi ukuran batch upload
+const BATCH_SIZE = 15; // Batasi ukuran batch upload per request POST (optimal untuk payload GAS)
 
 // === PHOTO SYNC CONFIG ===
 // Standard photo field names across all tables
@@ -287,7 +287,8 @@ class GoogleSyncService {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       // Create new controller for each attempt
       const attemptController = new AbortController();
-      controller.signal.addEventListener('abort', () => attemptController.abort());
+      const onParentAbort = () => attemptController.abort();
+      controller.signal.addEventListener('abort', onParentAbort, { once: true });
 
       const timeoutId = setTimeout(() => attemptController.abort(), timeoutMs);
 
@@ -298,25 +299,24 @@ class GoogleSyncService {
         });
 
         clearTimeout(timeoutId);
+        controller.signal.removeEventListener('abort', onParentAbort);
 
         if (response.ok) {
           this.consecutiveFailures = 0;
           return response;
         }
 
-        // Don't retry on client errors (400-499) - these indicate permanent failures
+        // Don't retry on permanent client errors (400-499 except 408/429)
         if (response.status >= 400 && response.status < 500) {
           if (response.status === 408 || response.status === 429) {
-            // 408 Request Timeout and 429 Too Many Requests are retryable
             lastError = new Error(`HTTP ${response.status}`);
             if (attempt < maxAttempts - 1) {
-              const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
+              const delay = Math.round(RETRY_BASE_DELAY * Math.pow(2, attempt) + Math.random() * 250);
               this.logWarn(operation, `Retryable error ${response.status}, retrying in ${delay}ms...`);
               await this.sleep(delay);
               continue;
             }
           }
-          // 404, 401, 403, etc. are NOT retryable
           lastError = new Error(`HTTP ${response.status} - Non-retryable client error`);
           this.logWarn(operation, `HTTP ${response.status} - Not retrying (client error)`);
           this.pendingRequests.delete(operation);
@@ -326,7 +326,7 @@ class GoogleSyncService {
         // Server errors (500+) are retryable
         lastError = new Error(`HTTP ${response.status}`);
         if (attempt < maxAttempts - 1) {
-          const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
+          const delay = Math.round(RETRY_BASE_DELAY * Math.pow(2, attempt) + Math.random() * 250);
           this.logWarn(operation, `Server error ${response.status}, retrying in ${delay}ms...`);
           await this.sleep(delay);
           continue;
@@ -334,6 +334,7 @@ class GoogleSyncService {
 
       } catch (err: any) {
         clearTimeout(timeoutId);
+        controller.signal.removeEventListener('abort', onParentAbort);
         lastError = err;
 
         if (err.name === 'AbortError') {
@@ -344,16 +345,15 @@ class GoogleSyncService {
             throw new Error(`Timeout after ${maxAttempts} attempts`);
           }
         } else {
-          // Non-retryable errors (like 404) are already thrown above
           this.logWarn(operation, `Error: ${err.message}`);
           if (attempt === maxAttempts - 1) {
             this.handleFailure();
           }
         }
 
-        // Retry on timeout or retryable errors
+        // Retry on timeout or retryable errors with jitter
         if (attempt < maxAttempts - 1 && err.name === 'AbortError') {
-          const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
+          const delay = Math.round(RETRY_BASE_DELAY * Math.pow(2, attempt) + Math.random() * 250);
           this.logDebug(operation, `retry ${attempt + 1}/${maxAttempts} in ${delay}ms...`);
           await this.sleep(delay);
         }
@@ -526,9 +526,13 @@ class GoogleSyncService {
     }
 
     const startTime = performance.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
+
     try {
       const pingUrl = `${url}${url.includes("?") ? "&" : "?"}action=ping&_t=${Date.now()}`;
-      const res = await fetch(pingUrl, { method: "GET", mode: "cors" });
+      const res = await fetch(pingUrl, { method: "GET", mode: "cors", signal: controller.signal });
+      clearTimeout(timeoutId);
       const latency = Math.round(performance.now() - startTime);
 
       if (!res.ok) {
@@ -546,10 +550,14 @@ class GoogleSyncService {
         return { success: false, message: json.message || "Respon tidak valid dari server.", latency };
       }
     } catch (err: any) {
+      clearTimeout(timeoutId);
       const latency = Math.round(performance.now() - startTime);
+      const isTimeout = err.name === "AbortError";
       return {
         success: false,
-        message: `Gagal terhubung: ${err.message || err.toString()}. Pastikan Deployment diatur ke 'Anyone'.`,
+        message: isTimeout
+          ? `Koneksi timeout (${HEALTH_CHECK_TIMEOUT / 1000}s). Periksa koneksi internet atau status script Google.`
+          : `Gagal terhubung: ${err.message || err.toString()}. Pastikan Deployment diatur ke 'Anyone'.`,
         latency
       };
     }
@@ -576,7 +584,8 @@ class GoogleSyncService {
 
     try {
       const tablesPayload: Record<string, any[]> = {};
-      const batchItems = [...this.queue];
+      // OPTIMIZATION: Chunk into BATCH_SIZE items per POST request
+      const batchItems = this.queue.slice(0, BATCH_SIZE);
       let photoCount = 0;
       const photoCacheOperations: Array<{ table: string; id: string; field: string; data: string; photoId: string }> = [];
       const thumbnailOperations: Array<{ photoId: string; recordId: string; table: string; field: string; promise: Promise<string> }> = [];
@@ -685,11 +694,17 @@ class GoogleSyncService {
         this.isFlushing = false;
         this.pendingRequests.delete(operation);
 
-        console.log(`[SyncService] Phase 1 text sync completed - ${batchItems.length} items synced, ${photoCount} full photos cached locally`);
+        console.log(`[SyncService] Phase 1 text sync completed - ${batchItems.length} items synced, ${this.queue.length} remaining in queue, ${photoCount} full photos cached locally`);
 
         // PHASE 2: Upload photos to separate "Photos" table in background (Non-blocking & isolated)
         if (thumbnailOperations.length > 0) {
           this.uploadPhotosBackground(thumbnailOperations);
+        }
+
+        // If more items remain in queue, schedule next chunk automatically
+        if (this.queue.length > 0) {
+          if (this.flushTimer) clearTimeout(this.flushTimer);
+          this.flushTimer = setTimeout(() => this.flushQueue(), 300);
         }
 
         return true;
@@ -712,6 +727,7 @@ class GoogleSyncService {
   /**
    * Phase 2: Background upload for photos to dedicated Photos sheet
    * Isolated from main text queue so failure never affects core data
+   * OPTIMIZED: Chunked photo uploads with timeout guard
    */
   private async uploadPhotosBackground(
     thumbnailOperations: Array<{ photoId: string; recordId: string; table: string; field: string; promise: Promise<string> }>
@@ -739,24 +755,38 @@ class GoogleSyncService {
 
       if (photoRecords.length === 0) return;
 
-      console.log(`[SyncService] Phase 2: Uploading ${photoRecords.length} photo(s) to separate Photos table...`);
+      // Upload in chunks of 4 photos to keep payload small and avoid GAS limits
+      const PHOTO_CHUNK_SIZE = 4;
+      for (let i = 0; i < photoRecords.length; i += PHOTO_CHUNK_SIZE) {
+        const chunk = photoRecords.slice(i, i + PHOTO_CHUNK_SIZE);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000);
 
-      const res = await fetch(this.gasUrl, {
-        method: "POST",
-        mode: "cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "batch_upsert",
-          table: "Photos",
-          records: photoRecords
-        })
-      });
+        try {
+          console.log(`[SyncService] Phase 2: Uploading photo chunk (${i + 1}-${i + chunk.length} of ${photoRecords.length})...`);
+          const res = await fetch(this.gasUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({
+              action: "batch_upsert",
+              table: "Photos",
+              records: chunk
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
 
-      const json = await res.json();
-      if (json.status === "success") {
-        console.log(`[SyncService] Phase 2 photo upload successful (${photoRecords.length} photos synced to Photos tab)`);
-      } else {
-        console.warn(`[SyncService] Phase 2 photo upload responded with non-success:`, json.message);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.status === "success") {
+              console.log(`[SyncService] Phase 2: Photo chunk upload successful (${chunk.length} photos)`);
+            }
+          }
+        } catch (chunkErr) {
+          clearTimeout(timeoutId);
+          console.warn('[SyncService] Phase 2 photo chunk upload error (non-fatal):', chunkErr);
+        }
       }
     } catch (e) {
       console.warn('[SyncService] Phase 2 photo upload error (core text data remains safe):', e);
@@ -813,13 +843,31 @@ class GoogleSyncService {
     const cached: Record<string, any[]> = {};
     const tableKeys: Record<string, string> = {
       'attendance': 'presensi_attendance_records_v5',
+      'records': 'presensi_attendance_records_v5',
+      'Records': 'presensi_attendance_records_v5',
       'izin': 'presensi_izin_requests_v5',
+      'Izin': 'presensi_izin_requests_v5',
       'kegiatan_asrama': 'presensi_kegiatan_asrama_v5',
       'jurnal_logbook': 'presensi_jurnal_logbook_v5',
+      'logbook': 'presensi_jurnal_logbook_v5',
+      'Logbook': 'presensi_jurnal_logbook_v5',
       'mutabaah_yaumiyah': 'presensi_mutabaah_yaumiyah_v5',
+      'mutabaah': 'presensi_mutabaah_yaumiyah_v5',
+      'Mutabaah': 'presensi_mutabaah_yaumiyah_v5',
       'santri_sakit': 'presensi_santri_sakit_v5',
+      'SantriSakit': 'presensi_santri_sakit_v5',
+      'santri_izin': 'presensi_santri_izin_v5',
+      'SantriIzin': 'presensi_santri_izin_v5',
       'musyrif': 'presensi_musyrif_master_v5',
-      'santri': 'presensi_santri_master_v10'
+      'Musyrif': 'presensi_musyrif_master_v5',
+      'santri': 'presensi_santri_master_v10',
+      'Santri': 'presensi_santri_master_v10',
+      'agenda_rapat': 'presensi_agenda_rapat_v1',
+      'agendarapat': 'presensi_agenda_rapat_v1',
+      'santri_requests': 'presensi_santri_change_requests_v1',
+      'santrirequests': 'presensi_santri_change_requests_v1',
+      'auth_users': 'presensi_auth_users_master_v5',
+      'authusers': 'presensi_auth_users_master_v5'
     };
 
     for (const [table, key] of Object.entries(tableKeys)) {
@@ -894,7 +942,7 @@ class GoogleSyncService {
           }
         }
 
-        // Merge local photos & resolve photo references
+        // Merge local photos & resolve photo references in fast batch
         await this.mergeLocalPhotos(sanitizedData);
 
         // Notify listeners of cloud data
@@ -963,10 +1011,22 @@ class GoogleSyncService {
   /**
    * Merge local full photos from IndexedDB into cached data
    * Resolves photo: references and upgrades small thumbnails to full photos
+   * OPTIMIZED: High-performance single-batch map resolution
    */
   private async mergeLocalPhotos(data: Record<string, any[]>): Promise<void> {
     try {
-      const { getPhoto } = await import('./photoCacheService');
+      const { getPhotosMap } = await import('./photoCacheService');
+
+      // 1. Collect all candidate keys and reference descriptors
+      const pendingResolutions: Array<{
+        record: any;
+        field: string;
+        photoValue: string;
+        isRef: boolean;
+        keys: string[];
+      }> = [];
+
+      const allKeysToLookup: string[] = [];
 
       for (const tableName of Object.keys(data)) {
         if (!Array.isArray(data[tableName])) continue;
@@ -976,17 +1036,14 @@ class GoogleSyncService {
         for (const record of data[tableName]) {
           if (!record?.id) continue;
 
-          // Check all photo fields dynamically
           for (const field of PHOTO_FIELDS) {
-            if (!record[field]) continue;
-
             const photoValue = record[field];
-            if (typeof photoValue !== 'string' || !photoValue.trim()) continue;
+            if (!photoValue || typeof photoValue !== 'string' || !photoValue.trim()) continue;
 
             const isRef = photoValue.startsWith('photo:') || photoValue.startsWith('[PHOTO_REF:');
             const photoId = isRef ? photoValue.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '') : '';
 
-            const cacheKeys = [
+            const keys = [
               ...(photoId ? [photoId] : []),
               this.getPhotoCacheKey(record.id, field, tablePrefix),
               `${tablePrefix}_${record.id}_${field}`,
@@ -994,14 +1051,25 @@ class GoogleSyncService {
               `${record.id}_${field}`,
             ];
 
-            for (const cacheKey of cacheKeys) {
-              const cached = await getPhoto(cacheKey);
-              if (cached?.data && cached.data.startsWith('data:image')) {
-                if (isRef || cached.data.length > photoValue.length) {
-                  record[field] = cached.data;
-                  break;
-                }
-              }
+            pendingResolutions.push({ record, field, photoValue, isRef, keys });
+            allKeysToLookup.push(...keys);
+          }
+        }
+      }
+
+      if (pendingResolutions.length === 0) return;
+
+      // 2. Fetch all required photos in a SINGLE ultra-fast batch transaction
+      const photoMap = await getPhotosMap(allKeysToLookup);
+
+      // 3. Resolve and hydrate records in-memory
+      for (const item of pendingResolutions) {
+        for (const key of item.keys) {
+          const cachedData = photoMap.get(key);
+          if (cachedData && cachedData.startsWith('data:image')) {
+            if (item.isRef || cachedData.length > item.photoValue.length) {
+              item.record[item.field] = cachedData;
+              break;
             }
           }
         }
@@ -1177,14 +1245,20 @@ class GoogleSyncService {
 
     if (this.gasUrl && navigator.onLine) {
       this.updateStatus("syncing");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
         await fetch(this.gasUrl, {
           method: "POST",
           mode: "cors",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "reset_all_data" })
+          body: JSON.stringify({ action: "reset_all_data" }),
+          signal: controller.signal
         });
-      } catch (_) {}
+        clearTimeout(timeoutId);
+      } catch (_) {
+        clearTimeout(timeoutId);
+      }
     }
 
     const nowIso = new Date().toISOString();

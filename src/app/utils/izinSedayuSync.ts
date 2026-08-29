@@ -83,7 +83,7 @@ async function fetchWithRetry(
 
     try {
       if (attempt > 0) {
-        const delay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
+        const delay = Math.round(RETRY_BASE_DELAY * Math.pow(2, attempt - 1) + Math.random() * 250);
         console.log(`[IzinSync] ${operation} - retry ${attempt + 1}/${maxAttempts} in ${delay}ms...`);
         await sleep(delay);
       }
@@ -355,14 +355,30 @@ export async function fetchIzinSedayuFromCloud(): Promise<SantriIzinRecord[]> {
         .filter((x: SantriIzinRecord) => Boolean(x.namaSantri && x.namaSantri.trim() !== ""));
 
       if (mapped.length > 0) {
-        try {
-          localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(mapped));
-          if (json.meta?.lastModified) {
-            localStorage.setItem(STORAGE_KEY_LAST_FETCH, String(json.meta.lastModified));
+        let mergedList = mapped;
+
+        // CRITICAL FIX: If delta query, merge with existing cached records rather than overwriting
+        if (lastFetch) {
+          const existingCached = getCachedRecords();
+          const map = new Map<string, SantriIzinRecord>();
+          for (const item of existingCached) {
+            const key = item.id || item.nomorSurat;
+            if (key) map.set(key, item);
           }
-          console.log(`[IzinSync] fetchIzinSedayu - success, ${mapped.length} records cached`);
+          for (const item of mapped) {
+            const key = item.id || item.nomorSurat;
+            if (key) map.set(key, { ...(map.get(key) || {}), ...item });
+          }
+          mergedList = Array.from(map.values());
+        }
+
+        try {
+          localStorage.setItem(STORAGE_KEY_SANTRI_IZIN, JSON.stringify(mergedList));
+          const timestamp = json.meta?.lastModified || new Date().toISOString();
+          localStorage.setItem(STORAGE_KEY_LAST_FETCH, String(timestamp));
+          console.log(`[IzinSync] fetchIzinSedayu - success, ${mergedList.length} total records cached (${mapped.length} updated)`);
         } catch (_) {}
-        return mapped;
+        return mergedList;
       }
     }
   } catch (err: any) {
