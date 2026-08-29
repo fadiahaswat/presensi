@@ -1133,8 +1133,8 @@ function PageDashboard({
 
               // Check if user has completed logbook today
               const todayIso = format(liveNow, "yyyy-MM-dd");
-              const todayLogs = (logbookData && logbookData[todayIso]) ? (logbookData[todayIso][myId] || {}) : {};
-              const logDoneCount = Object.keys(todayLogs).length;
+              const todayLogEntry = (logbookData && myId) ? (logbookData[myId]?.[todayIso] || {}) : {};
+              const logDoneCount = Object.entries(todayLogEntry).filter(([k, v]: [string, any]) => k !== "generalNotes" && v && typeof v === "object" && Boolean(v.done)).length;
               const isLogComplete = logDoneCount >= 11;
 
               return (
@@ -1915,14 +1915,22 @@ function PageDashboard({
             {/* Quick Status Widgets Banner (Logbook, Mutaba'ah, Agenda) */}
             {(() => {
               const myId = authUser.musyrifId || authUser.id;
-              const todayLogKey = `${myId}_${today}`;
-              const myLog = (logbookData as any)?.[todayLogKey];
-              const logDoneCount = myLog ? Object.values(myLog.tasks || {}).filter(Boolean).length : 0;
+              const myLog = (logbookData && myId) ? (logbookData[myId]?.[today] || {}) : {};
+              const logDoneCount = Object.entries(myLog).filter(([k, v]: [string, any]) => k !== "generalNotes" && v && typeof v === "object" && Boolean(v.done)).length;
               const isLogComplete = logDoneCount >= 11;
 
-              const todayMutKey = `${myId}_${today}`;
-              const myMut = (mutabaahData as any)?.[todayMutKey];
-              const mutDoneCount = myMut ? Object.values(myMut.amalan || {}).filter(Boolean).length : 0;
+              const myMut = (mutabaahData && myId) ? (mutabaahData[myId]?.[today] as any) : undefined;
+              let mutDoneCount = 0;
+              if (myMut) {
+                if (myMut.tahajjud) mutDoneCount++;
+                if (myMut.dhuha) mutDoneCount++;
+                if (myMut.rawatib) mutDoneCount++;
+                if (myMut.dzikirPagi) mutDoneCount++;
+                if (myMut.dzikirPetang) mutDoneCount++;
+                if (myMut.puasaSunnah) mutDoneCount++;
+                if (myMut.muthalaah) mutDoneCount++;
+                if (Number(myMut.tilawahPages) > 0) mutDoneCount++;
+              }
 
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
