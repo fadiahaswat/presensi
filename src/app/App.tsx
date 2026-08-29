@@ -1412,7 +1412,7 @@ function PageDashboard({
       <LogbookGalleryWidget
         logbookData={logbookData}
         musyrifList={musyrifList}
-        onOpenLogbook={() => onGoTo("logbook")}
+        onOpenLogbook={authUser ? () => onGoTo("logbook") : undefined}
         onOpenFullGallery={() => onGoTo("galeri-logbook")}
       />
 
@@ -1836,7 +1836,7 @@ function PageDashboard({
 
         {!authUser ? (
           /* Public Mode Services Grid */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
             {/* 1. Leaderboard 4 Pilar */}
             <button
               type="button"
@@ -1873,25 +1873,7 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 3. Rekap Statistik */}
-            <button
-              type="button"
-              onClick={() => onGoTo("rekap")}
-              className="group p-3.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4"/>
-                </div>
-                <span className="text-[10px] font-bold text-teal-700 font-mono">Grafik</span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 leading-tight">Rekap Presensi</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Statistik per asrama</p>
-              </div>
-            </button>
-
-            {/* 4. Kalender Hijriah KHGT */}
+            {/* 3. Kalender Hijriah KHGT */}
             <button
               type="button"
               onClick={onOpenKalenderHijriah}
@@ -1909,7 +1891,7 @@ function PageDashboard({
               </div>
             </button>
 
-            {/* 5. Kalender Pendidikan & Perpulangan */}
+            {/* 4. Kalender Pendidikan & Perpulangan */}
             <button
               type="button"
               onClick={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
@@ -2634,19 +2616,21 @@ function PageDashboard({
       )}
 
       {/* Quick nav */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          {label:"Rekap",   sub:"Statistik",    page:"rekap"   as Page, icon:<TrendingUp className="w-5 h-5"/>, col:"bg-emerald-50 text-emerald-700"},
-          {label:"Riwayat", sub: authUser ? "Kalender" : "Katalog", page:(authUser ? "riwayat" : "rekap") as Page, icon:<Calendar   className="w-5 h-5"/>, col:"bg-teal-50 text-teal-700"},
-          {label:"Ibadah",  sub:"Sholat & Kiblat",page:"ibadah"  as Page, icon:<Compass    className="w-5 h-5"/>, col:"bg-amber-50 text-amber-700"},
-        ].map(n=>(
-          <button key={n.label} onClick={()=>onGoTo(n.page)} className="bg-white ring-1 ring-slate-200/80 rounded-2xl p-3.5 text-left hover:ring-emerald-300 hover:shadow-xs transition-all active:scale-[0.97]">
-            <div className={`w-9 h-9 rounded-xl ${n.col} flex items-center justify-center mb-2`}>{n.icon}</div>
-            <p className="font-bold text-sm text-slate-800">{n.label}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">{n.sub}</p>
-          </button>
-        ))}
-      </div>
+      {authUser && (
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            {label:"Rekap",   sub:"Statistik",    page:"rekap"   as Page, icon:<TrendingUp className="w-5 h-5"/>, col:"bg-emerald-50 text-emerald-700"},
+            {label:"Riwayat", sub: authUser ? "Kalender" : "Katalog", page:(authUser ? "riwayat" : "rekap") as Page, icon:<Calendar   className="w-5 h-5"/>, col:"bg-teal-50 text-teal-700"},
+            {label:"Ibadah",  sub:"Sholat & Kiblat",page:"ibadah"  as Page, icon:<Compass    className="w-5 h-5"/>, col:"bg-amber-50 text-amber-700"},
+          ].map(n=>(
+            <button key={n.label} onClick={()=>onGoTo(n.page)} className="bg-white ring-1 ring-slate-200/80 rounded-2xl p-3.5 text-left hover:ring-emerald-300 hover:shadow-xs transition-all active:scale-[0.97]">
+              <div className={`w-9 h-9 rounded-xl ${n.col} flex items-center justify-center mb-2`}>{n.icon}</div>
+              <p className="font-bold text-sm text-slate-800">{n.label}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{n.sub}</p>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Musyrif Detail Modal for Dashboard */}
       {detailMusyrif && (
@@ -2677,7 +2661,7 @@ function PageDashboard({
             )}
 
             <div className="flex gap-2 mt-4">
-              {authUser ? (
+              {authUser && (
                 <button 
                   type="button"
                   onClick={()=>{ 
@@ -2688,18 +2672,6 @@ function PageDashboard({
                   className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs"
                 >
                   Lihat di Riwayat
-                </button>
-              ) : (
-                <button 
-                  type="button"
-                  onClick={()=>{ 
-                    onSelectMusyrif?.(detailMusyrif.id);
-                    setDetailMusyrif(null); 
-                    onGoTo("rekap"); 
-                  }} 
-                  className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs"
-                >
-                  Lihat Rekap Lengkap
                 </button>
               )}
               <button 
@@ -6809,7 +6781,6 @@ export default function App() {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
         { id: "galeri-logbook" as Page, label: "Explore", Icon: Compass },
-        { id: "logbook" as Page, label: "Logbook", Icon: ClipboardList },
         { id: "ibadah" as Page, label: "Ibadah", Icon: Moon },
       ];
     }
@@ -6834,7 +6805,7 @@ export default function App() {
   // Route Fallback when in public mode or role restrictions
   useEffect(() => {
     if (!authUser) {
-      if (page === "subuh" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager") {
+      if (page === "subuh" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "logbook" || page === "notifikasi" || page === "rekap") {
         setPage("dashboard");
       }
     } else if (authUser.role !== "koordinator_musyrif") {
@@ -8909,30 +8880,32 @@ export default function App() {
               </div>
             ) : (
               <>
-                {/* Realtime Cloud Sync Badge — Visible for all data senders & receivers */}
-                <CloudSyncBadge onClick={() => setShowCloudSync(true)} />
+                {/* Realtime Cloud Sync Badge — Only visible for logged-in users */}
+                {authUser && <CloudSyncBadge onClick={() => setShowCloudSync(true)} />}
 
-                {/* Notification Center Bell Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic("light");
-                    setPage("notifikasi");
-                  }}
-                  title="Pusat Notifikasi & Update Data"
-                  className={`w-8 h-8 rounded-full relative flex items-center justify-center transition-all active:scale-95 ${
-                    page === "galeri-logbook"
-                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                      : "bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs"
-                  } ${page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""}`}
-                >
-                  <Bell className="w-4 h-4"/>
-                  {notificationBadgeCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
-                      {notificationBadgeCount > 9 ? "9+" : notificationBadgeCount}
-                    </span>
-                  )}
-                </button>
+                {/* Notification Center Bell Button — Only visible for logged-in users */}
+                {authUser && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic("light");
+                      setPage("notifikasi");
+                    }}
+                    title="Pusat Notifikasi & Update Data"
+                    className={`w-8 h-8 rounded-full relative flex items-center justify-center transition-all active:scale-95 ${
+                      page === "galeri-logbook"
+                        ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                        : "bg-white/90 backdrop-blur-xl border border-white/80 hover:bg-sky-50 hover:text-sky-700 text-slate-600 shadow-xs"
+                    } ${page === "notifikasi" ? "bg-sky-100 text-sky-800 ring-2 ring-sky-500/30" : ""}`}
+                  >
+                    <Bell className="w-4 h-4"/>
+                    {notificationBadgeCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                        {notificationBadgeCount > 9 ? "9+" : notificationBadgeCount}
+                      </span>
+                    )}
+                  </button>
+                )}
 
                 {authUser ? (
                   <div className={`flex items-center gap-1.5 rounded-full p-1 pl-1 ${
