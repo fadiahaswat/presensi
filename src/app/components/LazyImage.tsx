@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import { getPhoto, setPhoto } from "../utils/photoCacheService";
+import { googleSyncService } from "../utils/googleSyncService";
 
 interface LazyImageProps {
   /** Image source URL or base64 data */
@@ -124,17 +125,13 @@ export const LazyImage = memo(function LazyImage({
     }
 
     // Resolve photo using sync service if we have record info
-    import('../utils/googleSyncService').then(({ googleSyncService }) => {
-      googleSyncService.getRecordPhoto(recordId!, photoField!, src || null, tableName)
-        .then((resolved) => {
-          setResolvedPhoto(resolved || src);
-        })
-        .catch(() => {
-          setResolvedPhoto(src);
-        });
-    }).catch(() => {
-      setResolvedPhoto(src);
-    });
+    googleSyncService.getRecordPhoto(recordId, photoField, src || null, tableName)
+      .then((resolved) => {
+        setResolvedPhoto(resolved || src);
+      })
+      .catch(() => {
+        setResolvedPhoto(src);
+      });
   }, [recordId, photoField, tableName, src]);
 
   // Setup Intersection Observer for deferred / non-direct images

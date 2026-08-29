@@ -32,6 +32,7 @@ const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxDargFr4lg3KqD
 const GAS_URL_KEY = "presensi_gas_url";
 const LAST_SYNC_KEY = "presensi_last_sync_timestamp_v7"; // Bumped version - v7 has better photo sync
 const QUEUE_KEY = "presensi_sync_outbox_queue_v7"; // Bumped version
+const PHOTO_QUEUE_KEY = "presensi_photo_outbox_queue_v7"; // Persistent photo queue for guaranteed photo sync
 
 // === OPTIMIZED CONFIG ===
 const DEFAULT_TIMEOUT = 20000; // 20 detik - lebih lama untuk reliability
@@ -63,16 +64,29 @@ const TABLE_NAME_MAP: Record<string, string> = {
   'Records': 'records',
 };
 
+export interface PhotoQueueItem {
+  photoId: string;
+  recordId: string;
+  table: string;
+  field: string;
+  photoData: string;
+  timestamp: number;
+  retryCount?: number;
+}
+
 class GoogleSyncService {
   private gasUrl: string = DEFAULT_GAS_URL;
   private status: SyncStatus = "unconfigured";
   private lastSyncedAt: string | null = null;
   private queue: SyncQueueItem[] = [];
+  private photoQueue: PhotoQueueItem[] = [];
   private listeners: Set<SyncListener> = new Set();
   private dataListeners: Set<DataUpdateListener> = new Set();
   private flushTimer: any = null;
+  private photoFlushTimer: any = null;
   private pollIntervalTimer: any = null;
   private isFlushing: boolean = false;
+  private isFlushingPhotos: boolean = false;
   private isPolling: boolean = false;
   private lastPollAttempt = 0;
 
@@ -108,6 +122,11 @@ class GoogleSyncService {
         const parsed: SyncQueueItem[] = JSON.parse(savedQueue);
         this.queue = Array.isArray(parsed) ? parsed.filter(q => Boolean(q && q.id && q.table)) : [];
       }
+      const savedPhotoQueue = localStorage.getItem(PHOTO_QUEUE_KEY);
+      if (savedPhotoQueue) {
+        const parsedPhotos: PhotoQueueItem[] = JSON.parse(savedPhotoQueue);
+        this.photoQueue = Array.isArray(parsedPhotos) ? parsedPhotos.filter(p => Boolean(p && p.photoId && p.photoData)) : [];
+      }
     } catch (_) {}
 
     this.updateStatus();
@@ -116,6 +135,9 @@ class GoogleSyncService {
       this.isHealthy = true; // Reset on online event
       this.updateStatus();
       this.scheduleHealthCheck();
+      if (this.photoQueue.length > 0) {
+        setTimeout(() => this.flushPhotoQueue(), 2000);
+      }
     });
 
     window.addEventListener("offline", () => {
@@ -126,6 +148,9 @@ class GoogleSyncService {
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
         this.pollDelta();
+        if (this.photoQueue.length > 0) {
+          this.flushPhotoQueue();
+        }
       }
     });
 
@@ -161,6 +186,9 @@ class GoogleSyncService {
         this.isHealthy = true;
         this.consecutiveFailures = 0;
         this.startPolling();
+        if (this.photoQueue.length > 0) {
+          setTimeout(() => this.flushPhotoQueue(), 1500);
+        }
         return true;
       }
     } catch (_) {}
@@ -724,10 +752,16 @@ class GoogleSyncService {
     }
   }
 
+  private savePhotoQueue() {
+    try {
+      localStorage.setItem(PHOTO_QUEUE_KEY, JSON.stringify(this.photoQueue));
+    } catch (_) {}
+  }
+
   /**
    * Phase 2: Background upload for photos to dedicated Photos sheet
    * Isolated from main text queue so failure never affects core data
-   * OPTIMIZED: Chunked photo uploads with timeout guard
+   * Uses persistent photoQueue so no photos are lost even if network cuts out
    */
   private async uploadPhotosBackground(
     thumbnailOperations: Array<{ photoId: string; recordId: string; table: string; field: string; promise: Promise<string> }>
@@ -737,33 +771,61 @@ class GoogleSyncService {
         thumbnailOperations.map(op => op.promise)
       );
 
-      const photoRecords: any[] = [];
       thumbnailOperations.forEach((op, idx) => {
         const result = thumbnailResults[idx];
         const thumbData = (result.status === 'fulfilled' && result.value.length < 46000) ? result.value : "";
         if (thumbData) {
-          photoRecords.push({
-            id: op.photoId,
-            record_id: op.recordId,
-            table_source: op.table,
-            field_key: op.field,
-            photo_data: thumbData,
-            timestamp: Date.now()
-          });
+          // Check if already in photoQueue
+          const exists = this.photoQueue.some(p => p.photoId === op.photoId);
+          if (!exists) {
+            this.photoQueue.push({
+              photoId: op.photoId,
+              recordId: op.recordId,
+              table: op.table,
+              field: op.field,
+              photoData: thumbData,
+              timestamp: Date.now(),
+              retryCount: 0
+            });
+          }
         }
       });
 
-      if (photoRecords.length === 0) return;
+      this.savePhotoQueue();
+      this.flushPhotoQueue();
+    } catch (e) {
+      console.warn('[SyncService] Phase 2 photo queueing error:', e);
+    }
+  }
 
-      // Upload in chunks of 4 photos to keep payload small and avoid GAS limits
-      const PHOTO_CHUNK_SIZE = 4;
-      for (let i = 0; i < photoRecords.length; i += PHOTO_CHUNK_SIZE) {
-        const chunk = photoRecords.slice(i, i + PHOTO_CHUNK_SIZE);
+  /**
+   * Process persistent photo queue with chunking and safe retry
+   */
+  public async flushPhotoQueue(): Promise<boolean> {
+    if (!this.gasUrl || this.photoQueue.length === 0 || this.isFlushingPhotos || !navigator.onLine) {
+      return false;
+    }
+
+    this.isFlushingPhotos = true;
+    const PHOTO_CHUNK_SIZE = 4;
+
+    try {
+      while (this.photoQueue.length > 0 && navigator.onLine) {
+        const chunk = this.photoQueue.slice(0, PHOTO_CHUNK_SIZE);
+        const photoRecords = chunk.map(p => ({
+          id: p.photoId,
+          record_id: p.recordId,
+          table_source: p.table,
+          field_key: p.field,
+          photo_data: p.photoData,
+          timestamp: p.timestamp
+        }));
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 25000);
 
         try {
-          console.log(`[SyncService] Phase 2: Uploading photo chunk (${i + 1}-${i + chunk.length} of ${photoRecords.length})...`);
+          console.log(`[SyncService] Uploading photo chunk (${chunk.length} photos, ${this.photoQueue.length} pending)...`);
           const res = await fetch(this.gasUrl, {
             method: "POST",
             mode: "cors",
@@ -771,7 +833,7 @@ class GoogleSyncService {
             body: JSON.stringify({
               action: "batch_upsert",
               table: "Photos",
-              records: chunk
+              records: photoRecords
             }),
             signal: controller.signal
           });
@@ -780,17 +842,29 @@ class GoogleSyncService {
           if (res.ok) {
             const json = await res.json();
             if (json.status === "success") {
-              console.log(`[SyncService] Phase 2: Photo chunk upload successful (${chunk.length} photos)`);
+              const uploadedIds = new Set(chunk.map(c => c.photoId));
+              this.photoQueue = this.photoQueue.filter(p => !uploadedIds.has(p.photoId));
+              this.savePhotoQueue();
+              console.log(`[SyncService] Photo chunk upload successful (${chunk.length} photos)`);
+            } else {
+              console.warn('[SyncService] Server rejected photo chunk:', json.message);
+              break;
             }
+          } else {
+            console.warn(`[SyncService] Photo upload HTTP ${res.status}`);
+            break;
           }
         } catch (chunkErr) {
           clearTimeout(timeoutId);
-          console.warn('[SyncService] Phase 2 photo chunk upload error (non-fatal):', chunkErr);
+          console.warn('[SyncService] Photo chunk network error (queued for retry):', chunkErr);
+          break; // Stop loop and retry later on network recovery
         }
       }
-    } catch (e) {
-      console.warn('[SyncService] Phase 2 photo upload error (core text data remains safe):', e);
+    } finally {
+      this.isFlushingPhotos = false;
     }
+
+    return true;
   }
 
   /**
