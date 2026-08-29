@@ -59,12 +59,48 @@ const SKIP_KEYS = new Set([
 ]);
 
 // Build musyrif lookup map for O(1) access
-const buildMusyrifMap = (musyrifList: any[]): Map<string, any> => {
+const buildMusyrifMap = (musyrifList: any[] = [], authUsers: any[] = []): Map<string, any> => {
   const map = new Map<string, any>();
-  for (const m of musyrifList) {
-    if (m.id) map.set(m.id, m);
-    if (m.name) map.set(m.name, m);
+
+  // 1. Index authUsers (contains pictures from Google OAuth login)
+  if (Array.isArray(authUsers)) {
+    for (const u of authUsers) {
+      if (!u) continue;
+      const pic = u.picture || u.avatar || u.photo;
+      const userObj = { ...u, picture: pic };
+      if (u.id) map.set(u.id, userObj);
+      if (u.musyrifId) map.set(u.musyrifId, userObj);
+      if (u.name) {
+        map.set(u.name, userObj);
+        map.set(u.name.toLowerCase().trim(), userObj);
+      }
+      if (u.email) {
+        const emails = u.email.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
+        for (const em of emails) map.set(em, userObj);
+      }
+    }
   }
+
+  // 2. Index musyrifList & merge with authUsers data
+  if (Array.isArray(musyrifList)) {
+    for (const m of musyrifList) {
+      if (!m) continue;
+      const existing = map.get(m.id) || map.get(m.name) || (m.name ? map.get(m.name.toLowerCase().trim()) : undefined);
+      const picture = m.picture || m.avatar || m.photo || existing?.picture;
+      const merged = { ...existing, ...m, picture };
+
+      if (m.id) map.set(m.id, merged);
+      if (m.name) {
+        map.set(m.name, merged);
+        map.set(m.name.toLowerCase().trim(), merged);
+      }
+      if (m.email) {
+        const emails = m.email.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
+        for (const em of emails) map.set(em, merged);
+      }
+    }
+  }
+
   return map;
 };
 
@@ -160,6 +196,7 @@ interface PageGaleriLogbookProps {
   onOpenLogbook?: () => void;
   logbookData: LogbookStorage;
   musyrifList: Musyrif[];
+  authUsers?: any[];
   authUser?: any;
   onLogin?: () => void;
   viewMode?: "feed" | "grid";
@@ -191,16 +228,53 @@ export interface GalleryPostItem {
 
 // ============ MEMOIZED SUB-COMPONENTS ============
 
-// Avatar with error fallback
+const AVATAR_COLORS = [
+  "bg-emerald-600 text-white",
+  "bg-indigo-600 text-white",
+  "bg-amber-500 text-white",
+  "bg-violet-600 text-white",
+  "bg-teal-600 text-white",
+  "bg-sky-600 text-white",
+  "bg-rose-500 text-white",
+  "bg-pink-500 text-white",
+  "bg-orange-500 text-white",
+  "bg-blue-600 text-white",
+];
+
+const getInitials = (name: string) => {
+  if (!name) return "U";
+  const clean = name.replace(/^(ustaz|ustadz|ust|bpk|ibu|dr|dra|drs)\.?\s+/i, "").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return clean.slice(0, 2).toUpperCase() || "U";
+};
+
+const getAvatarBg = (name: string) => {
+  if (!name) return AVATAR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
+// Avatar with error fallback and no-referrer support
 const AvatarImage = memo(({ src, name, size = "w-8 h-8", iconSize = "w-4 h-4", className = "" }: {
   src?: string; name: string; size?: string; iconSize?: string; className?: string
 }) => {
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [src]);
+
+  const initials = useMemo(() => getInitials(name), [name]);
+  const colorClass = useMemo(() => getAvatarBg(name), [name]);
+
   if (!src || imgError) {
     return (
-      <div className={`${size} rounded-full bg-slate-100 ring-1 ring-slate-200/70 flex items-center justify-center text-slate-500 shrink-0 ${className}`}>
-        <User className={iconSize} />
+      <div className={`${size} rounded-full ${colorClass} ring-1 ring-black/10 flex items-center justify-center font-bold text-[10px] tracking-tight shrink-0 select-none shadow-2xs ${className}`}>
+        {initials}
       </div>
     );
   }
@@ -209,6 +283,7 @@ const AvatarImage = memo(({ src, name, size = "w-8 h-8", iconSize = "w-4 h-4", c
     <img
       src={src}
       alt={name}
+      referrerPolicy="no-referrer"
       className={`${size} rounded-full object-cover ring-1 ring-slate-200/80 shrink-0 ${className}`}
       onError={() => setImgError(true)}
       loading="lazy"
@@ -747,6 +822,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   onOpenLogbook,
   logbookData,
   musyrifList,
+  authUsers,
   authUser,
   onLogin,
   viewMode = "feed",
@@ -863,7 +939,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   const currentUserAvatar = authUser?.picture;
 
   // Build musyrif lookup map once
-  const musyrifMap = useMemo(() => buildMusyrifMap(musyrifList || []), [musyrifList]);
+  const musyrifMap = useMemo(() => buildMusyrifMap(musyrifList || [], authUsers || []), [musyrifList, authUsers]);
 
   // Extract all posts
   const allPosts = useMemo<GalleryPostItem[]>(() => {
@@ -873,7 +949,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
 
     for (let i = 0; i < entries.length; i++) {
       const [mId, dateEntries] = entries[i];
-      const musyrifInfo = musyrifMap.get(mId);
+      const musyrifInfo = musyrifMap.get(mId) || (typeof mId === "string" ? musyrifMap.get(mId.toLowerCase().trim()) : undefined);
       const mName = musyrifInfo ? musyrifInfo.name : `Musyrif ${mId}`;
       const mAsrama = musyrifInfo ? musyrifInfo.asrama : "Asrama";
 
@@ -903,7 +979,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
             id: `${mId}_${dateStr}_${key}`,
             musyrifId: mId,
             musyrifName: mName,
-            musyrifAvatar: tItem.photoUserAvatar || musyrifInfo?.picture,
+            musyrifAvatar: tItem.photoUserAvatar || musyrifInfo?.picture || musyrifInfo?.avatar || musyrifInfo?.photo,
             asrama: mAsrama,
             date: dateStr,
             taskKey: key,

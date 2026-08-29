@@ -9405,6 +9405,7 @@ export default function App() {
                 onOpenLogbook={() => setPage("logbook")}
                 logbookData={logbookData}
                 musyrifList={musyrifList}
+                authUsers={authUsers}
                 authUser={authUser}
                 onLogin={() => setShowLogin(true)}
                 viewMode={galleryViewMode}
