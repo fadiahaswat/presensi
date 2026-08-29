@@ -10,7 +10,7 @@ import {
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send,
   Smartphone, HeartPulse, Building2, Medal, Wrench, Wallet, Eye,
-  List, LayoutGrid
+  List, LayoutGrid, Trash2
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -33,7 +33,7 @@ import type { SantriSakitRecord } from "./components/SantriSakitModal";
 import type { Pamong } from "./components/PamongManagerModal";
 import type { IzinRequest } from "./components/IzinPengajuanModal";
 import { CountdownPerpulanganCard } from "./components/CountdownPerpulanganCard";
-import { LogbookGalleryWidget } from "./components/LogbookGalleryWidget";
+import { LogbookGalleryWidget, getTaskDisplayTitle } from "./components/LogbookGalleryWidget";
 import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { SantriChangeRequest } from "./types/santriRequest";
 import { CloudSyncBadge } from "./components/CloudSyncBadge";
@@ -3779,6 +3779,7 @@ function PageRiwayat({
   initialMusyrifId,
   onSelectMusyrifId,
   onMark,
+  onSaveLogbook,
   showToast,
   musyrifListAll
 }: {
@@ -3793,6 +3794,7 @@ function PageRiwayat({
   initialMusyrifId?: string | null;
   onSelectMusyrifId?: (id: string) => void;
   onMark?: MarkFn;
+  onSaveLogbook?: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
   showToast?: (msg: string, type?: "success" | "info" | "error") => void;
   musyrifListAll?: Musyrif[];
 }) {
@@ -3820,6 +3822,18 @@ function PageRiwayat({
   const [editNoteText, setEditNoteText] = useState("");
   const [expandedLogbookDate, setExpandedLogbookDate] = useState<string | null>(null);
   const [viewMonth, setViewMonth] = useState(new Date());
+  const [previewPhotoModal, setPreviewPhotoModal] = useState<any | null>(null);
+  const [photoFilterMonth, setPhotoFilterMonth] = useState<"current" | "all">("all");
+
+  const canDeletePhoto = Boolean(
+    authUser && (
+      authUser.role === "koordinator_musyrif" ||
+      authUser.role === "admin" ||
+      authUser.role === "wadir4" ||
+      authUser.role === "kaur_kis" ||
+      authUser.role === "pamong"
+    )
+  );
 
   useEffect(() => {
     if (initialMusyrifId) {
@@ -3913,6 +3927,99 @@ function PageRiwayat({
 
     return { totalTasksDone, totalSteps, totalGpsVerified, daysFilled, avgPerDay };
   }, [musyrifLogbooks, logbookDatesThisMonth]);
+
+  // All uploaded photos for this musyrif across all dates
+  const musyrifUploadedPhotos = useMemo<any[]>(() => {
+    if (!musyrif) return [];
+    const photos: any[] = [];
+    const userLogbooks = logbookData[musyrif.id] || {};
+
+    Object.entries(userLogbooks).forEach(([dateStr, dayEntry]) => {
+      if (!dayEntry || typeof dayEntry !== "object") return;
+      Object.entries(dayEntry).forEach(([key, taskVal]) => {
+        if (key === "generalNotes" || !taskVal || typeof taskVal !== "object") return;
+        const tItem = taskVal as any;
+        if (tItem.photoUrl && typeof tItem.photoUrl === "string" && tItem.photoUrl.trim() !== "") {
+          photos.push({
+            id: `${musyrif.id}_${dateStr}_${key}`,
+            musyrifId: musyrif.id,
+            musyrifName: musyrif.name,
+            asrama: musyrif.asrama,
+            date: dateStr,
+            taskKey: key,
+            taskTitle: getTaskDisplayTitle ? getTaskDisplayTitle(key) : key,
+            completedAt: tItem.completedAt,
+            photoUrl: tItem.photoUrl,
+            photoTakenAt: tItem.photoTakenAt,
+            photoSource: tItem.photoSource || "camera",
+            photoWatermark: tItem.photoWatermark,
+            notes: tItem.notes,
+            stepsCount: tItem.stepsCount,
+            gpsVerified: tItem.gpsVerified
+          });
+        }
+      });
+    });
+
+    return photos.sort((a, b) => {
+      const timeA = a.photoTakenAt ? new Date(a.photoTakenAt).getTime() : new Date(`${a.date}T${a.completedAt || "12:00"}:00`).getTime();
+      const timeB = b.photoTakenAt ? new Date(b.photoTakenAt).getTime() : new Date(`${b.date}T${b.completedAt || "12:00"}:00`).getTime();
+      return timeB - timeA;
+    });
+  }, [logbookData, musyrif]);
+
+  const displayMusyrifPhotos = useMemo(() => {
+    if (photoFilterMonth === "current") {
+      return musyrifUploadedPhotos.filter(p => p.date.startsWith(mk));
+    }
+    return musyrifUploadedPhotos;
+  }, [musyrifUploadedPhotos, photoFilterMonth, mk]);
+
+  // Handler for Koordinator Musyrif / Admin to delete a photo
+  const handleDeleteMusyrifPhoto = async (photoItem: any) => {
+    if (!canDeletePhoto) {
+      appAlert("Hanya Koordinator Musyrif atau Pamong/Admin yang berwenang menghapus foto dokumentasi ini.", "Akses Ditolak", "warning");
+      return;
+    }
+
+    const ok = await appConfirm(
+      `Apakah Anda yakin ingin menghapus foto dokumentasi "${photoItem.taskTitle}" tanggal ${format(parseISO(photoItem.date), "d MMMM yyyy", { locale: id })} oleh ${photoItem.musyrifName}? Foto akan dihapus secara permanen dari logbook dan server cloud.`,
+      "Hapus Foto Logbook",
+      "danger"
+    );
+
+    if (!ok) return;
+
+    if (onSaveLogbook) {
+      const dayEntry = logbookData[photoItem.musyrifId]?.[photoItem.date] || {};
+      const currentTask = (dayEntry as any)?.[photoItem.taskKey] || {};
+      
+      const updatedEntry: JurnalLogbookEntry = {
+        ...dayEntry,
+        [photoItem.taskKey]: {
+          ...currentTask,
+          photoUrl: "", // Explicit signal to remove photo
+          photoTakenAt: undefined,
+          photoSource: undefined,
+          photoWatermark: undefined
+        }
+      };
+
+      onSaveLogbook(photoItem.musyrifId, photoItem.date, updatedEntry);
+
+      try {
+        const { deletePhoto } = await import("./utils/photoCacheService");
+        const cacheKey = `logbook_${photoItem.musyrifId}_${photoItem.date}_${photoItem.taskKey}_photoUrl`;
+        await deletePhoto(cacheKey);
+      } catch (_) {}
+
+      if (previewPhotoModal?.id === photoItem.id) {
+        setPreviewPhotoModal(null);
+      }
+
+      showToast?.("Foto dokumentasi logbook berhasil dihapus!", "success");
+    }
+  };
 
   // Mutabaah data for current musyrif
   const musyrifMutabaah = useMemo(() => {
@@ -4692,6 +4799,98 @@ function PageRiwayat({
             </div>
           </div>
 
+          {/* 📸 Galeri Dokumentasi Foto Musyrif */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-3.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 leading-tight truncate">
+                    Galeri Dokumentasi Foto Musyrif
+                  </h4>
+                  <p className="text-[11px] text-slate-400 font-medium truncate">
+                    {musyrifUploadedPhotos.length} foto diunggah oleh Ustaz {musyrif ? getMusyrifCallName(musyrif.name) : ""}
+                    {canDeletePhoto && <span className="text-rose-600 font-bold ml-1.5">• Akses Hapus Aktif</span>}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => setPhotoFilterMonth("current")}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                    photoFilterMonth === "current"
+                      ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  Bulan Ini ({musyrifUploadedPhotos.filter(p => p.date.startsWith(mk)).length})
+                </button>
+                <button
+                  onClick={() => setPhotoFilterMonth("all")}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                    photoFilterMonth === "all"
+                      ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  Semua ({musyrifUploadedPhotos.length})
+                </button>
+              </div>
+            </div>
+
+            {displayMusyrifPhotos.length === 0 ? (
+              <div className="py-8 text-center bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 p-4">
+                <Camera className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
+                <p className="text-xs font-bold text-slate-600">Belum Ada Foto Terunggah</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs mx-auto">
+                  {photoFilterMonth === "current" ? "Musyrif belum mengunggah foto logbook pada bulan ini." : "Musyrif belum memiliki riwayat foto logbook yang terunggah."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {displayMusyrifPhotos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-900 ring-1 ring-slate-200/80 cursor-pointer shadow-2xs select-none"
+                    onClick={() => setPreviewPhotoModal(photo)}
+                  >
+                    <img
+                      src={photo.photoUrl}
+                      alt={photo.taskTitle}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    {/* Top Date Badge */}
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[9px] font-bold text-white font-mono">
+                      {format(parseISO(photo.date), "d MMM", { locale: id })}
+                    </div>
+                    {/* Delete button for Koordinator Musyrif */}
+                    {canDeletePhoto && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMusyrifPhoto(photo);
+                        }}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-rose-600/90 hover:bg-rose-700 active:scale-90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        title="Hapus foto ini (Koordinator Musyrif)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {/* Bottom Title Banner */}
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1.5 pt-3 text-[10px] text-white font-medium truncate">
+                      {photo.taskTitle}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Daily Logbook Cards */}
           <div className="space-y-3">
             <Label ch={`Catatan Logbook Harian (${logbookDatesThisMonth.length} Hari Terdata)`}/>
@@ -4770,6 +4969,25 @@ function PageRiwayat({
                         {LOGBOOK_TASK_DEFS.map(tDef => {
                           const tData = entry[tDef.key] || { done: false };
                           const isDone = !!tData.done;
+                          const hasPhoto = Boolean(tData.photoUrl && typeof tData.photoUrl === "string" && tData.photoUrl.trim() !== "");
+
+                          const taskPhotoItem = hasPhoto ? {
+                            id: `${musyrif.id}_${dateStr}_${tDef.key}`,
+                            musyrifId: musyrif.id,
+                            musyrifName: musyrif.name,
+                            asrama: musyrif.asrama,
+                            date: dateStr,
+                            taskKey: tDef.key,
+                            taskTitle: tDef.title,
+                            completedAt: tData.completedAt,
+                            photoUrl: tData.photoUrl,
+                            photoTakenAt: tData.photoTakenAt,
+                            photoSource: tData.photoSource,
+                            photoWatermark: tData.photoWatermark,
+                            notes: tData.notes,
+                            stepsCount: tData.stepsCount,
+                            gpsVerified: tData.gpsVerified
+                          } : null;
 
                           return (
                             <div key={tDef.key} className="py-2.5 flex items-start justify-between gap-3 text-xs">
@@ -4799,6 +5017,39 @@ function PageRiwayat({
                                     <p className="text-[11px] text-slate-600 bg-white border border-slate-200/60 rounded-xl p-1.5 mt-1 font-mono">
                                       "{tData.notes}"
                                     </p>
+                                  )}
+
+                                  {/* Photo attachment preview inside task */}
+                                  {hasPhoto && taskPhotoItem && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <div
+                                        onClick={() => setPreviewPhotoModal(taskPhotoItem)}
+                                        className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 cursor-pointer group shadow-2xs shrink-0"
+                                        title="Lihat foto kegiatan"
+                                      >
+                                        <img
+                                          src={tData.photoUrl}
+                                          alt="Bukti Foto"
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                          loading="lazy"
+                                          decoding="async"
+                                        />
+                                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </div>
+                                      </div>
+
+                                      {canDeletePhoto && (
+                                        <button
+                                          onClick={() => handleDeleteMusyrifPhoto(taskPhotoItem)}
+                                          className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-2xs"
+                                          title="Hapus foto ini (Khusus Koordinator Musyrif / Admin)"
+                                        >
+                                          <Trash2 className="w-3 h-3 text-rose-600" />
+                                          <span>Hapus Foto</span>
+                                        </button>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -5530,6 +5781,81 @@ function PageRiwayat({
                     </button>
                   );
                 })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📸 Full Photo Preview Modal with Delete Action for Koordinator Musyrif */}
+      {previewPhotoModal && (
+        <div 
+          className="fixed inset-0 z-[150] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
+          onClick={() => setPreviewPhotoModal(null)}
+        >
+          <div 
+            className="relative w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white shrink-0">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 truncate">
+                  {previewPhotoModal.taskTitle}
+                </h3>
+                <p className="text-xs text-slate-500 truncate">
+                  Ustaz {previewPhotoModal.musyrifName} • {previewPhotoModal.asrama} • {previewPhotoModal.date ? format(parseISO(previewPhotoModal.date), "EEEE, d MMM yyyy", { locale: id }) : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setPreviewPhotoModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Image Preview */}
+            <div className="flex-1 bg-slate-950 flex items-center justify-center overflow-hidden min-h-[260px] max-h-[50vh]">
+              <img
+                src={previewPhotoModal.photoUrl}
+                alt={previewPhotoModal.taskTitle}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+
+            {/* Details & Actions Footer */}
+            <div className="p-4 space-y-3 bg-white border-t border-slate-100 shrink-0">
+              {previewPhotoModal.notes && (
+                <div className="bg-slate-50 rounded-2xl p-2.5 text-xs text-slate-700 border border-slate-100">
+                  <span className="font-bold text-slate-900 block mb-0.5">Catatan Kegiatan:</span>
+                  "{previewPhotoModal.notes}"
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                  {previewPhotoModal.completedAt && (
+                    <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg border border-emerald-200/60 font-semibold">
+                      ⏰ {previewPhotoModal.completedAt} WIB
+                    </span>
+                  )}
+                  {previewPhotoModal.stepsCount ? (
+                    <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg border border-purple-200/60 font-semibold">
+                      👣 {previewPhotoModal.stepsCount} langkah
+                    </span>
+                  ) : null}
+                </div>
+
+                {canDeletePhoto && (
+                  <button
+                    onClick={() => handleDeleteMusyrifPhoto(previewPhotoModal)}
+                    className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95 ml-auto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus Foto Ini</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -9013,6 +9339,7 @@ export default function App() {
                 initialMusyrifId={selectedMusyrifId} 
                 onSelectMusyrifId={setSelectedMusyrifId}
                 onMark={handleMark}
+                onSaveLogbook={handleSaveLogbook}
                 showToast={showToast}
                 musyrifListAll={musyrifList}
               />

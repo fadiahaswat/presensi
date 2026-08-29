@@ -447,6 +447,7 @@ const PhotoModal = memo(({ photoUrl, taskTitle, onClose }: { photoUrl: string; t
 
 // Comments modal
 const CommentsModal = memo(({
+  post,
   comments,
   authUser,
   currentUserAvatar,
@@ -457,6 +458,7 @@ const CommentsModal = memo(({
   onClose,
   onLogin
 }: {
+  post?: GalleryPostItem | null;
   comments: GalleryCommentItem[];
   authUser?: any;
   currentUserAvatar?: string;
@@ -467,42 +469,94 @@ const CommentsModal = memo(({
   onClose: () => void;
   onLogin: () => void;
 }) => (
-  <div className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
+  <div className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4" onClick={onClose}>
     <motion.div
-      className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl h-[85vh] flex flex-col"
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] h-[85vh] flex flex-col shadow-2xl overflow-hidden"
       onClick={e => e.stopPropagation()}
     >
-      <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="text-sm font-bold">Komentar</h3>
-        <button onClick={onClose}><X className="w-5 h-5" /></button>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 bg-white shrink-0">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-sky-600" />
+          <h3 className="text-sm font-bold text-slate-900">Komentar & Apresiasi</h3>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700">
+            {comments.length}
+          </span>
+        </div>
+        <button 
+          onClick={onClose} 
+          className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {comments.map(c => (
-          <div key={c.id} className="flex gap-2.5 items-start">
-            <AvatarImage src={c.userAvatar} name={c.userName} size="w-7 h-7" iconSize="w-3.5 h-3.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-900 leading-tight">{c.userName}</p>
-              <p className="text-xs text-slate-700 mt-0.5 leading-snug break-words">{c.text}</p>
-            </div>
+      {/* Post Context Header (if available) */}
+      {post && (
+        <div className="px-4 py-2.5 bg-slate-50/90 border-b border-slate-100 flex items-center gap-3 shrink-0">
+          <img src={post.photoUrl} alt="" className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-slate-800 truncate">Ustaz {getMusyrifCallName(post.musyrifName)} • {post.asrama}</p>
+            <p className="text-[11px] text-slate-500 truncate">{post.taskTitle}</p>
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Comments List */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+        {comments.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+            <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-500 flex items-center justify-center mb-1">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <p className="text-xs font-bold text-slate-700">Belum Ada Komentar</p>
+            <p className="text-[11px] text-slate-400 max-w-xs leading-relaxed">
+              Jadilah yang pertama memberikan apresiasi atau tanggapan untuk dokumentasi kegiatan ini!
+            </p>
+          </div>
+        ) : (
+          comments.map(c => (
+            <div key={c.id} className="flex gap-2.5 items-start">
+              <AvatarImage src={c.userAvatar} name={c.userName} size="w-7 h-7" iconSize="w-3.5 h-3.5" />
+              <div className="min-w-0 flex-1 bg-slate-50/90 border border-slate-100 rounded-2xl px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-slate-900 leading-tight">{c.userName}</p>
+                  <span className="text-[10px] text-slate-400">{getRelativeTimeString("", "", c.createdAt)}</span>
+                </div>
+                <p className="text-xs text-slate-700 mt-1 leading-snug break-words">{c.text}</p>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
+      {/* Input Form with safe bottom padding */}
       {authUser ? (
-        <div className="p-3 border-t flex gap-2">
+        <div className="p-3 pb-8 sm:pb-3.5 border-t border-slate-100 bg-white flex items-center gap-2 shrink-0">
+          <AvatarImage src={currentUserAvatar} name={currentUserName} size="w-7 h-7" iconSize="w-4 h-4" />
           <input
             value={commentInput}
             onChange={e => onInputChange(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") onSubmit(); }}
-            className="flex-1 bg-slate-100 rounded-full px-4 py-2 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-sky-500 transition-colors"
-            placeholder="Tulis komentar..."
+            className="flex-1 bg-slate-100 rounded-full px-4 py-2 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-sky-500 transition-colors placeholder:text-slate-400"
+            placeholder="Tulis komentar atau apresiasi..."
             autoFocus
           />
-          <button onClick={onSubmit} className="text-[#0C81E4] font-bold text-xs px-2">Kirim</button>
+          <button 
+            onClick={onSubmit} 
+            disabled={!commentInput.trim()}
+            className="bg-[#0C81E4] hover:bg-[#0C4E8C] disabled:opacity-40 text-white font-bold text-xs px-4 py-2 rounded-full transition-all active:scale-95 flex items-center gap-1.5 shadow-2xs"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Kirim</span>
+          </button>
         </div>
       ) : (
-        <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+        <div className="p-3.5 pb-8 sm:pb-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
               <User className="w-3.5 h-3.5" />
@@ -745,15 +799,15 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
   // Virtualized feed scroll container ref
   const feedScrollRef = useRef<HTMLDivElement>(null);
 
-  // Estimate post height for virtualization (average of 500px with photo + content)
-  const ESTIMATED_POST_HEIGHT = 520;
+  // Estimate post height for virtualization (average of 560px with photo + content)
+  const ESTIMATED_POST_HEIGHT = 560;
 
-  // Virtualizer for feed view (OPTIMIZATION: Only render visible posts)
+  // Virtualizer for feed view (OPTIMIZATION: Only render visible posts with dynamic measurement)
   const feedVirtualizer = useVirtualizer({
     count: allPosts.length,
     getScrollElement: () => feedScrollRef.current,
     estimateSize: () => ESTIMATED_POST_HEIGHT,
-    overscan: 3, // Render 3 extra posts above/below viewport
+    overscan: 4, // Render extra posts above/below viewport
   });
 
   return (
@@ -802,6 +856,8 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
               return (
                 <div
                   key={post.id}
+                  ref={feedVirtualizer.measureElement}
+                  data-index={virtualRow.index}
                   style={{
                     position: "absolute",
                     top: 0,
@@ -847,6 +903,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
       <AnimatePresence>
         {activeCommentsPost && (
           <CommentsModal
+            post={activeCommentsPost}
             comments={interactions[activeCommentsPost.id]?.comments || []}
             authUser={authUser}
             currentUserAvatar={currentUserAvatar}
