@@ -53,7 +53,8 @@ export const CUSTOM_CALL_NAMES: Record<string, string> = {
   "muhammad atqonuddinillah": "Atqon",
   "nur affan muarif": "Affan",
   "ahmad arif kurniawan": "Arif Kurniawan",
-  "arif rahman": "Arif Rahman",
+  "muhammad fabian fath anarda": "Fabian",
+  "muhammad fabian fath ananda": "Fabian",
   "muhammad rafi": "M. Rafi",
   "muhammad rafi umar rais": "Rafi Umar",
 };

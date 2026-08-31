@@ -206,6 +206,13 @@ export function MusyrifManagerModal({
         (m.email && m.email.toLowerCase().includes(q)) ||
         (ROLE_CONFIG[mRole] && ROLE_CONFIG[mRole].label.toLowerCase().includes(q));
       return matchRole && matchAsrama && matchSearch;
+    }).sort((a, b) => {
+      const classA = (a.kelas || a.kamar || "").trim();
+      const classB = (b.kelas || b.kamar || "").trim();
+      if (classA && classB) {
+        return classA.localeCompare(classB, undefined, { numeric: true, sensitivity: "base" });
+      }
+      return (a.name || "").localeCompare(b.name || "");
     });
   }, [musyrifList, selectedAsrama, selectedRole, searchQuery]);
 

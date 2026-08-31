@@ -380,7 +380,8 @@ const CUSTOM_CALL_NAMES: Record<string, string> = {
   "muhammad atqonuddinillah": "Atqon",
   "nur affan muarif": "Affan",
   "ahmad arif kurniawan": "Arif Kurniawan",
-  "arif rahman": "Arif Rahman",
+  "muhammad fabian fath anarda": "Fabian",
+  "muhammad fabian fath ananda": "Fabian",
   "muhammad rafi": "M. Rafi",
   "muhammad rafi umar rais": "Rafi Umar",
 };
@@ -461,11 +462,10 @@ const AUTH_USERS: AuthUser[] = [
 const MUSYRIF_LIST: Musyrif[] = [
   // ─── ASRAMA SEDAYU GEDUNG D (Pamong: Ariel Amarta Dzikrillah, S.Sos.) ───
   { id:"m1",  name:"Wahyu Dermawan",               role:"koordinator_gedung", kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"wahyudermawan1212@gmail.com",     phone:"6282180998704" },
-  { id:"m2",  name:"Afif Nashrul",                 role:"musyrif",            kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"afifnashrul06@gmail.com, andiaqillah@muallimin.sch.id", phone:"6281287066297" },
   { id:"m3",  name:"Muhammad Farras Mamduh",       role:"musyrif",            kelas:"1 B",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 B",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"farrasmdh@gmail.com",             phone:"6285117104411" },
   { id:"m4",  name:"Leo Fernando Adnan Muzaki",    role:"musyrif",            kelas:"1 C",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 C",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"leodrfernandofelix@gmail.com",    phone:"6285701209925" },
   { id:"m5",  name:"Husein Nur Alwany",            role:"musyrif",            kelas:"1 D",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 D",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"husennur085@gmail.com",           phone:"6285157379443" },
-  { id:"m6",  name:"Arif Rahman, S.s.",            role:"musyrif",            kelas:"1 E",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"nitikan3321@gmail.com",           phone:"6285129334523" },
+  { id:"m_1788090910806", name:"Muhammad Fabian Fath Ananda", role:"musyrif",    kelas:"1 E",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 E",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"bian.anarda@gmail.com",           phone:"6282143686858" },
   { id:"m7",  name:"M. Fajri",                     role:"musyrif",            kelas:"1 F",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 F",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"fajrhyiee@gmail.com",             phone:"6285189076745" },
   { id:"m8",  name:"Ajie Saptian Hardiyanto",      role:"musyrif",            kelas:"1 G",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 G",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"saptianaji07@gmail.com",          phone:"6285198234739" },
   { id:"m33", name:"Mukti Abdul Ghofur",           role:"musyrif",            kelas:"4 A",         tingkat:"Kelas 4", asrama:"Asrama Sedayu Gedung D", kamar:"4 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"muktighofur75@gmail.com",         phone:"6282322272355" },
@@ -541,6 +541,26 @@ function matchesEmail(emailField?: string, inputEmail?: string): boolean {
   const target = inputEmail.trim().toLowerCase();
   const list = emailField.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
   return list.includes(target);
+}
+
+export function sortMusyrifByClass(a: Musyrif, b: Musyrif): number {
+  if (a.asrama !== b.asrama) {
+    const idxA = ASRAMAS.indexOf(a.asrama);
+    const idxB = ASRAMAS.indexOf(b.asrama);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return (a.asrama || "").localeCompare(b.asrama || "");
+  }
+
+  const classA = (a.kelas || a.kamar || "").trim();
+  const classB = (b.kelas || b.kamar || "").trim();
+  
+  if (!classA && !classB) return a.name.localeCompare(b.name);
+  if (!classA) return 1;
+  if (!classB) return -1;
+  
+  return classA.localeCompare(classB, undefined, { numeric: true, sensitivity: "base" });
 }
 
 const todayStr = () => format(getTrustedDate(), "yyyy-MM-dd");
@@ -683,14 +703,33 @@ function Label({ ch, cls="mb-2.5", indicatorColor="bg-[#0C81E4]" }: { ch: React.
 function hasFullAccess(u: AuthUser) { return checkFullAccess(u); }
 function isDbAdmin(u: AuthUser | null): boolean { return checkDbAdmin(u); }
 function isFieldMusyrif(m: { role?: Role | string }): boolean { return checkFieldMusyrif(m); }
+const STREAK_START_DATE = "2026-09-01";
 
 function computeStreak(mid: string, records: AttendanceRecord[]) {
   let cur = 0, best = 0, tmp = 0;
   let streakBroken = false;
-  const base = new Date(); base.setDate(base.getDate() - 1);
-  for (let i = 0; i < 90; i++) {
-    const d = new Date(base); d.setDate(d.getDate() - i);
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+
+  // Check if today is completed (both subuh and maghrib hadir)
+  const todayRec = records.find(x => x.musyrifId === mid && x.date === todayStr);
+  const todaySub = getEffectiveAttendanceStatus(todayRec, "subuh", todayStr);
+  const todayMag = getEffectiveAttendanceStatus(todayRec, "maghrib", todayStr);
+  const todayCompletedHadir = todaySub === "hadir" && todayMag === "hadir";
+
+  const startOffset = todayCompletedHadir ? 0 : 1;
+
+  for (let i = startOffset; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
     const dateStr = format(d, "yyyy-MM-dd");
+
+    // Streak resmi dimulai 1 September 2026 (Masa beta Agustus tidak dihitung)
+    // Berlanjut terus di bulan Oktober dan seterusnya tanpa reset ke 0
+    if (dateStr < STREAK_START_DATE) {
+      break;
+    }
+
     const r = records.find(x => x.musyrifId === mid && x.date === dateStr);
     const sSub = getEffectiveAttendanceStatus(r, "subuh", dateStr);
     const sMag = getEffectiveAttendanceStatus(r, "maghrib", dateStr);
@@ -847,7 +886,7 @@ function PageDashboard({
   showToast?: (msg: string, type: "success" | "error" | "info") => void;
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
-  const mList = allRaw.filter(isFieldMusyrif);
+  const mList = allRaw.filter(isFieldMusyrif).sort(sortMusyrifByClass);
   const today = todayStr();
   const todayRecs = records.filter(r => r.date === today);
   const total = mList.length;
@@ -2406,7 +2445,7 @@ function PageDashboard({
                   </div>
                 </button>
 
-                {/* 6. Database Santri - Occasional */}
+                {/* 6. Database & Peta Sebaran Santri */}
                 {authUser && (
                   <button
                     type="button"
@@ -2418,38 +2457,16 @@ function PageDashboard({
                         <GraduationCap className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                        {authUser.role === "koordinator_musyrif" ? "1.497" : (authUser.role === "pamong" ? "Asrama" : "Santri")}
+                        {authUser.role === "koordinator_musyrif" ? "1.497 • 36 Prov" : (authUser.role === "pamong" ? "Asrama" : "Santri & Peta")}
                       </span>
                     </div>
                     <div>
                       <p className="font-bold text-xs text-slate-800 leading-tight">
-                        {authUser.role === "pamong" ? "Santri Asrama" : "Database Santri"}
+                        {authUser.role === "pamong" ? "Santri & Peta Asrama" : "Database & Peta Santri"}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                        {authUser.role === "pamong" ? "Biodata santri asrama" : "Biodata & kontak ortu"}
+                        {authUser.role === "pamong" ? "Biodata & sebaran asrama" : "Biodata, kontak & sebaran daerah"}
                       </p>
-                    </div>
-                  </button>
-                )}
-
-                {/* 7. Peta Sebaran Santri - Rare */}
-                {authUser && (
-                  <button
-                    type="button"
-                    onClick={() => onGoTo("peta-santri")}
-                    className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-fuchsia-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98]"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-7 h-7 rounded-xl bg-fuchsia-50 text-fuchsia-700 flex items-center justify-center">
-                        <MapPin className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[10px] font-bold text-fuchsia-800 bg-fuchsia-50 border border-fuchsia-200/80 px-1.5 py-0.2 rounded-md font-mono">
-                        36 prov
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-slate-800 leading-tight">Peta Sebaran</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">Asal daerah santri</p>
                     </div>
                   </button>
                 )}
@@ -2496,7 +2513,47 @@ function PageDashboard({
                   </button>
                 )}
 
-                {/* 9. Master Personel - Rare (Koordinator Only) */}
+                {/* 10. Rekap Presensi & Statistik */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("rekap")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98] cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      Statistik
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Rekap Presensi</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Grafik & persentase</p>
+                  </div>
+                </button>
+
+                {/* 11. Peringkat Musyrif / Leaderboard 4 Pilar */}
+                <button
+                  type="button"
+                  onClick={() => onGoTo("leaderboard")}
+                  className="group p-3 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-purple-500 hover:shadow-xs transition-all text-left flex flex-col justify-between active:scale-[0.98] cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-7 h-7 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                      <Trophy className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-1.5 py-0.2 rounded-md font-mono">
+                      4 Pilar
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 leading-tight">Peringkat Musyrif</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 truncate">Papan skor & teladan</p>
+                  </div>
+                </button>
+
+                {/* 12. Master Personel - Rare (Koordinator Only) */}
                 {authUser?.role === "koordinator_musyrif" && (
                   <button
                     type="button"
@@ -2749,8 +2806,6 @@ function PageDashboard({
         <div>
           <SectionHeader
             title="Catatan Kehadiran Perlu Perhatian"
-            badge="Internal Saja"
-            badgeVariant="rose"
             indicatorColor="bg-rose-500"
             className="mb-2"
           />
@@ -3001,7 +3056,7 @@ function PageInputPrayer({
       return (m.kelas || "").startsWith("6");
     }
     return true;
-  });
+  }).sort(sortMusyrifByClass);
   const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
 
   // Find logged in musyrif ID
@@ -3550,7 +3605,7 @@ function PageRekap({
     .filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d)),[viewMonth]);
   const mRecs = records.filter(r=>r.date.startsWith(mk));
   const fMusyrif = useMemo(()=>{
-    let l = (filterAsrama==="Semua" ? allM : allM.filter(m=>m.asrama===filterAsrama)).filter(isFieldMusyrif);
+    let l = (filterAsrama==="Semua" ? allM : allM.filter(m=>m.asrama===filterAsrama)).filter(isFieldMusyrif).sort(sortMusyrifByClass);
     if(search) l=l.filter(m=>m.name.toLowerCase().includes(search.toLowerCase()));
     return l;
   },[allM,filterAsrama,search]);
@@ -7211,11 +7266,20 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
     }
   }
 
+  const sorted = [...deduped].sort((a, b) => {
+    const isFieldA = isFieldMusyrif(a);
+    const isFieldB = isFieldMusyrif(b);
+    if (!isFieldA && isFieldB) return -1;
+    if (isFieldA && !isFieldB) return 1;
+    if (!isFieldA && !isFieldB) return 0;
+    return sortMusyrifByClass(a, b);
+  });
+
   try {
-    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(deduped));
+    localStorage.setItem(STORAGE_KEY_MUSYRIF, JSON.stringify(sorted));
   } catch {}
   
-  return deduped;
+  return sorted;
 }
 
 export default function App() {
@@ -7650,7 +7714,7 @@ export default function App() {
   // Route Fallback when in public mode or role restrictions
   useEffect(() => {
     if (!authUser) {
-      if (page === "subuh" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "logbook" || page === "notifikasi" || page === "rekap") {
+      if (page === "subuh" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "logbook" || page === "notifikasi") {
         setPage("dashboard");
       }
     } else if (authUser.role !== "koordinator_musyrif") {
@@ -10063,7 +10127,7 @@ export default function App() {
                 onOpenMutabaah={() => setShowMutabaah(true)}
                 onOpenSantriSakit={() => setShowSantriSakit(true)}
                 onOpenSantriIzin={() => setPage("izin-santri")}
-                onOpenLeaderboard={() => setShowLeaderboard(true)}
+                onOpenLeaderboard={() => setPage("leaderboard")}
                 onOpenRaport={() => setShowRaport(true)}
                 onOpenMusyrifManager={() => setPage("musyrif-manager")}
                 onOpenPamongManager={() => setPage("pamong-manager")}
@@ -10283,6 +10347,7 @@ export default function App() {
                 logbookData={logbookData}
                 kegiatanRecords={kegiatanRecords}
                 mutabaahData={mutabaahData}
+                pengasuhanList={pengasuhanKhususList}
                 onSelectMusyrif={(mid, mode) => {
                   setSelectedMusyrifId(mid);
                   if (mode === "raport" || !authUser) {

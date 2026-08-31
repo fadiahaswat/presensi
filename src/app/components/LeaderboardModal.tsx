@@ -1,16 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { 
-  X, Trophy, Crown, Flame, Award, Star, 
-  Sparkles, Medal, TrendingUp, ShieldCheck, CheckCircle2, User, BookOpen, Clock, Calendar,
-  ChevronLeft, ChevronRight, Sun, ClipboardList, Building2
+  X, Trophy, Crown, Award, 
+  Sparkles, Medal, BookOpen, Calendar,
+  ChevronLeft, ChevronRight, Sun, ClipboardList, Building2,
+  RotateCcw
 } from "lucide-react";
 import { motion } from "motion/react";
+import { format, addMonths, subMonths } from "date-fns";
+import { id } from "date-fns/locale";
 import { LogbookStorage, LOGBOOK_TASKS } from "./JurnalLogbookModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
 import { MutabaahStorage } from "./MutabaahYaumiyahModal";
 import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { getEffectiveAttendanceStatus } from "../App";
+import { isFieldMusyrif } from "../utils/roleAccessUtils";
 
 interface Musyrif {
   id: string;
@@ -53,126 +57,237 @@ export function LeaderboardModal({
   onSelectMusyrif,
   isPage = false
 }: LeaderboardModalProps) {
+  const currentMonthKey = format(new Date(), "yyyy-MM");
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
   const [selectedAsrama, setSelectedAsrama] = useState<string>("all");
   const [selectedPillar, setSelectedPillar] = useState<"all" | "sholat" | "logbook" | "kegiatan" | "mutabaah">("all");
   const [selectedDetailMusyrif, setSelectedDetailMusyrif] = useState<any | null>(null);
 
-  // Calculate scores across the 4 Pillars for each musyrif
-  const activeMusyrifList = musyrifList.filter(m => m.role !== "pamong" && m.role !== "koordinator_musyrif");
-  const now = new Date();
-  const leaderboardData = activeMusyrifList.map(m => {
-    // 1. Shalat Fardhu Score (Subuh & Maghrib)
-    let hadirCount = 0;
-    let izinCount = 0;
-    let sakitCount = 0;
-    let alfaCount = 0;
-    let subuhCount = 0;
-    let maghribCount = 0;
+  // Discover all months present across all data sources
+  const availableMonths = useMemo(() => {
+    const monthSet = new Set<string>();
+    monthSet.add(currentMonthKey);
 
-    Object.entries(records).forEach(([_, rec]) => {
-      if (rec.musyrifId === m.id) {
-        const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now);
-        const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now);
-
-        if (subSt === "hadir") { hadirCount++; subuhCount++; }
-        else if (subSt === "izin") izinCount++;
-        else if (subSt === "sakit") sakitCount++;
-        else if (subSt === "alfa") alfaCount++;
-
-        if (magSt === "hadir") { hadirCount++; maghribCount++; }
-        else if (magSt === "izin") izinCount++;
-        else if (magSt === "sakit") sakitCount++;
-        else if (magSt === "alfa") alfaCount++;
+    // Records
+    Object.values(records).forEach(r => {
+      if (r?.date && r.date.length >= 7) {
+        monthSet.add(r.date.substring(0, 7));
       }
     });
 
-    const sholatScore = Math.max(0, hadirCount * 10 - alfaCount * 15);
-
-    // 2. Logbook Harian Score & Pengasuhan Khusus (Hanya dihitung serentak mulai 18 Agustus 2026)
-    let logbookTasksDone = 0;
-    const musyrifLogbooks = logbookData[m.id] || {};
-    Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
-      if (dt >= "2026-08-18") {
-        LOGBOOK_TASKS.forEach(t => {
-          if (dayEntry[t.key]?.done) logbookTasksDone++;
+    // Logbook
+    Object.values(logbookData).forEach(userMap => {
+      if (userMap) {
+        Object.keys(userMap).forEach(d => {
+          if (d.length >= 7) monthSet.add(d.substring(0, 7));
         });
       }
     });
 
-    let pengasuhanPoints = 0;
-    let pengasuhanCount = 0;
+    // Kegiatan
+    kegiatanRecords.forEach(k => {
+      if (k?.date && k.date.length >= 7) {
+        monthSet.add(k.date.substring(0, 7));
+      }
+    });
+
+    // Mutabaah
+    Object.values(mutabaahData).forEach(userMap => {
+      if (userMap) {
+        Object.keys(userMap).forEach(d => {
+          if (d.length >= 7) monthSet.add(d.substring(0, 7));
+        });
+      }
+    });
+
+    // Pengasuhan Khusus
     pengasuhanList.forEach(p => {
-      if (p.musyrifId === m.id && p.date >= "2026-08-18") {
-        pengasuhanCount++;
-        pengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+      if (p?.date && p.date.length >= 7) {
+        monthSet.add(p.date.substring(0, 7));
       }
     });
 
-    const logbookScore = (logbookTasksDone * 5) + pengasuhanPoints;
+    return Array.from(monthSet)
+      .filter(m => /^\d{4}-\d{2}$/.test(m))
+      .sort((a, b) => b.localeCompare(a));
+  }, [records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, currentMonthKey]);
 
-    // 3. Agenda Asrama & Pertemuan Score (Kegiatan Asrama + Logbook Dinamis Rapat)
-    let kegiatanDone = 0;
-    kegiatanRecords.forEach(keg => {
-      if (keg.attendees?.[m.id] === "hadir") kegiatanDone++;
-    });
-    // Dynamic agenda meeting tasks from logbook
-    Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
-      if (dt >= "2026-08-18") {
-        Object.entries(dayEntry).forEach(([key, task]) => {
-          if (key.startsWith("agenda_") && ((task as any)?.done === true || (task as any)?.done === "TRUE" || (task as any)?.done === "true" || (task as any)?.photoUrl || (task as any)?.completedAt)) {
-            kegiatanDone++;
+  // Format month name in Indonesian
+  const getMonthLabel = (mKey: string) => {
+    if (mKey === "all") return "Semua Periode (Akumulasi)";
+    try {
+      const [year, month] = mKey.split("-").map(Number);
+      const d = new Date(year, month - 1, 1);
+      return format(d, "MMMM yyyy", { locale: id });
+    } catch {
+      return mKey;
+    }
+  };
+
+  const handlePrevMonth = () => {
+    triggerHaptic("light");
+    if (selectedMonth === "all") {
+      setSelectedMonth(currentMonthKey);
+      return;
+    }
+    try {
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const d = new Date(year, month - 1, 1);
+      const prev = subMonths(d, 1);
+      setSelectedMonth(format(prev, "yyyy-MM"));
+    } catch {
+      setSelectedMonth(currentMonthKey);
+    }
+  };
+
+  const handleNextMonth = () => {
+    triggerHaptic("light");
+    if (selectedMonth === "all") {
+      setSelectedMonth(currentMonthKey);
+      return;
+    }
+    try {
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const d = new Date(year, month - 1, 1);
+      const next = addMonths(d, 1);
+      setSelectedMonth(format(next, "yyyy-MM"));
+    } catch {
+      setSelectedMonth(currentMonthKey);
+    }
+  };
+
+  // Calculate scores across the 4 Pillars strictly for field Musyrif (Wadir, Kaur KIS, Pamong, Koordinator Musyrif are excluded)
+  const activeMusyrifList = musyrifList.filter(m => isFieldMusyrif(m));
+  const now = new Date();
+
+  const leaderboardData = useMemo(() => {
+    return activeMusyrifList.map(m => {
+      // 1. Shalat Fardhu Score (Subuh & Maghrib)
+      let hadirCount = 0;
+      let izinCount = 0;
+      let sakitCount = 0;
+      let alfaCount = 0;
+      let subuhCount = 0;
+      let maghribCount = 0;
+
+      Object.entries(records).forEach(([_, rec]) => {
+        if (rec.musyrifId === m.id) {
+          // Date Filter for selected month
+          if (selectedMonth !== "all" && !rec.date.startsWith(selectedMonth)) {
+            return;
           }
-        });
-      }
+
+          const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now);
+          const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now);
+
+          if (subSt === "hadir") { hadirCount++; subuhCount++; }
+          else if (subSt === "izin") izinCount++;
+          else if (subSt === "sakit") sakitCount++;
+          else if (subSt === "alfa") alfaCount++;
+
+          if (magSt === "hadir") { hadirCount++; maghribCount++; }
+          else if (magSt === "izin") izinCount++;
+          else if (magSt === "sakit") sakitCount++;
+          else if (magSt === "alfa") alfaCount++;
+        }
+      });
+
+      const sholatScore = Math.max(0, hadirCount * 10 - alfaCount * 15);
+
+      // 2. Logbook Harian Score & Pengasuhan Khusus
+      let logbookTasksDone = 0;
+      const musyrifLogbooks = logbookData[m.id] || {};
+      Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
+        if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
+        if (dt >= "2026-08-18") {
+          LOGBOOK_TASKS.forEach(t => {
+            if (dayEntry[t.key]?.done) logbookTasksDone++;
+          });
+        }
+      });
+
+      let pengasuhanPoints = 0;
+      let pengasuhanCount = 0;
+      pengasuhanList.forEach(p => {
+        if (p.musyrifId === m.id) {
+          if (selectedMonth !== "all" && !p.date.startsWith(selectedMonth)) return;
+          if (p.date >= "2026-08-18") {
+            pengasuhanCount++;
+            pengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+          }
+        }
+      });
+
+      const logbookScore = (logbookTasksDone * 5) + pengasuhanPoints;
+
+      // 3. Agenda Asrama & Pertemuan Score (Kegiatan Asrama + Logbook Dinamis Rapat)
+      let kegiatanDone = 0;
+      kegiatanRecords.forEach(keg => {
+        if (selectedMonth !== "all" && !keg.date.startsWith(selectedMonth)) return;
+        if (keg.attendees?.[m.id] === "hadir") kegiatanDone++;
+      });
+      // Dynamic agenda meeting tasks from logbook
+      Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
+        if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
+        if (dt >= "2026-08-18") {
+          Object.entries(dayEntry).forEach(([key, task]) => {
+            if (key.startsWith("agenda_") && ((task as any)?.done === true || (task as any)?.done === "TRUE" || (task as any)?.done === "true" || (task as any)?.photoUrl || (task as any)?.completedAt)) {
+              kegiatanDone++;
+            }
+          });
+        }
+      });
+      const kegiatanScore = kegiatanDone * 15;
+
+      // 4. Mutaba'ah Yaumiyah Score
+      let mutabaahPoints = 0;
+      const musyrifMutabaah = mutabaahData[m.id] || {};
+      Object.entries(musyrifMutabaah).forEach(([dt, dayEntry]) => {
+        if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
+        if (dt >= "2026-08-18") {
+          if (dayEntry.tahajjud) mutabaahPoints += 5;
+          if (dayEntry.dhuha) mutabaahPoints += 3;
+          if (dayEntry.rawatib) mutabaahPoints += 3;
+          if (dayEntry.tilawahPages > 0) mutabaahPoints += Math.min(dayEntry.tilawahPages, 10);
+          if (dayEntry.dzikirPagi) mutabaahPoints += 2;
+          if (dayEntry.dzikirPetang) mutabaahPoints += 2;
+          if (dayEntry.puasaSunnah) mutabaahPoints += 10;
+          if (dayEntry.muthalaah) mutabaahPoints += 5;
+        }
+      });
+
+      const totalScore = sholatScore + logbookScore + kegiatanScore + mutabaahPoints;
+
+      return {
+        ...m,
+        score: totalScore,
+        sholatScore,
+        logbookScore,
+        pengasuhanCount,
+        pengasuhanPoints,
+        kegiatanScore,
+        mutabaahScore: mutabaahPoints,
+        hadirCount,
+        subuhCount,
+        maghribCount,
+        alfaCount,
+        logbookTasksDone,
+        kegiatanDone
+      };
+    })
+    .filter(m => selectedAsrama === "all" || m.asrama === selectedAsrama)
+    .sort((a, b) => {
+      if (selectedPillar === "sholat") return b.sholatScore - a.sholatScore;
+      if (selectedPillar === "logbook") return b.logbookScore - a.logbookScore;
+      if (selectedPillar === "kegiatan") return b.kegiatanScore - a.kegiatanScore;
+      if (selectedPillar === "mutabaah") return b.mutabaahScore - a.mutabaahScore;
+      return b.score - a.score || b.hadirCount - a.hadirCount;
     });
-    const kegiatanScore = kegiatanDone * 15;
-
-    // 4. Mutaba'ah Yaumiyah Score (Hanya dihitung serentak mulai 18 Agustus 2026)
-    let mutabaahPoints = 0;
-    const musyrifMutabaah = mutabaahData[m.id] || {};
-    Object.entries(musyrifMutabaah).forEach(([dt, dayEntry]) => {
-      if (dt >= "2026-08-18") {
-        if (dayEntry.tahajjud) mutabaahPoints += 5;
-        if (dayEntry.dhuha) mutabaahPoints += 3;
-        if (dayEntry.rawatib) mutabaahPoints += 3;
-        if (dayEntry.tilawahPages > 0) mutabaahPoints += Math.min(dayEntry.tilawahPages, 10);
-        if (dayEntry.dzikirPagi) mutabaahPoints += 2;
-        if (dayEntry.dzikirPetang) mutabaahPoints += 2;
-        if (dayEntry.puasaSunnah) mutabaahPoints += 10;
-        if (dayEntry.muthalaah) mutabaahPoints += 5;
-      }
-    });
-
-    const totalScore = sholatScore + logbookScore + kegiatanScore + mutabaahPoints;
-
-    return {
-      ...m,
-      score: totalScore,
-      sholatScore,
-      logbookScore,
-      pengasuhanCount,
-      pengasuhanPoints,
-      kegiatanScore,
-      mutabaahScore: mutabaahPoints,
-      hadirCount,
-      subuhCount,
-      maghribCount,
-      alfaCount,
-      logbookTasksDone,
-      kegiatanDone
-    };
-  })
-  .filter(m => selectedAsrama === "all" || m.asrama === selectedAsrama)
-  .sort((a, b) => {
-    if (selectedPillar === "sholat") return b.sholatScore - a.sholatScore;
-    if (selectedPillar === "logbook") return b.logbookScore - a.logbookScore;
-    if (selectedPillar === "kegiatan") return b.kegiatanScore - a.kegiatanScore;
-    if (selectedPillar === "mutabaah") return b.mutabaahScore - a.mutabaahScore;
-    return b.score - a.score || b.hadirCount - a.hadirCount;
-  });
+  }, [activeMusyrifList, records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, selectedMonth, selectedAsrama, selectedPillar]);
 
   const top3 = leaderboardData.slice(0, 3);
   const rest = leaderboardData.slice(3);
+  const isCurrentMonthActive = selectedMonth === currentMonthKey;
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
@@ -195,7 +310,7 @@ export function LeaderboardModal({
           </button>
           <div>
             <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
-              Papan Peringkat & Musyrif Teladan
+              Papan Peringkat Musyrif
             </h2>
             <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
               Presensi Shalat, Jurnal Logbook, Agenda Asrama, & Mutaba'ah
@@ -204,29 +319,97 @@ export function LeaderboardModal({
         </div>
       </div>
 
-      {/* 4 Pillars Filter */}
-      <div className="bg-white rounded-2xl p-2 sm:p-3 border border-slate-200/70 shadow-xs flex items-center gap-1.5 overflow-x-auto">
-        {[
-          { id: "all", label: "Total 4 Pilar", icon: <Trophy className="w-3.5 h-3.5" /> },
-          { id: "sholat", label: "Shalat Fardhu", icon: <Sun className="w-3.5 h-3.5" /> },
-          { id: "logbook", label: "Logbook Tugas", icon: <ClipboardList className="w-3.5 h-3.5" /> },
-          { id: "kegiatan", label: "Agenda Asrama", icon: <Building2 className="w-3.5 h-3.5" /> },
-          { id: "mutabaah", label: "Mutaba'ah", icon: <Sparkles className="w-3.5 h-3.5" /> }
-        ].map(p => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setSelectedPillar(p.id as any)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              selectedPillar === p.id 
-                ? "bg-[#0C81E4] text-white shadow-xs" 
-                : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
-            }`}
-          >
-            {p.icon}
-            <span>{p.label}</span>
-          </button>
-        ))}
+      {/* Unified Period & 4 Pillars Filter Bar */}
+      <div className="bg-white rounded-2xl p-2.5 sm:p-3 border border-slate-200/70 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        {/* Month Selector */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              title="Bulan Sebelumnya"
+              className="w-7 h-7 rounded-lg hover:bg-white hover:shadow-xs flex items-center justify-center text-slate-600 transition-all active:scale-95 shrink-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="relative flex items-center">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600 absolute left-2 pointer-events-none" />
+              <select
+                value={selectedMonth}
+                onChange={e => {
+                  triggerHaptic("light");
+                  setSelectedMonth(e.target.value);
+                }}
+                aria-label="Pilih Periode Bulan"
+                className="text-xs font-bold bg-transparent pl-7 pr-4 py-1 text-slate-800 focus:outline-hidden cursor-pointer text-center"
+              >
+                <optgroup label="Periode Bulanan">
+                  {availableMonths.map(m => (
+                    <option key={m} value={m}>
+                      {getMonthLabel(m)}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Lainnya">
+                  <option value="all">🌐 Semua Periode (Akumulasi Total)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              title="Bulan Berikutnya"
+              className="w-7 h-7 rounded-lg hover:bg-white hover:shadow-xs flex items-center justify-center text-slate-600 transition-all active:scale-95 shrink-0"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {!isCurrentMonthActive && selectedMonth !== "all" && (
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                setSelectedMonth(currentMonthKey);
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1 transition-all active:scale-95 shrink-0"
+              title="Kembali ke Bulan Berjalan"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span className="hidden sm:inline">Bulan Ini</span>
+            </button>
+          )}
+        </div>
+
+        {/* 4 Pillars Filter */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 sm:pb-0">
+          {[
+            { id: "all", label: "Total 4 Pilar", icon: <Trophy className="w-3.5 h-3.5" /> },
+            { id: "sholat", label: "Shalat Fardhu", icon: <Sun className="w-3.5 h-3.5" /> },
+            { id: "logbook", label: "Logbook Tugas", icon: <ClipboardList className="w-3.5 h-3.5" /> },
+            { id: "kegiatan", label: "Agenda Asrama", icon: <Building2 className="w-3.5 h-3.5" /> },
+            { id: "mutabaah", label: "Mutaba'ah", icon: <Sparkles className="w-3.5 h-3.5" /> }
+          ].map(p => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                setSelectedPillar(p.id as any);
+              }}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                selectedPillar === p.id 
+                  ? "bg-[#0C81E4] text-white shadow-xs" 
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              {p.icon}
+              <span>{p.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Podium Top 3 */}
@@ -307,7 +490,9 @@ export function LeaderboardModal({
       {/* Rest Leaderboard List */}
       <div className="space-y-2 pb-6">
         <div className="flex items-center justify-between px-1">
-          <h4 className="text-xs font-bold text-slate-700">Daftar Peringkat Musyrif</h4>
+          <h4 className="text-xs font-bold text-slate-700">
+            Daftar Peringkat Musyrif • {getMonthLabel(selectedMonth)}
+          </h4>
           <span className="text-[11px] text-slate-400">Klik baris untuk rincian skor</span>
         </div>
         {rest.map((m, idx) => (
@@ -364,9 +549,12 @@ export function LeaderboardModal({
               </button>
             </div>
 
-            {/* Total Points Badge */}
+            {/* Total Points Badge & Selected Period */}
             <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3.5 flex items-center justify-between">
               <div>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                  Periode {getMonthLabel(selectedMonth)}
+                </span>
                 <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Total Skor 4 Pilar</span>
                 <p className="text-xl font-extrabold text-emerald-900 font-mono leading-none mt-1">{selectedDetailMusyrif.score} Poin</p>
               </div>

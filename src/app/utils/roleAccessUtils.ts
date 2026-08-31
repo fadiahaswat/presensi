@@ -18,11 +18,44 @@ export function hasFullAccess(user: AuthUser): boolean {
 }
 
 // Check if user is field musyrif (not pamong, koordinator, kaur, or wadir4)
-export function isFieldMusyrif(user: { role?: Role | string }): boolean {
-  return user.role !== "pamong" && 
-         user.role !== "koordinator_musyrif" && 
-         user.role !== "kaur_kis" && 
-         user.role !== "wadir4";
+export function isFieldMusyrif(user: { id?: string; role?: Role | string; name?: string }): boolean {
+  if (!user) return false;
+  const role = (user.role || "").toLowerCase();
+  const id = (user.id || "").toLowerCase();
+  const name = (user.name || "").toLowerCase();
+
+  if (
+    role === "pamong" ||
+    role === "koordinator_musyrif" ||
+    role === "kaur_kis" ||
+    role === "wadir4" ||
+    role === "wadir" ||
+    role === "kaur" ||
+    role === "admin"
+  ) {
+    return false;
+  }
+
+  if (
+    id === "wadir4" ||
+    id === "wadir" ||
+    id === "kaurkis" ||
+    id === "kaur_kis" ||
+    id === "k1" ||
+    id === "admin"
+  ) {
+    return false;
+  }
+
+  if (
+    name.includes("ahmad salim") ||
+    name.includes("muhammad shaleh") ||
+    name.includes("andi aqillah")
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 // Check if user can manage/record Kegiatan Asrama (koordinator_gedung, pamong, koordinator_musyrif, kaur_kis, wadir4)

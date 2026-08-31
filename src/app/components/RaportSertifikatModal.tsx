@@ -13,6 +13,7 @@ import { LogbookStorage, LOGBOOK_TASKS } from "./JurnalLogbookModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
 import { MutabaahStorage } from "./MutabaahYaumiyahModal";
 import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
+import { isFieldMusyrif } from "../utils/roleAccessUtils";
 
 interface Musyrif {
   id: string;
@@ -55,11 +56,55 @@ export function RaportSertifikatModal({
   pengasuhanList = [],
   isPage = false
 }: RaportSertifikatModalProps) {
-  const activeMusyrifList = musyrifList.filter(m => m.role !== "pamong" && m.role !== "koordinator_musyrif");
+  const activeMusyrifList = musyrifList.filter(m => isFieldMusyrif(m));
   const [activeTab, setActiveTab] = useState<"raport" | "sertifikat">("raport");
+  const currentMonthKey = format(new Date(), "yyyy-MM");
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
   const [selectedAsramaFilter, setSelectedAsramaFilter] = useState<string>("all");
   const [selectedMusyrifId, setSelectedMusyrifId] = useState<string>(activeMusyrifList[0]?.id || musyrifList[0]?.id || "");
   const [periodName, setPeriodName] = useState<string>(`Bulan ${format(new Date(), "MMMM yyyy", { locale: id })}`);
+
+  // Discover available months
+  const availableMonths = React.useMemo(() => {
+    const monthSet = new Set<string>();
+    monthSet.add(currentMonthKey);
+    Object.values(records).forEach(r => {
+      if (r?.date && r.date.length >= 7) monthSet.add(r.date.substring(0, 7));
+    });
+    Object.values(logbookData).forEach(userMap => {
+      if (userMap) Object.keys(userMap).forEach(d => { if (d.length >= 7) monthSet.add(d.substring(0, 7)); });
+    });
+    kegiatanRecords.forEach(k => {
+      if (k?.date && k.date.length >= 7) monthSet.add(k.date.substring(0, 7));
+    });
+    Object.values(mutabaahData).forEach(userMap => {
+      if (userMap) Object.keys(userMap).forEach(d => { if (d.length >= 7) monthSet.add(d.substring(0, 7)); });
+    });
+    pengasuhanList.forEach(p => {
+      if (p?.date && p.date.length >= 7) monthSet.add(p.date.substring(0, 7));
+    });
+    return Array.from(monthSet).filter(m => /^\d{4}-\d{2}$/.test(m)).sort((a, b) => b.localeCompare(a));
+  }, [records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, currentMonthKey]);
+
+  const getMonthLabel = (mKey: string) => {
+    if (mKey === "all") return "Semua Periode (Akumulasi)";
+    try {
+      const [year, month] = mKey.split("-").map(Number);
+      const d = new Date(year, month - 1, 1);
+      return format(d, "MMMM yyyy", { locale: id });
+    } catch {
+      return mKey;
+    }
+  };
+
+  const handleMonthChange = (mKey: string) => {
+    setSelectedMonth(mKey);
+    if (mKey === "all") {
+      setPeriodName("Semua Periode (Akumulasi)");
+    } else {
+      setPeriodName(`Bulan ${getMonthLabel(mKey)}`);
+    }
+  };
 
   // Filter musyrif list by selected asrama
   const filteredMusyrifList = activeMusyrifList.filter(m => 
@@ -79,6 +124,7 @@ export function RaportSertifikatModal({
   if (musyrif) {
     Object.values(records).forEach(rec => {
       if (rec.musyrifId === musyrif.id) {
+        if (selectedMonth !== "all" && !rec.date.startsWith(selectedMonth)) return;
         if (rec.subuh === "hadir") totalSubuhHadir++;
         else if (rec.subuh === "izin") totalSubuhIzin++;
         else if (rec.subuh === "sakit") totalSubuhSakit++;
@@ -97,10 +143,11 @@ export function RaportSertifikatModal({
   const totalHadir = totalSubuhHadir + totalMaghribHadir;
   const attendanceRate = totalSlots > 0 ? Math.round((totalHadir / totalSlots) * 100) : 0;
 
-  // 2. Logbook & Pengasuhan Khusus Statistics (Hanya dihitung serentak mulai 18 Agustus 2026)
+  // 2. Logbook & Pengasuhan Khusus Statistics
   let totalLogbookDone = 0;
   const mLogbook = musyrif ? (logbookData[musyrif.id] || {}) : {};
   Object.entries(mLogbook).forEach(([dt, entry]) => {
+    if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
     if (dt >= "2026-08-18") {
       LOGBOOK_TASKS.forEach(t => {
         if (entry[t.key]?.done) totalLogbookDone++;
@@ -112,21 +159,26 @@ export function RaportSertifikatModal({
   let totalPengasuhanPoints = 0;
   if (musyrif) {
     pengasuhanList.forEach(p => {
-      if (p.musyrifId === musyrif.id && p.date >= "2026-08-18") {
-        totalPengasuhanDone++;
-        totalPengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+      if (p.musyrifId === musyrif.id) {
+        if (selectedMonth !== "all" && !p.date.startsWith(selectedMonth)) return;
+        if (p.date >= "2026-08-18") {
+          totalPengasuhanDone++;
+          totalPengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+        }
       }
     });
   }
 
-  // 3. Agenda Khusus Asrama & Pertemuan Statistics (Kegiatan Asrama + Logbook Dinamis Rapat)
+  // 3. Agenda Khusus Asrama & Pertemuan Statistics
   let totalKegiatanHadir = 0;
   if (musyrif) {
     kegiatanRecords.forEach(k => {
+      if (selectedMonth !== "all" && !k.date.startsWith(selectedMonth)) return;
       if (k.attendees?.[musyrif.id] === "hadir") totalKegiatanHadir++;
     });
     // Dynamic agenda meeting tasks from logbook
     Object.entries(mLogbook).forEach(([dt, entry]) => {
+      if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
       if (dt >= "2026-08-18") {
         Object.entries(entry).forEach(([key, task]) => {
           if (key.startsWith("agenda_") && ((task as any)?.done === true || (task as any)?.done === "TRUE" || (task as any)?.done === "true" || (task as any)?.photoUrl || (task as any)?.completedAt)) {
@@ -137,10 +189,11 @@ export function RaportSertifikatModal({
     });
   }
 
-  // 4. Mutaba'ah Sunnah Statistics (Hanya dihitung serentak mulai 18 Agustus 2026)
+  // 4. Mutaba'ah Sunnah Statistics
   let totalMutabaahDone = 0;
   const mMutabaah = musyrif ? (mutabaahData[musyrif.id] || {}) : {};
   Object.entries(mMutabaah).forEach(([dt, entry]) => {
+    if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
     if (dt >= "2026-08-18") {
       if (entry.tahajjud) totalMutabaahDone++;
       if (entry.dhuha) totalMutabaahDone++;
@@ -216,11 +269,35 @@ export function RaportSertifikatModal({
         </div>
       </div>
 
-      {/* Musyrif & Tab Switcher Bar */}
+      {/* Musyrif, Periode, & Tab Switcher Bar */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-xs space-y-3 no-print">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          {/* Periode Bulan Filter */}
+          <div className="sm:col-span-3">
+            <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Periode Evaluasi
+            </label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => handleMonthChange(e.target.value)}
+              aria-label="Pilih Periode Bulan Raport"
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
+            >
+              <optgroup label="Periode Bulanan">
+                {availableMonths.map(m => (
+                  <option key={m} value={m}>
+                    {getMonthLabel(m)}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Lainnya">
+                <option value="all">🌐 Semua Periode (Akumulasi Total)</option>
+              </optgroup>
+            </select>
+          </div>
+
           {/* Asrama Filter */}
-          <div className="sm:col-span-4">
+          <div className="sm:col-span-3">
             <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
               <Building2 className="w-3.5 h-3.5 text-emerald-600" /> Filter Asrama
             </label>
@@ -244,7 +321,7 @@ export function RaportSertifikatModal({
           </div>
 
           {/* Musyrif Selector */}
-          <div className="sm:col-span-5">
+          <div className="sm:col-span-4">
             <label className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
               <User className="w-3.5 h-3.5 text-emerald-600" /> Pilih Musyrif ({filteredMusyrifList.length})
             </label>
@@ -260,7 +337,7 @@ export function RaportSertifikatModal({
           </div>
 
           {/* Tab Switcher */}
-          <div className="sm:col-span-3 flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          <div className="sm:col-span-2 flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveTab("raport")}
