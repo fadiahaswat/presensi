@@ -2050,8 +2050,9 @@ function PageDashboard({
               let mutDoneCount = 0;
               if (myMut) {
                 if (myMut.tahajjud) mutDoneCount++;
+                if (myMut.witir || myMut.rawatib) mutDoneCount++;
                 if (myMut.dhuha) mutDoneCount++;
-                if (myMut.rawatib) mutDoneCount++;
+                if (myMut.infaq) mutDoneCount++;
                 if (myMut.dzikirPagi) mutDoneCount++;
                 if (myMut.dzikirPetang) mutDoneCount++;
                 if (myMut.puasaSunnah) mutDoneCount++;
@@ -4353,14 +4354,15 @@ function PageRiwayat({
     mutabaahDatesThisMonth.forEach(d => {
       const m = musyrifMutabaah[d];
       if (m) {
-        if (m.tahajjud) { totalPoints += 5; totalTahajjud++; }
-        if (m.dhuha) totalPoints += 3;
-        if (m.rawatib) totalPoints += 3;
-        if (m.tilawahPages > 0) { totalTilawah += m.tilawahPages; totalPoints += Math.min(m.tilawahPages, 10); }
-        if (m.dzikirPagi) totalPoints += 2;
-        if (m.dzikirPetang) totalPoints += 2;
-        if (m.puasaSunnah) { totalPoints += 10; totalPuasa++; }
-        if (m.muthalaah) totalPoints += 5;
+        if (m.tahajjud) { totalPoints += 3; totalTahajjud++; }
+        if (m.witir || m.rawatib) totalPoints += 2;
+        if (m.dhuha) totalPoints += 2;
+        if (m.infaq) totalPoints += 1;
+        if (m.tilawahPages > 0) { totalTilawah += m.tilawahPages; totalPoints += Math.min(m.tilawahPages, 3); }
+        if (m.dzikirPagi) totalPoints += 1;
+        if (m.dzikirPetang) totalPoints += 1;
+        if (m.puasaSunnah) { totalPoints += 5; totalPuasa++; }
+        if (m.muthalaah) totalPoints += 2;
       }
     });
 
@@ -5703,8 +5705,9 @@ function PageRiwayat({
 
                 let completedCount = 0;
                 if (mEntry.tahajjud) completedCount++;
+                if (mEntry.witir || mEntry.rawatib) completedCount++;
                 if (mEntry.dhuha) completedCount++;
-                if (mEntry.rawatib) completedCount++;
+                if (mEntry.infaq) completedCount++;
                 if (mEntry.tilawahPages > 0) completedCount++;
                 if (mEntry.dzikirPagi) completedCount++;
                 if (mEntry.dzikirPetang) completedCount++;
@@ -5740,6 +5743,16 @@ function PageRiwayat({
                       </div>
 
                       <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
+                        (mEntry.witir || mEntry.rawatib) ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                      }`}>
+                        <span className="text-base">✨</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Shalat Witir</p>
+                          <p className="text-[10px] opacity-75">{(mEntry.witir || mEntry.rawatib) ? "Dikerjakan" : "Tidak"}</p>
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
                         mEntry.dhuha ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
                       }`}>
                         <span className="text-base">☀️</span>
@@ -5750,12 +5763,12 @@ function PageRiwayat({
                       </div>
 
                       <div className={`p-2.5 rounded-2xl border flex items-center gap-2 ${
-                        mEntry.rawatib ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
+                        mEntry.infaq ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" : "bg-slate-50 border-slate-200/60 text-slate-400"
                       }`}>
-                        <span className="text-base">🕌</span>
+                        <span className="text-base">🪙</span>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold truncate">Rawatib</p>
-                          <p className="text-[10px] opacity-75">{mEntry.rawatib ? "Dikerjakan" : "Tidak"}</p>
+                          <p className="text-xs font-bold truncate">Infaq</p>
+                          <p className="text-[10px] opacity-75">{mEntry.infaq ? "Sedekah" : "Tidak"}</p>
                         </div>
                       </div>
 
@@ -7218,7 +7231,7 @@ const DEFAULT_ALL_PERSONNEL: Musyrif[] = [
 ];
 
 const DEPRECATED_PERSONNEL_IDS = new Set([
-  "m8b", "m50", "k2", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6",
+  "m2", "m6", "m8b", "m50", "k2", "p5a", "p5b", "g1", "g2", "g3", "g4", "g5", "g6",
   "m_1787054333371",
   "m_1787054789315",
   "m_1787055011646",
@@ -7238,6 +7251,10 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
     if (
       DEPRECATED_PERSONNEL_IDS.has(p.id) ||
       nameLow.includes("naufal muzakki") ||
+      nameLow.includes("afif nashrul") ||
+      nameLow.includes("arif rahman") ||
+      emailLow.includes("afifnashrul") ||
+      emailLow.includes("nitikan3321@gmail.com") ||
       isTestItem ||
       (p.id.startsWith("m_") && (p.role === "pamong" || p.role === "koordinator_musyrif" || !p.name || p.name.trim() === "" || isTestItem)) ||
       (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role))
@@ -10348,6 +10365,7 @@ export default function App() {
                 kegiatanRecords={kegiatanRecords}
                 mutabaahData={mutabaahData}
                 pengasuhanList={pengasuhanKhususList}
+                agendaList={agendaRapatList}
                 onSelectMusyrif={(mid, mode) => {
                   setSelectedMusyrifId(mid);
                   if (mode === "raport" || !authUser) {
@@ -10369,6 +10387,8 @@ export default function App() {
                 logbookData={logbookData}
                 kegiatanRecords={kegiatanRecords}
                 mutabaahData={mutabaahData}
+                pengasuhanList={pengasuhanKhususList}
+                agendaList={agendaRapatList}
               />
             </motion.div>
           )}
@@ -10722,6 +10742,7 @@ export default function App() {
             kegiatanRecords={kegiatanRecords}
             mutabaahData={mutabaahData}
             pengasuhanList={pengasuhanKhususList}
+            agendaList={agendaRapatList}
             onSelectMusyrif={(mid, mode) => {
               setSelectedMusyrifId(mid);
               setShowLeaderboard(false);
@@ -10746,6 +10767,7 @@ export default function App() {
             kegiatanRecords={kegiatanRecords}
             mutabaahData={mutabaahData}
             pengasuhanList={pengasuhanKhususList}
+            agendaList={agendaRapatList}
           />
         )}
       </AnimatePresence>

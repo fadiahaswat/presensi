@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   X, Check, Flame, Award, BookOpen,
   Sparkles, Calendar, TrendingUp, Sun, Moon, Heart, ChevronRight, User, ShieldCheck, Eye, CheckCircle2,
-  ChevronLeft, Sunrise, Sunset, BookMarked, Lock, ClipboardList, Search, ChevronDown
+  ChevronLeft, Sunrise, Sunset, BookMarked, Lock, ClipboardList, Search, ChevronDown, HandHeart, Coins
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -12,8 +12,10 @@ import { appAlert, appConfirm } from "../utils/customDialog";
 
 export interface MutabaahEntry {
   tahajjud: boolean;
+  witir?: boolean;
   dhuha: boolean;
-  rawatib: boolean;
+  rawatib?: boolean; // legacy compatibility
+  infaq?: boolean;
   tilawahPages: number;
   dzikirPagi: boolean;
   dzikirPetang: boolean;
@@ -46,8 +48,9 @@ interface MutabaahYaumiyahModalProps {
 
 const DEFAULT_ENTRY: MutabaahEntry = {
   tahajjud: false,
+  witir: false,
   dhuha: false,
-  rawatib: false,
+  infaq: false,
   tilawahPages: 0,
   dzikirPagi: false,
   dzikirPetang: false,
@@ -72,11 +75,7 @@ export function MutabaahYaumiyahModal({
   const isPamong = authUser?.role === "pamong";
   const isAdmin = authUser?.role === "admin";
   const isSpecialBypassUser = Boolean(
-    authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id") ||
-    authUser?.email?.toLowerCase().includes("afifnashrul") ||
-    authUser?.name?.toLowerCase().includes("afif nashrul") ||
-    authUser?.musyrifId === "m2" ||
-    authUser?.id === "m2"
+    authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id")
   );
   const isCanBypass = isPamong || isKoordinator || isAdmin || isSpecialBypassUser;
   const isMusyrifUser = authUser?.role === "musyrif" || authUser?.role === "koordinator_gedung";
@@ -175,6 +174,110 @@ export function MutabaahYaumiyahModal({
     setEntry(existing);
   };
 
+  /**
+   * Validasi waktu pelaksanaan ibadah Mutaba'ah (WIB):
+   * - Tahajjud: 02:00 s.d 04:30 WIB (sepertiga malam akhir)
+   * - Witir: 19:30 s.d 04:30 WIB (ba'da Isya s.d sebelum Subuh)
+   * - Dhuha: 06:15 s.d 11:30 WIB (waktu Dhuha syuruk s.d sebelum Dzuhur)
+   * - Dzikir Pagi: 04:30 s.d 10:00 WIB (ba'da Subuh s.d pagi)
+   * - Dzikir Petang: 15:30 s.d 19:00 WIB (ba'da Ashar s.d Maghrib)
+   * - Infaq: Bebas sepanjang hari (00:00 - 23:59 WIB)
+   * - Puasa Sunnah: Bebas sepanjang hari (00:00 - 23:59 WIB)
+   * - Muthala'ah: Bebas sepanjang hari (00:00 - 23:59 WIB)
+   * - Tilawah: Bebas sepanjang hari (00:00 - 23:59 WIB)
+   */
+  const getAmalanTimeStatus = (field: keyof Omit<MutabaahEntry, "tilawahPages" | "updatedAt"> | "tilawah") => {
+    const isToday = selectedDate === todayStr;
+    const isPastDate = selectedDate < todayStr;
+    const isFutureDate = selectedDate > todayStr;
+
+    if (isPastDate) {
+      return { status: "past" as const, isLocked: !isCanBypass, message: "Tanggal lampau terkunci", timeWindow: "" };
+    }
+    if (isFutureDate) {
+      return { status: "future" as const, isLocked: !isCanBypass, message: "Tanggal belum tiba", timeWindow: "" };
+    }
+
+    // Untuk hari ini, hitung menit berjalan
+    const now = new Date();
+    const curMinutes = now.getHours() * 60 + now.getMinutes();
+
+    switch (field) {
+      case "tahajjud": {
+        // 02:00 (120) s.d 04:30 (270)
+        const start = 2 * 60; // 02:00
+        const end = 4 * 60 + 30; // 04:30
+        const isOpen = curMinutes >= start && curMinutes <= end;
+        return {
+          status: (isOpen ? "active" : curMinutes < start ? "upcoming" : "passed") as const,
+          isLocked: !isOpen && !isCanBypass,
+          message: isOpen ? "Waktu Aktif" : curMinutes < start ? "Buka Pukul 02:00 WIB" : "Waktu Telah Lewat (02:00 – 04:30 WIB)",
+          timeWindow: "02:00 – 04:30 WIB"
+        };
+      }
+      case "witir": {
+        // 19:30 (1170) s.d 23:59 ATAU 00:00 s.d 04:30 (270)
+        const isMalam = curMinutes >= (19 * 60 + 30); // 19:30+
+        const isDiniHari = curMinutes <= (4 * 60 + 30); // <= 04:30
+        const isOpen = isMalam || isDiniHari;
+        return {
+          status: (isOpen ? "active" : "upcoming") as const,
+          isLocked: !isOpen && !isCanBypass,
+          message: isOpen ? "Waktu Aktif" : "Buka Ba'da Isya (19:30 – 04:30 WIB)",
+          timeWindow: "19:30 – 04:30 WIB"
+        };
+      }
+      case "dhuha": {
+        // 06:15 (375) s.d 11:30 (690)
+        const start = 6 * 60 + 15; // 06:15
+        const end = 11 * 60 + 30; // 11:30
+        const isOpen = curMinutes >= start && curMinutes <= end;
+        return {
+          status: (isOpen ? "active" : curMinutes < start ? "upcoming" : "passed") as const,
+          isLocked: !isOpen && !isCanBypass,
+          message: isOpen ? "Waktu Aktif" : curMinutes < start ? "Buka Pukul 06:15 WIB" : "Waktu Telah Lewat (06:15 – 11:30 WIB)",
+          timeWindow: "06:15 – 11:30 WIB"
+        };
+      }
+      case "dzikirPagi": {
+        // 04:30 (270) s.d 10:00 (600)
+        const start = 4 * 60 + 30;
+        const end = 10 * 60;
+        const isOpen = curMinutes >= start && curMinutes <= end;
+        return {
+          status: (isOpen ? "active" : curMinutes < start ? "upcoming" : "passed") as const,
+          isLocked: !isOpen && !isCanBypass,
+          message: isOpen ? "Waktu Aktif" : curMinutes < start ? "Buka Ba'da Subuh (04:30 WIB)" : "Waktu Telah Lewat (04:30 – 10:00 WIB)",
+          timeWindow: "04:30 – 10:00 WIB"
+        };
+      }
+      case "dzikirPetang": {
+        // 15:30 (930) s.d 19:00 (1140)
+        const start = 15 * 60 + 30;
+        const end = 19 * 60;
+        const isOpen = curMinutes >= start && curMinutes <= end;
+        return {
+          status: (isOpen ? "active" : curMinutes < start ? "upcoming" : "passed") as const,
+          isLocked: !isOpen && !isCanBypass,
+          message: isOpen ? "Waktu Aktif" : curMinutes < start ? "Buka Ba'da Ashar (15:30 WIB)" : "Waktu Telah Lewat (15:30 – 19:00 WIB)",
+          timeWindow: "15:30 – 19:00 WIB"
+        };
+      }
+      case "infaq":
+      case "puasaSunnah":
+      case "muthalaah":
+      case "tilawah":
+      default: {
+        return {
+          status: "active" as const,
+          isLocked: false,
+          message: "Sepanjang Hari",
+          timeWindow: "00:00 – 23:59 WIB"
+        };
+      }
+    }
+  };
+
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
     if (!canEdit) return;
     // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
@@ -182,6 +285,18 @@ export function MutabaahYaumiyahModal({
       appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
+
+    // Validasi waktu aktif untuk musyrif & koor gedung (kecuali supervisor bypass)
+    const timeStatus = getAmalanTimeStatus(field as any);
+    if (timeStatus.isLocked && !isCanBypass) {
+      appAlert(
+        `Amalan ini baru dapat diisi pada jam waktunya (${timeStatus.timeWindow}). ${timeStatus.message}.`,
+        "Belum Masuk Waktu",
+        "warning"
+      );
+      return;
+    }
+
     const updated: MutabaahEntry = {
       ...entry,
       [field]: !entry[field],
@@ -217,8 +332,9 @@ export function MutabaahYaumiyahModal({
     }
     const updated: MutabaahEntry = {
       tahajjud: done,
+      witir: done,
       dhuha: done,
-      rawatib: done,
+      infaq: done,
       tilawahPages: done ? (entry.tilawahPages || 2) : 0,
       dzikirPagi: done,
       dzikirPetang: done,
@@ -264,11 +380,12 @@ export function MutabaahYaumiyahModal({
     setTimeout(() => setSavedSuccess(false), 2000);
   };
 
-  // Metrics
+  // Metrics (8 Amalan Sunnah & Kebaikan)
   let completedCount = 0;
   if (entry.tahajjud) completedCount++;
+  if (entry.witir || entry.rawatib) completedCount++;
   if (entry.dhuha) completedCount++;
-  if (entry.rawatib) completedCount++;
+  if (entry.infaq) completedCount++;
   if (entry.tilawahPages > 0) completedCount++;
   if (entry.dzikirPagi) completedCount++;
   if (entry.dzikirPetang) completedCount++;
@@ -683,163 +800,233 @@ export function MutabaahYaumiyahModal({
       {/* Checklist Grid */}
       <div className="space-y-3 pb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Tahajjud */}
-          <button
-            type="button"
-            disabled={!canEdit || isDateLocked}
-            onClick={() => toggleField("tahajjud")}
-            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
-              entry.tahajjud ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                <Moon className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900">Qiyamul Lail & Witir</div>
-                <div className="text-xs text-slate-500 mt-0.5">Shalat Tahajjud di sepertiga malam</div>
-              </div>
-            </div>
-            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.tahajjud ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
-            }`}>
-              {entry.tahajjud ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
-            </div>
-          </button>
+          {/* 1. Tahajjud */}
+          {(() => {
+            const timeInfo = getAmalanTimeStatus("tahajjud");
+            const isItemLocked = isDateLocked || timeInfo.isLocked;
+            return (
+              <button
+                type="button"
+                disabled={!canEdit || isItemLocked}
+                onClick={() => toggleField("tahajjud")}
+                className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+                  isItemLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+                  entry.tahajjud ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                    <Moon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Tahajjud</span>
+                      {timeInfo.isLocked && !isDateLocked && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-md font-mono">
+                          02:00 – 04:30
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Shalat Tahajjud di sepertiga malam</div>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                  entry.tahajjud ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isItemLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+                }`}>
+                  {entry.tahajjud ? <Check className="w-4 h-4" /> : isItemLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+                </div>
+              </button>
+            );
+          })()}
 
-          {/* Dhuha */}
-          <button
-            type="button"
-            disabled={!canEdit || isDateLocked}
-            onClick={() => toggleField("dhuha")}
-            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
-              entry.dhuha ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                <Sun className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900">Shalat Dhuha</div>
-                <div className="text-xs text-slate-500 mt-0.5">Minimal 2 rakaat shalat dhuha</div>
-              </div>
-            </div>
-            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.dhuha ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
-            }`}>
-              {entry.dhuha ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
-            </div>
-          </button>
+          {/* 2. Shalat Witir */}
+          {(() => {
+            const timeInfo = getAmalanTimeStatus("witir");
+            const isItemLocked = isDateLocked || timeInfo.isLocked;
+            const isWitirDone = Boolean(entry.witir || entry.rawatib);
+            return (
+              <button
+                type="button"
+                disabled={!canEdit || isItemLocked}
+                onClick={() => toggleField("witir")}
+                className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+                  isItemLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+                  isWitirDone ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Shalat Witir</span>
+                      {timeInfo.isLocked && !isDateLocked && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-md font-mono">
+                          19:30 – 04:30
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Penutup shalat malam (1/3 rakaat)</div>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                  isWitirDone ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isItemLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+                }`}>
+                  {isWitirDone ? <Check className="w-4 h-4" /> : isItemLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+                </div>
+              </button>
+            );
+          })()}
 
-          {/* Rawatib */}
-          <button
-            type="button"
-            disabled={!canEdit || isDateLocked}
-            onClick={() => toggleField("rawatib")}
-            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
-              entry.rawatib ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900">Shalat Sunnah Rawatib</div>
-                <div className="text-xs text-slate-500 mt-0.5">Qabliyah & Ba'diyah fardhu</div>
-              </div>
-            </div>
-            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.rawatib ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
-            }`}>
-              {entry.rawatib ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
-            </div>
-          </button>
+          {/* 3. Dhuha */}
+          {(() => {
+            const timeInfo = getAmalanTimeStatus("dhuha");
+            const isItemLocked = isDateLocked || timeInfo.isLocked;
+            return (
+              <button
+                type="button"
+                disabled={!canEdit || isItemLocked}
+                onClick={() => toggleField("dhuha")}
+                className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+                  isItemLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+                  entry.dhuha ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <Sun className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Shalat Dhuha</span>
+                      {timeInfo.isLocked && !isDateLocked && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-md font-mono">
+                          06:15 – 11:30
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Minimal 2 rakaat shalat dhuha</div>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                  entry.dhuha ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isItemLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+                }`}>
+                  {entry.dhuha ? <Check className="w-4 h-4" /> : isItemLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+                </div>
+              </button>
+            );
+          })()}
 
-          {/* Muthala'ah */}
-          <button
-            type="button"
-            disabled={!canEdit || isDateLocked}
-            onClick={() => toggleField("muthalaah")}
-            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
-              entry.muthalaah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                <BookMarked className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900">Muthala'ah Kitab</div>
-                <div className="text-xs text-slate-500 mt-0.5">Membaca buku / kitab keislaman</div>
-              </div>
-            </div>
-            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.muthalaah ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
-            }`}>
-              {entry.muthalaah ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
-            </div>
-          </button>
+          {/* 4. Infaq & Sedekah Harian */}
+          {(() => {
+            return (
+              <button
+                type="button"
+                disabled={!canEdit || isDateLocked}
+                onClick={() => toggleField("infaq")}
+                className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+                  isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+                  entry.infaq ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                    <Coins className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900">Infaq</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Sedekah subuh / infaq harian</div>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                  entry.infaq ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+                }`}>
+                  {entry.infaq ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+                </div>
+              </button>
+            );
+          })()}
 
-          {/* Dzikir Pagi */}
-          <button
-            type="button"
-            disabled={!canEdit || isDateLocked}
-            onClick={() => toggleField("dzikirPagi")}
-            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
-              entry.dzikirPagi ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <Sunrise className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900">Dzikir Pagi</div>
-                <div className="text-xs text-slate-500 mt-0.5">Dzikir matsurat ba'da Subuh</div>
-              </div>
-            </div>
-            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.dzikirPagi ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
-            }`}>
-              {entry.dzikirPagi ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
-            </div>
-          </button>
+          {/* 5. Dzikir Pagi */}
+          {(() => {
+            const timeInfo = getAmalanTimeStatus("dzikirPagi");
+            const isItemLocked = isDateLocked || timeInfo.isLocked;
+            return (
+              <button
+                type="button"
+                disabled={!canEdit || isItemLocked}
+                onClick={() => toggleField("dzikirPagi")}
+                className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+                  isItemLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+                  entry.dzikirPagi ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <Sunrise className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Dzikir Pagi</span>
+                      {timeInfo.isLocked && !isDateLocked && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-md font-mono">
+                          04:30 – 10:00
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Dzikir matsurat ba'da Subuh</div>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                  entry.dzikirPagi ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isItemLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+                }`}>
+                  {entry.dzikirPagi ? <Check className="w-4 h-4" /> : isItemLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+                </div>
+              </button>
+            );
+          })()}
 
-          {/* Dzikir Petang */}
-          <button
-            type="button"
-            disabled={!canEdit || isDateLocked}
-            onClick={() => toggleField("dzikirPetang")}
-            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
-              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
-              entry.dzikirPetang ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                <Sunset className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-slate-900">Dzikir Petang</div>
-                <div className="text-xs text-slate-500 mt-0.5">Dzikir matsurat ba'da Ashar</div>
-              </div>
-            </div>
-            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
-              entry.dzikirPetang ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
-            }`}>
-              {entry.dzikirPetang ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
-            </div>
-          </button>
+          {/* 6. Dzikir Petang */}
+          {(() => {
+            const timeInfo = getAmalanTimeStatus("dzikirPetang");
+            const isItemLocked = isDateLocked || timeInfo.isLocked;
+            return (
+              <button
+                type="button"
+                disabled={!canEdit || isItemLocked}
+                onClick={() => toggleField("dzikirPetang")}
+                className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+                  isItemLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+                  entry.dzikirPetang ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                    <Sunset className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Dzikir Petang</span>
+                      {timeInfo.isLocked && !isDateLocked && (
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-md font-mono">
+                          15:30 – 19:00
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Dzikir matsurat ba'da Ashar</div>
+                  </div>
+                </div>
+                <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+                  entry.dzikirPetang ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isItemLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+                }`}>
+                  {entry.dzikirPetang ? <Check className="w-4 h-4" /> : isItemLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+                </div>
+              </button>
+            );
+          })()}
 
-          {/* Puasa Sunnah */}
+          {/* 7. Puasa Sunnah */}
           <button
             type="button"
             disabled={!canEdit || isDateLocked}
@@ -865,8 +1052,34 @@ export function MutabaahYaumiyahModal({
             </div>
           </button>
 
-          {/* Tilawah Target */}
-          <div className="p-4 rounded-3xl border border-slate-200/80 bg-white space-y-3 shadow-2xs">
+          {/* 8. Muthala'ah Kitab / Buku */}
+          <button
+            type="button"
+            disabled={!canEdit || isDateLocked}
+            onClick={() => toggleField("muthalaah")}
+            className={`p-4 rounded-3xl border text-left flex items-center justify-between transition-all shadow-2xs ${
+              isDateLocked ? "opacity-75 cursor-not-allowed bg-slate-50/70 border-slate-200" :
+              entry.muthalaah ? "border-emerald-500 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-200 active:scale-[0.98] cursor-pointer" : "border-slate-200/80 bg-white hover:border-slate-300 active:scale-[0.98] cursor-pointer"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                <BookMarked className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs sm:text-sm font-bold text-slate-900">Muthala'ah Kitab</div>
+                <div className="text-xs text-slate-500 mt-0.5">Membaca buku / kitab keislaman</div>
+              </div>
+            </div>
+            <div className={`w-7 h-7 rounded-xl border flex items-center justify-center transition-all shrink-0 ${
+              entry.muthalaah ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" : isDateLocked ? "border-slate-200 bg-slate-100 text-slate-300" : "border-slate-300 bg-slate-50"
+            }`}>
+              {entry.muthalaah ? <Check className="w-4 h-4" /> : isDateLocked ? <Lock className="w-3 h-3 text-slate-400" /> : null}
+            </div>
+          </button>
+
+          {/* 9. Tilawah Target */}
+          <div className="p-4 rounded-3xl border border-slate-200/80 bg-white space-y-3 shadow-2xs sm:col-span-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -874,7 +1087,7 @@ export function MutabaahYaumiyahModal({
                 </div>
                 <div>
                   <div className="text-xs sm:text-sm font-bold text-slate-900">Tilawah Al-Qur'an</div>
-                  <div className="text-xs text-slate-500 mt-0.5">Capaian membaca Al-Qur'an</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Capaian membaca Al-Qur'an harian</div>
                 </div>
               </div>
               <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl font-mono">
@@ -884,7 +1097,7 @@ export function MutabaahYaumiyahModal({
 
             {canEdit && (
               <div className="flex items-center gap-1.5 pt-0.5">
-                {[0, 2, 5, 10, 20].map(pages => (
+                {[0, 1, 2, 3, 5, 10].map(pages => (
                   <button
                     key={pages}
                     type="button"

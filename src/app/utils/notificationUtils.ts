@@ -303,13 +303,14 @@ export function getMutabaahNotificationDetails(mutabaah: any, asramaName: string
   }
 
   const completedActivities: { label: string; icon: string }[] = [];
-  if (mutabaah.tahajjud) completedActivities.push({ label: "Telah melaksanakan Qiyamul Lail", icon: "moon" });
+  if (mutabaah.tahajjud) completedActivities.push({ label: "Telah melaksanakan Tahajjud", icon: "moon" });
+  if (mutabaah.witir || mutabaah.rawatib) completedActivities.push({ label: "Telah shalat Witir", icon: "sparkles" });
   if (mutabaah.dzikirPagi) completedActivities.push({ label: "Telah membaca Dzikir Pagi", icon: "sunrise" });
   if (mutabaah.dhuha) completedActivities.push({ label: "Telah shalat Dhuha", icon: "sun" });
+  if (mutabaah.infaq) completedActivities.push({ label: "Telah berinfaq / sedekah", icon: "sparkles" });
   if (mutabaah.tilawahPages && Number(mutabaah.tilawahPages) > 0) {
     completedActivities.push({ label: `Telah tilawah Al-Qur'an (${mutabaah.tilawahPages} lembar)`, icon: "book" });
   }
-  if (mutabaah.rawatib) completedActivities.push({ label: "Telah shalat Sunnah Rawatib", icon: "sparkles" });
   if (mutabaah.dzikirPetang) completedActivities.push({ label: "Telah membaca Dzikir Petang", icon: "sunset" });
   if (mutabaah.puasaSunnah) completedActivities.push({ label: "Telah menunaikan Puasa Sunnah", icon: "sparkles" });
   if (mutabaah.muthalaah) completedActivities.push({ label: "Telah muthala'ah kitab", icon: "book" });

@@ -9,10 +9,11 @@ import mualliminLogo from "../muallimin-logo.png";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
-import { LogbookStorage, LOGBOOK_TASKS } from "./JurnalLogbookModal";
+import { LogbookStorage, isLogbookTaskCompleted } from "./JurnalLogbookModal";
 import { KegiatanRecord } from "./KegiatanAsramaModal";
 import { MutabaahStorage } from "./MutabaahYaumiyahModal";
 import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
+import { AgendaRapatRecord } from "../types/agendaRapat";
 import { isFieldMusyrif } from "../utils/roleAccessUtils";
 
 interface Musyrif {
@@ -43,7 +44,17 @@ interface RaportSertifikatModalProps {
   kegiatanRecords?: KegiatanRecord[];
   mutabaahData?: MutabaahStorage;
   pengasuhanList?: PengasuhanKhususRecord[];
+  agendaList?: AgendaRapatRecord[];
   isPage?: boolean;
+}
+
+function isTruthyFlag(val: any): boolean {
+  if (val === true || val === 1) return true;
+  if (typeof val === "string") {
+    const s = val.trim().toLowerCase();
+    return s === "true" || s === "1" || s === "yes" || s === "ya" || s === "hadir";
+  }
+  return false;
 }
 
 export function RaportSertifikatModal({
@@ -54,6 +65,7 @@ export function RaportSertifikatModal({
   kegiatanRecords = [],
   mutabaahData = {},
   pengasuhanList = [],
+  agendaList = [],
   isPage = false
 }: RaportSertifikatModalProps) {
   const activeMusyrifList = musyrifList.filter(m => isFieldMusyrif(m));
@@ -83,8 +95,11 @@ export function RaportSertifikatModal({
     pengasuhanList.forEach(p => {
       if (p?.date && p.date.length >= 7) monthSet.add(p.date.substring(0, 7));
     });
+    agendaList.forEach(a => {
+      if (a?.date && a.date.length >= 7) monthSet.add(a.date.substring(0, 7));
+    });
     return Array.from(monthSet).filter(m => /^\d{4}-\d{2}$/.test(m)).sort((a, b) => b.localeCompare(a));
-  }, [records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, currentMonthKey]);
+  }, [records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, agendaList, currentMonthKey]);
 
   const getMonthLabel = (mKey: string) => {
     if (mKey === "all") return "Semua Periode (Akumulasi)";
@@ -143,14 +158,17 @@ export function RaportSertifikatModal({
   const totalHadir = totalSubuhHadir + totalMaghribHadir;
   const attendanceRate = totalSlots > 0 ? Math.round((totalHadir / totalSlots) * 100) : 0;
 
-  // 2. Logbook & Pengasuhan Khusus Statistics
+  // 2. Logbook & Pengasuhan Khusus Statistics (Dihitung Dinamis dari Seluruh Tugas Valid)
   let totalLogbookDone = 0;
   const mLogbook = musyrif ? (logbookData[musyrif.id] || {}) : {};
   Object.entries(mLogbook).forEach(([dt, entry]) => {
     if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-    if (dt >= "2026-08-18") {
-      LOGBOOK_TASKS.forEach(t => {
-        if (entry[t.key]?.done) totalLogbookDone++;
+    if (dt >= "2026-08-18" && entry && typeof entry === "object") {
+      Object.entries(entry).forEach(([taskKey, taskVal]) => {
+        if (taskKey === "generalNotes" || taskKey.startsWith("agenda_")) return;
+        if (isLogbookTaskCompleted(taskVal)) {
+          totalLogbookDone++;
+        }
       });
     }
   });
@@ -163,7 +181,7 @@ export function RaportSertifikatModal({
         if (selectedMonth !== "all" && !p.date.startsWith(selectedMonth)) return;
         if (p.date >= "2026-08-18") {
           totalPengasuhanDone++;
-          totalPengasuhanPoints += (p.poin || (p.kategori === "antar_pku_rs" ? 10 : 5));
+          totalPengasuhanPoints += (Number(p.poin) || (p.kategori === "antar_pku_rs" ? 10 : 5));
         }
       }
     });
@@ -171,37 +189,68 @@ export function RaportSertifikatModal({
 
   // 3. Agenda Khusus Asrama & Pertemuan Statistics
   let totalKegiatanHadir = 0;
+  const seenKegiatanKeys = new Set<string>();
+
   if (musyrif) {
     kegiatanRecords.forEach(k => {
       if (selectedMonth !== "all" && !k.date.startsWith(selectedMonth)) return;
-      if (k.attendees?.[musyrif.id] === "hadir") totalKegiatanHadir++;
+      const kegId = k.id || `${k.date}_${k.title || k.namaKegiatan}`;
+      const attVal = k.attendees?.[musyrif.id];
+      if (attVal === "hadir" || attVal === true || String(attVal).toLowerCase() === "hadir") {
+        seenKegiatanKeys.add(kegId);
+        totalKegiatanHadir++;
+      }
     });
+
     // Dynamic agenda meeting tasks from logbook
     Object.entries(mLogbook).forEach(([dt, entry]) => {
       if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-      if (dt >= "2026-08-18") {
+      if (dt >= "2026-08-18" && entry && typeof entry === "object") {
         Object.entries(entry).forEach(([key, task]) => {
-          if (key.startsWith("agenda_") && ((task as any)?.done === true || (task as any)?.done === "TRUE" || (task as any)?.done === "true" || (task as any)?.photoUrl || (task as any)?.completedAt)) {
-            totalKegiatanHadir++;
+          if (key.startsWith("agenda_") && isLogbookTaskCompleted(task)) {
+            const agendaUniqueKey = `${dt}_${key}`;
+            if (!seenKegiatanKeys.has(agendaUniqueKey)) {
+              seenKegiatanKeys.add(agendaUniqueKey);
+              totalKegiatanHadir++;
+            }
           }
         });
       }
     });
+
+    // Agenda Rapat from agendaList
+    (agendaList || []).forEach(ag => {
+      if (selectedMonth !== "all" && !ag.date.startsWith(selectedMonth)) return;
+      if (Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(musyrif.id)) {
+        const agendaUniqueKey = `${ag.date}_agenda_${ag.id.replace(/^agenda_/, "")}`;
+        if (!seenKegiatanKeys.has(agendaUniqueKey)) {
+          const dayEntry = mLogbook[ag.date];
+          const cleanId = ag.id.replace(/^agenda_/, "");
+          const task = dayEntry?.[`agenda_${ag.id}`] || dayEntry?.[ag.id] || dayEntry?.[`agenda_${cleanId}`] || dayEntry?.[cleanId];
+          if (isLogbookTaskCompleted(task)) {
+            seenKegiatanKeys.add(agendaUniqueKey);
+            totalKegiatanHadir++;
+          }
+        }
+      }
+    });
   }
 
-  // 4. Mutaba'ah Sunnah Statistics
+  // 4. Mutaba'ah Sunnah Statistics (Dengan Helper Boolean Aman)
   let totalMutabaahDone = 0;
   const mMutabaah = musyrif ? (mutabaahData[musyrif.id] || {}) : {};
   Object.entries(mMutabaah).forEach(([dt, entry]) => {
     if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-    if (dt >= "2026-08-18") {
-      if (entry.tahajjud) totalMutabaahDone++;
-      if (entry.dhuha) totalMutabaahDone++;
-      if (entry.rawatib) totalMutabaahDone++;
-      if (entry.tilawahPages > 0) totalMutabaahDone++;
-      if (entry.dzikirPagi) totalMutabaahDone++;
-      if (entry.dzikirPetang) totalMutabaahDone++;
-      if (entry.puasaSunnah || entry.muthalaah) totalMutabaahDone++;
+    if (dt >= "2026-08-18" && entry && typeof entry === "object") {
+      if (isTruthyFlag(entry.tahajjud)) totalMutabaahDone++;
+      if (isTruthyFlag(entry.witir || entry.rawatib)) totalMutabaahDone++;
+      if (isTruthyFlag(entry.dhuha)) totalMutabaahDone++;
+      if (isTruthyFlag(entry.infaq)) totalMutabaahDone++;
+      const tilawah = Number(entry.tilawahPages || 0);
+      if (tilawah > 0) totalMutabaahDone++;
+      if (isTruthyFlag(entry.dzikirPagi)) totalMutabaahDone++;
+      if (isTruthyFlag(entry.dzikirPetang)) totalMutabaahDone++;
+      if (isTruthyFlag(entry.puasaSunnah) || isTruthyFlag(entry.muthalaah)) totalMutabaahDone++;
     }
   });
 

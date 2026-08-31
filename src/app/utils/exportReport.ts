@@ -1,8 +1,15 @@
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import { LOGBOOK_TASKS, LogbookStorage } from "../components/JurnalLogbookModal";
+import { LogbookStorage, isLogbookTaskCompleted } from "../components/JurnalLogbookModal";
 import { KegiatanRecord } from "../components/KegiatanAsramaModal";
 import { MutabaahStorage } from "../components/MutabaahYaumiyahModal";
+
+function isTruthyFlag(val: any): boolean {
+  if (val === true || val === 1) return true;
+  if (typeof val === "string") {
+    const s = val.trim().toLowerCase();
+    return s === "true" || s === "1" || s === "yes" || s === "ya" || s === "hadir";
+  }
+  return false;
+}
 
 interface Musyrif {
   id: string;
@@ -105,53 +112,73 @@ export function exportComprehensiveReportCSV({
     const pctShalat = totalSlotShalat > 0 ? Math.round((totalHadirShalat / totalSlotShalat) * 100) : 0;
     const sholatScore = Math.max(0, (totalHadirShalat * 10) + ((subuhIzin + maghribIzin + subuhSakit + maghribSakit) * 3) - ((subuhAlfa + maghribAlfa) * 10));
 
-    // Logbook 11 Tasks
+    // Logbook Tasks (Perhitungan Dinamis Seluruh Tugas Valid)
     let logbookDone = 0;
     const mLogbook = logbookData[m.id] || {};
     Object.entries(mLogbook).forEach(([d, entry]) => {
       if (startDate && d < startDate) return;
       if (endDate && d > endDate) return;
-      LOGBOOK_TASKS.forEach(t => {
-        if (entry[t.key]?.done) logbookDone++;
-      });
+      if (entry && typeof entry === "object") {
+        Object.entries(entry).forEach(([taskKey, taskVal]) => {
+          if (taskKey === "generalNotes" || taskKey.startsWith("agenda_")) return;
+          if (isLogbookTaskCompleted(taskVal)) {
+            logbookDone++;
+          }
+        });
+      }
     });
     const logbookScore = logbookDone * 2;
 
     // Agenda Asrama & Pertemuan Rapat
     let kegiatanHadir = 0;
+    const seenAgendaKeys = new Set<string>();
+
     kegiatanRecords.forEach(k => {
       if (startDate && k.date < startDate) return;
       if (endDate && k.date > endDate) return;
-      if (k.attendees?.[m.id] === "hadir") kegiatanHadir++;
+      const kegId = k.id || `${k.date}_${k.title || k.namaKegiatan}`;
+      const attVal = k.attendees?.[m.id];
+      if (attVal === "hadir" || attVal === true || String(attVal).toLowerCase() === "hadir") {
+        seenAgendaKeys.add(kegId);
+        kegiatanHadir++;
+      }
     });
+
     // Dynamic agenda meeting tasks from logbook
-    const mLogbook = (logbookData as any)?.[m.id] || {};
     Object.entries(mLogbook).forEach(([d, entry]: [string, any]) => {
       if (startDate && d < startDate) return;
       if (endDate && d > endDate) return;
       if (entry && typeof entry === "object") {
         Object.entries(entry).forEach(([key, task]: [string, any]) => {
-          if (key.startsWith("agenda_") && (task?.done === true || task?.done === "TRUE" || task?.done === "true" || task?.photoUrl || task?.completedAt)) {
-            kegiatanHadir++;
+          if (key.startsWith("agenda_") && isLogbookTaskCompleted(task)) {
+            const uniqueKey = `${d}_${key}`;
+            if (!seenAgendaKeys.has(uniqueKey)) {
+              seenAgendaKeys.add(uniqueKey);
+              kegiatanHadir++;
+            }
           }
         });
       }
     });
     const kegiatanScore = kegiatanHadir * 5;
 
-    // Mutaba'ah Sunnah
+    // Mutaba'ah Sunnah (Dengan Helper Boolean Aman)
     let mutabaahDone = 0;
     const mMutabaah = mutabaahData[m.id] || {};
     Object.entries(mMutabaah).forEach(([d, entry]) => {
       if (startDate && d < startDate) return;
       if (endDate && d > endDate) return;
-      if (entry.tahajjud) mutabaahDone++;
-      if (entry.dhuha) mutabaahDone++;
-      if (entry.rawatib) mutabaahDone++;
-      if (entry.tilawahPages > 0) mutabaahDone++;
-      if (entry.dzikirPagi) mutabaahDone++;
-      if (entry.dzikirPetang) mutabaahDone++;
-      if (entry.puasaSunnah || entry.muthalaah) mutabaahDone++;
+      if (entry && typeof entry === "object") {
+        if (isTruthyFlag(entry.tahajjud)) mutabaahDone++;
+        if (isTruthyFlag(entry.witir || entry.rawatib)) mutabaahDone++;
+        if (isTruthyFlag(entry.dhuha)) mutabaahDone++;
+        if (isTruthyFlag(entry.infaq)) mutabaahDone++;
+        const tilawah = Number(entry.tilawahPages || 0);
+        if (tilawah > 0) mutabaahDone++;
+        if (isTruthyFlag(entry.dzikirPagi)) mutabaahDone++;
+        if (isTruthyFlag(entry.dzikirPetang)) mutabaahDone++;
+        if (isTruthyFlag(entry.puasaSunnah) || isTruthyFlag(entry.muthalaah)) mutabaahDone++;
+      }
     });
     const mutabaahScore = mutabaahDone * 2;
 

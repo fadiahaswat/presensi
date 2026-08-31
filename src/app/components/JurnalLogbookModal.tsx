@@ -509,6 +509,17 @@ export function getLogbookTasksForDate(
 
 export const LOGBOOK_TASKS: TaskDefinition[] = getLogbookTasksForDate();
 
+/**
+ * Helper universal untuk memverifikasi apakah suatu item tugas logbook berstatus selesai/terpenuhi.
+ * Menangani boolean true, string "TRUE"/"true", angka 1, atau keberadaan bukti foto / timestamp penyelesaian.
+ */
+export function isLogbookTaskCompleted(task: any): boolean {
+  if (!task || typeof task !== "object") return false;
+  if (task.done === true || task.done === "TRUE" || task.done === "true" || task.done === 1) return true;
+  if ((task.photoUrl || task.completedAt) && task.done !== false && task.done !== "false" && task.done !== "FALSE") return true;
+  return false;
+}
+
 export function getTaskIconComponent(icon: string) {
   switch (icon) {
     case "moon": return <Moon className="w-4 h-4 text-emerald-600" />;
@@ -564,14 +575,10 @@ export function JurnalLogbookModal({
   const isPamong = authUser?.role === "pamong";
   const isAdmin = authUser?.role === "admin";
   const isSpecialBypassUser = Boolean(
-    authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id") ||
-    authUser?.email?.toLowerCase().includes("afifnashrul") ||
-    authUser?.name?.toLowerCase().includes("afif nashrul") ||
-    authUser?.musyrifId === "m2" ||
-    authUser?.id === "m2"
+    authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id")
   );
 
-  // Yang berwenang bypass jadwal (masa depan, masa lalu, dan input tanpa batasan waktu): Pamong, Koordinator Musyrif, Admin, serta akun khusus (Ustaz Afif Nashrul / andiaqillah@muallimin.sch.id)
+  // Yang berwenang bypass jadwal (masa depan, masa lalu, dan input tanpa batasan waktu): Pamong, Koordinator Musyrif, Admin, serta akun khusus (andiaqillah@muallimin.sch.id)
   // Koordinator Gedung TIDAK termasuk bypass tanggal lampau - hanya bisa isi untuk HARI INI saja
   const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
   // Koor Gedung hanya bisa bypass untuk HARI INI (bukan tanggal lampau)
