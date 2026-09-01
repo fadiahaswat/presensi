@@ -27,7 +27,7 @@ import { getReadNotificationMap, buildSystemNotificationItems } from "./utils/no
 import { SantriIzinRecord } from "./types/izinSantri";
 import { AlarmNotificationManager } from "./components/AlarmNotificationManager";
 import type { KegiatanRecord } from "./components/KegiatanAsramaModal";
-import { type LogbookStorage, type JurnalLogbookEntry, EMPTY_LOGBOOK } from "./components/JurnalLogbookModal";
+import { type LogbookStorage, type JurnalLogbookEntry, EMPTY_LOGBOOK, isLogbookTaskCompleted } from "./components/JurnalLogbookModal";
 import type { MutabaahStorage, MutabaahEntry } from "./components/MutabaahYaumiyahModal";
 import type { SantriSakitRecord } from "./components/SantriSakitModal";
 import type { PengasuhanKhususRecord } from "./types/pengasuhanKhusus";
@@ -3580,41 +3580,61 @@ function PageInputPrayer({
 // ─────────────────────────────────────────────────────────────────────────────
 // PAGE: REKAP
 // ─────────────────────────────────────────────────────────────────────────────
+function isTruthyFlag(val: any): boolean {
+  if (val === true || val === 1) return true;
+  if (typeof val === "string") {
+    const s = val.trim().toLowerCase();
+    return s === "true" || s === "1" || s === "yes" || s === "ya" || s === "hadir";
+  }
+  return false;
+}
+
 function PageRekap({ 
   records, 
   authUser, 
   onSelectMusyrif, 
   onGoTo,
-  musyrifListAll
+  musyrifListAll,
+  logbookData = {},
+  mutabaahData = {},
+  kegiatanRecords = [],
+  pengasuhanList = [],
+  agendaList = []
 }: { 
   records: AttendanceRecord[]; 
   authUser?: AuthUser | null; 
   onSelectMusyrif?: (id: string) => void; 
   onGoTo?: (p: Page) => void;
   musyrifListAll?: Musyrif[];
+  logbookData?: Record<string, any>;
+  mutabaahData?: Record<string, any>;
+  kegiatanRecords?: any[];
+  pengasuhanList?: any[];
+  agendaList?: any[];
 }) {
   const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
   const [viewMonth, setViewMonth] = useState(new Date());
   const [filterAsrama, setFilterAsrama] = useState("Semua");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"pct"|"name">("pct");
-  const [detail, setDetail] = useState<Musyrif|null>(null);
+  const [activeView, setActiveView] = useState<"presensi" | "kpi">("kpi");
+  const [sortBy, setSortBy] = useState<"kpi" | "pct" | "name">("kpi");
+  const [detail, setDetail] = useState<any | null>(null);
   const [chartSlotFilter, setChartSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
-  const mk = format(viewMonth,"yyyy-MM");
+  const mk = format(viewMonth, "yyyy-MM");
 
-  const days = useMemo(()=>eachDayOfInterval({start:startOfMonth(viewMonth),end:endOfMonth(viewMonth)})
-    .filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d)),[viewMonth]);
-  const mRecs = records.filter(r=>r.date.startsWith(mk));
-  const fMusyrif = useMemo(()=>{
-    let l = (filterAsrama==="Semua" ? allM : allM.filter(m=>m.asrama===filterAsrama)).filter(isFieldMusyrif).sort(sortMusyrifByClass);
-    if(search) l=l.filter(m=>m.name.toLowerCase().includes(search.toLowerCase()));
+  const days = useMemo(() => eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) })
+    .filter(d => !isBefore(new Date(), startOfDay(d)) || isToday(d)), [viewMonth]);
+  const mRecs = records.filter(r => r.date.startsWith(mk));
+  const fMusyrif = useMemo(() => {
+    let l = (filterAsrama === "Semua" ? allM : allM.filter(m => m.asrama === filterAsrama)).filter(isFieldMusyrif).sort(sortMusyrifByClass);
+    if (search) l = l.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
     return l;
-  },[allM,filterAsrama,search]);
+  }, [allM, filterAsrama, search]);
 
   const now = new Date();
 
   const rate = (p: PrayerSlot) => {
-    if(!fMusyrif.length||!days.length) return 0;
+    if (!fMusyrif.length || !days.length) return 0;
     let totalHadir = 0;
     days.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
@@ -3626,7 +3646,9 @@ function PageRekap({
     return Math.round(totalHadir / (fMusyrif.length * days.length) * 100);
   };
 
-  const ranked = useMemo(()=>fMusyrif.map(m=>{
+  // 4-Pillar Holistic Scoring for Musyrif
+  const ranked = useMemo(() => fMusyrif.map(m => {
+    // 1. Shalat Fardhu Statistics & Scoring
     let sh = 0, ss = 0, si = 0, sa = 0;
     let mh = 0, ms = 0, mi = 0, ma = 0;
     days.forEach(d => {
@@ -3644,12 +3666,178 @@ function PageRekap({
       else if (magSt === "izin") mi++;
       else if (magSt === "alfa") ma++;
     });
-    const pct=days.length?Math.round((sh+mh)/(days.length*2)*100):0;
-    return {...m,sh,ss,si,sa,mh,ms,mi,ma,pct};
-  }).sort((a,b)=>sortBy==="pct"?b.pct-a.pct:a.name.localeCompare(b.name)),[fMusyrif,mRecs,days,sortBy]);
 
-  const weeklyData = Array.from({length:Math.max(1,Math.ceil(days.length/7))},(_,wi)=>{
-    const wDays=days.slice(wi*7,wi*7+7);
+    // Hitung total slot shalat yang sudah efektif berjalan (misal: jika hari ini baru Subuh, jangan anggap Maghrib sebagai ketidakhadiran)
+    let passedSlots = 0;
+    days.forEach(d => {
+      const ds = format(d, "yyyy-MM-dd");
+      const isDToday = isToday(d);
+      // Subuh slot selalu terhitung jika hari sudah berjalan
+      passedSlots++;
+      // Maghrib slot hanya dihitung jika bukan hari ini, atau jika hari ini sudah masuk/lewat waktu maghrib (misal >= 17:30)
+      if (!isDToday || now.getHours() >= 17 || (now.getHours() === 17 && now.getMinutes() >= 30)) {
+        passedSlots++;
+      }
+    });
+
+    const totalHadir = sh + mh;
+    const totalAlfa = sa + ma;
+    const totalIzinSakit = ss + ms + si + mi;
+    // Persentase kehadiran shalat berdasarkan slot yang SUDAH lewat
+    const pct = passedSlots > 0 ? Math.min(100, Math.round((totalHadir / passedSlots) * 100)) : 100;
+    const sholatScore = Math.max(0, totalHadir * 10 - totalAlfa * 15);
+
+    // 2. Logbook Harian & Pengasuhan Khusus Scoring
+    let logbookTasksDone = 0;
+    const musyrifLogbooks = logbookData[m.id] || {};
+    Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
+      if (!dt.startsWith(mk)) return;
+      if (dt >= "2026-08-18" && dayEntry && typeof dayEntry === "object") {
+        Object.entries(dayEntry).forEach(([taskKey, taskVal]) => {
+          if (taskKey === "generalNotes" || taskKey.startsWith("agenda_")) return;
+          if (isLogbookTaskCompleted(taskVal)) {
+            logbookTasksDone++;
+          }
+        });
+      }
+    });
+
+    let pengasuhanPoints = 0;
+    let pengasuhanCount = 0;
+    (pengasuhanList || []).forEach(p => {
+      if (p.musyrifId === m.id && p.date?.startsWith(mk)) {
+        if (p.date >= "2026-08-18") {
+          pengasuhanCount++;
+          pengasuhanPoints += (Number(p.poin) || (p.kategori === "antar_pku_rs" ? 10 : 5));
+        }
+      }
+    });
+    const logbookScore = (logbookTasksDone * 5) + pengasuhanPoints;
+
+    // 3. Agenda Asrama & Pertemuan Score
+    let kegiatanDone = 0;
+    const seenKegiatanKeys = new Set<string>();
+
+    (kegiatanRecords || []).forEach(keg => {
+      if (!keg.date?.startsWith(mk)) return;
+      const kegId = keg.id || `${keg.date}_${keg.title || keg.namaKegiatan}`;
+      const attVal = keg.attendees?.[m.id];
+      if (attVal === "hadir" || attVal === true || String(attVal).toLowerCase() === "hadir") {
+        seenKegiatanKeys.add(kegId);
+        kegiatanDone++;
+      }
+    });
+
+    Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
+      if (!dt.startsWith(mk)) return;
+      if (dt >= "2026-08-18" && dayEntry && typeof dayEntry === "object") {
+        Object.entries(dayEntry).forEach(([key, task]) => {
+          if (key.startsWith("agenda_") && isLogbookTaskCompleted(task)) {
+            const agendaUniqueKey = `${dt}_${key}`;
+            if (!seenKegiatanKeys.has(agendaUniqueKey)) {
+              seenKegiatanKeys.add(agendaUniqueKey);
+              kegiatanDone++;
+            }
+          }
+        });
+      }
+    });
+
+    (agendaList || []).forEach(ag => {
+      if (!ag.date?.startsWith(mk)) return;
+      if (Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(m.id)) {
+        const agendaUniqueKey = `${ag.date}_agenda_${ag.id.replace(/^agenda_/, "")}`;
+        if (!seenKegiatanKeys.has(agendaUniqueKey)) {
+          const dayEntry = musyrifLogbooks[ag.date];
+          const cleanId = ag.id.replace(/^agenda_/, "");
+          const task = dayEntry?.[`agenda_${ag.id}`] || dayEntry?.[ag.id] || dayEntry?.[`agenda_${cleanId}`] || dayEntry?.[cleanId];
+          if (isLogbookTaskCompleted(task)) {
+            seenKegiatanKeys.add(agendaUniqueKey);
+            kegiatanDone++;
+          }
+        }
+      }
+    });
+    const kegiatanScore = kegiatanDone * 15;
+
+    // 4. Mutaba'ah Yaumiyah Score
+    let mutabaahPoints = 0;
+    let mutabaahDaysCount = 0;
+    const musyrifMutabaah = mutabaahData[m.id] || {};
+    Object.entries(musyrifMutabaah).forEach(([dt, dayEntry]) => {
+      if (!dt.startsWith(mk)) return;
+      if (dt >= "2026-08-18" && dayEntry && typeof dayEntry === "object") {
+        let hasItem = false;
+        if (isTruthyFlag(dayEntry.tahajjud)) { mutabaahPoints += 3; hasItem = true; }
+        if (isTruthyFlag(dayEntry.witir || dayEntry.rawatib)) { mutabaahPoints += 2; hasItem = true; }
+        if (isTruthyFlag(dayEntry.dhuha)) { mutabaahPoints += 2; hasItem = true; }
+        if (isTruthyFlag(dayEntry.infaq)) { mutabaahPoints += 1; hasItem = true; }
+        const tilawah = Number(dayEntry.tilawahPages || 0);
+        if (tilawah > 0) { mutabaahPoints += Math.min(tilawah, 3); hasItem = true; }
+        if (isTruthyFlag(dayEntry.dzikirPagi)) { mutabaahPoints += 1; hasItem = true; }
+        if (isTruthyFlag(dayEntry.dzikirPetang)) { mutabaahPoints += 1; hasItem = true; }
+        if (isTruthyFlag(dayEntry.puasaSunnah)) { mutabaahPoints += 5; hasItem = true; }
+        if (isTruthyFlag(dayEntry.muthalaah)) { mutabaahPoints += 2; hasItem = true; }
+        if (hasItem) mutabaahDaysCount++;
+      }
+    });
+
+    const totalKpiScore = sholatScore + logbookScore + kegiatanScore + mutabaahPoints;
+
+    // Predikat / Grade - Proposional terhadap hari aktif yang berjalan
+    const activeDaysCount = Math.max(1, days.length);
+    // Target ekspektasi rata-rata poin KPI per hari adalah ~10-15 poin
+    const expectedScoreJayyid = activeDaysCount * 6;      // misal hari 1 = 6 poin, hari 30 = 180 poin
+    const expectedScoreJayyidJiddan = activeDaysCount * 10; // misal hari 1 = 10 poin, hari 30 = 300 poin
+    const expectedScoreMumtaz = activeDaysCount * 14;      // misal hari 1 = 14 poin, hari 30 = 420 poin
+
+    let predikat = "Mumtaz";
+    let predikatBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
+
+    if (pct < 50 || totalAlfa >= 4) {
+      predikat = "Maqbul";
+      predikatBadge = "bg-rose-100 text-rose-800 border-rose-300";
+    } else if (pct < 70 || totalKpiScore < expectedScoreJayyid) {
+      predikat = "Jayyid";
+      predikatBadge = "bg-amber-100 text-amber-800 border-amber-300";
+    } else if (pct < 85 || totalKpiScore < expectedScoreJayyidJiddan) {
+      predikat = "Jayyid Jiddan";
+      predikatBadge = "bg-blue-100 text-blue-800 border-blue-300";
+    }
+
+    return {
+      ...m,
+      sh, ss, si, sa,
+      mh, ms, mi, ma,
+      totalHadir,
+      totalAlfa,
+      totalIzinSakit,
+      pct,
+      sholatScore,
+      logbookTasksDone,
+      pengasuhanCount,
+      pengasuhanPoints,
+      logbookScore,
+      kegiatanDone,
+      kegiatanScore,
+      mutabaahPoints,
+      mutabaahDaysCount,
+      totalKpiScore,
+      predikat,
+      predikatBadge
+    };
+  }).sort((a, b) => {
+    if (sortBy === "kpi") return b.totalKpiScore - a.totalKpiScore || b.pct - a.pct;
+    if (sortBy === "pct") return b.pct - a.pct || b.totalKpiScore - a.totalKpiScore;
+    return a.name.localeCompare(b.name);
+  }), [fMusyrif, mRecs, days, sortBy, mk, logbookData, mutabaahData, kegiatanRecords, pengasuhanList, agendaList]);
+
+  // Overall KPI aggregates for summary
+  const avgKpiScore = ranked.length ? Math.round(ranked.reduce((acc, m) => acc + m.totalKpiScore, 0) / ranked.length) : 0;
+  const totalMumtazCount = ranked.filter(m => m.predikat === "Mumtaz").length;
+
+  const weeklyData = Array.from({ length: Math.max(1, Math.ceil(days.length / 7)) }, (_, wi) => {
+    const wDays = days.slice(wi * 7, wi * 7 + 7);
     let subuhH = 0, maghribH = 0;
     wDays.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
@@ -3659,16 +3847,16 @@ function PageRekap({
         if (getEffectiveAttendanceStatus(r, "maghrib", ds, now) === "hadir") maghribH++;
       });
     });
-    const den=wDays.length*fMusyrif.length||1;
-    return {week:`Mgg ${wi+1}`,subuh:Math.round(subuhH/den*100),maghrib:Math.round(maghribH/den*100)};
+    const den = wDays.length * fMusyrif.length || 1;
+    return { week: `Mgg ${wi + 1}`, subuh: Math.round(subuhH / den * 100), maghrib: Math.round(maghribH / den * 100) };
   });
 
-  const detailM = detail ? ranked.find(r=>r.id===detail.id) : null;
-  const detailRecs = detail ? mRecs.filter(r=>r.musyrifId===detail.id) : [];
+  const detailM = detail ? ranked.find(r => r.id === detail.id) : null;
+  const detailRecs = detail ? mRecs.filter(r => r.musyrifId === detail.id) : [];
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      {/* 1. Unified Master Header Card like Halaman Presensi & Riwayat */}
+      {/* 1. Unified Master Header Card with KPI Overview */}
       <div className="bg-white rounded-3xl p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
         {/* Top title & Cetak PDF action button */}
         <div className="flex items-center justify-between gap-2">
@@ -3678,17 +3866,17 @@ function PageRekap({
             </div>
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
-                Rekap Presensi
+                Rekap & Evaluasi Kinerja (KPI)
               </h2>
               <p className="text-[11px] text-slate-400 font-medium truncate">
-                {format(viewMonth, "MMMM yyyy", {locale: id})} · {fMusyrif.length} Musyrif Terdata
+                {format(viewMonth, "MMMM yyyy", { locale: id })} · {fMusyrif.length} Musyrif Terdata
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={()=>exportPDF(records,viewMonth,filterAsrama,musyrifListAll)}
+            onClick={() => exportPDF(records, viewMonth, filterAsrama, musyrifListAll)}
             className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
           >
             <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
@@ -3700,7 +3888,7 @@ function PageRekap({
         <div className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-1.5 border border-slate-100/80">
           <button
             type="button"
-            onClick={()=>setViewMonth(subMonths(viewMonth,1))}
+            onClick={() => setViewMonth(subMonths(viewMonth, 1))}
             title="Bulan sebelumnya"
             className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
           >
@@ -3708,7 +3896,7 @@ function PageRekap({
           </button>
           <div className="text-center px-2">
             <p className="text-xs sm:text-sm font-extrabold text-slate-800 font-mono leading-tight">
-              {format(viewMonth, "MMMM yyyy", {locale: id})}
+              {format(viewMonth, "MMMM yyyy", { locale: id })}
             </p>
             <p className="text-[10px] text-slate-400 font-mono mt-0.5">
               {days.length} Hari Aktif Bulan Ini
@@ -3716,7 +3904,7 @@ function PageRekap({
           </div>
           <button
             type="button"
-            onClick={()=>setViewMonth(addMonths(viewMonth,1))}
+            onClick={() => setViewMonth(addMonths(viewMonth, 1))}
             title="Bulan berikutnya"
             className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
           >
@@ -3724,95 +3912,134 @@ function PageRekap({
           </button>
         </div>
 
-        {/* Integrated Rate Summary Cards — Subuh & Maghrib */}
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-2xl p-3 border border-slate-100 transition-colors">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-1.5 text-amber-700">
-                <Sun className="w-3.5 h-3.5 text-amber-500"/>
-                <span className="text-xs font-bold">Subuh</span>
-              </div>
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-1.5 py-0.2 rounded font-mono">
-                Pagi
-              </span>
+        {/* 4 Pilar KPI Quick Metric Highlights */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <div className="bg-amber-50/70 rounded-2xl p-2.5 border border-amber-200/60 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Pilar 1: Shalat</span>
+              <Sun className="w-3.5 h-3.5 text-amber-600"/>
             </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{rate("subuh")}%</p>
-            <div className="w-full bg-slate-200/80 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-amber-500 h-full rounded-full transition-all duration-700" style={{width:`${rate("subuh")}%`}}/>
-            </div>
+            <p className="text-lg font-black text-amber-950 font-mono mt-1">{Math.round((rate("subuh") + rate("maghrib")) / 2)}%</p>
+            <p className="text-[9px] text-amber-700 mt-0.5">Rata-rata Subuh & Maghrib</p>
           </div>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 rounded-2xl p-3 border border-slate-100 transition-colors">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-1.5 text-sky-800">
-                <Moon className="w-3.5 h-3.5 text-[#0C4E8C]"/>
-                <span className="text-xs font-bold">Maghrib</span>
-              </div>
-              <span className="text-[10px] font-bold text-[#0C4E8C] bg-sky-100/70 px-1.5 py-0.2 rounded font-mono">
-                Petang
-              </span>
+          <div className="bg-sky-50/70 rounded-2xl p-2.5 border border-sky-200/60 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">Pilar 2: Logbook</span>
+              <ClipboardList className="w-3.5 h-3.5 text-sky-600"/>
             </div>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight">{rate("maghrib")}%</p>
-            <div className="w-full bg-slate-200/80 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-[#0C4E8C] h-full rounded-full transition-all duration-700" style={{width:`${rate("maghrib")}%`}}/>
-            </div>
+            <p className="text-lg font-black text-sky-950 font-mono mt-1">
+              {ranked.reduce((acc, m) => acc + m.logbookTasksDone, 0)} <span className="text-xs font-normal text-sky-700">tugas</span>
+            </p>
+            <p className="text-[9px] text-sky-700 mt-0.5">Total checklist & khusus</p>
           </div>
+
+          <div className="bg-purple-50/70 rounded-2xl p-2.5 border border-purple-200/60 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider">Pilar 3: Agenda</span>
+              <Building2 className="w-3.5 h-3.5 text-purple-600"/>
+            </div>
+            <p className="text-lg font-black text-purple-950 font-mono mt-1">
+              {ranked.reduce((acc, m) => acc + m.kegiatanDone, 0)} <span className="text-xs font-normal text-purple-700">sesi</span>
+            </p>
+            <p className="text-[9px] text-purple-700 mt-0.5">Rapat & agenda asrama</p>
+          </div>
+
+          <div className="bg-emerald-50/70 rounded-2xl p-2.5 border border-emerald-200/60 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Pilar 4: Sunnah</span>
+              <BookOpen className="w-3.5 h-3.5 text-emerald-600"/>
+            </div>
+            <p className="text-lg font-black text-emerald-950 font-mono mt-1">
+              {ranked.reduce((acc, m) => acc + m.mutabaahPoints, 0)} <span className="text-xs font-normal text-emerald-700">pts</span>
+            </p>
+            <p className="text-[9px] text-emerald-700 mt-0.5">Akumulasi Mutaba'ah</p>
+          </div>
+        </div>
+
+        {/* View Tab Switcher: KPI 4 Pilar vs Presensi Shalat */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => { setActiveView("kpi"); setSortBy("kpi"); }}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeView === "kpi" 
+                ? "bg-white text-[#0C4E8C] shadow-xs" 
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-500"/>
+            <span>Evaluasi KPI 4 Pilar</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveView("presensi"); setSortBy("pct"); }}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeView === "presensi" 
+                ? "bg-white text-[#0C4E8C] shadow-xs" 
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5 text-amber-500"/>
+            <span>Presensi Shalat Saja</span>
+          </button>
         </div>
       </div>
 
       {/* 4. Weekly Trend Chart with Interactive Slot Filter */}
-      <Card ch={<div className="p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <div>
-            <p className="font-bold text-sm text-slate-800">Tren Kehadiran Mingguan</p>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5">Persentase per pekan {filterAsrama !== "Semua" ? `· ${filterAsrama}` : ""}</p>
+      {activeView === "presensi" && (
+        <Card ch={<div className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div>
+              <p className="font-bold text-sm text-slate-800">Tren Kehadiran Mingguan</p>
+              <p className="text-[10px] text-slate-400 font-mono mt-0.5">Persentase per pekan {filterAsrama !== "Semua" ? `· ${filterAsrama}` : ""}</p>
+            </div>
+            
+            <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
+              {[
+                { id: "all", label: "Semua" },
+                { id: "subuh", label: "Subuh" },
+                { id: "maghrib", label: "Maghrib" }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setChartSlotFilter(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${
+                    chartSlotFilter === tab.id
+                      ? "bg-white text-[#0C4E8C] shadow-2xs font-bold"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
-          
-          {/* Interactive Slot Filter Pills */}
-          <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
-            {[
-              { id: "all", label: "Semua" },
-              { id: "subuh", label: "Subuh" },
-              { id: "maghrib", label: "Maghrib" }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setChartSlotFilter(tab.id as any)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${
-                  chartSlotFilter === tab.id
-                    ? "bg-white text-[#0C4E8C] shadow-2xs font-bold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={weeklyData} barGap={3} barCategoryGap="25%">
-            <XAxis dataKey="week" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
-            <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.08)",borderRadius:14,fontSize:12,fontFamily:"'JetBrains Mono',monospace"}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={weeklyData} barGap={3} barCategoryGap="25%">
+              <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#94a3b8", fontFamily: "'JetBrains Mono',monospace" }} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={{ background: "#fff", border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.08)", borderRadius: 14, fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }} formatter={(v: number, n: string) => [`${v}%`, n === "subuh" ? "Subuh" : "Maghrib"]}/>
+              {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
+                <Bar dataKey="subuh" name="subuh" fill="#f59e0b" radius={[4, 4, 0, 0]}/>
+              )}
+              {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
+                <Bar dataKey="maghrib" name="maghrib" fill="#0C4E8C" radius={[4, 4, 0, 0]}/>
+              )}
+            </BarChart>
+          </ResponsiveContainer>
+
+          <div className="flex gap-4 mt-2 justify-center">
             {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
-              <Bar dataKey="subuh" name="subuh" fill="#f59e0b" radius={[4,4,0,0]}/>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500"/><span className="text-[10px] text-slate-500 font-medium">Subuh</span></div>
             )}
             {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
-              <Bar dataKey="maghrib" name="maghrib" fill="#0C4E8C" radius={[4,4,0,0]}/>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0C4E8C]"/><span className="text-[10px] text-slate-500 font-medium">Maghrib</span></div>
             )}
-          </BarChart>
-        </ResponsiveContainer>
-
-        <div className="flex gap-4 mt-2 justify-center">
-          {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500"/><span className="text-[10px] text-slate-500 font-medium">Subuh</span></div>
-          )}
-          {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0C4E8C]"/><span className="text-[10px] text-slate-500 font-medium">Maghrib</span></div>
-          )}
-        </div>
-      </div>}/>
+          </div>
+        </div>}/>
+      )}
 
       {/* 5. Filters & Search Bar */}
       <div className="flex flex-col sm:flex-row gap-2">
@@ -3820,7 +4047,7 @@ function PageRekap({
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
           <input 
             value={search} 
-            onChange={e=>setSearch(e.target.value)} 
+            onChange={e => setSearch(e.target.value)} 
             placeholder="Cari nama musyrif..." 
             className="w-full pl-9 pr-4 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-400 font-medium shadow-2xs"
           />
@@ -3828,49 +4055,80 @@ function PageRekap({
         <div className="flex gap-2">
           <select 
             value={filterAsrama} 
-            onChange={e=>setFilterAsrama(e.target.value)} 
+            onChange={e => setFilterAsrama(e.target.value)} 
             className="px-3 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-700 font-medium shadow-2xs cursor-pointer"
           >
-            {["Semua",...ASRAMAS].map(a=><option key={a} value={a}>{a}</option>)}
+            {["Semua", ...ASRAMAS].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
           <button 
             type="button"
-            onClick={()=>setSortBy(s=>s==="pct"?"name":"pct")} 
+            onClick={() => setSortBy(s => s === "kpi" ? "pct" : s === "pct" ? "name" : "kpi")} 
             className="px-3 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 hover:bg-slate-50 text-slate-700 font-medium shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all"
             title="Ubah Urutan"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500"/>
-            <span>{sortBy==="pct"?"% Kehadiran":"Nama A-Z"}</span>
+            <span>{sortBy === "kpi" ? "Poin KPI" : sortBy === "pct" ? "% Shalat" : "Nama A-Z"}</span>
           </button>
         </div>
       </div>
 
-      {/* 6. Musyrif Ranking Table */}
+      {/* 6. Musyrif Ranking Table (Holistic KPI 4 Pilar or Shalat) */}
       <Card ch={<div>
         <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-          <p className="font-bold text-sm text-slate-800">Daftar Kehadiran Musyrif</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-sm text-slate-800">
+              {activeView === "kpi" ? "Peringkat Kinerja Musyrif (KPI 4 Pilar)" : "Daftar Kehadiran Shalat Musyrif"}
+            </p>
+            {activeView === "kpi" && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                Avg: {avgKpiScore} Poin
+              </span>
+            )}
+          </div>
           <span className="text-[11px] text-slate-400 font-mono">{ranked.length} musyrif</span>
         </div>
         <div className="divide-y divide-slate-50">
-          {ranked.map((m,i)=>(
-            <button key={m.id} type="button" onClick={()=>setDetail(m)} className="w-full px-4 sm:px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50/80 transition-colors text-left group">
+          {ranked.map((m, i) => (
+            <button key={m.id} type="button" onClick={() => setDetail(m)} className="w-full px-4 sm:px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50/80 transition-colors text-left group">
               <span className="text-xs font-bold text-slate-400 w-5 text-center font-mono">
-                {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i+1}`}
+                {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
               </span>
               <Av name={m.name} src={m.photo} sz="sm"/>
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate group-hover:text-emerald-700 transition-colors">{m.name}</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate group-hover:text-emerald-700 transition-colors">{m.name}</p>
+                  {activeView === "kpi" && (
+                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${m.predikatBadge}`}>
+                      {m.predikat}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-400 truncate">{m.asrama} · {m.kelas}</p>
               </div>
+
+              {/* KPI Score or Shalat Attendance Badge */}
               <div className="flex items-center gap-3 flex-shrink-0">
-                <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400">
-                  <span className="text-emerald-600 font-bold">{m.sh+m.mh}H</span>
-                  <span>/</span>
-                  <span className="text-amber-600 font-bold">{m.ss+m.ms+m.si+m.mi}I</span>
-                  <span>/</span>
-                  <span className="text-rose-600 font-bold">{m.sa+m.ma}A</span>
-                </div>
-                <span className={`text-xs sm:text-sm font-bold w-10 text-right font-mono ${m.pct>=80?"text-emerald-600":m.pct>=60?"text-amber-600":"text-rose-600"}`}>{m.pct}%</span>
+                {activeView === "kpi" ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
+                      {m.totalKpiScore} <span className="text-[10px] font-medium text-slate-400">Poin</span>
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-400">
+                      Shalat: {m.pct}% · Logbook: {m.logbookTasksDone}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400">
+                      <span className="text-emerald-600 font-bold">{m.sh + m.mh}H</span>
+                      <span>/</span>
+                      <span className="text-amber-600 font-bold">{m.ss + m.ms + m.si + m.mi}I</span>
+                      <span>/</span>
+                      <span className="text-rose-600 font-bold">{m.sa + m.ma}A</span>
+                    </div>
+                    <span className={`text-xs sm:text-sm font-bold w-10 text-right font-mono ${m.pct >= 80 ? "text-emerald-600" : m.pct >= 60 ? "text-amber-600" : "text-rose-600"}`}>{m.pct}%</span>
+                  </>
+                )}
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
               </div>
             </button>
@@ -3911,10 +4169,14 @@ function PageRekap({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <p className="font-bold text-slate-800">{detailM.name}</p>
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold font-mono">{detailM.kelas}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${detailM.predikatBadge}`}>{detailM.predikat}</span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">Pamong: {detailM.pamong || "-"}</p>
               </div>
-              <div className="text-right"><p className="text-2xl font-bold text-slate-800 font-mono">{detailM.pct}%</p><p className="text-[10px] text-slate-400">kehadiran</p></div>
+              <div className="text-right">
+                <p className="text-2xl font-black text-slate-800 font-mono">{detailM.totalKpiScore}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Poin KPI</p>
+              </div>
             </div>
             {(detailM.phone || detailM.email) && (
               <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-50 border-b border-slate-100">
@@ -3933,6 +4195,43 @@ function PageRekap({
               </div>
             )}
             <div className="p-5 overflow-y-auto flex-1 space-y-3.5">
+              {/* 4 Pillars KPI Summary in Modal */}
+              <div className="bg-slate-50/90 rounded-2xl p-3.5 border border-slate-200/70 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Rincian KPI 4 Pilar</span>
+                  <span className="text-xs font-black text-[#0C4E8C] font-mono">{detailM.totalKpiScore} Poin Total</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-amber-800 font-bold">
+                      <span>P1: Shalat ({detailM.pct}%)</span>
+                      <Sun className="w-3 h-3 text-amber-500"/>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.sholatScore} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-sky-800 font-bold">
+                      <span>P2: Logbook ({detailM.logbookTasksDone})</span>
+                      <ClipboardList className="w-3 h-3 text-sky-500"/>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.logbookScore} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-purple-800 font-bold">
+                      <span>P3: Agenda ({detailM.kegiatanDone})</span>
+                      <Building2 className="w-3 h-3 text-purple-500"/>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.kegiatanScore} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-emerald-800 font-bold">
+                      <span>P4: Sunnah ({detailM.mutabaahDaysCount} hr)</span>
+                      <BookOpen className="w-3 h-3 text-emerald-500"/>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.mutabaahPoints} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                  </div>
+                </div>
+              </div>
               {/* Shalat Subuh Breakdown */}
               <div className="bg-amber-50/50 rounded-2xl p-3 border border-amber-200/60">
                 <div className="flex items-center gap-1.5 mb-2">
@@ -10197,6 +10496,11 @@ export default function App() {
                 onSelectMusyrif={setSelectedMusyrifId} 
                 onGoTo={setPage}
                 musyrifListAll={musyrifList}
+                logbookData={logbookData}
+                mutabaahData={mutabaahData}
+                kegiatanRecords={kegiatanRecords}
+                pengasuhanList={pengasuhanKhususList}
+                agendaList={agendaRapatList}
               />
             </motion.div>
           )}
