@@ -286,6 +286,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
             taskCategory: category,
             completedAt: tItem.completedAt,
             photoUrl: tItem.photoUrl,
+            photoThumbnailUrl: tItem.photoThumbnailUrl || tItem.photoThumbnail || undefined,
             photoTakenAt: tItem.photoTakenAt,
             photoSource: tItem.photoSource || "camera",
             photoWatermark: tItem.photoWatermark,
@@ -423,12 +424,19 @@ const PhotoGridItem = memo(({ post, onClick }: { post: GalleryPostItem; onClick:
     onClick={onClick}
     className="group relative aspect-square rounded-none overflow-hidden bg-slate-900 cursor-pointer select-none border-[0.5px] border-slate-900/50"
   >
-    <img
+    <LazyImage
       src={post.photoUrl}
+      thumbnail={post.photoThumbnailUrl}
       alt={post.taskTitle}
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-      loading="lazy"
-      decoding="async"
+      recordId={`${post.musyrifId}_${post.date}_${post.taskKey}`}
+      photoField="photoUrl"
+      tableName="Logbook"
+      placeholder={
+        <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-500">
+          <Camera className="w-5 h-5 opacity-40" />
+        </div>
+      }
     />
   </motion.div>
 ));
@@ -508,10 +516,18 @@ const PhotoModal = memo(({
 
       {/* Image body */}
       <div className="flex-1 flex items-center justify-center p-3 bg-black min-h-0 overflow-hidden">
-        <img
+        <LazyImage
           src={post.photoUrl}
           alt={post.taskTitle}
           className="max-w-full max-h-[65vh] object-contain rounded-lg"
+          recordId={`${post.musyrifId}_${post.date}_${post.taskKey}`}
+          photoField="photoUrl"
+          tableName="Logbook"
+          placeholder={
+            <div className="w-48 h-48 flex items-center justify-center text-slate-500">
+              <Camera className="w-8 h-8 opacity-40" />
+            </div>
+          }
         />
       </div>
 

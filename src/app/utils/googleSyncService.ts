@@ -1187,26 +1187,69 @@ class GoogleSyncService {
       return currentData;
     }
 
-    // Try cache
+    const isRef = typeof currentData === 'string' && (currentData.startsWith('photo:') || currentData.startsWith('[PHOTO_REF:'));
+    const photoId = isRef
+      ? currentData.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '').trim()
+      : '';
+
+    const tablePrefix = tableName ? this.getTablePrefix(tableName) : '';
     const cacheKey = this.getPhotoCacheKey(recordId, fieldName, tableName);
 
+    const candidates = [
+      ...(photoId ? [
+        photoId,
+        photoId.startsWith('photo_') ? photoId.replace(/^photo_/, '') : `photo_${photoId}`
+      ] : []),
+      cacheKey,
+      `${recordId}_${fieldName}`,
+      `photo_${recordId}_${fieldName}`,
+      ...(tablePrefix ? [
+        `${tablePrefix}_${recordId}_${fieldName}`,
+        `photo_${tablePrefix}_${recordId}_${fieldName}`
+      ] : [])
+    ];
+
     // Check memory cache first
-    const memoryCached = this.memoryPhotoCache.get(cacheKey);
-    if (memoryCached && this.isLikelyFullPhoto(memoryCached.data)) {
-      return memoryCached.data;
+    for (const key of candidates) {
+      const memoryCached = this.memoryPhotoCache.get(key);
+      if (memoryCached && this.isLikelyFullPhoto(memoryCached.data)) {
+        return memoryCached.data;
+      }
     }
 
     // Check IndexedDB
     try {
       const { getPhoto } = await import('./photoCacheService');
-      const cached = await getPhoto(cacheKey);
-      if (cached?.data && this.isLikelyFullPhoto(cached.data)) {
-        return cached.data;
+      for (const key of candidates) {
+        const cached = await getPhoto(key);
+        if (cached?.data && this.isLikelyFullPhoto(cached.data)) {
+          this.cacheInMemory(key, cached.data);
+          return cached.data;
+        }
       }
     } catch (_) {}
 
-    // Return whatever we have (could be thumbnail or null)
-    return currentData || null;
+    // Never return unresolved photo: or [PHOTO_REF: references as image URLs!
+    if (isRef) {
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        this.triggerDebouncedPhotoFetch();
+      }
+      return null;
+    }
+
+    // Return whatever we have if it is a valid image URL/thumbnail
+    return (currentData && !currentData.startsWith('photo:') && !currentData.startsWith('[PHOTO_REF:'))
+      ? currentData
+      : null;
+  }
+
+  private lastBackgroundPhotoFetch = 0;
+  public triggerDebouncedPhotoFetch(): void {
+    const now = Date.now();
+    if (now - this.lastBackgroundPhotoFetch > 20000) {
+      this.lastBackgroundPhotoFetch = now;
+      this.fetchPhotosFromCloudBackground().catch(() => {});
+    }
   }
 
   public async pollDelta(): Promise<void> {
@@ -1318,6 +1361,14 @@ class GoogleSyncService {
               const photoData = p.photo_data || p.photoUrl || p.data || p.photoData;
               if (p.id && photoData && typeof photoData === 'string' && photoData.trim() !== '') {
                 photoItems.push({ id: p.id, data: photoData });
+                if (p.id.startsWith('photo_')) {
+                  photoItems.push({ id: p.id.replace(/^photo_/, ''), data: photoData });
+                } else {
+                  photoItems.push({ id: `photo_${p.id}`, data: photoData });
+                }
+                if (p.record_id && p.field_key) {
+                  photoItems.push({ id: `${p.record_id}_${p.field_key}`, data: photoData });
+                }
               }
             }
           }
@@ -1325,6 +1376,9 @@ class GoogleSyncService {
         if (photoItems.length > 0) {
           await setPhotosBatch(photoItems);
           console.log(`[SyncService] Background photos loaded: ${photoItems.length} photos cached`);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent('presensi_photos_cached', { detail: { count: photoItems.length } }));
+          }
         }
       }
     } catch (err: any) {
@@ -1351,12 +1405,23 @@ class GoogleSyncService {
               const photoData = p.photo_data || p.photoUrl || p.data || p.photoData;
               if (p.id && photoData && typeof photoData === 'string' && photoData.trim() !== '') {
                 photoItems.push({ id: p.id, data: photoData });
+                if (p.id.startsWith('photo_')) {
+                  photoItems.push({ id: p.id.replace(/^photo_/, ''), data: photoData });
+                } else {
+                  photoItems.push({ id: `photo_${p.id}`, data: photoData });
+                }
+                if (p.record_id && p.field_key) {
+                  photoItems.push({ id: `${p.record_id}_${p.field_key}`, data: photoData });
+                }
               }
             }
           }
         }
         if (photoItems.length > 0) {
           await setPhotosBatch(photoItems);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent('presensi_photos_cached', { detail: { count: photoItems.length } }));
+          }
         }
       }
     } catch (err: any) {

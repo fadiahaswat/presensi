@@ -15,6 +15,7 @@ import { getMusyrifCallName } from "../utils/notificationUtils";
 import { googleSyncService } from "../utils/googleSyncService";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { VirtualizedGallery, GalleryPhoto } from "./VirtualizedGallery";
+import { LazyImage } from "./LazyImage";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 // ============ CONSTANTS & HELPERS ============
@@ -492,7 +493,20 @@ const PostArticle = memo(({
     />
 
     <div onClick={onViewComments} className="relative w-full aspect-square bg-slate-950 cursor-pointer">
-      <img src={post.photoUrl} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+      <LazyImage
+        src={post.photoUrl}
+        thumbnail={post.photoThumbnailUrl}
+        alt={post.taskTitle}
+        className="w-full h-full object-cover"
+        recordId={`${post.musyrifId}_${post.date}_${post.taskKey}`}
+        photoField="photoUrl"
+        tableName="Logbook"
+        placeholder={
+          <div className="w-full h-full flex items-center justify-center bg-slate-950 text-slate-600">
+            <Camera className="w-8 h-8 opacity-40" />
+          </div>
+        }
+      />
     </div>
 
     <ActionButtons
@@ -553,7 +567,15 @@ const KoordinatorActionModal = memo(({
     >
       {/* Post Summary */}
       <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-        <img src={post.photoUrl} alt="" className="w-12 h-12 rounded-2xl object-cover ring-1 ring-slate-200" />
+        <LazyImage
+          src={post.photoUrl}
+          thumbnail={post.photoThumbnailUrl}
+          alt=""
+          className="w-12 h-12 rounded-2xl object-cover ring-1 ring-slate-200 shrink-0"
+          recordId={`${post.musyrifId}_${post.date}_${post.taskKey}`}
+          photoField="photoUrl"
+          tableName="Logbook"
+        />
         <div className="min-w-0 flex-1">
           <h4 className="text-xs font-bold text-slate-900 truncate">Ustaz {getMusyrifCallName(post.musyrifName)} • {post.asrama}</h4>
           <p className="text-[11px] text-slate-500 truncate">{post.taskTitle}</p>
@@ -647,7 +669,19 @@ const PhotoModal = memo(({
 
       {/* Main Image */}
       <div className="flex-1 flex items-center justify-center p-2 min-h-[300px] overflow-hidden">
-        <img src={photoUrl} alt={taskTitle} className="max-w-full max-h-full object-contain select-none" />
+        <LazyImage
+          src={photoUrl}
+          alt={taskTitle}
+          className="max-w-full max-h-full object-contain select-none"
+          recordId={post?.id}
+          photoField="photoUrl"
+          tableName="Logbook"
+          placeholder={
+            <div className="w-48 h-48 flex items-center justify-center text-slate-500">
+              <Camera className="w-8 h-8 opacity-40" />
+            </div>
+          }
+        />
       </div>
 
       {/* Footer Details & Delete Action */}
@@ -741,7 +775,15 @@ const CommentsModal = memo(({
       {/* Post Context Header (if available) */}
       {post && (
         <div className="px-4 py-2.5 bg-slate-50/90 border-b border-slate-100 flex items-center gap-3 shrink-0">
-          <img src={post.photoUrl} alt="" className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shrink-0" />
+          <LazyImage
+            src={post.photoUrl}
+            thumbnail={post.photoThumbnailUrl}
+            alt=""
+            className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 shrink-0"
+            recordId={`${post.musyrifId}_${post.date}_${post.taskKey}`}
+            photoField="photoUrl"
+            tableName="Logbook"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-800 truncate">Ustaz {getMusyrifCallName(post.musyrifName)} • {post.asrama}</p>
             <p className="text-[11px] text-slate-500 truncate">{post.taskTitle}</p>
@@ -995,6 +1037,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
             taskCategory: key.startsWith("agenda_") ? "Agenda Rapat" : (LOGBOOK_TASK_TITLES[key]?.category || "Kegiatan"),
             completedAt: tItem.completedAt,
             photoUrl: tItem.photoUrl,
+            photoThumbnailUrl: tItem.photoThumbnailUrl || tItem.photoThumbnail || undefined,
             photoTakenAt: tItem.photoTakenAt,
             notes: tItem.notes,
             stepsCount: tItem.stepsCount

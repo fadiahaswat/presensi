@@ -28,8 +28,16 @@ export function usePhoto(
   recordId: string | null,
   photoField: string,
   initialPhoto: string | null | undefined
-): UsePhotoResult {
-  const [photo, setPhoto] = useState<string | null>(initialPhoto || null);
+  const isDisplayable = (url: string | null | undefined): boolean => {
+    return Boolean(
+      url &&
+      !url.startsWith('photo:') &&
+      !url.startsWith('[PHOTO_REF:') &&
+      (url.startsWith('data:image') || url.startsWith('blob:') || url.startsWith('http') || url.startsWith('/'))
+    );
+  };
+
+  const [photo, setPhoto] = useState<string | null>(isDisplayable(initialPhoto) ? (initialPhoto || null) : null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cacheKeyRef = useRef<string | null>(null);
@@ -37,7 +45,7 @@ export function usePhoto(
 
   useEffect(() => {
     if (!recordId) {
-      setPhoto(initialPhoto || null);
+      setPhoto(isDisplayable(initialPhoto) ? (initialPhoto || null) : null);
       return;
     }
 

@@ -38,8 +38,8 @@ import { LogbookGalleryWidget, getTaskDisplayTitle } from "./components/LogbookG
 import { ALL_SANTRI_DATA, SantriData } from "./data/santriData";
 import { SantriChangeRequest } from "./types/santriRequest";
 import { CloudSyncBadge } from "./components/CloudSyncBadge";
-import { AppSkeleton } from "./components/AppSkeleton";
-import { useDebouncedPersistence, createDebouncedSave } from "./hooks/useDebouncedPersistence"; // OPTIMIZATION: Efficient persistence
+import { useDebouncedPersistence, createDebouncedSave, cleanupLegacyStorage } from "./hooks/useDebouncedPersistence"; // OPTIMIZATION: Efficient persistence
+import { LazyImage } from "./components/LazyImage";
 
 // Dynamic Code Splitting for Heavy Modals & Subpages
 const WhatsAppShareModal = lazy(() => import("./components/WhatsAppShareModal").then(m => ({ default: m.WhatsAppShareModal })));
@@ -1761,11 +1761,13 @@ function PageDashboard({
                                 className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 group/photo cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all shadow-2xs"
                                 title={`${iz.namaSantri} (${iz.kelas})`}
                               >
-                                <img
+                                <LazyImage
                                   src={pUrl}
                                   alt={iz.namaSantri}
                                   className="w-full h-full object-cover group-hover/photo:scale-110 transition-transform duration-300"
-                                  loading="lazy"
+                                  recordId={iz.id}
+                                  photoField="photoUrl"
+                                  tableName="Izin"
                                 />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white">
                                   <Eye className="w-3.5 h-3.5" />
@@ -1935,11 +1937,13 @@ function PageDashboard({
                               className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 group/photo cursor-pointer hover:ring-2 hover:ring-rose-500 transition-all shadow-2xs"
                               title={`${s.namaSantri} (${s.kelasSantri || s.asrama})`}
                             >
-                              <img
+                              <LazyImage
                                 src={s.photoUrl}
                                 alt={s.namaSantri}
                                 className="w-full h-full object-cover group-hover/photo:scale-110 transition-transform duration-300"
-                                loading="lazy"
+                                recordId={s.id}
+                                photoField="photoUrl"
+                                tableName="SantriSakit"
                               />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white">
                                 <Eye className="w-3.5 h-3.5" />
@@ -2924,7 +2928,7 @@ function PageDashboard({
               </button>
             </div>
             <div className="relative flex-1 bg-black flex items-center justify-center p-2 min-h-[260px] max-h-[65vh] overflow-hidden">
-              <img
+              <LazyImage
                 src={previewWidgetPhoto.url}
                 alt={previewWidgetPhoto.title}
                 className="max-w-full max-h-full object-contain rounded-xl"
@@ -5579,12 +5583,13 @@ function PageRiwayat({
                     className="group relative aspect-square rounded-2xl overflow-hidden bg-slate-900 ring-1 ring-slate-200/80 cursor-pointer shadow-2xs select-none"
                     onClick={() => setPreviewPhotoModal(photo)}
                   >
-                    <img
+                    <LazyImage
                       src={photo.photoUrl}
                       alt={photo.taskTitle}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      loading="lazy"
-                      decoding="async"
+                      recordId={`${photo.musyrifId}_${photo.date}_${photo.taskKey}`}
+                      photoField="photoUrl"
+                      tableName="Logbook"
                     />
                     {/* Top Date Badge */}
                     <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[9px] font-bold text-white font-mono">
@@ -5749,12 +5754,13 @@ function PageRiwayat({
                                         className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 cursor-pointer group shadow-2xs shrink-0"
                                         title="Lihat foto kegiatan"
                                       >
-                                        <img
+                                        <LazyImage
                                           src={tData.photoUrl}
                                           alt="Bukti Foto"
                                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                          loading="lazy"
-                                          decoding="async"
+                                          recordId={taskPhotoItem ? `${taskPhotoItem.musyrifId}_${taskPhotoItem.date}_${taskPhotoItem.taskKey}` : undefined}
+                                          photoField="photoUrl"
+                                          tableName="Logbook"
                                         />
                                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                                           <Eye className="w-3.5 h-3.5" />
@@ -5870,7 +5876,14 @@ function PageRiwayat({
                             onClick={() => setPreviewPhotoModal({ id: rec.id, photoUrl: rec.photoUrl, taskTitle: `Pengasuhan: ${rec.namaSantri}` })}
                             className="relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 cursor-pointer group shadow-2xs shrink-0"
                           >
-                            <img src={rec.photoUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <LazyImage
+                              src={rec.photoUrl}
+                              alt=""
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              recordId={rec.id}
+                              photoField="photoUrl"
+                              tableName="PengasuhanKhusus"
+                            />
                             <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                               <Eye className="w-4 h-4" />
                             </div>
@@ -6678,10 +6691,13 @@ function PageRiwayat({
 
             {/* Image Preview */}
             <div className="flex-1 bg-slate-950 flex items-center justify-center overflow-hidden min-h-[260px] max-h-[50vh]">
-              <img
+              <LazyImage
                 src={previewPhotoModal.photoUrl}
                 alt={previewPhotoModal.taskTitle}
                 className="max-w-full max-h-full object-contain"
+                recordId={previewPhotoModal.id || (previewPhotoModal.musyrifId && previewPhotoModal.date && previewPhotoModal.taskKey ? `${previewPhotoModal.musyrifId}_${previewPhotoModal.date}_${previewPhotoModal.taskKey}` : undefined)}
+                photoField="photoUrl"
+                tableName="Logbook"
               />
             </div>
 
@@ -7895,10 +7911,21 @@ export default function App() {
   const [targetDate, setTargetDate] = useState<string | undefined>(undefined);
   const [targetTaskKey, setTargetTaskKey] = useState<string | undefined>(undefined);
 
+  // Proactively cleanup obsolete legacy keys (v1-v4) to prevent quota issues
+  useEffect(() => {
+    cleanupLegacyStorage();
+  }, []);
+
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
+    const isStandalone = typeof window !== "undefined" && (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true
+    );
+    if (isStandalone) return;
+
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -8479,8 +8506,6 @@ export default function App() {
               } else {
                 next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
               }
-            });
-            try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
             return next;
           });
         } else if (tbl === "mutabaah" && Array.isArray(cloudRecords)) {
@@ -8765,16 +8790,15 @@ export default function App() {
                     if (stepsCount) updatedTaskObj.stepsCount = stepsCount;
                     if (subChoice) updatedTaskObj.subChoice = subChoice;
 
-                    (next[mId][dt] as any)[cr.taskKey] = updatedTaskObj;
+                      (next[mId][dt] as any)[cr.taskKey] = updatedTaskObj;
+                    }
+                  } else {
+                    next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
                   }
-                } else {
-                  next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
                 }
               }
-            }
-          });
-          try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
-          return next;
+            });
+            return next;
         });
       } else if (tbl === "mutabaah") {
         setMutabaahData(prev => {
@@ -9601,7 +9625,6 @@ export default function App() {
           [date]: mergedEntry
         }
       };
-      try { localStorage.setItem(STORAGE_KEY_LOGBOOK, JSON.stringify(next)); } catch {}
       return next;
     });
 

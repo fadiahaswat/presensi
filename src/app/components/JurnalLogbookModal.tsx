@@ -18,6 +18,7 @@ import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../u
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { AgendaRapatRecord } from "../types/agendaRapat";
 import { generatePhotoThumbnail } from "../utils/photoThumbnailService"; // OPTIMIZATION: Thumbnail generation
+import { LazyImage } from "./LazyImage";
 
 export interface LogbookTaskItem {
   done: boolean;
@@ -1772,7 +1773,14 @@ export function JurnalLogbookModal({
                             className="relative w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/60 group hover:opacity-90 transition-opacity"
                             title="Lihat Foto Dokumentasi"
                           >
-                            <img src={taskData.photoUrl} alt="Bukti Foto" className="w-full h-full object-cover" />
+                            <LazyImage
+                              src={taskData.photoUrl}
+                              alt="Bukti Foto"
+                              className="w-full h-full object-cover"
+                              recordId={`${selectedMusyrifId}_${selectedDate}_${t.key}`}
+                              photoField="photoUrl"
+                              tableName="Logbook"
+                            />
                             <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center text-white">
                               <Eye className="w-3 h-3" />
                             </div>
@@ -2027,7 +2035,19 @@ export function JurnalLogbookModal({
               </div>
             </div>
             <div className="p-3 bg-black flex items-center justify-center overflow-auto max-h-[70vh]">
-              <img src={previewPhoto.url} alt={previewPhoto.title} className="w-full h-auto max-h-[66vh] object-contain rounded-lg" />
+              <LazyImage
+                src={previewPhoto.url}
+                alt={previewPhoto.title}
+                className="w-full h-auto max-h-[66vh] object-contain rounded-lg"
+                recordId={previewPhoto.taskKey ? `${selectedMusyrifId}_${selectedDate}_${previewPhoto.taskKey}` : undefined}
+                photoField="photoUrl"
+                tableName="Logbook"
+                placeholder={
+                  <div className="w-48 h-48 flex items-center justify-center text-slate-500">
+                    <Camera className="w-8 h-8 opacity-40" />
+                  </div>
+                }
+              />
             </div>
             {previewPhoto.watermark && (
               <div className="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400">

@@ -63,6 +63,22 @@ interface ImageState {
 }
 
 /**
+ * Check if a string is a valid displayable image src (never photo: schemes)
+ */
+export function isValidImageSrc(data: unknown): data is string {
+  if (!data || typeof data !== 'string') return false;
+  if (data.startsWith('photo:') || data.startsWith('[PHOTO_REF:')) return false;
+  return Boolean(
+    data.startsWith('data:image/') ||
+    data.startsWith('blob:') ||
+    data.startsWith('http://') ||
+    data.startsWith('https://') ||
+    data.startsWith('/') ||
+    data.startsWith('./')
+  );
+}
+
+/**
  * High-performance lazy image with:
  * - Intersection Observer for viewport detection
  * - Progressive loading (thumbnail → full)
@@ -92,24 +108,162 @@ export const LazyImage = memo(function LazyImage({
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const resolvedSrcRef = useRef<string | null>(null);
+  // Check if photo data is a valid displayable image URL (never photo: schemes)
+  const isValidPhoto = useCallback((data: unknown): data is string => {
+    if (!data || typeof data !== 'string') return false;
+    if (data.startsWith('photo:') || data.startsWith('[PHOTO_REF:')) return false;
+    return Boolean(
+      data.startsWith('data:image/') ||
+      data.startsWith('blob:') ||
+      data.startsWith('http://') ||
+      data.startsWith('https://') ||
+      data.startsWith('/') ||
+      data.startsWith('./')
+    );
+  }, []);
 
-  const isDirectImage = Boolean(
-    src && (src.startsWith('data:image') || src.startsWith('http') || src.startsWith('/'))
-  );
+  const isDirectImage = Boolean(src && isValidPhoto(src));
 
   const [state, setState] = useState<ImageState>(() => ({
     loaded: isDirectImage,
     error: false,
-    currentSrc: isDirectImage ? src : null,
+    currentSrc: isDirectImage && typeof src === 'string' ? src : null,
   }));
 
   const [isInView, setIsInView] = useState(preload || isDirectImage);
-  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(isDirectImage ? src : null);
+  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(isDirectImage && typeof src === 'string' ? src : null);
+
+  // Load image from cache or network
+  const loadImage = useCallback(async (imageSrc: string) => {
+    if (!imageSrc) return;
+
+    onLoadStart?.();
+
+    // If inline base64 or blob, use directly (fastest path)
+    if (isValidPhoto(imageSrc) && (imageSrc.startsWith('data:') || imageSrc.startsWith('blob:'))) {
+      setState({
+        loaded: true,
+        error: false,
+        currentSrc: imageSrc,
+      });
+      onLoadComplete?.();
+
+      // Cache it for next time using cacheId if provided
+      if (useCache && cacheId && imageSrc.startsWith('data:')) {
+        setPhoto(cacheId, imageSrc).catch(() => {});
+      }
+      return;
+    }
+
+    // If URL, load directly
+    if (isValidPhoto(imageSrc) && (imageSrc.startsWith('http') || imageSrc.startsWith('/'))) {
+      const img = new Image();
+      img.onload = () => {
+        setState({
+          loaded: true,
+          error: false,
+          currentSrc: imageSrc,
+        });
+        onLoadComplete?.();
+      };
+      img.onerror = () => {
+        setState({
+          loaded: false,
+          error: true,
+          currentSrc: null,
+        });
+        onError?.(`Failed to load: ${imageSrc}`);
+      };
+      img.src = imageSrc;
+      return;
+    }
+
+    // Try cache first with flexible key matching
+    if (useCache) {
+      try {
+        // Strategy 1: Use cacheId if provided
+        if (cacheId) {
+          const cached = await getPhoto(cacheId);
+          if (cached?.data && isValidPhoto(cached.data)) {
+            setState({
+              loaded: true,
+              error: false,
+              currentSrc: cached.data,
+            });
+            onLoadComplete?.();
+            return;
+          }
+        }
+
+        // Strategy 2: For photo: or [PHOTO_REF:] format, extract and lookup
+        if (imageSrc.startsWith('photo:') || imageSrc.startsWith('[PHOTO_REF:')) {
+          const photoId = imageSrc.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '').trim();
+          if (photoId) {
+            const candidates = [
+              photoId,
+              photoId.startsWith('photo_') ? photoId.replace(/^photo_/, '') : `photo_${photoId}`,
+              ...(recordId && photoField ? [
+                `${recordId}_${photoField}`,
+                `photo_${recordId}_${photoField}`,
+                tableName ? `${tableName.toLowerCase()}_${recordId}_${photoField}` : '',
+                tableName ? `photo_${tableName.toLowerCase()}_${recordId}_${photoField}` : '',
+              ] : [])
+            ].filter(Boolean);
+
+            for (const cand of candidates) {
+              const cached = await getPhoto(cand);
+              if (cached?.data && isValidPhoto(cached.data)) {
+                setState({
+                  loaded: true,
+                  error: false,
+                  currentSrc: cached.data,
+                });
+                onLoadComplete?.();
+                return;
+              }
+            }
+          }
+        }
+
+        // Strategy 3: Direct key lookup using src as key
+        const cached = await getPhoto(imageSrc);
+        if (cached?.data && isValidPhoto(cached.data)) {
+          setState({
+            loaded: true,
+            error: false,
+            currentSrc: cached.data,
+          });
+          onLoadComplete?.();
+          return;
+        }
+      } catch (_) {
+        // Cache miss or error, continue
+      }
+    }
+
+    // If we reach here, no cached version found
+    // For photo refs, show placeholder/shimmer cleanly without throwing CSP violation
+    if (imageSrc.startsWith('[PHOTO_REF:') || imageSrc.startsWith('photo:')) {
+      setState({
+        loaded: false,
+        error: false,
+        currentSrc: null,
+      });
+      return;
+    }
+
+    // Unknown format
+    setState({
+      loaded: false,
+      error: true,
+      currentSrc: null,
+    });
+    onError?.('Unknown image format');
+  }, [useCache, cacheId, onLoadStart, onLoadComplete, onError, isValidPhoto, recordId, photoField, tableName]);
 
   // Synchronize when src changes
   useEffect(() => {
-    if (src && (src.startsWith('data:image') || src.startsWith('http') || src.startsWith('/'))) {
+    if (src && isValidPhoto(src)) {
       setState({
         loaded: true,
         error: false,
@@ -120,19 +274,44 @@ export const LazyImage = memo(function LazyImage({
     }
 
     if (!recordId || !photoField) {
-      setResolvedPhoto(src);
+      setResolvedPhoto(isValidPhoto(src) ? src : null);
+      if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
+        loadImage(src);
+      }
       return;
     }
 
     // Resolve photo using sync service if we have record info
     googleSyncService.getRecordPhoto(recordId, photoField, src || null, tableName)
       .then((resolved) => {
-        setResolvedPhoto(resolved || src);
+        if (resolved && isValidPhoto(resolved)) {
+          setResolvedPhoto(resolved);
+          setState({ loaded: true, error: false, currentSrc: resolved });
+        } else if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
+          loadImage(src);
+        } else {
+          setResolvedPhoto(null);
+        }
       })
       .catch(() => {
-        setResolvedPhoto(src);
+        if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
+          loadImage(src);
+        } else {
+          setResolvedPhoto(null);
+        }
       });
-  }, [recordId, photoField, tableName, src]);
+  }, [recordId, photoField, tableName, src, isValidPhoto, loadImage]);
+
+  // Auto re-check cache when background photos finish syncing
+  useEffect(() => {
+    const handlePhotosCached = () => {
+      if (!state.loaded && src) {
+        loadImage(src);
+      }
+    };
+    window.addEventListener('presensi_photos_cached', handlePhotosCached);
+    return () => window.removeEventListener('presensi_photos_cached', handlePhotosCached);
+  }, [state.loaded, src, loadImage]);
 
   // Setup Intersection Observer for deferred / non-direct images
   useEffect(() => {
@@ -167,127 +346,6 @@ export const LazyImage = memo(function LazyImage({
       observerRef.current?.disconnect();
     };
   }, [preload, isDirectImage]);
-
-  // Check if photo data is a valid image
-  const isValidPhoto = (data: string): boolean => {
-    return Boolean(data && (data.startsWith('data:image') || data.startsWith('http') || data.length > 500));
-  };
-
-  // Load image from cache or network
-  const loadImage = useCallback(async (imageSrc: string) => {
-    if (!imageSrc) return;
-
-    onLoadStart?.();
-
-    // If inline base64, use directly (fastest path)
-    if (imageSrc.startsWith('data:')) {
-      setState({
-        loaded: true,
-        error: false,
-        currentSrc: imageSrc,
-      });
-      onLoadComplete?.();
-
-      // Cache it for next time using cacheId if provided
-      if (useCache && cacheId) {
-        setPhoto(cacheId, imageSrc).catch(() => {});
-      }
-      return;
-    }
-
-    // If URL, load directly
-    if (imageSrc.startsWith('http')) {
-      const img = new Image();
-      img.onload = () => {
-        setState({
-          loaded: true,
-          error: false,
-          currentSrc: imageSrc,
-        });
-        onLoadComplete?.();
-      };
-      img.onerror = () => {
-        setState({
-          loaded: false,
-          error: true,
-          currentSrc: null,
-        });
-        onError?.(`Failed to load: ${imageSrc}`);
-      };
-      img.src = imageSrc;
-      return;
-    }
-
-    // Try cache first with flexible key matching
-    if (useCache) {
-      try {
-        // Strategy 1: Use cacheId if provided
-        if (cacheId) {
-          const cached = await getPhoto(cacheId);
-          if (cached?.data) {
-            setState({
-              loaded: true,
-              error: false,
-              currentSrc: cached.data,
-            });
-            onLoadComplete?.();
-            return;
-          }
-        }
-
-        // Strategy 2: For photo: or [PHOTO_REF:] format, extract and lookup
-        if (imageSrc.startsWith('photo:') || imageSrc.startsWith('[PHOTO_REF:')) {
-          const photoId = imageSrc.replace(/^photo:/, '').replace(/^\[PHOTO_REF:/, '').replace(/\]$/, '').trim();
-          if (photoId) {
-            const cached = await getPhoto(photoId);
-            if (cached?.data) {
-              setState({
-                loaded: true,
-                error: false,
-                currentSrc: cached.data,
-              });
-              onLoadComplete?.();
-              return;
-            }
-          }
-        }
-
-        // Strategy 3: Direct key lookup using src as key
-        const cached = await getPhoto(imageSrc);
-        if (cached?.data) {
-          setState({
-            loaded: true,
-            error: false,
-            currentSrc: cached.data,
-          });
-          onLoadComplete?.();
-          return;
-        }
-      } catch (_) {
-        // Cache miss or error, continue
-      }
-    }
-
-    // If we reach here, no cached version found
-    // For photo refs, try to show placeholder
-    if (imageSrc.startsWith('[PHOTO_REF:') || imageSrc.startsWith('photo:')) {
-      setState({
-        loaded: false,
-        error: true,
-        currentSrc: null,
-      });
-      onError?.('Photo not found in cache');
-      return;
-    }
-
-    // Unknown format
-    setState({
-      loaded: false,
-      error: true,
-      currentSrc: null,
-    });
-    onError?.('Unknown image format');
-  }, [useCache, cacheId, onLoadStart, onLoadComplete, onError]);
 
   // Load when in view
   useEffect(() => {
@@ -389,7 +447,7 @@ export const LazyImage = memo(function LazyImage({
       )}
 
       {/* Actual image */}
-      {state.loaded && state.currentSrc && (
+      {state.loaded && state.currentSrc && isValidImageSrc(state.currentSrc) && (
         <img
           ref={imgRef}
           src={state.currentSrc}

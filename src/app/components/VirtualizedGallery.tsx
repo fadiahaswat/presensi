@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { LazyImage } from "./LazyImage";
-import { X, ZoomIn, ZoomOut, Grid, List, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Grid, List, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 
 export interface GalleryPhoto {
   id: string;
@@ -375,13 +375,22 @@ const Lightbox = memo(function Lightbox({
       )}
 
       {/* Image */}
-      <img
-        src={photo.url}
-        alt={photo.alt}
-        className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
+      <div
+        className="max-w-[90vw] max-h-[85vh] flex items-center justify-center overflow-hidden"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "90vw", maxHeight: "85vh" }}
-      />
+      >
+        <LazyImage
+          src={photo.url}
+          thumbnail={photo.thumbnail}
+          alt={photo.alt}
+          className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg"
+          placeholder={
+            <div className="w-64 h-64 flex items-center justify-center bg-slate-900 text-slate-500 rounded-lg">
+              <Camera className="w-8 h-8 opacity-40" />
+            </div>
+          }
+        />
+      </div>
 
       {/* Navigation - Next */}
       {currentIndex < totalCount - 1 && (
