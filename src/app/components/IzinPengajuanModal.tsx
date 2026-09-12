@@ -243,12 +243,12 @@ export function IzinPengajuanModal({
   const filteredIzinList = roleScopedIzinList.filter(item => {
     const matchStatus = filterStatus === "all" || item.status === filterStatus;
     const matchType = filterType === "all" || item.type === filterType;
-    const q = searchQuery.toLowerCase();
+    const q = (searchQuery || "").toLowerCase();
     const matchSearch = !searchQuery || 
-      item.musyrifName.toLowerCase().includes(q) ||
-      item.asrama.toLowerCase().includes(q) ||
-      item.reason.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q);
+      (item.musyrifName && item.musyrifName.toLowerCase().includes(q)) ||
+      (item.asrama && item.asrama.toLowerCase().includes(q)) ||
+      (item.reason && item.reason.toLowerCase().includes(q)) ||
+      (item.category && item.category.toLowerCase().includes(q));
     return matchStatus && matchType && matchSearch;
   });
 

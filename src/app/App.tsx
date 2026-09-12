@@ -536,8 +536,8 @@ const MUSYRIF_LIST: Musyrif[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-function matchesEmail(emailField?: string, inputEmail?: string): boolean {
-  if (!emailField || !inputEmail) return false;
+function matchesEmail(emailField?: string | null, inputEmail?: string | null): boolean {
+  if (!emailField || !inputEmail || typeof emailField !== "string" || typeof inputEmail !== "string") return false;
   const target = inputEmail.trim().toLowerCase();
   const list = emailField.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
   return list.includes(target);
@@ -1002,7 +1002,7 @@ function PageDashboard({
         const myCleanEmail = (authUser.email || "").trim().toLowerCase();
         const matchedMusyrif = musyrifList.find(m => 
           m.id === myId || 
-          (m.email && myCleanEmail && m.email.toLowerCase().includes(myCleanEmail))
+          (m.email && myCleanEmail && String(m.email).toLowerCase().includes(myCleanEmail))
         );
         const targetId = matchedMusyrif?.id || myId;
 
@@ -1580,21 +1580,38 @@ function PageDashboard({
               let filtered: SantriIzinRecord[] = [];
               if (authUser.role === "pamong") {
                 filtered = (santriIzinList || []).filter(iz => {
+                  if (!iz) return false;
+                  const izAsrama = String(iz.asrama || "").toLowerCase();
                   if (pamongAsramas.length > 0) {
-                    return pamongAsramas.some(pa => !iz.asrama || iz.asrama === "Kampus Asrama" || iz.asrama.toLowerCase().includes(pa.toLowerCase()) || pa.toLowerCase().includes(iz.asrama.toLowerCase()));
+                    return pamongAsramas.some(pa => !iz.asrama || iz.asrama === "Kampus Asrama" || (pa && (izAsrama.includes(String(pa).toLowerCase()) || String(pa).toLowerCase().includes(izAsrama))));
                   }
-                  return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || iz.asrama.toLowerCase().includes(authUser.asrama.toLowerCase());
+                  const authAsrama = String(authUser.asrama || "").toLowerCase();
+                  return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || (authAsrama && izAsrama.includes(authAsrama));
                 });
               } else if (authUser.role === "koordinator_gedung") {
-                filtered = (santriIzinList || []).filter(iz => !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || iz.asrama.toLowerCase().includes(authUser.asrama.toLowerCase()));
+                const authAsrama = String(authUser.asrama || "").toLowerCase();
+                filtered = (santriIzinList || []).filter(iz => {
+                  if (!iz) return false;
+                  const izAsrama = String(iz.asrama || "").toLowerCase();
+                  return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || (authAsrama && izAsrama.includes(authAsrama));
+                });
               } else if (authUser.role === "musyrif") {
-                filtered = (santriIzinList || []).filter(iz => 
-                  (authUser.asrama && iz.asrama && iz.asrama.toLowerCase().includes(authUser.asrama.toLowerCase())) || 
-                  (authUser.kamar && iz.kamar && iz.kamar.toLowerCase().includes(authUser.kamar.toLowerCase())) ||
-                  (authUser.kelas && iz.kelas && iz.kelas.toLowerCase().includes(authUser.kelas.toLowerCase())) ||
-                  iz.dibuatOleh === authUser.name ||
-                  !iz.asrama || iz.asrama === "Kampus Asrama"
-                );
+                const authAsrama = String(authUser.asrama || "").toLowerCase();
+                const authKamar = String(authUser.kamar || "").toLowerCase();
+                const authKelas = String(authUser.kelas || "").toLowerCase();
+                filtered = (santriIzinList || []).filter(iz => {
+                  if (!iz) return false;
+                  const izAsrama = String(iz.asrama || "").toLowerCase();
+                  const izKamar = String(iz.kamar || "").toLowerCase();
+                  const izKelas = String(iz.kelas || "").toLowerCase();
+                  return (
+                    (authAsrama && izAsrama && izAsrama.includes(authAsrama)) || 
+                    (authKamar && izKamar && izKamar.includes(authKamar)) ||
+                    (authKelas && izKelas && izKelas.includes(authKelas)) ||
+                    iz.dibuatOleh === authUser.name ||
+                    !iz.asrama || iz.asrama === "Kampus Asrama"
+                  );
+                });
               }
               return filtered.length > 0 ? filtered : (santriIzinList || []);
             })();
@@ -1801,23 +1818,26 @@ function PageDashboard({
               }
               if (authUser.role === "pamong") {
                 return rawSakit.filter(s => {
+                  if (!s) return false;
+                  const sAsrama = String(s.asrama || "").toLowerCase();
                   if (pamongAsramas.length > 0) {
-                    return pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => s.asrama?.toLowerCase().includes(pa.toLowerCase()));
+                    return pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => pa && sAsrama.includes(String(pa).toLowerCase()));
                   }
                   return s.asrama === authUser.asrama;
                 });
               }
               if (authUser.role === "koordinator_gedung") {
-                return rawSakit.filter(s => s.asrama === authUser.asrama);
+                return rawSakit.filter(s => s && s.asrama === authUser.asrama);
               }
               if (authUser.role === "musyrif") {
                 const myMusyrifId = authUser.musyrifId || authUser.id;
-                const myKelas = (authUser.kelas || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+                const myKelas = String(authUser.kelas || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
                 return rawSakit.filter(s => {
-                  const sKelas = (s.kelasSantri || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+                  if (!s) return false;
+                  const sKelas = String(s.kelasSantri || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
                   const matchId = Boolean(s.musyrifId && s.musyrifId === myMusyrifId);
                   const matchKelas = Boolean(myKelas && (sKelas === myKelas || sKelas.includes(myKelas) || myKelas.includes(sKelas)));
-                  const matchKamar = Boolean(authUser.kamar && s.kamar && s.kamar.toLowerCase() === authUser.kamar.toLowerCase());
+                  const matchKamar = Boolean(authUser.kamar && s.kamar && String(s.kamar).toLowerCase() === String(authUser.kamar).toLowerCase());
                   
                   if (myKelas) {
                     return matchKelas || matchId;
@@ -2633,8 +2653,9 @@ function PageDashboard({
             {/* Compact Matrix Table */}
             <div className="divide-y divide-slate-50">
               {ASRAMAS.filter(a => {
-                if (asramaCampus === "sparman") return !a.toLowerCase().includes("sedayu");
-                if (asramaCampus === "sedayu") return a.toLowerCase().includes("sedayu");
+                const aLow = String(a || "").toLowerCase();
+                if (asramaCampus === "sparman") return !aLow.includes("sedayu");
+                if (asramaCampus === "sedayu") return aLow.includes("sedayu");
                 return true;
               }).map(a => {
                 const ins = mList.filter(m => m.asrama === a);
@@ -3062,7 +3083,7 @@ function PageInputPrayer({
     }
     return true;
   }).sort(sortMusyrifByClass);
-  const filtered = search ? musyrifList.filter(m => m.name.toLowerCase().includes(search.toLowerCase())) : musyrifList;
+  const filtered = search ? musyrifList.filter(m => (m.name || "").toLowerCase().includes(search.toLowerCase())) : musyrifList;
 
   // Find logged in musyrif ID
   const myMusyrifId = authUser.musyrifId || authUser.id;
@@ -3631,7 +3652,7 @@ function PageRekap({
   const mRecs = records.filter(r => r.date.startsWith(mk));
   const fMusyrif = useMemo(() => {
     let l = (filterAsrama === "Semua" ? allM : allM.filter(m => m.asrama === filterAsrama)).filter(isFieldMusyrif).sort(sortMusyrifByClass);
-    if (search) l = l.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+    if (search) l = l.filter(m => (m.name || "").toLowerCase().includes(search.toLowerCase()));
     return l;
   }, [allM, filterAsrama, search]);
 
@@ -4698,7 +4719,7 @@ function PageRiwayat({
   // Izin data for current musyrif
   const musyrifIzinList = useMemo(() => {
     return (izinList || [])
-      .filter(i => musyrif && (i.musyrifId === musyrif.id || (i.musyrifName && i.musyrifName.toLowerCase() === musyrif.name.toLowerCase())))
+      .filter(i => musyrif && (i.musyrifId === musyrif.id || (i.musyrifName && musyrif.name && String(i.musyrifName).toLowerCase() === String(musyrif.name).toLowerCase())))
       .sort((a, b) => (b.createdAt || b.startDate).localeCompare(a.createdAt || a.startDate));
   }, [izinList, musyrif]);
 
@@ -6616,11 +6637,11 @@ function PageRiwayat({
             <div className="overflow-y-auto divide-y divide-slate-50 flex-1 p-2">
               {allowed
                 .filter(m => {
-                  const q = pickerSearch.toLowerCase();
+                  const q = (pickerSearch || "").toLowerCase();
                   const matchSearch = !pickerSearch || 
                     (m.name || "").toLowerCase().includes(q) || 
                     (m.kelas || "").toLowerCase().includes(q) || 
-                    (m.pamong && m.pamong.toLowerCase().includes(q));
+                    (m.pamong && String(m.pamong).toLowerCase().includes(q));
                   const matchAsrama = pickerAsrama === "all" || m.asrama === pickerAsrama;
                   return matchSearch && matchAsrama;
                 })
@@ -7843,11 +7864,11 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Immediately enrich with master santri dataset on boot
           return parsed.map(item => {
-            if (!item.namaSantri) return item;
-            const rawName = item.namaSantri.trim().toLowerCase();
+            if (!item || !item.namaSantri) return item;
+            const rawName = String(item.namaSantri).trim().toLowerCase();
             const matched = ALL_SANTRI_DATA.find(s => {
-              if (!s.nama) return false;
-              const sName = s.nama.trim().toLowerCase();
+              if (!s || !s.nama) return false;
+              const sName = String(s.nama).trim().toLowerCase();
               return sName === rawName || sName.includes(rawName) || rawName.includes(sName);
             });
             return {
@@ -8246,7 +8267,7 @@ export default function App() {
   useEffect(() => {
     // 1. Subscribe to incoming delta updates from Google Sheets
     const unsubData = googleSyncService.subscribeDataUpdates((tableName, cloudRecords, isFullReplace) => {
-      const tbl = tableName.toLowerCase();
+      const tbl = String(tableName || "").toLowerCase();
 
       // Full replace: merge cleanly with local state without wiping un-synced data
       if (isFullReplace) {
@@ -9731,7 +9752,7 @@ export default function App() {
     // Auto sync to Santri Sakit if category is "antar_pku_rs" and not yet exists
     if (rec.kategori === "antar_pku_rs") {
       const existingSakit = santriSakitList.find(
-        s => s.namaSantri.toLowerCase() === rec.namaSantri.toLowerCase() && s.date === rec.date
+        s => String(s?.namaSantri || "").toLowerCase() === String(rec?.namaSantri || "").toLowerCase() && s?.date === rec?.date
       );
       if (!existingSakit) {
         const newSakitRecord: SantriSakitRecord = {
@@ -9799,7 +9820,7 @@ export default function App() {
       // SINKRONISASI 2: IZIN SAKIT / PANTAUAN SANTRI SAKIT
       if (rec.kategori === "antar_pku_rs") {
         const existingSakit = santriSakitList.find(
-          s => s.namaSantri.toLowerCase() === rec.namaSantri.toLowerCase() && s.date === rec.date
+          s => String(s?.namaSantri || "").toLowerCase() === String(rec?.namaSantri || "").toLowerCase() && s?.date === rec?.date
         );
         if (!existingSakit) {
           const newSakitRecord: SantriSakitRecord = {

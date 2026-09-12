@@ -157,8 +157,8 @@ export function PamongManagerModal({
       const matchAsrama = selectedAsrama === "all" || p.asrama === selectedAsrama;
       const q = searchQuery.trim().toLowerCase();
       const matchSearch = !q ||
-        p.name.toLowerCase().includes(q) ||
-        p.email.toLowerCase().includes(q) ||
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.email && p.email.toLowerCase().includes(q)) ||
         (p.asrama && p.asrama.toLowerCase().includes(q));
       return matchAsrama && matchSearch;
     });

@@ -34,6 +34,12 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleResetStorage = () => {
     try {
       localStorage.clear();
+      sessionStorage.clear();
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        }).catch(() => {});
+      }
       window.location.reload();
     } catch {
       window.location.reload();
@@ -57,8 +63,11 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {this.state.error && (
-              <div className="bg-slate-100 rounded-2xl p-3 text-left font-mono text-[11px] text-rose-700 max-h-32 overflow-y-auto border border-slate-200/80">
+              <div className="bg-slate-100 rounded-2xl p-3 text-left font-mono text-[11px] text-rose-700 max-h-36 overflow-y-auto border border-slate-200/80 space-y-1">
                 <p className="font-bold">{this.state.error.name}: {this.state.error.message}</p>
+                {this.state.error.stack && (
+                  <p className="text-[10px] text-slate-500 whitespace-pre-wrap break-all">{this.state.error.stack.split('\n').slice(0, 4).join('\n')}</p>
+                )}
               </div>
             )}
 

@@ -234,7 +234,7 @@ export function DataSantriModal({
 
     // Filter Class / Tingkat
     if (selectedClass !== "all") {
-      result = result.filter(s => s.kelasLengkap === selectedClass || s.kelasLengkap.toLowerCase() === selectedClass.toLowerCase());
+      result = result.filter(s => s.kelasLengkap === selectedClass || String(s.kelasLengkap || "").toLowerCase() === selectedClass.toLowerCase());
     } else if (selectedTingkat !== "all") {
       result = result.filter(s => s.tingkat === selectedTingkat);
     }
@@ -243,15 +243,15 @@ export function DataSantriModal({
     if (deferredSearchQuery.trim()) {
       const q = deferredSearchQuery.toLowerCase().trim();
       result = result.filter(s =>
-        s.nama.toLowerCase().includes(q) ||
-        s.nis.includes(q) ||
-        s.nisn.includes(q) ||
-        s.kelasLengkap.toLowerCase().includes(q) ||
-        s.kabupaten.toLowerCase().includes(q) ||
-        s.asalSekolah.toLowerCase().includes(q) ||
-        s.namaAyah.toLowerCase().includes(q) ||
-        s.namaIbu.toLowerCase().includes(q) ||
-        s.alamat.toLowerCase().includes(q) ||
+        (s.nama && s.nama.toLowerCase().includes(q)) ||
+        (s.nis && String(s.nis).includes(q)) ||
+        (s.nisn && String(s.nisn).includes(q)) ||
+        (s.kelasLengkap && s.kelasLengkap.toLowerCase().includes(q)) ||
+        (s.kabupaten && s.kabupaten.toLowerCase().includes(q)) ||
+        (s.asalSekolah && s.asalSekolah.toLowerCase().includes(q)) ||
+        (s.namaAyah && s.namaAyah.toLowerCase().includes(q)) ||
+        (s.namaIbu && s.namaIbu.toLowerCase().includes(q)) ||
+        (s.alamat && s.alamat.toLowerCase().includes(q)) ||
         (s.catatanStatus && s.catatanStatus.toLowerCase().includes(q))
       );
     }

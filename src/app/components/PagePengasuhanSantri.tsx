@@ -112,9 +112,9 @@ export function PagePengasuhanSantri({
   const handleToggleSantri = (s: SantriData) => {
     triggerHaptic("selection");
     setSelectedSantriList(prev => {
-      const exists = prev.some(item => item.id === s.id || (item.nama.toLowerCase() === s.nama.toLowerCase() && item.kelas === s.kelas));
+      const exists = prev.some(item => item.id === s.id || (item.nama && s.nama && item.nama.toLowerCase() === s.nama.toLowerCase() && item.kelas === s.kelas));
       if (exists) {
-        return prev.filter(item => item.id !== s.id && !(item.nama.toLowerCase() === s.nama.toLowerCase() && item.kelas === s.kelas));
+        return prev.filter(item => item.id !== s.id && !(item.nama && s.nama && item.nama.toLowerCase() === s.nama.toLowerCase() && item.kelas === s.kelas));
       } else {
         return [...prev, s];
       }
@@ -547,7 +547,7 @@ export function PagePengasuhanSantri({
                   </div>
                 ) : (
                   santriCandidates.map(s => {
-                    const isSelected = selectedSantriList.some(item => item.id === s.id || (item.nama.toLowerCase() === s.nama.toLowerCase() && item.kelas === s.kelas));
+                    const isSelected = selectedSantriList.some(item => item.id === s.id || (item.nama && s.nama && item.nama.toLowerCase() === s.nama.toLowerCase() && item.kelas === s.kelas));
                     return (
                       <button
                         key={s.id}

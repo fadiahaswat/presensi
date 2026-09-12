@@ -449,7 +449,7 @@ export function canUserScrudKalender(email?: string | null, role?: string | null
   if (!email) return false;
   const cleanEmail = email.trim().toLowerCase();
   return (
-    ADMIN_SCRUD_EMAILS.some((adm) => adm.toLowerCase() === cleanEmail) ||
+    ADMIN_SCRUD_EMAILS.some((adm) => String(adm || "").toLowerCase() === cleanEmail) ||
     role === "koordinator_musyrif"
   );
 }

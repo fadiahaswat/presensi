@@ -71,11 +71,11 @@ const buildMusyrifMap = (musyrifList: any[] = [], authUsers: any[] = []): Map<st
       const userObj = { ...u, picture: pic };
       if (u.id) map.set(u.id, userObj);
       if (u.musyrifId) map.set(u.musyrifId, userObj);
-      if (u.name) {
+      if (u.name && typeof u.name === "string") {
         map.set(u.name, userObj);
         map.set(u.name.toLowerCase().trim(), userObj);
       }
-      if (u.email) {
+      if (u.email && typeof u.email === "string") {
         const emails = u.email.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
         for (const em of emails) map.set(em, userObj);
       }
@@ -86,16 +86,16 @@ const buildMusyrifMap = (musyrifList: any[] = [], authUsers: any[] = []): Map<st
   if (Array.isArray(musyrifList)) {
     for (const m of musyrifList) {
       if (!m) continue;
-      const existing = map.get(m.id) || map.get(m.name) || (m.name ? map.get(m.name.toLowerCase().trim()) : undefined);
+      const existing = map.get(m.id) || (m.name && map.get(m.name)) || (m.name && typeof m.name === "string" ? map.get(m.name.toLowerCase().trim()) : undefined);
       const picture = m.picture || m.avatar || m.photo || existing?.picture;
       const merged = { ...existing, ...m, picture };
 
       if (m.id) map.set(m.id, merged);
-      if (m.name) {
+      if (m.name && typeof m.name === "string") {
         map.set(m.name, merged);
         map.set(m.name.toLowerCase().trim(), merged);
       }
-      if (m.email) {
+      if (m.email && typeof m.email === "string") {
         const emails = m.email.toLowerCase().split(/[,;/\s]+/).filter(Boolean);
         for (const em of emails) map.set(em, merged);
       }

@@ -435,6 +435,7 @@ class GoogleSyncService {
    * Check if field name is a photo field
    */
   private isPhotoField(fieldName: string): boolean {
+    if (!fieldName || typeof fieldName !== 'string') return false;
     return PHOTO_FIELDS.some(f => fieldName.toLowerCase() === f.toLowerCase());
   }
 
@@ -442,6 +443,7 @@ class GoogleSyncService {
    * Get table prefix for photo cache key
    */
   private getTablePrefix(tableName: string): string {
+    if (!tableName || typeof tableName !== 'string') return 'record';
     return TABLE_NAME_MAP[tableName] || tableName.toLowerCase();
   }
 

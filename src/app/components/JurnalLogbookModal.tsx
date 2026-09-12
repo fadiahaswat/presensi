@@ -1130,8 +1130,8 @@ export function JurnalLogbookModal({
   const filteredTasks = activeDateTasks.filter(t => {
     // Search Filter
     if (searchTaskQuery.trim()) {
-      const q = searchTaskQuery.toLowerCase();
-      const match = t.title.toLowerCase().includes(q) || t.shortDesc.toLowerCase().includes(q) || t.timeWindow.toLowerCase().includes(q);
+      const q = (searchTaskQuery || "").toLowerCase();
+      const match = (t.title || "").toLowerCase().includes(q) || (t.shortDesc && t.shortDesc.toLowerCase().includes(q)) || (t.timeWindow && t.timeWindow.toLowerCase().includes(q));
       if (!match) return false;
     }
 

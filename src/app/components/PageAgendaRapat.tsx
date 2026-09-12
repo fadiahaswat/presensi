@@ -122,9 +122,11 @@ export function PageAgendaRapat({
         return false;
       }
 
-      const matchSearch = ag.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ag.locationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (ag.createdByName || "").toLowerCase().includes(searchQuery.toLowerCase());
+      const q = (searchQuery || "").toLowerCase();
+      const matchSearch = !searchQuery ||
+        (ag.title && ag.title.toLowerCase().includes(q)) ||
+        (ag.locationName && ag.locationName.toLowerCase().includes(q)) ||
+        (ag.createdByName && ag.createdByName.toLowerCase().includes(q));
       if (!matchSearch) return false;
 
       if (scopeFilter === "hari_ini") return ag.date === todayStr;
@@ -834,8 +836,8 @@ export function PageAgendaRapat({
                 {allowedMusyrifList
                   .filter(m => {
                     if (!notesSearchQuery.trim()) return true;
-                    const q = notesSearchQuery.toLowerCase();
-                    return m.name.toLowerCase().includes(q) || m.asrama.toLowerCase().includes(q);
+                    const q = (notesSearchQuery || "").toLowerCase();
+                    return (m.name && m.name.toLowerCase().includes(q)) || (m.asrama && m.asrama.toLowerCase().includes(q));
                   })
                   .map(m => {
                     const isChecked = selectedMusyrifIds.includes(m.id);

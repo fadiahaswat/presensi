@@ -92,7 +92,7 @@ export function SantriSakitModal({
 
   // Form State
   const defaultMusyrif = isMusyrifUser 
-    ? (musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id) || (m.email && authUser?.email && m.email.toLowerCase() === authUser.email.toLowerCase())) || activeMusyrifList[0] || musyrifList[0])
+    ? (musyrifList.find(m => m.id === (authUser?.musyrifId || authUser?.id) || (m.email && authUser?.email && String(m.email).toLowerCase() === String(authUser.email).toLowerCase())) || activeMusyrifList[0] || musyrifList[0])
     : (activeMusyrifList[0] || musyrifList[0]);
 
   const [formMusyrifId, setFormMusyrifId] = useState(defaultMusyrif?.id || "");
@@ -154,7 +154,7 @@ export function SantriSakitModal({
     }
     // Filter matching students in current musyrif's class first
     const inClassMatches = classStudents.filter(s => 
-      s.nama.toLowerCase().includes(q) ||
+      (s.nama && s.nama.toLowerCase().includes(q)) ||
       (s.nis && s.nis.includes(q)) ||
       (s.nisn && s.nisn.includes(q))
     );
@@ -169,8 +169,8 @@ export function SantriSakitModal({
     setSelectedStudentId(santri.id);
     setShowSuggestions(false);
     // Auto-match the musyrif of that class/asrama and lock it
-    const matchM = musyrifList.find(m => m.kelas && m.kelas.toLowerCase() === (santri.kelasLengkap || "").toLowerCase())
-      || musyrifList.find(m => m.asrama && m.asrama.toLowerCase() === (santri.asrama || "").toLowerCase());
+    const matchM = musyrifList.find(m => m.kelas && String(m.kelas).toLowerCase() === String(santri.kelasLengkap || "").toLowerCase())
+      || musyrifList.find(m => m.asrama && String(m.asrama).toLowerCase() === String(santri.asrama || "").toLowerCase());
     if (matchM) {
       setFormMusyrifId(matchM.id);
     }
@@ -383,7 +383,7 @@ export function SantriSakitModal({
       // Role-based scoping
       if (isPamong) {
         if (pamongAsramas.length > 0) {
-          if (!pamongAsramas.includes(item.asrama) && !pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) return false;
+          if (!pamongAsramas.includes(item.asrama) && !pamongAsramas.some(pa => pa && String(item.asrama || "").toLowerCase().includes(String(pa).toLowerCase()))) return false;
         } else if (authUser?.asrama && item.asrama !== authUser.asrama) {
           return false;
         }
@@ -396,7 +396,7 @@ export function SantriSakitModal({
         
         const matchId = Boolean(item.musyrifId && item.musyrifId === myMusyrifId);
         const matchKelas = Boolean(myKelas && (sKelas === myKelas || sKelas.includes(myKelas) || myKelas.includes(sKelas)));
-        const matchKamar = Boolean(authUser?.kamar && item.kamar && item.kamar.toLowerCase() === authUser.kamar.toLowerCase());
+        const matchKamar = Boolean(authUser?.kamar && item.kamar && String(item.kamar).toLowerCase() === String(authUser.kamar).toLowerCase());
         
         const isMyRoomOrClass = myKelas ? (matchKelas || matchId) : (matchId || matchKamar || (authUser?.asrama && item.asrama === authUser.asrama));
         if (!isMyRoomOrClass) return false;
@@ -423,7 +423,7 @@ export function SantriSakitModal({
     const active = santriSakitList.filter(s => s.status === "dalam_perawatan");
     if (isPamong) {
       if (pamongAsramas.length > 0) {
-        return active.filter(s => pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => s.asrama.toLowerCase().includes(pa.toLowerCase()))).length;
+        return active.filter(s => pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => pa && String(s.asrama || "").toLowerCase().includes(String(pa).toLowerCase()))).length;
       }
       return active.filter(s => s.asrama === authUser?.asrama).length;
     }
@@ -871,7 +871,7 @@ export function SantriSakitModal({
         ) : (
           filteredList.map((item) => {
             const canEditDelete = isSuperAdmin ||
-              (isPamong && (pamongAsramas.length > 0 ? (pamongAsramas.includes(item.asrama) || pamongAsramas.some(pa => item.asrama.toLowerCase().includes(pa.toLowerCase()))) : item.asrama === authUser?.asrama)) ||
+              (isPamong && (pamongAsramas.length > 0 ? (pamongAsramas.includes(item.asrama) || pamongAsramas.some(pa => pa && String(item.asrama || "").toLowerCase().includes(String(pa).toLowerCase()))) : item.asrama === authUser?.asrama)) ||
               (isKoorGedung && item.asrama === authUser?.asrama) ||
               (isMusyrif && (
                 item.musyrifId === authUser?.id || 

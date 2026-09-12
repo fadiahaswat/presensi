@@ -348,9 +348,9 @@ export function PagePembinaanSantri({
 
       // Text Search
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchNama = r.namaSantri.toLowerCase().includes(q);
-        const matchJudul = r.judulPeristiwa.toLowerCase().includes(q);
+        const q = (searchQuery || "").toLowerCase();
+        const matchNama = (r.namaSantri || "").toLowerCase().includes(q);
+        const matchJudul = (r.judulPeristiwa || "").toLowerCase().includes(q);
         const matchKelas = (r.kelasSantri || "").toLowerCase().includes(q);
         const matchAsrama = (r.asrama || "").toLowerCase().includes(q);
         if (!matchNama && !matchJudul && !matchKelas && !matchAsrama) return false;

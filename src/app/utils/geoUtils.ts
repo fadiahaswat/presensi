@@ -264,13 +264,13 @@ export function checkAsramaGeofence(
 
   // 1. Try to find the exact building matching asramaName
   const exactBuilding = MUALLIMIN_LOCATIONS.find(b =>
-    b.name.toLowerCase() === safeName ||
-    (b.asramaKeys && b.asramaKeys.some(k => k.toLowerCase() === safeName || safeName.includes(k.toLowerCase())))
+    (b.name && b.name.toLowerCase() === safeName) ||
+    (b.asramaKeys && b.asramaKeys.some(k => k && (k.toLowerCase() === safeName || safeName.includes(k.toLowerCase()))))
   );
 
   // 2. Also find which broad campus belongs to this asrama
   const matchedCampus = CAMPUS_LOCATIONS.find(c =>
-    c.asramas.some(a => a.toLowerCase() === safeName || safeName.includes(a.toLowerCase()))
+    c.asramas.some(a => a && (a.toLowerCase() === safeName || safeName.includes(a.toLowerCase())))
   ) || (isUserSedayu ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
 
   // 3. For Sedayu campus, also check if user is near Masjid Yuliana (shared mosque)
@@ -390,7 +390,7 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
     const isUserSedayu = isSedayuAsrama(safeAsrama);
 
     const fallbackCampus = CAMPUS_LOCATIONS.find(c =>
-      c.asramas.some(a => a.toLowerCase() === safeAsrama || safeAsrama.includes(a.toLowerCase()))
+      c.asramas.some(a => a && (a.toLowerCase() === safeAsrama || safeAsrama.includes(a.toLowerCase())))
     ) || (isUserSedayu ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
 
     // Primary attempt: High accuracy with 15s timeout and 10s maximumAge

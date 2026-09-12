@@ -81,13 +81,13 @@ export function KegiatanAsramaModal({
       if (pamongAsramas && pamongAsramas.length > 0) {
         const filtered = asramaList.filter(a => 
           pamongAsramas.includes(a) || 
-          pamongAsramas.some(pa => a.toLowerCase().includes(pa.toLowerCase()))
+          pamongAsramas.some(pa => pa && a && a.toLowerCase().includes(pa.toLowerCase()))
         );
         if (filtered.length > 0) return filtered;
       }
     }
     if (authUser?.asrama) {
-      const matched = asramaList.find(a => a.toLowerCase() === authUser.asrama.toLowerCase());
+      const matched = asramaList.find(a => a && authUser.asrama && a.toLowerCase() === authUser.asrama.toLowerCase());
       return matched ? [matched] : [authUser.asrama];
     }
     return asramaList;
@@ -491,11 +491,11 @@ export function KegiatanAsramaModal({
                 }
               }
               const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
-              const q = riwayatSearch.toLowerCase();
+              const q = (riwayatSearch || "").toLowerCase();
               const matchSearch = !riwayatSearch ||
-                rec.activityTitle.toLowerCase().includes(q) ||
-                rec.asrama.toLowerCase().includes(q) ||
-                rec.date.includes(q) ||
+                (rec.activityTitle && rec.activityTitle.toLowerCase().includes(q)) ||
+                (rec.asrama && rec.asrama.toLowerCase().includes(q)) ||
+                (rec.date && rec.date.includes(q)) ||
                 (rec.notes && rec.notes.toLowerCase().includes(q));
               return matchType && matchSearch;
             }).length === 0 ? (
@@ -522,11 +522,11 @@ export function KegiatanAsramaModal({
                   }
                 }
                 const matchType = riwayatFilterType === "all" || rec.activityType === riwayatFilterType;
-                const q = riwayatSearch.toLowerCase();
+                const q = (riwayatSearch || "").toLowerCase();
                 const matchSearch = !riwayatSearch ||
-                  rec.activityTitle.toLowerCase().includes(q) ||
-                  rec.asrama.toLowerCase().includes(q) ||
-                  rec.date.includes(q) ||
+                  (rec.activityTitle && rec.activityTitle.toLowerCase().includes(q)) ||
+                  (rec.asrama && rec.asrama.toLowerCase().includes(q)) ||
+                  (rec.date && rec.date.includes(q)) ||
                   (rec.notes && rec.notes.toLowerCase().includes(q));
                 return matchType && matchSearch;
               })

@@ -285,9 +285,9 @@ export const PageSantriIzin: React.FC<PageSantriIzinProps> = ({
   // Toggle or add santri to selected list
   const handleToggleSantri = (s: SantriData) => {
     setSelectedSantriList(prev => {
-      const exists = prev.some(item => (item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || item.nama.toLowerCase() === s.nama.toLowerCase());
+      const exists = prev.some(item => (item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || (item.nama && s.nama && item.nama.toLowerCase() === s.nama.toLowerCase()));
       if (exists) {
-        return prev.filter(item => !((item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || item.nama.toLowerCase() === s.nama.toLowerCase()));
+        return prev.filter(item => !((item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || (item.nama && s.nama && item.nama.toLowerCase() === s.nama.toLowerCase())));
       } else {
         if (prev.length === 0) {
           if (s.asrama) setAsramaForm(s.asrama);
@@ -1459,7 +1459,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                     {showSantriDropdown && santriSearchResults.length > 0 && (
                       <div className="absolute z-30 top-full mt-1.5 w-full bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto">
                         {santriSearchResults.map(s => {
-                          const isSelected = selectedSantriList.some(item => (item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || item.nama.toLowerCase() === s.nama.toLowerCase());
+                          const isSelected = selectedSantriList.some(item => (item.id && item.id === s.id) || (item.nisn && item.nisn === s.nisn) || (item.nama && s.nama && item.nama.toLowerCase() === s.nama.toLowerCase()));
 
                           return (
                             <div

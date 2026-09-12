@@ -7,8 +7,8 @@ export type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "mu
 
 // Check if user is database admin
 export function isDbAdmin(user: AuthUser | null): boolean {
-  if (!user) return false;
-  const email = user.email?.trim().toLowerCase();
+  if (!user || !user.email) return false;
+  const email = user.email.trim().toLowerCase();
   return ADMIN_DB_EMAILS.includes(email);
 }
 
@@ -156,7 +156,7 @@ export function isValidEmail(email: string): boolean {
 
 // Secure email matching with validation
 export function secureEmailMatch(userEmail: string, allowedEmails: string[]): boolean {
-  if (!isValidEmail(userEmail)) return false;
+  if (!userEmail || !isValidEmail(userEmail)) return false;
   const cleanEmail = userEmail.trim().toLowerCase();
-  return allowedEmails.map((e) => e.trim().toLowerCase()).includes(cleanEmail);
+  return allowedEmails.map((e) => (e || "").trim().toLowerCase()).includes(cleanEmail);
 }

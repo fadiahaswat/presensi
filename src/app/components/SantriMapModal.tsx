@@ -559,14 +559,15 @@ function RegionSantriDetail({ title, subtitle, santri, totalSantriAll, onBack }:
   }, [santri]);
 
   const filteredSantri = useMemo(() => {
+    const q = (search || "").toLowerCase().trim();
     return santri.filter(s => {
       const matchSearch =
-        !search.trim() ||
-        s.nama.toLowerCase().includes(search.toLowerCase()) ||
-        s.nisn?.toLowerCase().includes(search.toLowerCase()) ||
-        s.kabupaten?.toLowerCase().includes(search.toLowerCase()) ||
-        s.kecamatan?.toLowerCase().includes(search.toLowerCase()) ||
-        s.asalSekolah?.toLowerCase().includes(search.toLowerCase());
+        !q ||
+        (s.nama && s.nama.toLowerCase().includes(q)) ||
+        (s.nisn && String(s.nisn).toLowerCase().includes(q)) ||
+        (s.kabupaten && s.kabupaten.toLowerCase().includes(q)) ||
+        (s.kecamatan && s.kecamatan.toLowerCase().includes(q)) ||
+        (s.asalSekolah && s.asalSekolah.toLowerCase().includes(q));
 
       const matchKelas = filterKelas === "all" || s.tingkat === filterKelas;
       return matchSearch && matchKelas;
@@ -688,7 +689,7 @@ function RegionSantriDetail({ title, subtitle, santri, totalSantriAll, onBack }:
                         </span>
                         {s.jk && (
                           <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
-                            s.jk.toLowerCase().includes("l") ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"
+                            String(s.jk).toLowerCase().includes("l") ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"
                           }`}>
                             {s.jk}
                           </span>
@@ -793,7 +794,7 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
     if (!search.trim()) return kabupatenStats;
     const q = search.toLowerCase();
     return kabupatenStats.filter(k =>
-      k.kabupaten.toLowerCase().includes(q) || k.provinsi.toLowerCase().includes(q)
+      (k.kabupaten && k.kabupaten.toLowerCase().includes(q)) || (k.provinsi && k.provinsi.toLowerCase().includes(q))
     );
   }, [kabupatenStats, search]);
 
@@ -803,7 +804,7 @@ export function SantriMapModal({ onClose, santriList, isPage = false }: SantriMa
   // ── Handle Region Selection for Santri Drill-Down ───────────────────────────
   const handleSelectRegion = (type: "provinsi" | "island" | "kabupaten", value: string, title: string) => {
     let santriFiltered: SantriData[] = [];
-    const val = value.toLowerCase();
+    const val = (value || "").toLowerCase();
 
     if (type === "island") {
       const regionConfig = ISLAND_REGIONS.find(r => r.id === value);

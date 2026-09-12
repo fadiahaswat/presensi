@@ -221,8 +221,8 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
         return false;
       }
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchName = item.nama.toLowerCase().includes(q);
+        const q = (searchQuery || "").toLowerCase();
+        const matchName = (item.nama || "").toLowerCase().includes(q);
         const matchDesc = (item.keterangan || "").toLowerCase().includes(q);
         const matchPeserta = (item.peserta || "").toLowerCase().includes(q);
         const matchDate = item.startDate.includes(q) || (item.endDate && item.endDate.includes(q));

@@ -407,7 +407,7 @@ export function MutabaahYaumiyahModal({
   const monthlyTilawahTotal = mRecords.reduce((acc, r) => acc + (r.tilawahPages || 0), 0);
 
   const asramaDisplay = authUser?.asrama
-    ? (authUser.asrama.toLowerCase().includes("asrama") ? authUser.asrama : `Asrama ${authUser.asrama}`)
+    ? (String(authUser.asrama).toLowerCase().includes("asrama") ? authUser.asrama : `Asrama ${authUser.asrama}`)
     : "Musyrif";
 
   const content = (
