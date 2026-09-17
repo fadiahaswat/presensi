@@ -67,50 +67,65 @@ export async function syncServerTime(): Promise<TimeSyncState> {
   notifyListeners();
 
   // Priority: use APIs that support CORS and are allowed by CSP
-  // Note: Google generate_204 doesn't support CORS from localhost (dev only)
-  const apis = [
-    {
-      name: "TimeAPI.io (WIB)",
-      url: "https://timeapi.io/api/time/current/zone?timeZone=Asia%2FJakarta",
-      parse: (data: any) => new Date(data.dateTime).getTime(),
-      timeout: 5000,
-    },
-    {
-      name: "WorldTimeAPI (WIB)",
-      url: "https://worldtimeapi.org/api/timezone/Asia/Jakarta",
-      parse: (data: any) => new Date(data.datetime).getTime(),
-      timeout: 5000,
-    },
-  ];
-
   let calculatedOffset: number | null = null;
   let usedSource = "";
 
-  for (const api of apis) {
-    try {
-      const startTime = Date.now();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), api.timeout);
+  // 1. Prioritas Utama: Header "Date" dari web server sendiri / CDN (paling cepat, tanpa CORS, 0% gagal)
+  try {
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-      const res = await fetch(api.url, {
-        signal: controller.signal,
-        cache: "no-store",
-      });
-      clearTimeout(timeoutId);
+    const res = await fetch(window.location.href, { method: "HEAD", cache: "no-store", signal: controller.signal });
+    clearTimeout(timeoutId);
+    const dateHeader = res.headers.get("Date");
+    if (dateHeader) {
+      const serverTime = new Date(dateHeader).getTime();
+      const endTime = Date.now();
+      const roundTrip = (endTime - startTime) / 2;
+      calculatedOffset = serverTime + roundTrip - endTime;
+      usedSource = "App Server Header";
+    }
+  } catch {
+    // Lanjut ke API publik jika offline/local dev tanpa header Date
+  }
 
-      if (res.ok) {
-        const data = await res.json();
-        const serverTime = api.parse(data);
-        const endTime = Date.now();
-        const roundTrip = (endTime - startTime) / 2;
-
-        // Offset = (ServerTime + NetworkDelay) - LocalTime
-        calculatedOffset = serverTime + roundTrip - endTime;
-        usedSource = api.name;
-        break;
+  // 2. Fallback: Public Time API yang stabil (TimeAPI.io)
+  if (calculatedOffset === null) {
+    const apis = [
+      {
+        name: "TimeAPI.io (WIB)",
+        url: "https://timeapi.io/api/time/current/zone?timeZone=Asia%2FJakarta",
+        parse: (data: any) => new Date(data.dateTime).getTime(),
+        timeout: 4000,
       }
-    } catch {
-      // Silently continue to next fallback
+    ];
+
+    for (const api of apis) {
+      try {
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), api.timeout);
+
+        const res = await fetch(api.url, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const serverTime = api.parse(data);
+          const endTime = Date.now();
+          const roundTrip = (endTime - startTime) / 2;
+
+          calculatedOffset = serverTime + roundTrip - endTime;
+          usedSource = api.name;
+          break;
+        }
+      } catch {
+        // Fallback jika API publik tidak terjangkau
+      }
     }
   }
 

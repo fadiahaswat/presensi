@@ -35,13 +35,37 @@ const QUEUE_KEY = "presensi_sync_outbox_queue_v7"; // Bumped version
 const PHOTO_QUEUE_KEY = "presensi_photo_outbox_queue_v7"; // Persistent photo queue for guaranteed photo sync
 
 // === OPTIMIZED CONFIG ===
-const DEFAULT_TIMEOUT = 20000; // 20 detik - lebih lama untuk reliability
-const FETCH_ALL_TIMEOUT = 30000; // 30 detik khusus fetchAllFromCloud
+const DEFAULT_TIMEOUT = 30000; // 30 detik - memberi waktu aman bagi GAS saat batch besar
+const FETCH_ALL_TIMEOUT = 40000; // 40 detik khusus fetchAllFromCloud
 const MAX_RETRIES = 5; // Lebih banyak retry untuk reliability
 const RETRY_BASE_DELAY = 500; // Mulai dengan delay lebih pendek
 const POLL_DEBOUNCE_MS = 2000; // Debounce lebih pendek
 const HEALTH_CHECK_TIMEOUT = 8000; // Health check lebih lama
-const BATCH_SIZE = 15; // Batasi ukuran batch upload per request POST (optimal untuk payload GAS)
+const BATCH_SIZE = 35; // Lebih efisien: 35 items per request (100 item selesai dalam 3 request)
+
+// === PRIORITY CONFIG (Urutan Prioritas Transfer Data) ===
+// Nilai lebih kecil = Prioritas lebih tinggi (dikirim lebih awal)
+const TABLE_PRIORITY: Record<string, number> = {
+  // Tier 1: Real-time Critical & Urgensi
+  'records': 1,
+  'Records': 1,
+  'presensi': 1,
+  'santri_sakit': 1,
+  'SantriSakit': 1,
+  'santrisakit': 1,
+  'izin': 2,
+  'Izin': 2,
+  'izin_sedayu': 2,
+  // Tier 2: Log Harian & Mutabaah
+  'logbook': 3,
+  'Logbook': 3,
+  'jurnal_logbook': 3,
+  'JurnalLogbook': 3,
+  'mutabaah': 4,
+  'Mutabaah': 4,
+  'mutabaah_yaumiyah': 4,
+  'MutabaahYaumiyah': 4,
+};
 
 // === PHOTO SYNC CONFIG ===
 // Standard photo field names across all tables
@@ -613,6 +637,16 @@ class GoogleSyncService {
     const operation = 'flushQueue';
 
     try {
+      // Prioritaskan antrean berdasarkan urgensi tabel (Tier 1: records/santri_sakit/izin, Tier 2: logbook/mutabaah)
+      this.queue.sort((a, b) => {
+        const priorityA = TABLE_PRIORITY[a.table] || 99;
+        const priorityB = TABLE_PRIORITY[b.table] || 99;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        return (a.timestamp || "").localeCompare(b.timestamp || "");
+      });
+
       const tablesPayload: Record<string, any[]> = {};
       // OPTIMIZATION: Chunk into BATCH_SIZE items per POST request
       const batchItems = this.queue.slice(0, BATCH_SIZE);
@@ -680,23 +714,22 @@ class GoogleSyncService {
         tablesPayload[item.table].push(sanitized);
       });
 
-      // Log photo extraction
-      if (photoCount > 0) {
-        console.log(`[SyncService] flushQueue: extracted ${photoCount} photos for isolated sync`);
+      // Cache full photos to IndexedDB first
+      if (photoCacheOperations.length > 0) {
+        await Promise.allSettled(
+          photoCacheOperations.map(op =>
+            this.cachePhotoLocally(op.table, op.id, op.field, op.data)
+          )
+        );
       }
 
-      // Cache FULL photos to IndexedDB FIRST (before network call)
-      await this.cachePhotosBatch(photoCacheOperations);
-
-      // PHASE 1: Upload text metadata to cloud (super lightweight, < 1KB per record)
       const res = await this.fetchWithRetry(
         this.gasUrl,
         {
           method: "POST",
-          mode: "cors",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
-            action: "multi_table_upsert",
+            action: "batchSync",
             tables: tablesPayload
           })
         },
@@ -724,7 +757,11 @@ class GoogleSyncService {
         this.isFlushing = false;
         this.pendingRequests.delete(operation);
 
-        console.log(`[SyncService] Phase 1 text sync completed - ${batchItems.length} items synced, ${this.queue.length} remaining in queue, ${photoCount} full photos cached locally`);
+        if (this.queue.length === 0) {
+          console.log(`[SyncService] Semua antrean data teks berhasil disinkronkan ke cloud.`);
+        } else {
+          console.log(`[SyncService] Sinkronisasi ${batchItems.length} item berhasil, tersisa ${this.queue.length} antrean.`);
+        }
 
         // PHASE 2: Upload photos to separate "Photos" table in background (Non-blocking & isolated)
         if (thumbnailOperations.length > 0) {
