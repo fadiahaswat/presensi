@@ -40,6 +40,7 @@ import { SantriChangeRequest } from "./types/santriRequest";
 import { CloudSyncBadge } from "./components/CloudSyncBadge";
 import { useDebouncedPersistence, createDebouncedSave, cleanupLegacyStorage } from "./hooks/useDebouncedPersistence"; // OPTIMIZATION: Efficient persistence
 import { LazyImage } from "./components/LazyImage";
+import { AppSkeleton } from "./components/AppSkeleton";
 
 // Dynamic Code Splitting for Heavy Modals & Subpages
 const WhatsAppShareModal = lazy(() => import("./components/WhatsAppShareModal").then(m => ({ default: m.WhatsAppShareModal })));
@@ -8527,6 +8528,7 @@ export default function App() {
               } else {
                 next[mId][dt] = { ...(next[mId][dt] || {}), ...cr };
               }
+            });
             return next;
           });
         } else if (tbl === "mutabaah" && Array.isArray(cloudRecords)) {
