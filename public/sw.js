@@ -1,4 +1,4 @@
-const CACHE_NAME = 'presensi-muallimin-v5';
+const CACHE_NAME = 'presensi-muallimin-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -6,6 +6,23 @@ const ASSETS_TO_CACHE = [
   '/icon.webp',
   '/app-icon.png'
 ];
+
+// Handle messages from the client app (e.g. SKIP_WAITING or CLEAR_CACHES)
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  if (event.data === 'SKIP_WAITING' || event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data === 'CLEAR_CACHES' || event.data.type === 'CLEAR_CACHES') {
+    caches.keys().then((names) => {
+      return Promise.all(names.map((name) => caches.delete(name)));
+    }).then(() => {
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ success: true });
+      }
+    });
+  }
+});
 
 // Install event: cache core assets
 self.addEventListener('install', (event) => {
@@ -51,6 +68,10 @@ const EXTERNAL_API_HOSTS = [
 // Check if request should bypass service worker caching
 function shouldBypassCache(request) {
   const url = new URL(request.url);
+  // Never cache version.json so update checks are always 100% fresh from server
+  if (url.pathname.endsWith('/version.json')) {
+    return true;
+  }
   // Bypass for same-origin navigation and assets
   if (url.origin === self.location.origin) {
     return false;

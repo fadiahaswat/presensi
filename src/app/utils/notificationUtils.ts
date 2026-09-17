@@ -5,6 +5,7 @@ import { SantriIzinRecord } from "../types/izinSantri";
 import { IzinRequest } from "../components/IzinPengajuanModal";
 import { KegiatanRecord } from "../components/KegiatanAsramaModal";
 import { SantriChangeRequest } from "../types/santriRequest";
+import { updateManager } from "./updateManager";
 
 export type NotificationCategory = "all" | "unread" | "presensi" | "santri" | "asrama";
 
@@ -1009,7 +1010,25 @@ export function buildSystemNotificationItems({
       });
   }
 
-  // 7. PUBLIC / GUEST FALLBACK
+  // 7. APP UPDATE NOTIFICATION (If new version is available)
+  const updateState = updateManager.getState();
+  if (updateState.hasUpdate) {
+    items.unshift({
+      id: `app_update_${updateState.latestVersion || "new"}`,
+      title: `Pembaruan Sistem Tersedia (${updateState.latestVersion || "v2.0"})`,
+      message: "Versi aplikasi baru telah dirilis. Klik untuk melakukan Hard Refresh dan memperbarui aplikasi sekarang.",
+      time: "Pembaruan",
+      category: "system",
+      priority: "urgent",
+      iconType: "sparkles",
+      timestamp: now.getTime() + 10000, // keep at top
+      onAction: () => {
+        updateManager.performHardRefresh();
+      }
+    });
+  }
+
+  // 8. PUBLIC / GUEST FALLBACK
   if (!authUser) {
     items.push({
       id: "public_welcome_info",

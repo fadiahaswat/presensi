@@ -23,12 +23,27 @@ export function isSedayuAsrama(asramaName: string): boolean {
 }
 
 /**
+ * Cek apakah seorang musyrif mengampu/termasuk kelas 4
+ */
+export function isClass4Musyrif(m?: { kelas?: string; tingkat?: string } | string): boolean {
+  if (!m) return false;
+  const str = typeof m === "string" ? m : `${m.kelas || ""} ${m.tingkat || ""}`;
+  return /(^|\b)(4|iv)(\b|\s|[a-z])/i.test(str.trim());
+}
+
+/**
  * Cek apakah nama asrama termasuk kampus Induk
  */
 export function isKampusInduk(asramaName: string): boolean {
   const name = (asramaName || "").toLowerCase();
   return name.includes("asrama 1") || name.includes("asrama 8") ||
          name.includes("asrama 10");
+}
+
+export interface GeofenceOptions {
+  prayerSlot?: "subuh" | "ashar" | "maghrib" | string;
+  isClass4?: boolean;
+  musyrifKelas?: string;
 }
 
 export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
@@ -257,7 +272,8 @@ export function checkAsramaGeofence(
   userLat: number,
   userLng: number,
   asramaName: string = "Asrama 1",
-  accuracy?: number
+  accuracy?: number,
+  options?: GeofenceOptions
 ): GeofenceResult {
   const safeName = (asramaName || "Asrama 1").trim().toLowerCase();
   const isUserSedayu = isSedayuAsrama(safeName);
@@ -273,7 +289,7 @@ export function checkAsramaGeofence(
     c.asramas.some(a => a && (a.toLowerCase() === safeName || safeName.includes(a.toLowerCase())))
   ) || (isUserSedayu ? CAMPUS_LOCATIONS[1] : CAMPUS_LOCATIONS[0]);
 
-  // 3. For Sedayu campus, also check if user is near Masjid Yuliana (shared mosque)
+  // 3. For Sedayu campus, check if user is near Masjid Yuliana (shared mosque)
   const masjidYuliana = MUALLIMIN_LOCATIONS.find(b => b.id === "masjid_yuliana");
 
   // Dynamic indoor GPS tolerance buffer (up to 50m if accuracy reading is degraded indoors due to concrete/roof)
@@ -286,51 +302,64 @@ export function checkAsramaGeofence(
   const campusDist = getDistanceFromLatLonInMeters(userLat, userLng, matchedCampus.lat, matchedCampus.lng);
 
   if (isUserSedayu) {
+    const isAshar = options?.prayerSlot === "ashar";
+    const isClass4 = options?.isClass4 ?? (options?.musyrifKelas ? isClass4Musyrif(options.musyrifKelas) : false);
+
     // ============================================
-    // LOGIKA KHUSUS KAMPUS SEDAYU
-    // Musyrif Sedayu bisa sholat di:
-    // 1. Masjid Yuliana (radius 100m)
-    // 2. Ged A/B/C/D mana saja (radius 90m)
-    // 3. Campus area Sedayu (radius 250m) - sebagai fallback
+    // LOGIKA KHUSUS KAMPUS TERPADU SEDAYU
+    // Aturan Sholat Ashar:
+    // Seluruh musyrif Kampus Terpadu Sedayu WAJIB di Masjid Hajah Yuliana,
+    // KECUALI musyrif kelas 4 yang boleh di asrama masing-masing (Gedung A/B/C/D)
     // ============================================
-
-    // Check distance to each building in Sedayu campus
-    const sedayuBuildings = MUALLIMIN_LOCATIONS.filter(b => b.campus === "kampus_terpadu");
-
-    // Find nearest Sedayu building
-    let minDistToBuilding = Infinity;
-    let nearestBuilding: SpecificBuildingLocation | undefined;
-
-    for (const building of sedayuBuildings) {
-      const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
-      if (dist < minDistToBuilding) {
-        minDistToBuilding = dist;
-        nearestBuilding = building;
+    if (isAshar && !isClass4 && masjidYuliana) {
+      const distToMasjid = getDistanceFromLatLonInMeters(userLat, userLng, masjidYuliana.lat, masjidYuliana.lng);
+      distance = distToMasjid;
+      isInRange = distToMasjid <= (masjidYuliana.radiusMeters + accuracyBuffer);
+      if (isInRange) {
+        matchedAreaName = masjidYuliana.name;
       }
-    }
+    } else {
+      // Sholat Subuh/Maghrib ATAU Ashar untuk Musyrif Kelas 4:
+      // Boleh di Masjid Yuliana, Gedung A/B/C/D mana saja, atau area Sedayu
+      const sedayuBuildings = MUALLIMIN_LOCATIONS.filter(b => b.campus === "kampus_terpadu");
 
-    // Check if within any building radius
-    let inAnyBuilding = false;
-    for (const building of sedayuBuildings) {
-      const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
-      if (dist <= building.radiusMeters + accuracyBuffer) {
-        inAnyBuilding = true;
-        matchedAreaName = building.name;
-        distance = dist;
-        break;
+      // Find nearest Sedayu building
+      let minDistToBuilding = Infinity;
+      let nearestBuilding: SpecificBuildingLocation | undefined;
+
+      for (const building of sedayuBuildings) {
+        const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
+        if (dist < minDistToBuilding) {
+          minDistToBuilding = dist;
+          nearestBuilding = building;
+        }
       }
-    }
 
-    // Check campus radius
-    const inCampus = campusDist <= matchedCampus.radiusMeters + accuracyBuffer;
+      // Check if within any building radius
+      let inAnyBuilding = false;
+      for (const building of sedayuBuildings) {
+        const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
+        if (dist <= building.radiusMeters + accuracyBuffer) {
+          inAnyBuilding = true;
+          matchedAreaName = building.name;
+          distance = dist;
+          break;
+        }
+      }
 
-    isInRange = inAnyBuilding || inCampus;
-    if (!inAnyBuilding && inCampus) {
-      distance = campusDist;
-      matchedAreaName = matchedCampus.name;
-    } else if (!inAnyBuilding && !inCampus && nearestBuilding) {
-      distance = minDistToBuilding;
-      matchedAreaName = nearestBuilding.name;
+      // Check campus radius
+      const inCampus = campusDist <= matchedCampus.radiusMeters + accuracyBuffer;
+
+      isInRange = inAnyBuilding || inCampus;
+      if (!inAnyBuilding && inCampus) {
+        distance = campusDist;
+        matchedAreaName = matchedCampus.name;
+      } else if (!inAnyBuilding && !inCampus && nearestBuilding) {
+        distance = minDistToBuilding;
+        matchedAreaName = nearestBuilding.name;
+      } else if (distance === undefined) {
+        distance = minDistToBuilding;
+      }
     }
 
   } else {
@@ -373,7 +402,10 @@ export function checkAsramaGeofence(
   };
 }
 
-export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Promise<GeofenceResult> {
+export function checkAsramaGeofenceBrowser(
+  asramaName: string = "Asrama 1",
+  options?: GeofenceOptions
+): Promise<GeofenceResult> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve({
@@ -400,7 +432,8 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
           pos.coords.latitude,
           pos.coords.longitude,
           asramaName,
-          pos.coords.accuracy
+          pos.coords.accuracy,
+          options
         );
         resolve(res);
       },
@@ -413,7 +446,8 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
                 fallbackPos.coords.latitude,
                 fallbackPos.coords.longitude,
                 asramaName,
-                fallbackPos.coords.accuracy
+                fallbackPos.coords.accuracy,
+                options
               );
               resolve(res);
             },
@@ -424,7 +458,9 @@ export function checkAsramaGeofenceBrowser(asramaName: string = "Asrama 1"): Pro
                 distanceMeters: 99999,
                 targetAsrama: asramaName || "Asrama 1",
                 error: isUserSedayu
-                  ? "Sinyal GPS lemah. Untuk musyrif Sedayu, Anda bisa verifikasi dari gedung mana saja di kompleks Sedayu atau dekat masjid."
+                  ? (options?.prayerSlot === "ashar" && !options?.isClass4
+                      ? "Sinyal GPS lemah. Wajib verifikasi di sekitar Masjid Hajah Yuliana."
+                      : "Sinyal GPS lemah. Untuk musyrif Sedayu, Anda bisa verifikasi dari gedung mana saja di kompleks Sedayu atau dekat masjid.")
                   : "Sinyal GPS lemah di dalam ruangan. Silakan coba refresh GPS atau mendekat ke jendela / luar kamar."
               });
             },

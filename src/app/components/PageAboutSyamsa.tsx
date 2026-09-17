@@ -653,6 +653,27 @@ export function PageAboutSyamsa({ onBack, onGoTo }: PageAboutSyamsaProps) {
         <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">
           © {new Date().getFullYear()} Madrasah Mu'allimin Muhammadiyah Yogyakarta • syamsa v2.0
         </p>
+
+        {/* Update & Cache Management */}
+        <div className="pt-2 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const { updateManager } = await import("../utils/updateManager");
+              const hasUpdate = await updateManager.checkForUpdate(true);
+              if (hasUpdate) {
+                if (window.confirm("Versi terbaru ditemukan! Ingin memperbarui sekarang dan memuat ulang aplikasi?")) {
+                  await updateManager.performHardRefresh();
+                }
+              } else {
+                alert("Aplikasi Anda sudah versi paling mutakhir.");
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-sky-50 text-slate-600 hover:text-sky-700 text-xs font-semibold transition-all border border-slate-200/80 active:scale-95 cursor-pointer"
+          >
+            <span>🔄 Periksa Pembaruan / Hard Refresh</span>
+          </button>
+        </div>
       </div>
 
     </div>
