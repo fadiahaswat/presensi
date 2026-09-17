@@ -22,6 +22,9 @@ export interface GalleryPhoto {
   alt: string;
   width?: number;
   height?: number;
+  recordId?: string;
+  photoField?: string;
+  tableName?: string;
   meta?: Record<string, string>;
 }
 
@@ -300,6 +303,9 @@ const PhotoGridItem = memo(function PhotoGridItem({
         alt={photo.alt}
         className="w-full h-full"
         style={{ borderRadius }}
+        recordId={photo.recordId}
+        photoField={photo.photoField}
+        tableName={photo.tableName}
         onLoadComplete={onLoad}
         placeholder={
           loadingPlaceholder || (

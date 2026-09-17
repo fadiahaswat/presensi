@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { triggerHaptic } from "../utils/animations";
 import { appConfirm } from "../utils/customDialog";
-import { getMusyrifCallName } from "../utils/notificationUtils";
+import { formatDriveImageUrl } from "../utils/photoCacheService";
 
 interface ApprovedIzinItemProps {
   item: SantriIzinRecord;
@@ -197,8 +197,9 @@ export const ApprovedIzinItem = memo(function ApprovedIzinItem({
           onClick={handlePhotoClick}
         >
           <img
-            src={fotoUrl}
+            src={formatDriveImageUrl(fotoUrl)}
             alt={item.namaSantri}
+            referrerPolicy="no-referrer"
             className="w-full h-32 sm:h-40 object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
             decoding="async"

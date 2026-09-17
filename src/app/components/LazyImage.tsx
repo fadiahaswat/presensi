@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
-import { getPhoto, setPhoto } from "../utils/photoCacheService";
+import { getPhoto, setPhoto, formatDriveImageUrl, getFallbackDriveImageUrl } from "../utils/photoCacheService";
 import { googleSyncService } from "../utils/googleSyncService";
 
 interface LazyImageProps {
@@ -122,16 +122,18 @@ export const LazyImage = memo(function LazyImage({
     );
   }, []);
 
+  const isDriveUrl = typeof src === 'string' && (src.includes('drive.google.com') || src.includes('googleusercontent.com'));
+  const normalizedDirectSrc = isDriveUrl ? formatDriveImageUrl(src) : src;
   const isDirectImage = Boolean(src && isValidPhoto(src));
 
   const [state, setState] = useState<ImageState>(() => ({
     loaded: isDirectImage,
     error: false,
-    currentSrc: isDirectImage && typeof src === 'string' ? src : null,
+    currentSrc: isDirectImage && typeof normalizedDirectSrc === 'string' ? normalizedDirectSrc : null,
   }));
 
   const [isInView, setIsInView] = useState(preload || isDirectImage);
-  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(isDirectImage && typeof src === 'string' ? src : null);
+  const [resolvedPhoto, setResolvedPhoto] = useState<string | null>(isDirectImage && typeof normalizedDirectSrc === 'string' ? normalizedDirectSrc : null);
 
   // Load image from cache or network
   const loadImage = useCallback(async (imageSrc: string) => {
@@ -157,16 +159,67 @@ export const LazyImage = memo(function LazyImage({
 
     // If URL, load directly
     if (isValidPhoto(imageSrc) && (imageSrc.startsWith('http') || imageSrc.startsWith('/'))) {
+      const directSrc = formatDriveImageUrl(imageSrc);
       const img = new Image();
+      img.referrerPolicy = 'no-referrer';
       img.onload = () => {
         setState({
           loaded: true,
           error: false,
-          currentSrc: imageSrc,
+          currentSrc: directSrc,
         });
         onLoadComplete?.();
       };
       img.onerror = () => {
+        // Coba fallback URL Google Drive jika primary (lh3.googleusercontent.com) gagal
+        const fallbackUrl = getFallbackDriveImageUrl(imageSrc);
+        if (fallbackUrl && fallbackUrl !== directSrc) {
+          const fallbackImg = new Image();
+          fallbackImg.referrerPolicy = 'no-referrer';
+          fallbackImg.onload = () => {
+            setState({
+              loaded: true,
+              error: false,
+              currentSrc: fallbackUrl,
+            });
+            onLoadComplete?.();
+          };
+          fallbackImg.onerror = () => {
+            // Coba original URL apa adanya jika kedua format CDN di atas gagal
+            if (imageSrc !== directSrc && imageSrc !== fallbackUrl) {
+              const origImg = new Image();
+              origImg.referrerPolicy = 'no-referrer';
+              origImg.onload = () => {
+                setState({
+                  loaded: true,
+                  error: false,
+                  currentSrc: imageSrc,
+                });
+                onLoadComplete?.();
+              };
+              origImg.onerror = () => {
+                setState({
+                  loaded: false,
+                  error: true,
+                  currentSrc: null,
+                });
+                onError?.(`Failed to load: ${imageSrc}`);
+              };
+              origImg.src = imageSrc;
+              return;
+            }
+
+            setState({
+              loaded: false,
+              error: true,
+              currentSrc: null,
+            });
+            onError?.(`Failed to load: ${imageSrc}`);
+          };
+          fallbackImg.src = fallbackUrl;
+          return;
+        }
+
         setState({
           loaded: false,
           error: true,
@@ -174,7 +227,7 @@ export const LazyImage = memo(function LazyImage({
         });
         onError?.(`Failed to load: ${imageSrc}`);
       };
-      img.src = imageSrc;
+      img.src = directSrc;
       return;
     }
 
@@ -261,45 +314,62 @@ export const LazyImage = memo(function LazyImage({
     onError?.('Unknown image format');
   }, [useCache, cacheId, onLoadStart, onLoadComplete, onError, isValidPhoto, recordId, photoField, tableName]);
 
-  // Synchronize when src changes
+  // Synchronize when src changes - PRIORITIZE local cached Base64 when recordId exists
   useEffect(() => {
+    // If recordId is provided, check if local device has the full offline Base64 photo first!
+    if (recordId && photoField) {
+      googleSyncService.getRecordPhoto(recordId, photoField, src || null, tableName)
+        .then((resolved) => {
+          if (resolved && isValidPhoto(resolved) && (resolved.startsWith('data:') || resolved.startsWith('blob:'))) {
+            setResolvedPhoto(resolved);
+            setState({ loaded: true, error: false, currentSrc: resolved });
+            return;
+          }
+
+          // If no local Base64, fallback to direct src
+          if (src && isValidPhoto(src)) {
+            const formatted = formatDriveImageUrl(src);
+            setState({
+              loaded: true,
+              error: false,
+              currentSrc: formatted,
+            });
+            setResolvedPhoto(formatted);
+          } else if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
+            loadImage(src);
+          } else {
+            setResolvedPhoto(null);
+          }
+        })
+        .catch(() => {
+          if (src && isValidPhoto(src)) {
+            const formatted = formatDriveImageUrl(src);
+            setState({ loaded: true, error: false, currentSrc: formatted });
+            setResolvedPhoto(formatted);
+          } else if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
+            loadImage(src);
+          } else {
+            setResolvedPhoto(null);
+          }
+        });
+      return;
+    }
+
     if (src && isValidPhoto(src)) {
+      const formatted = formatDriveImageUrl(src);
       setState({
         loaded: true,
         error: false,
-        currentSrc: src,
+        currentSrc: formatted,
       });
-      setResolvedPhoto(src);
+      setResolvedPhoto(formatted);
       return;
     }
 
-    if (!recordId || !photoField) {
-      setResolvedPhoto(isValidPhoto(src) ? src : null);
-      if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
-        loadImage(src);
-      }
-      return;
+    setResolvedPhoto(null);
+    if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
+      loadImage(src);
     }
-
-    // Resolve photo using sync service if we have record info
-    googleSyncService.getRecordPhoto(recordId, photoField, src || null, tableName)
-      .then((resolved) => {
-        if (resolved && isValidPhoto(resolved)) {
-          setResolvedPhoto(resolved);
-          setState({ loaded: true, error: false, currentSrc: resolved });
-        } else if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
-          loadImage(src);
-        } else {
-          setResolvedPhoto(null);
-        }
-      })
-      .catch(() => {
-        if (src && (src.startsWith('photo:') || src.startsWith('[PHOTO_REF:'))) {
-          loadImage(src);
-        } else {
-          setResolvedPhoto(null);
-        }
-      });
   }, [recordId, photoField, tableName, src, isValidPhoto, loadImage]);
 
   // Auto re-check cache when background photos finish syncing
@@ -452,6 +522,7 @@ export const LazyImage = memo(function LazyImage({
           ref={imgRef}
           src={state.currentSrc}
           alt={alt}
+          referrerPolicy="no-referrer"
           className={className}
           style={{
             width: "100%",
@@ -461,6 +532,18 @@ export const LazyImage = memo(function LazyImage({
           }}
           loading="lazy"
           decoding="async"
+          onError={(e) => {
+            const current = state.currentSrc || "";
+            const fallback = getFallbackDriveImageUrl(current);
+            if (fallback && fallback !== current) {
+              e.currentTarget.src = fallback;
+            } else if (src && src !== current && isValidPhoto(src)) {
+              e.currentTarget.src = src;
+            } else {
+              setState(prev => ({ ...prev, loaded: false, error: true, currentSrc: null }));
+              onError?.(`Failed to render img: ${current}`);
+            }
+          }}
         />
       )}
 
@@ -553,8 +636,9 @@ export const ProgressiveImage = memo(function ProgressiveImage({
       {/* Thumbnail - always shown first */}
       {thumbnail && (
         <img
-          src={thumbnail}
+          src={formatDriveImageUrl(thumbnail)}
           alt={alt}
+          referrerPolicy="no-referrer"
           style={{
             width: "100%",
             height: "100%",
@@ -571,8 +655,9 @@ export const ProgressiveImage = memo(function ProgressiveImage({
       {/* Full image - loads after */}
       {showFull && fullImage && (
         <img
-          src={fullImage}
+          src={formatDriveImageUrl(fullImage)}
           alt={alt}
+          referrerPolicy="no-referrer"
           style={{
             position: "absolute",
             inset: 0,

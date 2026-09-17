@@ -548,7 +548,20 @@ export async function getPhotosBatch(ids: string[]): Promise<Map<string, string>
 }
 
 /**
- * Mengubah URL Google Drive View (/file/d/.../view) menjadi Direct Image Thumbnail URL
+ * Ekstrak ID file Google Drive dari berbagai format link
+ */
+export function extractDriveFileId(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const fileIdMatch =
+    url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+    url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+    url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/) ||
+    url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return fileIdMatch && fileIdMatch[1] ? fileIdMatch[1] : null;
+}
+
+/**
+ * Mengubah URL Google Drive View (/file/d/.../view atau download?id=...) menjadi Direct Image Thumbnail URL
  * agar bisa ditampilkan langsung di tag <img> browser tanpa kendala CORS/HTML preview.
  */
 export function formatDriveImageUrl(url: string): string {
@@ -559,13 +572,8 @@ export function formatDriveImageUrl(url: string): string {
 
   // Jika URL adalah Google Drive link
   if (url.includes('drive.google.com') || url.includes('googleusercontent.com') || url.includes('docs.google.com')) {
-    const fileIdMatch =
-      url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
-      url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
-      url.match(/\/d\/([a-zA-Z0-9_-]+)/) ||
-      url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-    if (fileIdMatch && fileIdMatch[1]) {
-      const fileId = fileIdMatch[1];
+    const fileId = extractDriveFileId(url);
+    if (fileId) {
       return `https://lh3.googleusercontent.com/d/${fileId}=w1000`;
     }
   }
@@ -578,14 +586,11 @@ export function formatDriveImageUrl(url: string): string {
  */
 export function getFallbackDriveImageUrl(url: string): string {
   if (!url || typeof url !== 'string') return '';
-  if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
-    const fileIdMatch =
-      url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
-      url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
-      url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (fileIdMatch && fileIdMatch[1]) {
-      const fileId = fileIdMatch[1];
-      return `https://drive.usercontent.google.com/download?id=${fileId}&export=view`;
+  if (url.includes('drive.google.com') || url.includes('googleusercontent.com') || url.includes('docs.google.com')) {
+    const fileId = extractDriveFileId(url);
+    if (fileId) {
+      // Format cadangan 1: thumbnail langsung dari drive.google.com (sangat kompatibel dengan browser)
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
     }
   }
   return url;

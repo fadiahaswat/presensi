@@ -100,7 +100,8 @@ function uploadBase64ToDrive(dataUrl, fileName, folder) {
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch (e) {}
 
-    return file.getUrl();
+    // Mengembalikan URL CDN publik Google Drive yang langsung bisa dirender di tag <img> browser
+    return "https://lh3.googleusercontent.com/d/" + file.getId() + "=w1000";
   } catch (err) {
     console.error("Gagal upload file ke Drive:", err);
     return dataUrl;
@@ -180,7 +181,7 @@ function doPost(e) {
       });
     }
 
-    if (action === "multi_table_upsert") {
+    if (action === "multi_table_upsert" || action === "batchSync") {
       // payload.tables = { records: [...], izin: [...], ... }
       const tablesData = payload.tables || {};
       const results = {};

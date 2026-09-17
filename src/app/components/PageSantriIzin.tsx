@@ -17,6 +17,7 @@ import { ALL_SANTRI_DATA, searchSantri, SantriData } from "../data/santriData";
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { SantriIzinRecord, JenisIzinSantri, StatusApprovalSantri, StatusPKM } from "../types/izinSantri";
 import { compressAndWatermarkImage } from "../utils/imageCompressor";
+import { formatDriveImageUrl } from "../utils/photoCacheService";
 import syamsaLogomark from "../../assets/branding/Logomark.webp";
 
 interface Musyrif {
@@ -1075,8 +1076,9 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                         onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}`, record: item })}
                       >
                         <img 
-                          src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl} 
+                          src={formatDriveImageUrl(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)} 
                           alt={item.namaSantri} 
+                          referrerPolicy="no-referrer"
                           className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                           loading="lazy"
                         />
@@ -1271,8 +1273,9 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                             onClick={() => setPhotoModalItem({ url: (item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelas} • ${item.keperluan}`, record: item })}
                           >
                             <img 
-                              src={item.photoUrl || item.fotoSantriUrl || item.lampiranUrl} 
+                              src={formatDriveImageUrl(item.photoUrl || item.fotoSantriUrl || item.lampiranUrl)} 
                               alt={item.namaSantri} 
+                              referrerPolicy="no-referrer"
                               className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                               loading="lazy"
                             />
@@ -2085,8 +2088,9 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
                   {fotoSantriUrl ? (
                     <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 group">
                       <img 
-                        src={fotoSantriUrl} 
+                        src={formatDriveImageUrl(fotoSantriUrl)} 
                         alt="Foto Santri Izin" 
+                        referrerPolicy="no-referrer"
                         className="w-full h-44 sm:h-52 object-contain bg-slate-900 cursor-pointer" 
                         onClick={() => setPhotoModalItem({ url: fotoSantriUrl, title: selectedSantriList.map(s => s.nama).join(", ") || santriQuery || "Santri Izin", subtitle: `${asramaForm} • ${selectedSantriList.length} Santri` })} 
                       />
@@ -2668,8 +2672,9 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
 
               <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
                 <img
-                  src={photoModalItem.url}
+                  src={formatDriveImageUrl(photoModalItem.url)}
                   alt={photoModalItem.title}
+                  referrerPolicy="no-referrer"
                   className="max-w-full max-h-full object-contain"
                 />
               </div>

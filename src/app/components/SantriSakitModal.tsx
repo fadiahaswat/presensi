@@ -13,6 +13,7 @@ import { searchSantri, getSantriForMusyrif, SantriData } from "../data/santriDat
 import { appAlert, appConfirm } from "../utils/customDialog";
 import { getPamongAssignedAsramas } from "../utils/roleAccessUtils";
 import { compressAndWatermarkImage } from "../utils/imageCompressor";
+import { formatDriveImageUrl } from "../utils/photoCacheService";
 
 export interface SantriSakitRecord {
   id: string;
@@ -717,8 +718,9 @@ export function SantriSakitModal({
             {formPhotoUrl ? (
               <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 group">
                 <img 
-                  src={formPhotoUrl} 
+                  src={formatDriveImageUrl(formPhotoUrl)} 
                   alt="Foto Santri Sakit" 
+                  referrerPolicy="no-referrer"
                   className="w-full h-44 sm:h-52 object-contain bg-slate-900 cursor-pointer" 
                   onClick={() => setPhotoModalItem({ url: formPhotoUrl, title: formNama || "Santri Sakit", subtitle: `${currentMusyrifObj?.asrama || "Asrama"} • ${formKelas || "Kelas"}` })} 
                 />
@@ -982,8 +984,9 @@ export function SantriSakitModal({
                   onClick={() => setPhotoModalItem({ url: item.photoUrl!, title: item.namaSantri, subtitle: `${item.asrama} • Kelas ${item.kelasSantri} • Keluhan: ${item.keluhan}`, record: item })}
                 >
                   <img 
-                    src={item.photoUrl} 
+                    src={formatDriveImageUrl(item.photoUrl)} 
                     alt={item.namaSantri} 
+                    referrerPolicy="no-referrer"
                     className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
@@ -1110,8 +1113,9 @@ export function SantriSakitModal({
 
               <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
                 <img
-                  src={photoModalItem.url}
+                  src={formatDriveImageUrl(photoModalItem.url)}
                   alt={photoModalItem.title}
+                  referrerPolicy="no-referrer"
                   className="max-w-full max-h-full object-contain"
                 />
               </div>

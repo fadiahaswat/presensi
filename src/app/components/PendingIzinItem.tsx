@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { triggerHaptic } from "../utils/animations";
 import { appConfirm } from "../utils/customDialog";
+import { formatDriveImageUrl } from "../utils/photoCacheService";
 
 interface PendingIzinItemProps {
   item: SantriIzinRecord;
@@ -130,8 +131,9 @@ export const PendingIzinItem = memo(function PendingIzinItem({
           onClick={handlePhotoClick}
         >
           <img
-            src={fotoUrl}
+            src={formatDriveImageUrl(fotoUrl)}
             alt={item.namaSantri}
+            referrerPolicy="no-referrer"
             className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
             decoding="async"

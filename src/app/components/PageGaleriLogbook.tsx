@@ -1135,7 +1135,11 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
     return allPosts.map(post => ({
       id: post.id,
       url: post.photoUrl,
+      thumbnail: post.photoThumbnailUrl,
       alt: `${post.musyrifName} - ${post.taskTitle}`,
+      recordId: `${post.musyrifId}_${post.date}_${post.taskKey}`,
+      photoField: "photoUrl",
+      tableName: "Logbook",
       meta: {
         musyrif: post.musyrifName,
         asrama: post.asrama,
