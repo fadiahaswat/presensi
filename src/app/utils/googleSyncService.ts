@@ -210,9 +210,15 @@ class GoogleSyncService {
         this.isHealthy = true;
         this.consecutiveFailures = 0;
         this.startPolling();
+        // Langsung kirim antrean data yang sempat tertahan sebelumnya
+        if (this.queue.length > 0) {
+          setTimeout(() => this.flushQueue(), 500);
+        }
         if (this.photoQueue.length > 0) {
           setTimeout(() => this.flushPhotoQueue(), 1500);
         }
+        // Jalankan pemulihan data lokal otomatis untuk memeriksa data yang belum masuk antrean
+        this.reconcileLocalData();
         return true;
       }
     } catch (_) {}
@@ -729,7 +735,7 @@ class GoogleSyncService {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({
-            action: "batchSync",
+            action: "multi_table_upsert",
             tables: tablesPayload
           })
         },
@@ -1465,6 +1471,128 @@ class GoogleSyncService {
       }
     } catch (err: any) {
       // Non-critical background failure
+    }
+  }
+
+  /**
+   * Rekonsiliasi data lokal: Memeriksa rekaman lokal (presensi, izin, logbook, mutabaah, dll.)
+   * dan memastikan data yang dibuat/diubah baru-baru ini masuk antrean sinkronisasi
+   * agar pengguna yang mempresensi saat server tertahan otomatis terselamatkan datanya.
+   */
+  public reconcileLocalData(): void {
+    if (typeof window === "undefined" || !this.gasUrl) return;
+
+    try {
+      let recoveredCount = 0;
+      const existingQueueIds = new Set(this.queue.map(q => `${q.table}:${q.id}`));
+
+      // 1. Rekonsiliasi Presensi (Attendance Records)
+      const rawRecords = localStorage.getItem("presensi_attendance_records_v5") || localStorage.getItem("presensi_attendance_records_v2");
+      if (rawRecords) {
+        try {
+          const records = JSON.parse(rawRecords);
+          if (Array.isArray(records)) {
+            for (const rec of records) {
+              if (rec && rec.id && !existingQueueIds.has(`records:${rec.id}`)) {
+                this.queue.push({
+                  id: String(rec.id),
+                  table: "records",
+                  record: rec,
+                  action: "upsert",
+                  timestamp: rec.updated_at || rec.created_at || new Date().toISOString()
+                });
+                existingQueueIds.add(`records:${rec.id}`);
+                recoveredCount++;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Rekonsiliasi Izin Requests
+      const rawIzin = localStorage.getItem("presensi_izin_requests_v5") || localStorage.getItem("presensi_izin_requests_v2");
+      if (rawIzin) {
+        try {
+          const izinList = JSON.parse(rawIzin);
+          if (Array.isArray(izinList)) {
+            for (const iz of izinList) {
+              if (iz && iz.id && !existingQueueIds.has(`izin:${iz.id}`)) {
+                this.queue.push({
+                  id: String(iz.id),
+                  table: "izin",
+                  record: iz,
+                  action: "upsert",
+                  timestamp: iz.updated_at || iz.created_at || new Date().toISOString()
+                });
+                existingQueueIds.add(`izin:${iz.id}`);
+                recoveredCount++;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Rekonsiliasi Santri Sakit
+      const rawSakit = localStorage.getItem("presensi_santri_sakit_v5") || localStorage.getItem("presensi_santri_sakit_v2");
+      if (rawSakit) {
+        try {
+          const sakitList = JSON.parse(rawSakit);
+          if (Array.isArray(sakitList)) {
+            for (const sk of sakitList) {
+              if (sk && sk.id && !existingQueueIds.has(`santri_sakit:${sk.id}`)) {
+                this.queue.push({
+                  id: String(sk.id),
+                  table: "santri_sakit",
+                  record: sk,
+                  action: "upsert",
+                  timestamp: sk.updated_at || sk.created_at || new Date().toISOString()
+                });
+                existingQueueIds.add(`santri_sakit:${sk.id}`);
+                recoveredCount++;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 4. Rekonsiliasi Jurnal Logbook
+      const rawLogbook = localStorage.getItem("presensi_jurnal_logbook_v5") || localStorage.getItem("presensi_jurnal_logbook_v2");
+      if (rawLogbook) {
+        try {
+          const lbData = JSON.parse(rawLogbook);
+          if (lbData && typeof lbData === "object") {
+            for (const mId of Object.keys(lbData)) {
+              const musyrifDates = lbData[mId];
+              if (musyrifDates && typeof musyrifDates === "object") {
+                for (const dStr of Object.keys(musyrifDates)) {
+                  const entry = musyrifDates[dStr];
+                  const entryId = `${mId}_${dStr}`;
+                  if (entry && !existingQueueIds.has(`logbook:${entryId}`)) {
+                    this.queue.push({
+                      id: entryId,
+                      table: "logbook",
+                      record: { id: entryId, musyrifId: mId, date: dStr, ...entry },
+                      action: "upsert",
+                      timestamp: new Date().toISOString()
+                    });
+                    existingQueueIds.add(`logbook:${entryId}`);
+                    recoveredCount++;
+                  }
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (recoveredCount > 0) {
+        console.log(`[SyncService] Pemulihan otomatis: ${recoveredCount} data lokal berhasil dimasukkan ke antrean sinkronisasi.`);
+        this.saveQueue();
+        this.updateStatus("pending");
+        setTimeout(() => this.flushQueue(), 1000);
+      }
+    } catch (err: any) {
+      console.warn('[SyncService] Gagal menjalankan rekonsiliasi data lokal:', err?.message);
     }
   }
 
