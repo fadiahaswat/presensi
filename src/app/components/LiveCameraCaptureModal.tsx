@@ -21,6 +21,8 @@ interface LiveCameraCaptureModalProps {
   taskTitle: string;
   musyrifName: string;
   asramaName: string;
+  disableGallery?: boolean;
+  noWatermark?: boolean;
 }
 
 export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
@@ -29,7 +31,9 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   onCapture,
   taskTitle,
   musyrifName,
-  asramaName
+  asramaName,
+  disableGallery = false,
+  noWatermark = false
 }) => {
   const [activeTab, setActiveTab] = useState<"camera" | "gallery">("camera");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
@@ -163,120 +167,123 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
 
       ctx.drawImage(imageSource, sx, sy, sW, sH, 0, 0, targetWidth, targetHeight);
 
-      // Add Gradient Overlay at bottom for Watermark legibility
-      const overlayHeight = Math.min(140, Math.round(targetHeight * 0.28));
-      const gradient = ctx.createLinearGradient(0, targetHeight - overlayHeight, 0, targetHeight);
-      gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-      gradient.addColorStop(0.4, "rgba(0, 0, 0, 0.65)");
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0.92)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, targetHeight - overlayHeight, targetWidth, overlayHeight);
-
-      // Date Time Formatting - Format: 12/8/2026 - 02.49.18
       const now = new Date();
-      const dateStr = now.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric"
-      });
-      const timeStr = now.toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      }).replace(/\./g, ":");
-      const dateTimeStr = `${dateStr} - ${timeStr}`;
 
-      const watermarkLine1 = `${musyrifName}`;
-      const watermarkLine2 = `${asramaName}`;
-      const watermarkLine3 = `${dateTimeStr}`;
+      if (!noWatermark) {
+        // Add Gradient Overlay at bottom for Watermark legibility
+        const overlayHeight = Math.min(140, Math.round(targetHeight * 0.28));
+        const gradient = ctx.createLinearGradient(0, targetHeight - overlayHeight, 0, targetHeight);
+        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        gradient.addColorStop(0.4, "rgba(0, 0, 0, 0.65)");
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0.92)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, targetHeight - overlayHeight, targetWidth, overlayHeight);
 
-      // Helper to load image
-      const loadImage = (src: string): Promise<HTMLImageElement> => {
-        return new Promise((resolve) => {
-          const img = new window.Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(img);
-          img.src = src;
+        // Date Time Formatting - Format: 12/8/2026 - 02.49.18
+        const dateStr = now.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
         });
-      };
+        const timeStr = now.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        }).replace(/\./g, ":");
+        const dateTimeStr = `${dateStr} - ${timeStr}`;
 
-      // Helper to load font safely
-      const loadFont = (fontFamily: string, fontUrl: string): Promise<void> => {
-        return new Promise((resolve) => {
-          try {
-            if (document.fonts && document.fonts.check(`16px ${fontFamily}`)) {
+        const watermarkLine1 = `${musyrifName}`;
+        const watermarkLine2 = `${asramaName}`;
+        const watermarkLine3 = `${dateTimeStr}`;
+
+        // Helper to load image
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve) => {
+            const img = new window.Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(img);
+            img.src = src;
+          });
+        };
+
+        // Helper to load font safely
+        const loadFont = (fontFamily: string, fontUrl: string): Promise<void> => {
+          return new Promise((resolve) => {
+            try {
+              if (document.fonts && document.fonts.check(`16px ${fontFamily}`)) {
+                resolve();
+                return;
+              }
+              const font = new FontFace(fontFamily, `url(${fontUrl})`);
+              font.load().then((loadedFont) => {
+                document.fonts.add(loadedFont);
+                resolve();
+              }).catch(() => resolve());
+            } catch (_) {
               resolve();
-              return;
             }
-            const font = new FontFace(fontFamily, `url(${fontUrl})`);
-            font.load().then((loadedFont) => {
-              document.fonts.add(loadedFont);
-              resolve();
-            }).catch(() => resolve());
-          } catch (_) {
-            resolve();
+          });
+        };
+
+        try {
+          // Load Montserrat font safely
+          await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
+        } catch (_) {}
+
+        // Draw Watermark Texts - Left Side with Montserrat
+        const baseSize = Math.max(12, Math.round(targetWidth * 0.032));
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fontFamily = "Montserrat, sans-serif";
+
+        // Line 1 - Nama Ustadz
+        const nameSize = baseSize * 1.15;
+        ctx.font = `500 ${nameSize}px Montserrat, sans-serif`;
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText(watermarkLine1, 14, targetHeight - 12 - (nameSize * 1.5));
+
+        // Line 2 - Asrama
+        const asramaSize = baseSize * 0.95;
+        ctx.font = `400 ${asramaSize}px Montserrat, sans-serif`;
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.fillText(watermarkLine2, 14, targetHeight - 10 - (nameSize * 1.5) - (asramaSize * 1.25));
+
+        // Line 3 - DateTime
+        const dateSize = baseSize * 0.85;
+        ctx.font = `300 ${dateSize}px Montserrat, sans-serif`;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.shadowBlur = 2;
+        ctx.shadowOffsetY = 1;
+        ctx.fillText(watermarkLine3, 14, targetHeight - 8);
+
+        // Reset shadow
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Right Side - Draw SYAMSA Logo Image safely
+        try {
+          const logoImg = await loadImage(syamsaWordmark);
+          if (logoImg && logoImg.width > 0) {
+            const logoSize = Math.max(28, Math.round(targetWidth * 0.07));
+            const imgRatio = (logoImg.height && logoImg.width) ? (logoImg.height / logoImg.width) : 0.8;
+            ctx.drawImage(
+              logoImg,
+              targetWidth - logoSize - 12,
+              targetHeight - (logoSize * imgRatio) - 12,
+              logoSize,
+              logoSize * imgRatio
+            );
           }
-        });
-      };
-
-      try {
-        // Load Montserrat font safely
-        await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
-      } catch (_) {}
-
-      // Draw Watermark Texts - Left Side with Montserrat
-      const baseSize = Math.max(12, Math.round(targetWidth * 0.032));
-      ctx.textAlign = "left";
-      ctx.textBaseline = "bottom";
-      ctx.fontFamily = "Montserrat, sans-serif";
-
-      // Line 1 - Nama Ustadz
-      const nameSize = baseSize * 1.15;
-      ctx.font = `500 ${nameSize}px Montserrat, sans-serif`;
-      ctx.fillStyle = "#ffffff";
-      ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 2;
-      ctx.fillText(watermarkLine1, 14, targetHeight - 12 - (nameSize * 1.5));
-
-      // Line 2 - Asrama
-      const asramaSize = baseSize * 0.95;
-      ctx.font = `400 ${asramaSize}px Montserrat, sans-serif`;
-      ctx.fillStyle = "#ffffff";
-      ctx.shadowBlur = 3;
-      ctx.shadowOffsetY = 1;
-      ctx.fillText(watermarkLine2, 14, targetHeight - 10 - (nameSize * 1.5) - (asramaSize * 1.25));
-
-      // Line 3 - DateTime
-      const dateSize = baseSize * 0.85;
-      ctx.font = `300 ${dateSize}px Montserrat, sans-serif`;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.shadowBlur = 2;
-      ctx.shadowOffsetY = 1;
-      ctx.fillText(watermarkLine3, 14, targetHeight - 8);
-
-      // Reset shadow
-      ctx.shadowColor = "transparent";
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-
-      // Right Side - Draw SYAMSA Logo Image safely
-      try {
-        const logoImg = await loadImage(syamsaWordmark);
-        if (logoImg && logoImg.width > 0) {
-          const logoSize = Math.max(28, Math.round(targetWidth * 0.07));
-          const imgRatio = (logoImg.height && logoImg.width) ? (logoImg.height / logoImg.width) : 0.8;
-          ctx.drawImage(
-            logoImg,
-            targetWidth - logoSize - 12,
-            targetHeight - (logoSize * imgRatio) - 12,
-            logoSize,
-            logoSize * imgRatio
-          );
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
 
       // Iterative Adaptive Compression strictly guaranteeing <= 8,500 characters per logbook photo
       let dataUrl = "";
@@ -429,8 +436,8 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Selector: Kamera vs Galeri HP */}
-        {!capturedPreview && (
+        {/* Tab Selector: Kamera vs Galeri HP (Sembunyikan jika mode non-galeri) */}
+        {!capturedPreview && !disableGallery && (
           <div className="grid grid-cols-2 p-1.5 bg-slate-950/80 border-b border-slate-800 text-xs font-semibold gap-1">
             <button
               onClick={() => {

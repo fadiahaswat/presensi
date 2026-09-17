@@ -20,7 +20,7 @@ export interface IzinRequest {
   category: "Sakit" | "Izin Pulang / Keluarga" | "Tugas / Dinas Madrasah" | "Akademik Kampus" | "Lainnya";
   startDate: string;
   endDate: string;
-  prayerSlot: "all" | "subuh" | "maghrib";
+  prayerSlot: "all" | "subuh" | "ashar" | "maghrib";
   reason: string;
   attachmentUrl?: string;
   status: "pending" | "approved" | "rejected";
@@ -96,7 +96,7 @@ export function IzinPengajuanModal({
   const [category, setCategory] = useState<IzinRequest["category"]>("Izin Pulang / Keluarga");
   const [startDate, setStartDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [prayerSlot, setPrayerSlot] = useState<"all" | "subuh" | "maghrib">("all");
+  const [prayerSlot, setPrayerSlot] = useState<"all" | "subuh" | "ashar" | "maghrib">("all");
   const [reason, setReason] = useState<string>("");
   const [attachment, setAttachment] = useState<string | null>(null);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
@@ -421,8 +421,9 @@ export function IzinPengajuanModal({
                 onChange={(e: any) => setPrayerSlot(e.target.value)}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer"
               >
-                <option value="all">Sepanjang Hari (Subuh & Maghrib)</option>
+                <option value="all">Sepanjang Hari (Subuh, Ashar & Maghrib)</option>
                 <option value="subuh">Hanya Shalat Subuh</option>
+                <option value="ashar">Hanya Shalat Ashar</option>
                 <option value="maghrib">Hanya Shalat Maghrib</option>
               </select>
             </div>
@@ -601,7 +602,7 @@ export function IzinPengajuanModal({
                   <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-slate-600 font-medium">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{req.startDate} s/d {req.endDate} ({req.prayerSlot === "all" ? "Subuh & Maghrib" : req.prayerSlot.toUpperCase()})</span>
+                      <span>{req.startDate} s/d {req.endDate} ({req.prayerSlot === "all" ? "Semua Shalat" : req.prayerSlot.toUpperCase()})</span>
                     </div>
                     {(() => {
                       const days = calculateDays(req.startDate, req.endDate);

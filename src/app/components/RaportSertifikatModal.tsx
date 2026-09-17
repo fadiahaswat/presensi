@@ -134,6 +134,7 @@ export function RaportSertifikatModal({
 
   // 1. Shalat Fardhu Statistics
   let totalSubuhHadir = 0, totalSubuhIzin = 0, totalSubuhSakit = 0, totalSubuhAlfa = 0;
+  let totalAsharHadir = 0, totalAsharIzin = 0, totalAsharSakit = 0, totalAsharAlfa = 0;
   let totalMaghribHadir = 0, totalMaghribIzin = 0, totalMaghribSakit = 0, totalMaghribAlfa = 0;
 
   if (musyrif) {
@@ -145,6 +146,11 @@ export function RaportSertifikatModal({
         else if (rec.subuh === "sakit") totalSubuhSakit++;
         else if (rec.subuh === "alfa") totalSubuhAlfa++;
 
+        if (rec.ashar === "hadir") totalAsharHadir++;
+        else if (rec.ashar === "izin") totalAsharIzin++;
+        else if (rec.ashar === "sakit") totalAsharSakit++;
+        else if (rec.ashar === "alfa") totalAsharAlfa++;
+
         if (rec.maghrib === "hadir") totalMaghribHadir++;
         else if (rec.maghrib === "izin") totalMaghribIzin++;
         else if (rec.maghrib === "sakit") totalMaghribSakit++;
@@ -154,8 +160,9 @@ export function RaportSertifikatModal({
   }
 
   const totalSlots = (totalSubuhHadir + totalSubuhIzin + totalSubuhSakit + totalSubuhAlfa) +
+                     (totalAsharHadir + totalAsharIzin + totalAsharSakit + totalAsharAlfa) +
                      (totalMaghribHadir + totalMaghribIzin + totalMaghribSakit + totalMaghribAlfa);
-  const totalHadir = totalSubuhHadir + totalMaghribHadir;
+  const totalHadir = totalSubuhHadir + totalAsharHadir + totalMaghribHadir;
   const attendanceRate = totalSlots > 0 ? Math.round((totalHadir / totalSlots) * 100) : 0;
 
   // 2. Logbook & Pengasuhan Khusus Statistics (Dihitung Dinamis dari Seluruh Tugas Valid)
@@ -471,9 +478,10 @@ export function RaportSertifikatModal({
                 </div>
                 <div className="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-200/60">
                   <div className="flex justify-between"><span>Subuh Hadir:</span><span className="font-bold font-mono">{totalSubuhHadir} kali</span></div>
+                  <div className="flex justify-between"><span>Ashar Hadir:</span><span className="font-bold font-mono">{totalAsharHadir} kali</span></div>
                   <div className="flex justify-between"><span>Maghrib Hadir:</span><span className="font-bold font-mono">{totalMaghribHadir} kali</span></div>
-                  <div className="flex justify-between"><span>Izin / Sakit Resmi:</span><span className="font-mono">{totalSubuhIzin + totalMaghribIzin + totalSubuhSakit + totalMaghribSakit} kali</span></div>
-                  <div className="flex justify-between text-rose-600 font-semibold"><span>Tanpa Keterangan (Alfa):</span><span className="font-mono">{totalSubuhAlfa + totalMaghribAlfa} kali</span></div>
+                  <div className="flex justify-between"><span>Izin / Sakit Resmi:</span><span className="font-mono">{totalSubuhIzin + totalAsharIzin + totalMaghribIzin + totalSubuhSakit + totalAsharSakit + totalMaghribSakit} kali</span></div>
+                  <div className="flex justify-between text-rose-600 font-semibold"><span>Tanpa Keterangan (Alfa):</span><span className="font-mono">{totalSubuhAlfa + totalAsharAlfa + totalMaghribAlfa} kali</span></div>
                 </div>
               </div>
 

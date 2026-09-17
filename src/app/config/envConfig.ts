@@ -60,7 +60,7 @@ export const RATE_LIMITS = {
 // GPS Configuration
 export const GPS_CONFIG = {
   // Default radius in meters
-  DEFAULT_RADIUS_METERS: 500,
+  DEFAULT_RADIUS_METERS: 250,
   // Allow spoofing detection (requires server-side validation in production)
   ALLOW_SPOOFING_DETECTION: true,
   // Minimum accuracy required (meters)

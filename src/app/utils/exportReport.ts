@@ -65,6 +65,10 @@ export function exportComprehensiveReportCSV({
     "Subuh Izin",
     "Subuh Sakit",
     "Subuh Alfa",
+    "Ashar Hadir",
+    "Ashar Izin",
+    "Ashar Sakit",
+    "Ashar Alfa",
     "Maghrib Hadir",
     "Maghrib Izin",
     "Maghrib Sakit",
@@ -84,6 +88,11 @@ export function exportComprehensiveReportCSV({
     let subuhSakit = 0;
     let subuhAlfa = 0;
 
+    let asharHadir = 0;
+    let asharIzin = 0;
+    let asharSakit = 0;
+    let asharAlfa = 0;
+
     let maghribHadir = 0;
     let maghribIzin = 0;
     let maghribSakit = 0;
@@ -99,6 +108,11 @@ export function exportComprehensiveReportCSV({
         else if (rec.subuh === "sakit") subuhSakit++;
         else if (rec.subuh === "alfa") subuhAlfa++;
 
+        if (rec.ashar === "hadir") asharHadir++;
+        else if (rec.ashar === "izin") asharIzin++;
+        else if (rec.ashar === "sakit") asharSakit++;
+        else if (rec.ashar === "alfa") asharAlfa++;
+
         if (rec.maghrib === "hadir") maghribHadir++;
         else if (rec.maghrib === "izin") maghribIzin++;
         else if (rec.maghrib === "sakit") maghribSakit++;
@@ -107,10 +121,11 @@ export function exportComprehensiveReportCSV({
     });
 
     const totalSlotShalat = (subuhHadir + subuhIzin + subuhSakit + subuhAlfa) + 
+                            (asharHadir + asharIzin + asharSakit + asharAlfa) +
                             (maghribHadir + maghribIzin + maghribSakit + maghribAlfa);
-    const totalHadirShalat = subuhHadir + maghribHadir;
+    const totalHadirShalat = subuhHadir + asharHadir + maghribHadir;
     const pctShalat = totalSlotShalat > 0 ? Math.round((totalHadirShalat / totalSlotShalat) * 100) : 0;
-    const sholatScore = Math.max(0, (totalHadirShalat * 10) + ((subuhIzin + maghribIzin + subuhSakit + maghribSakit) * 3) - ((subuhAlfa + maghribAlfa) * 10));
+    const sholatScore = Math.max(0, (totalHadirShalat * 10) + ((subuhIzin + asharIzin + maghribIzin + subuhSakit + asharSakit + maghribSakit) * 3) - ((subuhAlfa + asharAlfa + maghribAlfa) * 10));
 
     // Logbook Tasks (Perhitungan Dinamis Seluruh Tugas Valid)
     let logbookDone = 0;
@@ -200,6 +215,10 @@ export function exportComprehensiveReportCSV({
       subuhIzin,
       subuhSakit,
       subuhAlfa,
+      asharHadir,
+      asharIzin,
+      asharSakit,
+      asharAlfa,
       maghribHadir,
       maghribIzin,
       maghribSakit,

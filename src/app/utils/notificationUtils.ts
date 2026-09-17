@@ -469,6 +469,60 @@ export function buildSystemNotificationItems({
         });
       }
 
+      const asharTimeStr = (rec as any).asharTimestamp || `${todayStr}T15:15:00`;
+      const asharTimestamp = parseTimeToTimestamp(asharTimeStr, now);
+      const asharTimeFormatted = formatNotificationRelativeTime(asharTimeStr, "15.15", now);
+
+      if ((rec as any).ashar === "izin") {
+        items.push({
+          id: `presensi_ashar_izin_${m.id}_${todayStr}`,
+          title: `Ust. ${getMusyrifCallName(m.name)}`,
+          message: `Izin pada Shalat Ashar ${formatLocationShort(m.asrama)}`,
+          time: asharTimeFormatted,
+          category: "presensi",
+          priority: "warning",
+          iconType: "file",
+          timestamp: asharTimestamp,
+          onAction: () => onGoTo("ashar")
+        });
+      } else if ((rec as any).ashar === "sakit") {
+        items.push({
+          id: `presensi_ashar_sakit_${m.id}_${todayStr}`,
+          title: `Ust. ${getMusyrifCallName(m.name)}`,
+          message: `Sakit pada pelaksanaan Shalat Ashar ${formatLocationShort(m.asrama)}`,
+          time: asharTimeFormatted,
+          category: "presensi",
+          priority: "urgent",
+          iconType: "pulse",
+          timestamp: asharTimestamp,
+          onAction: () => onGoTo("ashar")
+        });
+      } else if ((rec as any).ashar === "alfa") {
+        items.push({
+          id: `presensi_ashar_alfa_${m.id}_${todayStr}`,
+          title: `Ust. ${getMusyrifCallName(m.name)}`,
+          message: `Alpa (tidak hadir) pada Shalat Ashar ${formatLocationShort(m.asrama)}`,
+          time: asharTimeFormatted,
+          category: "presensi",
+          priority: "urgent",
+          iconType: "door",
+          timestamp: asharTimestamp,
+          onAction: () => onGoTo("ashar")
+        });
+      } else if ((rec as any).ashar === "terlambat") {
+        items.push({
+          id: `presensi_ashar_terlambat_${m.id}_${todayStr}`,
+          title: `Ust. ${getMusyrifCallName(m.name)}`,
+          message: `Hadir terlambat pada Shalat Ashar ${formatLocationShort(m.asrama)}`,
+          time: asharTimeFormatted,
+          category: "presensi",
+          priority: "warning",
+          iconType: "clock",
+          timestamp: asharTimestamp,
+          onAction: () => onGoTo("ashar")
+        });
+      }
+
       const maghribTimeStr = rec.maghribTimestamp || `${todayStr}T18:05:00`;
       const maghribTimestamp = parseTimeToTimestamp(maghribTimeStr, now);
       const maghribTimeFormatted = formatNotificationRelativeTime(maghribTimeStr, "18.05", now);

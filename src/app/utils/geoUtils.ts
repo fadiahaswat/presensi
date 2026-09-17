@@ -40,7 +40,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.807631420483853,
     lng: 110.35090524266894,
-    radiusMeters: 180,
+    radiusMeters: 100,
     asramaKeys: ["Asrama 1", "Asrama 10"]
   },
   {
@@ -50,7 +50,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.806891265137622,
     lng: 110.35135026323961,
-    radiusMeters: 180,
+    radiusMeters: 90,
     asramaKeys: ["Asrama 1"]
   },
   {
@@ -60,7 +60,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.807447620762957,
     lng: 110.35187982487349,
-    radiusMeters: 180,
+    radiusMeters: 90,
     asramaKeys: ["Asrama 10"]
   },
   {
@@ -70,7 +70,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.807649162283236,
     lng: 110.35180208935743,
-    radiusMeters: 150,
+    radiusMeters: 80,
     asramaKeys: ["Asrama 10"]
   },
   {
@@ -80,7 +80,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.806802054031821,
     lng: 110.3487117045888,
-    radiusMeters: 180,
+    radiusMeters: 90,
     asramaKeys: ["Asrama 8A"]
   },
   {
@@ -90,7 +90,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.806656716208824,
     lng: 110.34845427426143,
-    radiusMeters: 180,
+    radiusMeters: 90,
     asramaKeys: ["Asrama 8B"]
   },
   {
@@ -100,7 +100,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.806725165641748,
     lng: 110.34808989677528,
-    radiusMeters: 180,
+    radiusMeters: 90,
     asramaKeys: ["Asrama 8C"]
   },
   {
@@ -110,7 +110,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.80670964534532,
     lng: 110.34871338210505,
-    radiusMeters: 150,
+    radiusMeters: 80,
     asramaKeys: ["Asrama 8A", "Asrama 8B", "Asrama 8C"]
   },
   {
@@ -120,7 +120,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.807535148915093,
     lng: 110.35119022929074,
-    radiusMeters: 200
+    radiusMeters: 100
   },
   {
     id: "aula_induk",
@@ -129,7 +129,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_induk",
     lat: -7.8071293622895865,
     lng: 110.35129819288836,
-    radiusMeters: 180
+    radiusMeters: 90
   },
 
   // ─── KAMPUS TERPADU SEDAYU (Bantul) ───
@@ -140,7 +140,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_terpadu",
     lat: -7.807283961429371,
     lng: 110.2664976347712,
-    radiusMeters: 250,
+    radiusMeters: 100,
     asramaKeys: ["Asrama Sedayu Gedung A", "Asrama Sedayu Gedung B", "Asrama Sedayu Gedung C", "Asrama Sedayu Gedung D"]
   },
   {
@@ -150,7 +150,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_terpadu",
     lat: -7.806161927805327,
     lng: 110.26622820707232,
-    radiusMeters: 200,
+    radiusMeters: 90,
     asramaKeys: ["Asrama Sedayu Gedung A"]
   },
   {
@@ -160,7 +160,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_terpadu",
     lat: -7.806624810484002,
     lng: 110.26619109206257,
-    radiusMeters: 200,
+    radiusMeters: 90,
     asramaKeys: ["Asrama Sedayu Gedung B"]
   },
   {
@@ -170,7 +170,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_terpadu",
     lat: -7.806267915005986,
     lng: 110.26585269050325,
-    radiusMeters: 200,
+    radiusMeters: 90,
     asramaKeys: ["Asrama Sedayu Gedung C"]
   },
   {
@@ -180,7 +180,7 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_terpadu",
     lat: -7.807027128668001,
     lng: 110.26582649166751,
-    radiusMeters: 200,
+    radiusMeters: 90,
     asramaKeys: ["Asrama Sedayu Gedung D"]
   },
   {
@@ -190,11 +190,11 @@ export const MUALLIMIN_LOCATIONS: SpecificBuildingLocation[] = [
     campus: "kampus_terpadu",
     lat: -7.806272241018772,
     lng: 110.26723686205816,
-    radiusMeters: 250
+    radiusMeters: 100
   }
 ];
 
-// Campus area centroids with broad geofence (500m)
+// Campus area centroids with broad geofence (250m)
 export interface CampusLocation {
   name: string;
   campus: "sparman" | "sedayu";
@@ -210,7 +210,7 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
     campus: "sparman",
     lat: -7.8071,
     lng: 110.3508,
-    radiusMeters: 500,
+    radiusMeters: 250,
     asramas: ["Asrama 1", "Asrama 8A", "Asrama 8B", "Asrama 8C", "Asrama 10"]
   },
   {
@@ -218,7 +218,7 @@ export const CAMPUS_LOCATIONS: CampusLocation[] = [
     campus: "sedayu",
     lat: -7.8066,
     lng: 110.2662,
-    radiusMeters: 500,
+    radiusMeters: 250,
     asramas: ["Asrama Sedayu Gedung A", "Asrama Sedayu Gedung B", "Asrama Sedayu Gedung C", "Asrama Sedayu Gedung D"]
   }
 ];
@@ -276,8 +276,8 @@ export function checkAsramaGeofence(
   // 3. For Sedayu campus, also check if user is near Masjid Yuliana (shared mosque)
   const masjidYuliana = MUALLIMIN_LOCATIONS.find(b => b.id === "masjid_yuliana");
 
-  // Dynamic indoor GPS tolerance buffer (up to 120m if accuracy reading is degraded indoors due to concrete/roof)
-  const accuracyBuffer = typeof accuracy === "number" && accuracy > 0 ? Math.min(accuracy, 120) : 0;
+  // Dynamic indoor GPS tolerance buffer (up to 50m if accuracy reading is degraded indoors due to concrete/roof)
+  const accuracyBuffer = typeof accuracy === "number" && accuracy > 0 ? Math.min(accuracy, 50) : 0;
 
   let distance: number;
   let isInRange: boolean;
@@ -289,9 +289,9 @@ export function checkAsramaGeofence(
     // ============================================
     // LOGIKA KHUSUS KAMPUS SEDAYU
     // Musyrif Sedayu bisa sholat di:
-    // 1. Masjid Yuliana (radius 250m)
-    // 2. Ged A/B/C/D mana saja (radius 200m)
-    // 3. Campus area Sedayu (radius 500m) - sebagai fallback
+    // 1. Masjid Yuliana (radius 100m)
+    // 2. Ged A/B/C/D mana saja (radius 90m)
+    // 3. Campus area Sedayu (radius 250m) - sebagai fallback
     // ============================================
 
     // Check distance to each building in Sedayu campus

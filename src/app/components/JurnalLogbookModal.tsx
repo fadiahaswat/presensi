@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "../utils/geoUtils";
+import { GpsTroubleshootModal } from "./GpsTroubleshootModal";
 import { PatroliStepsModal } from "./PatroliStepsModal";
 import { LogbookStravaStickerModal } from "./LogbookStravaStickerModal";
 import { compressAndWatermarkImage } from "../utils/imageCompressor";
@@ -697,6 +698,7 @@ export function JurnalLogbookModal({
   // GPS Geofence Check State - use pre-checked GPS if available
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
   const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(initialGpsResult ?? null);
+  const [showGpsTroubleshoot, setShowGpsTroubleshoot] = useState<boolean>(false);
 
   const selectedMusyrif = musyrifList.find(m => m.id === selectedMusyrifId) || null;
   const asramaTarget = selectedMusyrif?.asrama || "Asrama 1";
@@ -1209,23 +1211,49 @@ export function JurnalLogbookModal({
 
       {/* GPS Status Banner (Only for standard Musyrif & Koor Gedung doing self-input) */}
       {!isCanBypass && selectedMusyrif && (
-        <div className={`p-3.5 sm:p-4 rounded-3xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+        <div className={`p-3.5 sm:p-4 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs ${isGpsVerified ? "bg-emerald-50/80 text-emerald-950 border-emerald-200/80" : "bg-rose-50/80 text-rose-950 border-rose-200/80"}`}>
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs mt-0.5 sm:mt-0 ${isGpsVerified ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
               <MapPin className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-xs leading-tight truncate">
-                {isCheckingGps ? "Memeriksa koordinat GPS asrama..." : !gpsResult ? `GPS Belum Diperiksa (${asramaTarget})` : isGpsVerified ? `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)` : `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters === 99999 ? "GPS Tidak Terdeteksi / Ditolak" : `${gpsResult.distanceMeters}m dari radius`})`}
+              <p className="font-bold text-xs leading-tight truncate flex items-center gap-1.5 flex-wrap">
+                <span>{isCheckingGps ? "Memeriksa koordinat GPS asrama..." : !gpsResult ? `GPS Belum Diperiksa (${asramaTarget})` : isGpsVerified ? `Terverifikasi di ${asramaTarget} (Jarak: ${gpsResult.distanceMeters}m)` : `Di Luar Area ${asramaTarget} (${gpsResult.distanceMeters === 99999 ? "GPS Tidak Terdeteksi / Ditolak" : `${gpsResult.distanceMeters}m dari radius`})`}</span>
+                {!isGpsVerified && !isCheckingGps && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-200 text-rose-800">Perlu Kalibrasi</span>
+                )}
               </p>
-              <p className="text-[11px] opacity-75 truncate mt-0.5">{isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}</p>
+              <p className="text-[11px] opacity-75 truncate mt-0.5">
+                {isGpsVerified ? "Lokasi valid. Seluruh tugas aktif dapat dicatat dan divalidasi." : "Wajib verifikasi GPS di area asrama sebelum membuka daftar tugas."}
+                {gpsResult?.accuracyMeters ? ` • Akurasi GPS: ±${gpsResult.accuracyMeters}m` : ""}
+              </p>
             </div>
           </div>
-          <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-600 text-white hover:bg-rose-700"}`}>
-            <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Mengecek..." : isGpsVerified ? "Perbarui GPS" : "Cek GPS Sekarang"}</span>
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            {!isGpsVerified && !isCheckingGps && (
+              <button
+                type="button"
+                onClick={() => setShowGpsTroubleshoot(true)}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-2xs flex items-center gap-1 active:scale-95 transition-all"
+              >
+                <span>Solusi GPS?</span>
+              </button>
+            )}
+            <button type="button" disabled={isCheckingGps} onClick={checkCurrentLocation} className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all shrink-0 ${isGpsVerified ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" : "bg-rose-100 border border-rose-300 text-rose-800 hover:bg-rose-200"}`}>
+              <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin" : ""}`} /> <span>{isCheckingGps ? "Mengecek..." : isGpsVerified ? "Perbarui GPS" : "Cek Ulang GPS"}</span>
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Modal Bantuan Troubleshooting GPS */}
+      <GpsTroubleshootModal
+        isOpen={showGpsTroubleshoot}
+        onClose={() => setShowGpsTroubleshoot(false)}
+        gpsResult={gpsResult}
+        isChecking={isCheckingGps}
+        onRetry={checkCurrentLocation}
+      />
 
       {/* Form & Selection Card */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">

@@ -181,12 +181,13 @@ export function LeaderboardModal({
 
   const leaderboardData = useMemo(() => {
     return activeMusyrifList.map(m => {
-      // 1. Shalat Fardhu Score (Subuh & Maghrib)
+      // 1. Shalat Fardhu Score (Subuh, Ashar & Maghrib)
       let hadirCount = 0;
       let izinCount = 0;
       let sakitCount = 0;
       let alfaCount = 0;
       let subuhCount = 0;
+      let asharCount = 0;
       let maghribCount = 0;
 
       Object.entries(records).forEach(([_, rec]) => {
@@ -197,12 +198,18 @@ export function LeaderboardModal({
           }
 
           const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now);
+          const ashSt = getEffectiveAttendanceStatus(rec, "ashar", rec.date, now);
           const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now);
 
           if (subSt === "hadir") { hadirCount++; subuhCount++; }
           else if (subSt === "izin") izinCount++;
           else if (subSt === "sakit") sakitCount++;
           else if (subSt === "alfa") alfaCount++;
+
+          if (ashSt === "hadir") { hadirCount++; asharCount++; }
+          else if (ashSt === "izin") izinCount++;
+          else if (ashSt === "sakit") sakitCount++;
+          else if (ashSt === "alfa") alfaCount++;
 
           if (magSt === "hadir") { hadirCount++; maghribCount++; }
           else if (magSt === "izin") izinCount++;
@@ -622,7 +629,7 @@ export function LeaderboardModal({
             <div className="space-y-2 text-xs">
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <Sun className="w-3.5 h-3.5 text-amber-500" /> Shalat Subuh & Maghrib:
+                  <Sun className="w-3.5 h-3.5 text-amber-500" /> Shalat Subuh, Ashar & Maghrib:
                 </span>
                 <span className="font-bold font-mono text-slate-900">{selectedDetailMusyrif.sholatScore} Pts ({selectedDetailMusyrif.hadirCount}x Hadir)</span>
               </div>

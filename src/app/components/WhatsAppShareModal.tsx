@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Send, Copy, Check, MessageSquare, Building2, Calendar, FileText, ChevronLeft, Sun, Moon } from "lucide-react";
+import { X, Send, Copy, Check, MessageSquare, Building2, Calendar, FileText, ChevronLeft, Sunrise, Sunset, Moon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "motion/react";
@@ -20,8 +20,10 @@ interface AttendanceRecord {
   musyrifId: string;
   date: string;
   subuh?: "hadir" | "sakit" | "izin" | "alfa";
+  ashar?: "hadir" | "sakit" | "izin" | "alfa";
   maghrib?: "hadir" | "sakit" | "izin" | "alfa";
   subuhNote?: string;
+  asharNote?: string;
   maghribNote?: string;
   markedBy?: string;
 }
@@ -40,7 +42,7 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
 
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [selectedAsrama, setSelectedAsrama] = useState<string>(isScopedRole && authUser?.asrama ? authUser.asrama : "all");
-  const [selectedPrayer, setSelectedPrayer] = useState<"all" | "subuh" | "maghrib">("all");
+  const [selectedPrayer, setSelectedPrayer] = useState<"all" | "subuh" | "ashar" | "maghrib">("all");
   const [reportType, setReportType] = useState<"lengkap" | "alfa_only" | "ringkas">("lengkap");
   const [copied, setCopied] = useState<boolean>(false);
 
@@ -55,11 +57,12 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
     let text = `*LAPORAN PRESENSI MUSYRIF MADRASAH MU'ALLIMIN*\n`;
     text += `*Tanggal:* ${formattedDate}\n`;
     text += `*Asrama:* ${selectedAsrama === "all" ? "Semua Asrama" : `Asrama ${selectedAsrama}`}\n`;
-    text += `*Waktu Shalat:* ${selectedPrayer === "all" ? "Subuh & Maghrib" : selectedPrayer.toUpperCase()}\n`;
+    text += `*Waktu Shalat:* ${selectedPrayer === "all" ? "Subuh, Ashar & Maghrib" : selectedPrayer.toUpperCase()}\n`;
     text += `───────────────────────\n\n`;
 
     if (reportType === "ringkas") {
       let totalHadirSubuh = 0, totalIzinSubuh = 0, totalSakitSubuh = 0, totalAlfaSubuh = 0;
+      let totalHadirAshar = 0, totalIzinAshar = 0, totalSakitAshar = 0, totalAlfaAshar = 0;
       let totalHadirMaghrib = 0, totalIzinMaghrib = 0, totalSakitMaghrib = 0, totalAlfaMaghrib = 0;
 
       filteredMusyrif.forEach(m => {
@@ -69,6 +72,11 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
         else if (rec?.subuh === "izin") totalIzinSubuh++;
         else if (rec?.subuh === "sakit") totalSakitSubuh++;
         else totalAlfaSubuh++;
+
+        if (rec?.ashar === "hadir") totalHadirAshar++;
+        else if (rec?.ashar === "izin") totalIzinAshar++;
+        else if (rec?.ashar === "sakit") totalSakitAshar++;
+        else totalAlfaAshar++;
 
         if (rec?.maghrib === "hadir") totalHadirMaghrib++;
         else if (rec?.maghrib === "izin") totalIzinMaghrib++;
@@ -86,6 +94,15 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
         text += `• Tanpa Keterangan / Belum: ${totalAlfaSubuh}\n\n`;
       }
 
+      if (selectedPrayer === "all" || selectedPrayer === "ashar") {
+        text += `*SHALAT ASHAR*\n`;
+        text += `• Total Musyrif: ${total}\n`;
+        text += `• Hadir: ${totalHadirAshar} (${Math.round((totalHadirAshar / (total || 1)) * 100)}%)\n`;
+        text += `• Izin: ${totalIzinAshar}\n`;
+        text += `• Sakit: ${totalSakitAshar}\n`;
+        text += `• Tanpa Keterangan / Belum: ${totalAlfaAshar}\n\n`;
+      }
+
       if (selectedPrayer === "all" || selectedPrayer === "maghrib") {
         text += `*SHALAT MAGHRIB*\n`;
         text += `• Total Musyrif: ${total}\n`;
@@ -96,6 +113,7 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
       }
     } else if (reportType === "alfa_only") {
       const alfaSubuh: string[] = [];
+      const alfaAshar: string[] = [];
       const alfaMaghrib: string[] = [];
 
       filteredMusyrif.forEach(m => {
@@ -103,6 +121,9 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
         const rec = records[key];
         if (!rec?.subuh || rec?.subuh === "alfa") {
           alfaSubuh.push(`${m.name} (${m.asrama} - Kmr ${m.kamar})`);
+        }
+        if (!rec?.ashar || rec?.ashar === "alfa") {
+          alfaAshar.push(`${m.name} (${m.asrama} - Kmr ${m.kamar})`);
         }
         if (!rec?.maghrib || rec?.maghrib === "alfa") {
           alfaMaghrib.push(`${m.name} (${m.asrama} - Kmr ${m.kamar})`);
@@ -115,6 +136,18 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
           text += `Alhamdulillah seluruh musyrif hadir Subuh.\n\n`;
         } else {
           alfaSubuh.forEach((name, i) => {
+            text += `${i + 1}. ${name}\n`;
+          });
+          text += `\n`;
+        }
+      }
+
+      if (selectedPrayer === "all" || selectedPrayer === "ashar") {
+        text += `*CATATAN ASHAR (BELUM / ALFA):*\n`;
+        if (alfaAshar.length === 0) {
+          text += `Alhamdulillah seluruh musyrif hadir Ashar.\n\n`;
+        } else {
+          alfaAshar.forEach((name, i) => {
             text += `${i + 1}. ${name}\n`;
           });
           text += `\n`;
@@ -135,6 +168,7 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
     } else {
       // Format Lengkap
       let subuhText = `*RINCIAN PRESENSI SUBUH:*\n`;
+      let asharText = `*RINCIAN PRESENSI ASHAR:*\n`;
       let maghribText = `*RINCIAN PRESENSI MAGHRIB:*\n`;
 
       filteredMusyrif.forEach((m, idx) => {
@@ -145,16 +179,24 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
                        rec?.subuh === "izin"  ? `[IZIN: ${rec.subuhNote || "Izin"}]` :
                        rec?.subuh === "sakit" ? `[SAKIT: ${rec.subuhNote || "Sakit"}]` : "[ALFA]";
 
+        const sAshar = rec?.ashar === "hadir" ? "[HADIR]" :
+                       rec?.ashar === "izin"  ? `[IZIN: ${rec.asharNote || "Izin"}]` :
+                       rec?.ashar === "sakit" ? `[SAKIT: ${rec.asharNote || "Sakit"}]` : "[ALFA]";
+
         const sMaghrib = rec?.maghrib === "hadir" ? "[HADIR]" :
                          rec?.maghrib === "izin"  ? `[IZIN: ${rec.maghribNote || "Izin"}]` :
                          rec?.maghrib === "sakit" ? `[SAKIT: ${rec.maghribNote || "Sakit"}]` : "[ALFA]";
 
         subuhText += `${idx + 1}. ${m.name} (${m.asrama}) -> ${sSubuh}\n`;
+        asharText += `${idx + 1}. ${m.name} (${m.asrama}) -> ${sAshar}\n`;
         maghribText += `${idx + 1}. ${m.name} (${m.asrama}) -> ${sMaghrib}\n`;
       });
 
       if (selectedPrayer === "all" || selectedPrayer === "subuh") {
         text += subuhText + `\n`;
+      }
+      if (selectedPrayer === "all" || selectedPrayer === "ashar") {
+        text += asharText + `\n`;
       }
       if (selectedPrayer === "all" || selectedPrayer === "maghrib") {
         text += maghribText + `\n`;
@@ -251,27 +293,37 @@ export function WhatsAppShareModal({ onClose, musyrifList, records, asramaList, 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label className="text-xs font-semibold text-slate-700 mb-1 block">Waktu Shalat</label>
-              <div className="flex bg-white border border-slate-200 rounded-xl p-0.5 text-xs font-bold">
+              <div className="flex bg-white border border-slate-200 rounded-xl p-0.5 text-xs font-bold gap-0.5">
                 <button
                   type="button"
                   onClick={() => setSelectedPrayer("all")}
-                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 ${selectedPrayer === "all" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 text-center ${selectedPrayer === "all" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
                 >
                   Semua
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedPrayer("subuh")}
-                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 ${selectedPrayer === "subuh" ? "bg-amber-500 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 ${selectedPrayer === "subuh" ? "bg-amber-500 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
                 >
-                  Subuh
+                  <Sunrise className="w-3 h-3" />
+                  <span>Subuh</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPrayer("ashar")}
+                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 ${selectedPrayer === "ashar" ? "bg-orange-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                >
+                  <Sunset className="w-3 h-3" />
+                  <span>Ashar</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedPrayer("maghrib")}
-                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 ${selectedPrayer === "maghrib" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                  className={`flex-1 py-1 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 ${selectedPrayer === "maghrib" ? "bg-[#0C4E8C] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
                 >
-                  Maghrib
+                  <Moon className="w-3 h-3" />
+                  <span>Maghrib</span>
                 </button>
               </div>
             </div>

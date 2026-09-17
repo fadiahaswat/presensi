@@ -64,6 +64,7 @@ const PageGaleriLogbook = lazy(() => import("./components/PageGaleriLogbook").th
 const KalenderPendidikanModal = lazy(() => import("./components/KalenderPendidikanModal").then(m => ({ default: m.KalenderPendidikanModal })));
 const DataSantriModal = lazy(() => import("./components/DataSantriModal").then(m => ({ default: m.DataSantriModal })));
 const SantriMapModal = lazy(() => import("./components/SantriMapModal").then(m => ({ default: m.SantriMapModal })));
+const LiveCameraCaptureModal = lazy(() => import("./components/LiveCameraCaptureModal").then(m => ({ default: m.LiveCameraCaptureModal })));
 const CloudSyncModal = lazy(() => import("./components/CloudSyncModal").then(m => ({ default: m.CloudSyncModal })));
 const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri").then(m => ({ default: m.PagePembinaanSantri })));
 const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
@@ -74,6 +75,7 @@ import { toHijri, getFastInfo, getUpcomingFasts, HIJRI_MONTHS, getPasaranJawa } 
 import { motion, AnimatePresence } from "motion/react";
 import { pageVariants, toastVariants, triggerHaptic, springSmooth, modalBackdropVariants, modalContentVariants } from "./utils/animations";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "./utils/geoUtils";
+import { GpsTroubleshootModal } from "./components/GpsTroubleshootModal";
 import { CustomDialogModal } from "./components/CustomDialogModal";
 import { appAlert, appConfirm, appUndoToast } from "./utils/customDialog";
 import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAccess, isFieldMusyrif as checkFieldMusyrif, getPamongAssignedAsramas, canManageKegiatanAsrama } from "./utils/roleAccessUtils";
@@ -83,9 +85,9 @@ import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStat
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
-type PrayerSlot = "subuh" | "maghrib";
+type PrayerSlot = "subuh" | "ashar" | "maghrib";
 type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
-type Page = "dashboard" | "subuh" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
+type Page = "dashboard" | "subuh" | "ashar" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
@@ -105,8 +107,8 @@ interface Musyrif {
 }
 interface AttendanceRecord {
   musyrifId: string; date: string;
-  subuh?: AttendanceStatus; maghrib?: AttendanceStatus;
-  subuhNote?: string; maghribNote?: string;
+  subuh?: AttendanceStatus; ashar?: AttendanceStatus; maghrib?: AttendanceStatus;
+  subuhNote?: string; asharNote?: string; maghribNote?: string;
   markedBy?: string;
 }
 interface SunnahFast { id: string; name: string; desc: string; type: "weekly"|"monthly"|"annual"; icon: string; }
@@ -177,6 +179,7 @@ export function calcPrayerTimes(date: Date, lat = -7.807631, lon = 110.350905, t
 // Konfigurasi waktu presensi: 15 menit SEBELUM waktu sholat
 const PRESENSI_OPEN_BEFORE_MINUTES = 15; // Buka 15 menit sebelum sholat
 const PRESENSI_CLOSE_HOURS_SUBUH = 6.0;  // Tutup jam 06:00 WIB
+const PRESENSI_CLOSE_HOURS_ASHAR = 16.0; // Tutup jam 16:00 WIB
 const PRESENSI_CLOSE_HOURS_MAGHRIB = 19.5; // Tutup jam 19:30 WIB
 
 export interface PresensiTimeWindow {
@@ -191,23 +194,29 @@ export interface PresensiTimeWindow {
 /**
  * Hitung jendela waktu presensi berdasarkan waktu sholat
  * Buka: 15 menit SEBELUM waktu sholat
- * Tutup: jam 06:00 (Subuh) atau 19:30 (Maghrib)
+ * Tutup: jam 06:00 (Subuh), 16:00 (Ashar), atau 19:30 (Maghrib)
  */
 export function getPresensiTimeWindow(
   slot: PrayerSlot,
   date: Date = new Date()
 ): PresensiTimeWindow {
   const prayerTimes = calcPrayerTimes(date, -7.807631, 110.350905, 7);
-  const prayerObj = prayerTimes.find(p => p.key === slot);
+  const prayerKey = slot === "ashar" ? "asr" : slot;
+  const prayerObj = prayerTimes.find(p => p.key === prayerKey);
 
   // Get raw prayer time (decimal hours)
-  const prayerRaw = prayerObj?.raw ?? (slot === "subuh" ? 4.5 : 17.75);
+  const defaultPrayerRaw = slot === "subuh" ? 4.5 : slot === "ashar" ? 15.2 : 17.75;
+  const prayerRaw = prayerObj?.raw ?? defaultPrayerRaw;
 
   // Open time: 15 minutes before prayer time
   const openTime = prayerRaw - (PRESENSI_OPEN_BEFORE_MINUTES / 60);
 
   // Close time: fixed hours
-  const closeTime = slot === "subuh" ? PRESENSI_CLOSE_HOURS_SUBUH : PRESENSI_CLOSE_HOURS_MAGHRIB;
+  const closeTime = slot === "subuh" 
+    ? PRESENSI_CLOSE_HOURS_SUBUH 
+    : slot === "ashar" 
+    ? PRESENSI_CLOSE_HOURS_ASHAR 
+    : PRESENSI_CLOSE_HOURS_MAGHRIB;
 
   // Format helpers
   const fmtHour = (h: number): string => {
@@ -712,11 +721,12 @@ function computeStreak(mid: string, records: AttendanceRecord[]) {
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
 
-  // Check if today is completed (both subuh and maghrib hadir)
+  // Check if today is completed (subuh, ashar, and maghrib hadir)
   const todayRec = records.find(x => x.musyrifId === mid && x.date === todayStr);
   const todaySub = getEffectiveAttendanceStatus(todayRec, "subuh", todayStr);
+  const todayAsh = getEffectiveAttendanceStatus(todayRec, "ashar", todayStr);
   const todayMag = getEffectiveAttendanceStatus(todayRec, "maghrib", todayStr);
-  const todayCompletedHadir = todaySub === "hadir" && todayMag === "hadir";
+  const todayCompletedHadir = todaySub === "hadir" && todayAsh === "hadir" && todayMag === "hadir";
 
   const startOffset = todayCompletedHadir ? 0 : 1;
 
@@ -733,8 +743,9 @@ function computeStreak(mid: string, records: AttendanceRecord[]) {
 
     const r = records.find(x => x.musyrifId === mid && x.date === dateStr);
     const sSub = getEffectiveAttendanceStatus(r, "subuh", dateStr);
+    const sAsh = getEffectiveAttendanceStatus(r, "ashar", dateStr);
     const sMag = getEffectiveAttendanceStatus(r, "maghrib", dateStr);
-    if (sSub === "hadir" && sMag === "hadir") { 
+    if (sSub === "hadir" && sAsh === "hadir" && sMag === "hadir") { 
       tmp++; 
       if (!streakBroken) {
         cur = tmp;
@@ -761,24 +772,31 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
   const rows = list.map((m,i) => {
     const rs = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk));
     let sh = 0, ss = 0, si = 0, sa = 0;
+    let ah = 0, as = 0, ai = 0, aa = 0;
     let mh = 0, ms = 0, mi = 0, ma = 0;
     days.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = rs.find(x => x.date === ds);
       const subuhSt = getEffectiveAttendanceStatus(r, "subuh", ds);
+      const asharSt = getEffectiveAttendanceStatus(r, "ashar", ds);
       const maghribSt = getEffectiveAttendanceStatus(r, "maghrib", ds);
       if (subuhSt === "hadir") sh++;
       else if (subuhSt === "sakit") ss++;
       else if (subuhSt === "izin") si++;
       else if (subuhSt === "alfa") sa++;
 
+      if (asharSt === "hadir") ah++;
+      else if (asharSt === "sakit") as++;
+      else if (asharSt === "izin") ai++;
+      else if (asharSt === "alfa") aa++;
+
       if (maghribSt === "hadir") mh++;
       else if (maghribSt === "sakit") ms++;
       else if (maghribSt === "izin") mi++;
       else if (maghribSt === "alfa") ma++;
     });
-    const pct = days.length ? Math.round(((sh+mh)/(days.length*2))*100) : 0;
-    return `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.kelas}</td><td>${m.pamong||"-"}</td><td>${m.phone||"-"}</td><td style="color:#16a34a">${sh}</td><td style="color:#d97706">${ss}</td><td style="color:#2563eb">${si}</td><td style="color:#dc2626">${sa}</td><td style="color:#16a34a">${mh}</td><td style="color:#d97706">${ms}</td><td style="color:#2563eb">${mi}</td><td style="color:#dc2626">${ma}</td><td><b>${pct}%</b></td></tr>`;
+    const pct = days.length ? Math.round(((sh+ah+mh)/(days.length*3))*100) : 0;
+    return `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.kelas}</td><td>${m.pamong||"-"}</td><td>${m.phone||"-"}</td><td style="color:#16a34a">${sh}</td><td style="color:#d97706">${ss}</td><td style="color:#2563eb">${si}</td><td style="color:#dc2626">${sa}</td><td style="color:#16a34a">${ah}</td><td style="color:#d97706">${as}</td><td style="color:#2563eb">${ai}</td><td style="color:#dc2626">${aa}</td><td style="color:#16a34a">${mh}</td><td style="color:#d97706">${ms}</td><td style="color:#2563eb">${mi}</td><td style="color:#dc2626">${ma}</td><td><b>${pct}%</b></td></tr>`;
   }).join("");
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rekap Presensi ${format(month,"MMMM yyyy",{locale:id})}</title>
@@ -791,7 +809,7 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
   @media print{@page{size:A4 landscape;margin:1.5cm}}</style></head><body>
   <h1>Rekap Presensi Musyrif</h1>
   <p class="sub">${format(month,"MMMM yyyy",{locale:id})} · ${asramaFilter} · ${days.length} hari · ${list.length} musyrif</p>
-  <table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th>Pamong</th><th>No. WA</th><th>Sub.H</th><th>Sub.S</th><th>Sub.I</th><th>Sub.A</th><th>Mag.H</th><th>Mag.S</th><th>Mag.I</th><th>Mag.A</th><th>%</th></tr></thead>
+  <table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th>Pamong</th><th>No. WA</th><th>Sub.H</th><th>Sub.S</th><th>Sub.I</th><th>Sub.A</th><th>Ash.H</th><th>Ash.S</th><th>Ash.I</th><th>Ash.A</th><th>Mag.H</th><th>Mag.S</th><th>Mag.I</th><th>Mag.A</th><th>%</th></tr></thead>
   <tbody>${rows}</tbody></table>
   <p class="foot">Dicetak: ${format(new Date(),"d MMMM yyyy, HH:mm")} · Sistem Presensi Musyrif</p></body></html>`;
 
@@ -900,13 +918,17 @@ function PageDashboard({
   }, []);
 
   const getSubuh = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "subuh", today, liveNow);
+  const getAshar = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "ashar", today, liveNow);
   const getMaghrib = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "maghrib", today, liveNow);
 
   const sh = mList.filter(m => getSubuh(m.id) === "hadir").length;
+  const ah = mList.filter(m => getAshar(m.id) === "hadir").length;
   const mh = mList.filter(m => getMaghrib(m.id) === "hadir").length;
   const sa = mList.filter(m => getSubuh(m.id) === "alfa").length;
+  const aa = mList.filter(m => getAshar(m.id) === "alfa").length;
   const ma = mList.filter(m => getMaghrib(m.id) === "alfa").length;
   const belumS = mList.filter(m => !getSubuh(m.id));
+  const belumA = mList.filter(m => !getAshar(m.id));
   const belumM = mList.filter(m => !getMaghrib(m.id));
 
   const [detailMusyrif, setDetailMusyrif] = useState<Musyrif | null>(null);
@@ -954,6 +976,7 @@ function PageDashboard({
     return {
       day: format(d,"EEE",{locale:id}).slice(0,2),
       subuh:   total ? Math.round(mList.filter(m=>getEffectiveAttendanceStatus(rs.find(r=>r.musyrifId===m.id), "subuh", ds, liveNow)==="hadir").length/total*100)   : 0,
+      ashar:   total ? Math.round(mList.filter(m=>getEffectiveAttendanceStatus(rs.find(r=>r.musyrifId===m.id), "ashar", ds, liveNow)==="hadir").length/total*100)   : 0,
       maghrib: total ? Math.round(mList.filter(m=>getEffectiveAttendanceStatus(rs.find(r=>r.musyrifId===m.id), "maghrib", ds, liveNow)==="hadir").length/total*100) : 0,
     };
   });
@@ -963,8 +986,8 @@ function PageDashboard({
   const now = liveNow;
   const thisMK = format(now,"yyyy-MM");
   const lastMK = format(subMonths(now,1),"yyyy-MM");
-  const thisH = records.filter(r=>r.date.startsWith(thisMK)&&(r.subuh==="hadir"||r.maghrib==="hadir")).length;
-  const lastH = records.filter(r=>r.date.startsWith(lastMK)&&(r.subuh==="hadir"||r.maghrib==="hadir")).length;
+  const thisH = records.filter(r=>r.date.startsWith(thisMK)&&(r.subuh==="hadir"||r.ashar==="hadir"||r.maghrib==="hadir")).length;
+  const lastH = records.filter(r=>r.date.startsWith(lastMK)&&(r.subuh==="hadir"||r.ashar==="hadir"||r.maghrib==="hadir")).length;
   const delta = lastH ? Math.round((thisH-lastH)/lastH*100) : 0;
 
   // Who needs attention (most alfa this month)
@@ -978,15 +1001,16 @@ function PageDashboard({
       const ds = format(d, "yyyy-MM-dd");
       const r = rs.find(x => x.date === ds);
       if (getEffectiveAttendanceStatus(r, "subuh", ds, liveNow) === "alfa") mAlfa++;
+      if (getEffectiveAttendanceStatus(r, "ashar", ds, liveNow) === "alfa") mAlfa++;
       if (getEffectiveAttendanceStatus(r, "maghrib", ds, liveNow) === "alfa") mAlfa++;
     });
     return { ...m, alfa: mAlfa };
   }).filter(m=>m.alfa>0).sort((a,b)=>b.alfa-a.alfa).slice(0,5);
 
   // Overview donut data
-  const allTodayPossible = total * 2;
-  const todayHadir = sh + mh;
-  const todayBelum = belumS.length + belumM.length;
+  const allTodayPossible = total * 3;
+  const todayHadir = sh + ah + mh;
+  const todayBelum = belumS.length + belumA.length + belumM.length;
   const todayLain = allTodayPossible - todayHadir - todayBelum;
   const donutData = [
     { name:"Hadir", value: todayHadir, color:"#0C81E4" },
@@ -1185,6 +1209,7 @@ function PageDashboard({
               const myId = authUser.musyrifId || authUser.id;
               const myRec = todayRecs.find(r => r.musyrifId === myId);
               const subuhStatus = getEffectiveAttendanceStatus(myRec, "subuh", today, liveNow);
+              const asharStatus = getEffectiveAttendanceStatus(myRec, "ashar", today, liveNow);
               const maghribStatus = getEffectiveAttendanceStatus(myRec, "maghrib", today, liveNow);
 
               // Current time-window logbook session
@@ -1263,7 +1288,7 @@ function PageDashboard({
               const isLogComplete = logDoneCount >= 11;
 
               return (
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 pt-1">
                   {/* Tile 1: Status Presensi Subuh Pribadi */}
                   <button
                     type="button"
@@ -1272,7 +1297,7 @@ function PageDashboard({
                   >
                     <div className="flex items-center justify-between text-cyan-200 mb-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <Sun className="w-3.5 h-3.5 shrink-0" />
+                        <Sunrise className="w-3.5 h-3.5 shrink-0" />
                         <span className="text-[10px] sm:text-[11px] font-semibold truncate">Subuh</span>
                       </div>
                       {subuhStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300 shrink-0" />}
@@ -1293,7 +1318,36 @@ function PageDashboard({
                     </div>
                   </button>
 
-                  {/* Tile 2: Status Presensi Maghrib Pribadi */}
+                  {/* Tile 2: Status Presensi Ashar Pribadi */}
+                  <button
+                    type="button"
+                    onClick={() => onGoTo("ashar")}
+                    className="bg-white/18 hover:bg-white/25 backdrop-blur-xl rounded-2xl p-2.5 sm:p-3.5 border border-white/30 shadow-sm shadow-sky-950/10 transition-all text-left group active:scale-95 flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between text-amber-200 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Sunset className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-[10px] sm:text-[11px] font-semibold truncate">Ashar</span>
+                      </div>
+                      {asharStatus === "hadir" && <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300 shrink-0" />}
+                    </div>
+                    <div>
+                      <p className={`font-black text-xs sm:text-base tracking-tight leading-tight truncate ${
+                        asharStatus === "hadir" ? "text-cyan-100" :
+                        asharStatus === "sakit" ? "text-amber-200" :
+                        asharStatus === "izin" ? "text-sky-200" :
+                        asharStatus === "alfa" ? "text-rose-300" : "text-white/90"
+                      }`}>
+                        {asharStatus === "hadir" ? "✓ Hadir" :
+                         asharStatus === "sakit" ? "Sakit" :
+                         asharStatus === "izin" ? "Izin" :
+                         asharStatus === "alfa" ? "Alfa" : "Belum Presensi"}
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-white/70 truncate font-mono mt-0.5">Presensi Saya</p>
+                    </div>
+                  </button>
+
+                  {/* Tile 3: Status Presensi Maghrib Pribadi */}
                   <button
                     type="button"
                     onClick={() => onGoTo("maghrib")}
@@ -1322,7 +1376,7 @@ function PageDashboard({
                     </div>
                   </button>
 
-                  {/* Tile 3: Logbook Harian */}
+                  {/* Tile 4: Logbook Harian */}
                   <button
                     type="button"
                     onClick={() => onGoTo("logbook")}
@@ -1350,9 +1404,10 @@ function PageDashboard({
 
             // Mode Pamong / Koordinator / Kaur KIS / Wadir / Publik: Global Aggregates
             return (
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 pt-1">
                 {[
-                  { label: "Subuh", val: `${sh}/${total}`, icon: <Sun className="w-3.5 h-3.5" /> },
+                  { label: "Subuh", val: `${sh}/${total}`, icon: <Sunrise className="w-3.5 h-3.5" /> },
+                  { label: "Ashar", val: `${ah}/${total}`, icon: <Sunset className="w-3.5 h-3.5" /> },
                   { label: "Maghrib", val: `${mh}/${total}`, icon: <Moon className="w-3.5 h-3.5" /> },
                   { label: "vs bln lalu", val: `${delta > 0 ? "+" : ""}${delta}%`, icon: <TrendingUp className="w-3.5 h-3.5" /> },
                 ].map((s) => (
@@ -1400,10 +1455,10 @@ function PageDashboard({
         onOpenFullCalendar={() => onOpenKalenderPendidikan ? onOpenKalenderPendidikan() : onGoTo("kalender-pendidikan")}
       />
 
-      {/* Action Cards for Authenticated Users (Subuh & Maghrib) */}
+      {/* Action Cards for Authenticated Users (Subuh, Ashar, Maghrib) */}
       {authUser ? (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {/* Subuh Action Card */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {/* Subuh Action Card - Tema Fajar (Emas / Amber Pagi) */}
           {(() => {
             const subuhWindow = getPresensiTimeWindow("subuh", liveNow);
             const isSubuhLocked = nowH < subuhWindow.openTime;
@@ -1419,12 +1474,12 @@ function PageDashboard({
                 className={`group relative flex flex-col justify-between p-4 sm:p-5 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border ${
                   isSubuhLocked
                     ? "bg-slate-800/95 border-amber-500/30 text-slate-300"
-                    : "bg-amber-600 hover:bg-amber-700 border-amber-500/50"
+                    : "bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 border-amber-400/40 shadow-amber-500/10"
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-3">
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isSubuhLocked ? "bg-amber-500/20 text-amber-300" : "bg-white/20 text-white"}`}>
-                    {isSubuhLocked ? <Lock className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                    {isSubuhLocked ? <Lock className="w-5 h-5" /> : <Sunrise className="w-5 h-5" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
                     {authUser.role === "musyrif"
@@ -1467,7 +1522,71 @@ function PageDashboard({
             );
           })()}
 
-          {/* Maghrib Action Card */}
+          {/* Ashar Action Card - Tema Sore Sunset (Jingga Hangat / Orange-Red Warmth) */}
+          {(() => {
+            const asharWindow = getPresensiTimeWindow("ashar", liveNow);
+            const isAsharLocked = nowH < asharWindow.openTime;
+            const myMid = authUser.musyrifId || authUser.id;
+            const myAsharRec = todayRecs.find(r => r.musyrifId === myMid);
+            const myAsharStatus = getEffectiveAttendanceStatus(myAsharRec, "ashar", today, liveNow);
+            const isMyAsharHadir = myAsharStatus === "hadir";
+
+            return (
+              <button
+                type="button"
+                onClick={() => onGoTo("ashar")}
+                className={`group relative flex flex-col justify-between p-4 sm:p-5 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border ${
+                  isAsharLocked
+                    ? "bg-slate-800/95 border-orange-600/30 text-slate-300"
+                    : "bg-gradient-to-br from-orange-600 to-amber-700 hover:from-orange-700 hover:to-amber-800 border-orange-400/40 shadow-orange-600/10"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isAsharLocked ? "bg-orange-500/20 text-orange-300" : "bg-white/20 text-white"}`}>
+                    {isAsharLocked ? <Lock className="w-5 h-5" /> : <Sunset className="w-5 h-5" />}
+                  </div>
+                  <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
+                    {authUser.role === "musyrif"
+                      ? (isMyAsharHadir ? "Hadir ✓" : myAsharStatus ? myAsharStatus.toUpperCase() : "Belum")
+                      : `${ah}/${total}`}
+                  </span>
+                </div>
+
+                <div>
+                  <p className="font-extrabold text-base leading-tight tracking-tight">Presensi Ashar</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      isAsharLocked
+                        ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+                        : authUser.role === "musyrif"
+                        ? (isMyAsharHadir ? "bg-emerald-950/30 text-emerald-100" : "bg-orange-950/30 text-orange-100")
+                        : belumA.length > 0
+                        ? "bg-orange-950/30 text-orange-100"
+                        : "bg-emerald-950/30 text-emerald-100"
+                    }`}>
+                      {isAsharLocked
+                        ? `🔒 Buka ${asharWindow.openDisplay} WIB`
+                        : authUser.role === "musyrif"
+                        ? (isMyAsharHadir ? "Sudah Hadir ✓" : "Isi Presensi Ashar →")
+                        : belumA.length > 0
+                        ? `${belumA.length} belum terisi`
+                        : "Lengkap ✓"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar inside card */}
+                <div className="w-full bg-white/20 h-1.5 rounded-full mt-3 overflow-hidden">
+                  <div
+                    className="bg-white h-full rounded-full transition-all duration-500"
+                    style={{ width: authUser.role === "musyrif" ? (isMyAsharHadir ? "100%" : "0%") : `${total ? (ah / total) * 100 : 0}%` }}
+                  />
+                </div>
+              </button>
+            );
+          })()}
+
+          {/* Maghrib Action Card - Tema Senja / Malam (Deep Royal Indigo / Navy) */}
           {(() => {
             const maghribWindow = getPresensiTimeWindow("maghrib", liveNow);
             const isMaghribLocked = nowH < maghribWindow.openTime;
@@ -1482,13 +1601,13 @@ function PageDashboard({
                 onClick={() => onGoTo("maghrib")}
                 className={`group relative flex flex-col justify-between p-4 sm:p-5 text-white rounded-3xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left overflow-hidden border ${
                   isMaghribLocked
-                    ? "bg-[#0C1F3D]/95 border-sky-500/30 text-slate-300"
-                    : "bg-[#0C4E8C] hover:bg-[#0A3E70] border-sky-500/40"
+                    ? "bg-[#0C1F3D]/95 border-indigo-500/30 text-slate-300"
+                    : "bg-gradient-to-br from-[#0C4E8C] to-[#082E55] hover:from-[#0A3E70] hover:to-[#06203D] border-indigo-400/40 shadow-indigo-950/15"
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-3">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isMaghribLocked ? "bg-sky-500/20 text-sky-300" : "bg-white/20 text-white"}`}>
-                    {isMaghribLocked ? <Lock className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isMaghribLocked ? "bg-indigo-500/20 text-indigo-300" : "bg-white/20 text-white"}`}>
+                    {isMaghribLocked ? <Lock className="w-5 h-5" /> : <Moon className="w-5 h-5 text-indigo-100" />}
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full font-mono">
                     {authUser.role === "musyrif"
@@ -1502,12 +1621,12 @@ function PageDashboard({
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       isMaghribLocked
-                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
                         : authUser.role === "musyrif"
-                        ? (isMyMaghribHadir ? "bg-sky-950/40 text-sky-100" : "bg-cyan-950/40 text-cyan-100")
+                        ? (isMyMaghribHadir ? "bg-emerald-950/40 text-emerald-100" : "bg-indigo-950/40 text-indigo-100")
                         : belumM.length > 0
-                        ? "bg-cyan-950/40 text-cyan-100"
-                        : "bg-sky-950/40 text-sky-100"
+                        ? "bg-indigo-950/40 text-indigo-100"
+                        : "bg-emerald-950/40 text-emerald-100"
                     }`}>
                       {isMaghribLocked
                         ? `🔒 Buka ${maghribWindow.openDisplay} WIB`
@@ -2661,8 +2780,9 @@ function PageDashboard({
               }).map(a => {
                 const ins = mList.filter(m => m.asrama === a);
                 const sh2 = ins.filter(m => getSubuh(m.id) === "hadir").length;
+                const ah2 = ins.filter(m => getAshar(m.id) === "hadir").length;
                 const mh2 = ins.filter(m => getMaghrib(m.id) === "hadir").length;
-                const pct = ins.length ? Math.round(((sh2 + mh2) / (ins.length * 2)) * 100) : 0;
+                const pct = ins.length ? Math.round(((sh2 + ah2 + mh2) / (ins.length * 3)) * 100) : 0;
                 const isExpanded = expandedAsrama === a;
 
                 return (
@@ -2682,23 +2802,30 @@ function PageDashboard({
                         </div>
                       </div>
 
-                      {/* Subuh & Maghrib Pills */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                      {/* Subuh, Ashar & Maghrib Pills */}
+                      <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+                        <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold font-mono border ${
                           sh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                           sh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
                         }`}>
                           S: {sh2}/{ins.length}
                         </span>
 
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold font-mono border ${
+                        <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold font-mono border ${
+                          ah2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          ah2 > 0 ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
+                        }`}>
+                          A: {ah2}/{ins.length}
+                        </span>
+
+                        <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-bold font-mono border ${
                           mh2 === ins.length && ins.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                           mh2 > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-200/60"
                         }`}>
                           M: {mh2}/{ins.length}
                         </span>
 
-                        <span className={`w-11 text-right text-xs font-extrabold font-mono ${
+                        <span className={`w-9 sm:w-11 text-right text-[11px] sm:text-xs font-extrabold font-mono ${
                           pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400"
                         }`}>
                           {pct}%
@@ -2716,6 +2843,7 @@ function PageDashboard({
                           {ins.map(m => {
                             const rec = todayRecs.find(r => r.musyrifId === m.id);
                             const stS = getEffectiveAttendanceStatus(rec, "subuh", today, liveNow);
+                            const stA = getEffectiveAttendanceStatus(rec, "ashar", today, liveNow);
                             const stM = getEffectiveAttendanceStatus(rec, "maghrib", today, liveNow);
                             return (
                               <div key={m.id} className="bg-white rounded-2xl p-2.5 border border-slate-200/70 shadow-2xs flex items-center justify-between gap-2">
@@ -2731,6 +2859,9 @@ function PageDashboard({
                                     stS === "hadir" ? "bg-emerald-100 text-emerald-800" : stS === "alfa" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
                                   }`}>S:{stS ? S[stS].short : "–"}</span>
                                   <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                    stA === "hadir" ? "bg-orange-100 text-orange-800" : stA === "alfa" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
+                                  }`}>A:{stA ? S[stA].short : "–"}</span>
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
                                     stM === "hadir" ? "bg-emerald-100 text-emerald-800" : stM === "alfa" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
                                   }`}>M:{stM ? S[stM].short : "–"}</span>
                                 </div>
@@ -2744,7 +2875,8 @@ function PageDashboard({
                               type="button"
                               onClick={() => {
                                 onSetTargetAsrama?.(a);
-                                onGoTo(now.getHours() < 12 ? "subuh" : "maghrib");
+                                const h = now.getHours();
+                                onGoTo(h < 12 ? "subuh" : h < 17 ? "ashar" : "maghrib");
                               }}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5"
                             >
@@ -3012,6 +3144,13 @@ function PageInputPrayer({
   const [confirmAll, setConfirmAll] = useState<PrayerSlot | null>(null);
   const [gpsResult, setGpsResult] = useState<GeofenceResult | null>(null);
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
+  const [showGpsTroubleshoot, setShowGpsTroubleshoot] = useState<boolean>(false);
+  const [activePhotoVerification, setActivePhotoVerification] = useState<{
+    mid: string;
+    name: string;
+    asrama: string;
+    prayer: PrayerSlot;
+  } | null>(null);
 
   // Helper to resolve Google avatar photo for each musyrif
   const getMusyrifAvatar = useCallback((m: Musyrif) => {
@@ -3107,6 +3246,15 @@ function PageInputPrayer({
   const doneCount = musyrifList.filter(m => Boolean(getEffectiveAttendanceStatus(getRecord(m.id), slot, selDate, now))).length;
 
   const isSubuh = slot === "subuh";
+  const isAshar = slot === "ashar";
+  const isMaghrib = slot === "maghrib";
+
+  const slotLabel = isSubuh ? "Subuh" : isAshar ? "Ashar" : "Maghrib";
+  const slotDescription = isSubuh 
+    ? "Ibadah Shubuh Berjamaah" 
+    : isAshar 
+    ? "Ibadah Ashar Berjamaah" 
+    : "Ibadah Maghrib Berjamaah";
 
   // Calculate dynamic presensi time window based on prayer time (15 min before)
   const presensiWindow = getPresensiTimeWindow(slot, parseISO(selDate));
@@ -3129,12 +3277,13 @@ function PageInputPrayer({
   };
 
   const mark = (mid: string, p: PrayerSlot, s: AttendanceStatus, note?: string) => {
+    const pLabel = p === "subuh" ? "Subuh" : p === "ashar" ? "Ashar" : "Maghrib";
     if (isFuture && !fullAccess) {
       showToast?.("Tidak dapat mengisi presensi untuk tanggal di masa depan.", "error");
       return;
     }
     if (isNotYetTime && !fullAccess) {
-      showToast?.(`Presensi ${p === "subuh" ? "Subuh" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
+      showToast?.(`Presensi ${pLabel} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
       return;
     }
     // Musyrif dan Koordinator Gedung memiliki batasan sama: today only, time window, GPS
@@ -3144,7 +3293,7 @@ function PageInputPrayer({
         return;
       }
       if (curDecimal > closeTimeRaw) {
-        showToast?.(`Waktu presensi ${p === "subuh" ? "Subuh" : "Maghrib"} telah ditutup pada pukul ${closeTimeDisplayStr} WIB.`, "error");
+        showToast?.(`Waktu presensi ${pLabel} telah ditutup pada pukul ${closeTimeDisplayStr} WIB.`, "error");
         return;
       }
       // Koord. Gedung boleh presensi musyrif di gedungnya (beda asrama), tapi harus GPS
@@ -3161,7 +3310,7 @@ function PageInputPrayer({
     triggerHaptic(s === "hadir" ? "light" : "medium");
     onMark(mid, p, s, selDate, note);
     const mName = musyrifList.find(m => m.id === mid)?.name?.split(" ")[0] || "Musyrif";
-    showToast?.(`${mName}: ${S[s].label} (${p === "subuh" ? "Subuh" : "Maghrib"})`);
+    showToast?.(`${mName}: ${S[s].label} (${pLabel})`);
   };
   const hijriSel = toHijri(parseISO(selDate));
 
@@ -3186,15 +3335,19 @@ function PageInputPrayer({
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0 transition-colors duration-150 ${
-                isSubuh ? "bg-amber-500 text-white shadow-amber-500/25" : "bg-[#0C4E8C] text-white shadow-sky-950/25"
+                isSubuh 
+                  ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-amber-500/25 ring-2 ring-amber-200/50" 
+                  : isAshar 
+                  ? "bg-gradient-to-br from-orange-500 to-amber-700 text-white shadow-orange-600/25 ring-2 ring-orange-200/50" 
+                  : "bg-gradient-to-br from-[#0C4E8C] to-[#082E55] text-white shadow-indigo-950/25 ring-2 ring-indigo-200/50"
               }`}
             >
-              {isSubuh ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
+              {isSubuh ? <Sunrise className="w-5 h-5"/> : isAshar ? <Sunset className="w-5 h-5"/> : <Moon className="w-5 h-5 text-indigo-100"/>}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
-                  {isSubuh ? "Presensi Subuh" : "Presensi Maghrib"}
+                  Presensi {slotLabel}
                 </h2>
                 {isNotYetTime && (
                   <span className="text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-mono flex items-center gap-1">
@@ -3203,35 +3356,47 @@ function PageInputPrayer({
                 )}
               </div>
               <p className="text-[11px] text-slate-400 font-medium">
-                {isSubuh ? "Ibadah Shubuh Berjamaah" : "Ibadah Maghrib Berjamaah"} · Waktu: <strong>{prayerTimeStr} WIB</strong>
+                {slotDescription} · Waktu: <strong>{prayerTimeStr} WIB</strong>
               </p>
             </div>
           </div>
 
-          {/* Segmented Slot Toggle with Instant Flawless Transition */}
-          <div className="grid grid-cols-2 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 shadow-inner sm:w-56">
+          {/* Segmented Slot Toggle with Instant Flawless Transition (Vertical on mobile, Horizontal on sm+) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 shadow-inner w-full sm:w-80 gap-1 sm:gap-0">
             <button
               type="button"
               onClick={() => handleSelectSlot("subuh")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 ${
+              className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center sm:justify-center gap-1.5 ${
                 isSubuh 
-                  ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25 scale-[1.01]" 
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm shadow-amber-500/25 scale-[1.01]" 
                   : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
               }`}
             >
-              <Sun className={`w-3.5 h-3.5 ${isSubuh ? "text-white" : "text-amber-500"}`} />
+              <Sunrise className={`w-3.5 h-3.5 ${isSubuh ? "text-white" : "text-amber-500"}`} />
               <span>Subuh</span>
             </button>
             <button
               type="button"
-              onClick={() => handleSelectSlot("maghrib")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 ${
-                !isSubuh 
-                  ? "bg-[#0C4E8C] text-white shadow-sm shadow-sky-950/25 scale-[1.01]" 
+              onClick={() => handleSelectSlot("ashar")}
+              className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center sm:justify-center gap-1.5 ${
+                isAshar 
+                  ? "bg-gradient-to-r from-orange-600 to-amber-700 text-white shadow-sm shadow-orange-600/25 scale-[1.01]" 
                   : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
               }`}
             >
-              <Moon className={`w-3.5 h-3.5 ${!isSubuh ? "text-white" : "text-[#0C4E8C]"}`} />
+              <Sunset className={`w-3.5 h-3.5 ${isAshar ? "text-white" : "text-orange-600"}`} />
+              <span>Ashar</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectSlot("maghrib")}
+              className={`px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center sm:justify-center gap-1.5 ${
+                isMaghrib 
+                  ? "bg-gradient-to-r from-[#0C4E8C] to-[#0A3E70] text-white shadow-sm shadow-sky-950/25 scale-[1.01]" 
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              }`}
+            >
+              <Moon className={`w-3.5 h-3.5 ${isMaghrib ? "text-white" : "text-[#0C4E8C]"}`} />
               <span>Maghrib</span>
             </button>
           </div>
@@ -3241,31 +3406,30 @@ function PageInputPrayer({
         <div className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-1.5 border border-slate-100/80">
           <button 
             onClick={prevDay} 
-            title="Hari sebelumnya"
-            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
+            disabled={isMusyrifOrKoorGedung && selDate <= todayStr()}
+            title={isMusyrifOrKoorGedung && selDate <= todayStr() ? "Musyrif tidak diizinkan mengubah presensi hari lampau" : "Hari sebelumnya"}
+            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all"
           >
             <ChevronLeft className="w-4 h-4"/>
           </button>
-
-          <div className="flex-1 text-center px-1">
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="font-bold text-xs text-slate-800 font-mono">
-                {format(parseISO(selDate),"EEE, d MMM yyyy",{locale:id})}
+          <div className="text-center px-2 flex flex-col items-center">
+            <p className="text-xs sm:text-sm font-extrabold text-slate-800 font-mono leading-tight">
+              {format(parseISO(selDate),"EEEE, dd MMMM yyyy",{locale:id})}
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.2 rounded-full font-mono border border-emerald-200/60 font-semibold">
+                {hijriSel.formatted}
               </span>
-              {isToday(parseISO(selDate)) && (
-                <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-md font-bold font-mono">
-                  Hari ini
+              {isTodayDate && (
+                <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded-full font-mono uppercase">
+                  Hari Ini
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-              {hijriSel.day} {hijriSel.monthName} {hijriSel.year} H
-            </span>
           </div>
-
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <label className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer active:scale-95 transition-all relative" title="Pilih tanggal">
-              <Calendar className="w-3.5 h-3.5"/>
+          <div className="flex items-center gap-1">
+            <label className="relative p-1.5 rounded-xl hover:bg-white/80 cursor-pointer transition-colors text-slate-400 hover:text-slate-600" title="Pilih Tanggal">
+              <Calendar className="w-4 h-4" />
               <input 
                 type="date" 
                 value={selDate} 
@@ -3294,7 +3458,7 @@ function PageInputPrayer({
                 onClick={() => setSelAsrama(a)}
                 className={`flex-shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
                   activeAsrama === a
-                    ? (isSubuh ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25" : "bg-[#0C81E4] text-white shadow-sm shadow-sky-600/25")
+                    ? (isSubuh ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25" : isAshar ? "bg-orange-600 text-white shadow-sm shadow-orange-600/25" : "bg-[#0C4E8C] text-white shadow-sm shadow-sky-950/25")
                     : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                 }`}
               >
@@ -3307,40 +3471,82 @@ function PageInputPrayer({
 
       {/* Geofence Alert Banner for Musyrif and Koordinator Gedung */}
       {isMusyrifOrKoorGedung && (
-        <div className={`rounded-2xl p-3.5 border flex items-center justify-between gap-3 text-xs ${
+        <div className={`rounded-2xl p-3.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
           isCheckingGps ? "bg-slate-50 border-slate-200 text-slate-600" :
           gpsResult?.isInRange ? "bg-sky-50 border-sky-200 text-[#0C4E8C]" :
-          "bg-rose-50 border-rose-200 text-rose-800"
+          "bg-rose-50 border-rose-200 text-rose-900"
         }`}>
-          <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${
               gpsResult?.isInRange ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
             }`}>
               <MapPin className="w-4 h-4" />
             </div>
-            <div>
-              <p className="font-bold">
-                {isCheckingGps ? "Memeriksa Lokasi GPS..." : gpsResult?.isInRange ? "Lokasi Valid (Di Lingkungan Asrama / Masjid)" : (gpsResult?.error ? "Sinyal GPS / Izin Terkendala" : "Di Luar Jangkauan Asrama")}
+            <div className="min-w-0">
+              <p className="font-bold text-xs truncate">
+                {isCheckingGps ? "Memeriksa sinyal GPS lokasi presensi..." :
+                 gpsResult?.isInRange ? `Lokasi Terverifikasi: ${activeAsrama}` :
+                 `Di Luar Radius Presensi: ${activeAsrama}`}
               </p>
-              <p className="text-[11px] opacity-80">
-                {gpsResult?.error ? gpsResult.error : (gpsResult?.matchedBuilding ? `Terdeteksi di area: ${gpsResult.matchedBuilding} (Jarak: ${gpsResult.distanceMeters}m)` : `Radius valid ${activeAsrama}. Jarak Anda: ${gpsResult?.distanceMeters ?? "?"}m`)}
+              <p className="text-[11px] opacity-80 truncate mt-0.5">
+                {isCheckingGps ? "Pastikan browser Anda mengizinkan akses lokasi." :
+                 gpsResult?.isInRange ? `Akurasi ±${gpsResult.accuracyMeters}m (dalam radius toleransi asrama). Presensi diizinkan.` :
+                 gpsResult?.error ? `Gagal mendeteksi lokasi: ${gpsResult.error}` :
+                 `Jarak Anda ${gpsResult?.distanceMeters}m dari radius gedung. Harap mendekat ke lingkungan asrama/masjid.`}
               </p>
             </div>
           </div>
-          <button
+          <button 
+            type="button" 
+            disabled={isCheckingGps}
             onClick={() => {
-              setIsCheckingGps(true);
-              checkAsramaGeofenceBrowser(activeAsrama).then(res => {
-                setGpsResult(res);
-                setIsCheckingGps(false);
-              }).catch(() => setIsCheckingGps(false));
+              if (activeAsrama) {
+                setIsCheckingGps(true);
+                checkAsramaGeofenceBrowser(activeAsrama).then(res => {
+                  setGpsResult(res);
+                  setIsCheckingGps(false);
+                  if (res.isInRange) {
+                    showToast?.(`Lokasi valid di ${activeAsrama}`, "success");
+                  } else {
+                    showToast?.(`Di luar jangkauan ${activeAsrama} (${res.distanceMeters}m)`, "error");
+                  }
+                }).catch(() => setIsCheckingGps(false));
+              }
             }}
-            className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 text-[11px] shrink-0"
+            className="self-end sm:self-center px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white text-slate-700 font-bold text-xs shadow-2xs border border-slate-200/80 active:scale-95 transition-all flex items-center gap-1.5 shrink-0"
           >
-            Refresh GPS
+            <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGps ? "animate-spin text-emerald-600" : ""}`} />
+            <span>Cek Ulang GPS</span>
           </button>
         </div>
       )}
+
+
+      {/* Modal Bantuan Troubleshooting GPS */}
+      <GpsTroubleshootModal
+        isOpen={showGpsTroubleshoot}
+        onClose={() => setShowGpsTroubleshoot(false)}
+        gpsResult={gpsResult}
+        isChecking={isCheckingGps}
+        onRetry={() => {
+          setIsCheckingGps(true);
+          checkAsramaGeofenceBrowser(activeAsrama).then(res => {
+            setGpsResult(res);
+            setIsCheckingGps(false);
+          }).catch(() => setIsCheckingGps(false));
+        }}
+        onEmergencyPhoto={() => {
+          const myMusyrif = musyrifList.find(m => m.id === myMusyrifId || matchesEmail(authUser.email, m.email || ""));
+          if (myMusyrif) {
+            setActivePhotoVerification({
+              mid: myMusyrif.id,
+              name: myMusyrif.name,
+              asrama: myMusyrif.asrama || activeAsrama,
+              prayer: slot
+            });
+          }
+        }}
+      />
 
       {isFuture && (
         <div className="bg-amber-50 border border-amber-200/80 rounded-2xl px-4 py-2.5 text-xs text-amber-700 flex items-center gap-2">
@@ -3357,14 +3563,14 @@ function PageInputPrayer({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h4 className="font-bold text-sm text-rose-900 leading-tight">
-                Presensi {isSubuh ? "Subuh" : "Maghrib"} Belum Dibuka
+                Presensi {slotLabel} Belum Dibuka
               </h4>
               <span className="text-[10px] font-bold bg-rose-200 text-rose-800 px-2 py-0.5 rounded-full font-mono">
                 Terkunci
               </span>
             </div>
             <p className="text-xs text-rose-700/90 mt-1 leading-relaxed">
-              Jadwal ibadah {isSubuh ? "Subuh" : "Maghrib"} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> (15 menit sebelum sholat).
+              Jadwal ibadah {slotLabel} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> (15 menit sebelum sholat).
             </p>
           </div>
         </div>
@@ -3388,7 +3594,9 @@ function PageInputPrayer({
                   className={`h-full rounded-full transition-all duration-300 ${
                     isSubuh 
                       ? "bg-gradient-to-r from-amber-400 to-amber-500" 
-                      : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                      : isAshar
+                      ? "bg-gradient-to-r from-orange-500 to-amber-600"
+                      : "bg-gradient-to-r from-sky-600 to-[#0C4E8C]"
                   }`}
                   style={{ width: `${musyrifList.length > 0 ? (doneCount / musyrifList.length) * 100 : 0}%` }}
                 />
@@ -3401,7 +3609,9 @@ function PageInputPrayer({
                 className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 ${
                   isSubuh
                     ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                    : isAshar
+                    ? "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-600/20"
+                    : "bg-[#0C4E8C] hover:bg-[#0A3E70] text-white shadow-sky-900/20"
                 }`}
               >
                 <Zap className="w-3.5 h-3.5"/> Semua Hadir
@@ -3445,7 +3655,7 @@ function PageInputPrayer({
           const rec = getRecord(m.id);
           const cur = getEffectiveAttendanceStatus(rec, slot, selDate, now);
           const isAutoAlfa = cur === "alfa" && !rec?.[slot];
-          const note = slot === "subuh" ? rec?.subuhNote : rec?.maghribNote;
+          const note = slot === "subuh" ? rec?.subuhNote : slot === "ashar" ? rec?.asharNote : rec?.maghribNote;
           const isDone = Boolean(cur);
           const isMe = m.id === myMusyrifId || matchesEmail(authUser.email, m.email || "");
           const isCardDisabled = isLocked || (isMusyrifOnly && !isMe);
@@ -3514,8 +3724,28 @@ function PageInputPrayer({
                         } else if (isPastTimeMusyrif) {
                           showToast?.(`Waktu presensi mandiri ${isSubuh ? "Subuh" : "Maghrib"} telah ditutup (${closeTimeDisplayStr} WIB).`, "error");
                         } else if (gpsResult && !gpsResult.isInRange) {
-                          showToast?.(`Lokasi Anda di luar jangkauan (${gpsResult.distanceMeters}m). Harap presensi di masjid/asrama.`, "error");
+                          if (s === "hadir" && isMe) {
+                            // Tawarkan verifikasi foto langsung live kamera (non galeri)
+                            setActivePhotoVerification({
+                              mid: m.id,
+                              name: m.name,
+                              asrama: m.asrama || activeAsrama,
+                              prayer: slot
+                            });
+                          } else {
+                            showToast?.(`Lokasi Anda di luar jangkauan (${gpsResult.distanceMeters}m). Silakan gunakan opsi Presensi dengan Foto Kamera.`, "error");
+                          }
                         }
+                        return;
+                      }
+                      // Jika user adalah diri sendiri, mencoba presensi hadir, dan GPS tidak valid -> paksa foto kamera live
+                      if (s === "hadir" && isMusyrifOrKoorGedung && isMe && gpsResult && !gpsResult.isInRange) {
+                        setActivePhotoVerification({
+                          mid: m.id,
+                          name: m.name,
+                          asrama: m.asrama || activeAsrama,
+                          prayer: slot
+                        });
                         return;
                       }
                       // Prevent duplicate clicks on same status
@@ -3536,6 +3766,34 @@ function PageInputPrayer({
                 ))}
               </div>
 
+              {/* Opsi Presensi Darurat dengan Foto Kamera Live jika GPS di luar radius */}
+              {isMe && !isDone && !isNotYetTime && !isPastTimeMusyrif && gpsResult && !gpsResult.isInRange && (
+                <div className="mt-2.5 p-2.5 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-between gap-2 text-xs">
+                  <div className="min-w-0">
+                    <p className="font-bold text-amber-900 text-[11px] flex items-center gap-1">
+                      <Camera className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span>GPS Terlempar / Di Luar Radius?</span>
+                    </p>
+                    <p className="text-[10px] text-amber-800/80 truncate">Presensi mandiri tetap sah dengan foto live kamera asrama.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivePhotoVerification({
+                        mid: m.id,
+                        name: m.name,
+                        asrama: m.asrama || activeAsrama,
+                        prayer: slot
+                      });
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-xs shrink-0 active:scale-95 transition-all flex items-center gap-1"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Ambil Foto</span>
+                  </button>
+                </div>
+              )}
+
               {/* Bottom row: note link only */}
               {cur && !isFuture && (cur==="sakit"||cur==="izin"||cur==="alfa") && !note ? (
                 <div className="mt-2">
@@ -3552,7 +3810,7 @@ function PageInputPrayer({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>setNoteFor(null)}>
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
             <h3 className="font-bold text-slate-800 mb-1">Catatan Keterangan</h3>
-            <p className="text-xs text-slate-400 mb-4">{musyrifList.find(m=>m.id===noteFor.id)?.name || "Musyrif"} · Presensi {noteFor.prayer === "subuh" ? "Subuh" : "Maghrib"}</p>
+            <p className="text-xs text-slate-400 mb-4">{musyrifList.find(m=>m.id===noteFor.id)?.name || "Musyrif"} · Presensi {noteFor.prayer === "subuh" ? "Subuh" : noteFor.prayer === "ashar" ? "Ashar" : "Maghrib"}</p>
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Contoh: Sakit demam, izin kepulangan, tugas luar, dll." rows={3} className="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"/>
             <div className="flex gap-2 mt-4">
               {getRecord(noteFor.id)?.[noteFor.prayer] && onResetMark && (
@@ -3587,17 +3845,40 @@ function PageInputPrayer({
       {confirmAll&&(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200" onClick={()=>setConfirmAll(null)}>
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100/80 animate-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
-            <div className={`w-12 h-12 rounded-2xl ${confirmAll === "subuh" ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"} flex items-center justify-center mb-4`}>
+            <div className={`w-12 h-12 rounded-2xl ${confirmAll === "subuh" ? "bg-amber-100 text-amber-600" : confirmAll === "ashar" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-600"} flex items-center justify-center mb-4`}>
               <Zap className="w-6 h-6"/>
             </div>
             <h3 className="font-bold text-slate-800">Tandai Semua Hadir?</h3>
-            <p className="text-sm text-slate-500 mt-1 mb-5">Semua musyrif <b>{activeAsrama}</b> ditandai <b>Hadir</b> untuk <b>Presensi {confirmAll === "subuh" ? "Subuh" : "Maghrib"}</b> · {format(parseISO(selDate),"d MMM yyyy",{locale:id})}</p>
+            <p className="text-sm text-slate-500 mt-1 mb-5">Semua musyrif <b>{activeAsrama}</b> ditandai <b>Hadir</b> untuk <b>Presensi {confirmAll === "subuh" ? "Subuh" : confirmAll === "ashar" ? "Ashar" : "Maghrib"}</b> · {format(parseISO(selDate),"d MMM yyyy",{locale:id})}</p>
             <div className="flex gap-2">
               <button onClick={()=>setConfirmAll(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold">Batal</button>
-              <button onClick={()=>{onMarkAll(activeAsrama,confirmAll,"hadir",selDate);showToast?.(`Semua musyrif ${activeAsrama} ditandai Hadir (${confirmAll === "subuh" ? "Subuh" : "Maghrib"})`);setConfirmAll(null);}} className={`flex-1 py-2.5 text-white rounded-xl text-sm font-semibold transition-all ${confirmAll === "subuh" ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>Ya, Tandai Hadir</button>
+              <button onClick={()=>{onMarkAll(activeAsrama,confirmAll,"hadir",selDate);showToast?.(`Semua musyrif ${activeAsrama} ditandai Hadir (${confirmAll === "subuh" ? "Subuh" : confirmAll === "ashar" ? "Ashar" : "Maghrib"})`);setConfirmAll(null);}} className={`flex-1 py-2.5 text-white rounded-xl text-sm font-semibold transition-all ${confirmAll === "subuh" ? "bg-amber-600 hover:bg-amber-700" : confirmAll === "ashar" ? "bg-amber-700 hover:bg-amber-800" : "bg-emerald-600 hover:bg-emerald-700"}`}>Ya, Tandai Hadir</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Kamera Live (Non-Galeri & Polos Tanpa Watermark) untuk Presensi Mandiri Darurat */}
+      {activePhotoVerification && (
+        <Suspense fallback={null}>
+          <LiveCameraCaptureModal
+            isOpen={Boolean(activePhotoVerification)}
+            onClose={() => setActivePhotoVerification(null)}
+            taskTitle={`Presensi ${activePhotoVerification.prayer === "subuh" ? "Subuh" : activePhotoVerification.prayer === "ashar" ? "Ashar" : "Maghrib"} (Verifikasi Foto Live)`}
+            musyrifName={activePhotoVerification.name}
+            asramaName={activePhotoVerification.asrama}
+            disableGallery={true}
+            noWatermark={true}
+            onCapture={(result) => {
+              const noteWithPhoto = `[Foto Kamera Live - Validasi Lokasi] ${result.takenAt}`;
+              triggerHaptic("medium");
+              onMark(activePhotoVerification.mid, activePhotoVerification.prayer, "hadir", selDate, noteWithPhoto);
+              const pLabel = activePhotoVerification.prayer === "subuh" ? "Subuh" : activePhotoVerification.prayer === "ashar" ? "Ashar" : "Maghrib";
+              showToast?.(`Presensi ${pLabel} berhasil diverifikasi dengan foto kamera live.`);
+              setActivePhotoVerification(null);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );
@@ -3645,7 +3926,7 @@ function PageRekap({
   const [activeView, setActiveView] = useState<"presensi" | "kpi">("kpi");
   const [sortBy, setSortBy] = useState<"kpi" | "pct" | "name">("kpi");
   const [detail, setDetail] = useState<any | null>(null);
-  const [chartSlotFilter, setChartSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
+  const [chartSlotFilter, setChartSlotFilter] = useState<"all" | "subuh" | "ashar" | "maghrib">("all");
   const mk = format(viewMonth, "yyyy-MM");
 
   const days = useMemo(() => eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) })
@@ -3674,18 +3955,25 @@ function PageRekap({
 
   // 4-Pillar Holistic Scoring for Musyrif
   const ranked = useMemo(() => fMusyrif.map(m => {
-    // 1. Shalat Fardhu Statistics & Scoring
+    // 1. Shalat Fardhu Statistics & Scoring (Subuh, Ashar, Maghrib)
     let sh = 0, ss = 0, si = 0, sa = 0;
+    let ah = 0, as = 0, ai = 0, aa = 0;
     let mh = 0, ms = 0, mi = 0, ma = 0;
     days.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = mRecs.find(x => x.musyrifId === m.id && x.date === ds);
       const subSt = getEffectiveAttendanceStatus(r, "subuh", ds, now);
+      const ashSt = getEffectiveAttendanceStatus(r, "ashar", ds, now);
       const magSt = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
       if (subSt === "hadir") sh++;
       else if (subSt === "sakit") ss++;
       else if (subSt === "izin") si++;
       else if (subSt === "alfa") sa++;
+
+      if (ashSt === "hadir") ah++;
+      else if (ashSt === "sakit") as++;
+      else if (ashSt === "izin") ai++;
+      else if (ashSt === "alfa") aa++;
 
       if (magSt === "hadir") mh++;
       else if (magSt === "sakit") ms++;
@@ -3693,22 +3981,25 @@ function PageRekap({
       else if (magSt === "alfa") ma++;
     });
 
-    // Hitung total slot shalat yang sudah efektif berjalan (misal: jika hari ini baru Subuh, jangan anggap Maghrib sebagai ketidakhadiran)
+    // Hitung total slot shalat yang sudah efektif berjalan
     let passedSlots = 0;
     days.forEach(d => {
-      const ds = format(d, "yyyy-MM-dd");
       const isDToday = isToday(d);
       // Subuh slot selalu terhitung jika hari sudah berjalan
       passedSlots++;
-      // Maghrib slot hanya dihitung jika bukan hari ini, atau jika hari ini sudah masuk/lewat waktu maghrib (misal >= 17:30)
+      // Ashar slot terhitung jika bukan hari ini, atau jika hari ini sudah masuk/lewat waktu ashar (>= 15:00)
+      if (!isDToday || now.getHours() >= 15) {
+        passedSlots++;
+      }
+      // Maghrib slot terhitung jika bukan hari ini, atau jika hari ini sudah masuk/lewat waktu maghrib (misal >= 17:30)
       if (!isDToday || now.getHours() >= 17 || (now.getHours() === 17 && now.getMinutes() >= 30)) {
         passedSlots++;
       }
     });
 
-    const totalHadir = sh + mh;
-    const totalAlfa = sa + ma;
-    const totalIzinSakit = ss + ms + si + mi;
+    const totalHadir = sh + ah + mh;
+    const totalAlfa = sa + aa + ma;
+    const totalIzinSakit = ss + as + ms + si + ai + mi;
     // Persentase kehadiran shalat berdasarkan slot yang SUDAH lewat
     const pct = passedSlots > 0 ? Math.min(100, Math.round((totalHadir / passedSlots) * 100)) : 100;
     const sholatScore = Math.max(0, totalHadir * 10 - totalAlfa * 15);
@@ -3834,6 +4125,7 @@ function PageRekap({
     return {
       ...m,
       sh, ss, si, sa,
+      ah, as, ai, aa,
       mh, ms, mi, ma,
       totalHadir,
       totalAlfa,
@@ -3864,17 +4156,23 @@ function PageRekap({
 
   const weeklyData = Array.from({ length: Math.max(1, Math.ceil(days.length / 7)) }, (_, wi) => {
     const wDays = days.slice(wi * 7, wi * 7 + 7);
-    let subuhH = 0, maghribH = 0;
+    let subuhH = 0, asharH = 0, maghribH = 0;
     wDays.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       fMusyrif.forEach(m => {
         const r = mRecs.find(x => x.musyrifId === m.id && x.date === ds);
         if (getEffectiveAttendanceStatus(r, "subuh", ds, now) === "hadir") subuhH++;
+        if (getEffectiveAttendanceStatus(r, "ashar", ds, now) === "hadir") asharH++;
         if (getEffectiveAttendanceStatus(r, "maghrib", ds, now) === "hadir") maghribH++;
       });
     });
     const den = wDays.length * fMusyrif.length || 1;
-    return { week: `Mgg ${wi + 1}`, subuh: Math.round(subuhH / den * 100), maghrib: Math.round(maghribH / den * 100) };
+    return { 
+      week: `Mgg ${wi + 1}`, 
+      subuh: Math.round(subuhH / den * 100), 
+      ashar: Math.round(asharH / den * 100),
+      maghrib: Math.round(maghribH / den * 100) 
+    };
   });
 
   const detailM = detail ? ranked.find(r => r.id === detail.id) : null;
@@ -3945,8 +4243,8 @@ function PageRekap({
               <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Pilar 1: Shalat</span>
               <Sun className="w-3.5 h-3.5 text-amber-600"/>
             </div>
-            <p className="text-lg font-black text-amber-950 font-mono mt-1">{Math.round((rate("subuh") + rate("maghrib")) / 2)}%</p>
-            <p className="text-[9px] text-amber-700 mt-0.5">Rata-rata Subuh & Maghrib</p>
+            <p className="text-lg font-black text-amber-950 font-mono mt-1">{Math.round((rate("subuh") + rate("ashar") + rate("maghrib")) / 3)}%</p>
+            <p className="text-[9px] text-amber-700 mt-0.5">Rata-rata Subuh, Ashar & Maghrib</p>
           </div>
 
           <div className="bg-sky-50/70 rounded-2xl p-2.5 border border-sky-200/60 flex flex-col justify-between">
@@ -4025,6 +4323,7 @@ function PageRekap({
               {[
                 { id: "all", label: "Semua" },
                 { id: "subuh", label: "Subuh" },
+                { id: "ashar", label: "Ashar" },
                 { id: "maghrib", label: "Maghrib" }
               ].map(tab => (
                 <button
@@ -4046,9 +4345,12 @@ function PageRekap({
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={weeklyData} barGap={3} barCategoryGap="25%">
               <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#94a3b8", fontFamily: "'JetBrains Mono',monospace" }} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={{ background: "#fff", border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.08)", borderRadius: 14, fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }} formatter={(v: number, n: string) => [`${v}%`, n === "subuh" ? "Subuh" : "Maghrib"]}/>
+              <Tooltip contentStyle={{ background: "#fff", border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.08)", borderRadius: 14, fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }} formatter={(v: number, n: string) => [`${v}%`, n === "subuh" ? "Subuh" : n === "ashar" ? "Ashar" : "Maghrib"]}/>
               {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
                 <Bar dataKey="subuh" name="subuh" fill="#f59e0b" radius={[4, 4, 0, 0]}/>
+              )}
+              {(chartSlotFilter === "all" || chartSlotFilter === "ashar") && (
+                <Bar dataKey="ashar" name="ashar" fill="#f97316" radius={[4, 4, 0, 0]}/>
               )}
               {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
                 <Bar dataKey="maghrib" name="maghrib" fill="#0C4E8C" radius={[4, 4, 0, 0]}/>
@@ -4059,6 +4361,9 @@ function PageRekap({
           <div className="flex gap-4 mt-2 justify-center">
             {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500"/><span className="text-[10px] text-slate-500 font-medium">Subuh</span></div>
+            )}
+            {(chartSlotFilter === "all" || chartSlotFilter === "ashar") && (
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-orange-500"/><span className="text-[10px] text-slate-500 font-medium">Ashar</span></div>
             )}
             {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
               <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0C4E8C]"/><span className="text-[10px] text-slate-500 font-medium">Maghrib</span></div>
@@ -4146,11 +4451,11 @@ function PageRekap({
                 ) : (
                   <>
                     <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400">
-                      <span className="text-emerald-600 font-bold">{m.sh + m.mh}H</span>
+                      <span className="text-emerald-600 font-bold">{m.sh + m.ah + m.mh}H</span>
                       <span>/</span>
-                      <span className="text-amber-600 font-bold">{m.ss + m.ms + m.si + m.mi}I</span>
+                      <span className="text-amber-600 font-bold">{m.ss + m.as + m.ms + m.si + m.ai + m.mi}I</span>
                       <span>/</span>
-                      <span className="text-rose-600 font-bold">{m.sa + m.ma}A</span>
+                      <span className="text-rose-600 font-bold">{m.sa + m.aa + m.ma}A</span>
                     </div>
                     <span className={`text-xs sm:text-sm font-bold w-10 text-right font-mono ${m.pct >= 80 ? "text-emerald-600" : m.pct >= 60 ? "text-amber-600" : "text-rose-600"}`}>{m.pct}%</span>
                   </>
@@ -4176,7 +4481,7 @@ function PageRekap({
                 <Av name={m.name} src={m.photo} sz="sm"/>
                 <span className="flex-1 text-xs sm:text-sm font-medium text-slate-700 truncate group-hover:text-emerald-700 transition-colors">{m.name}</span>
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.maghrib}/></div>
+                  <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.ashar}/><Chip s={rec?.maghrib}/></div>
                   <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
                 </div>
               </button>
@@ -4284,6 +4589,32 @@ function PageRekap({
                 </div>
               </div>
 
+              {/* Shalat Ashar Breakdown */}
+              <div className="bg-amber-50/70 rounded-2xl p-3 border border-amber-300/60">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Sun className="w-3.5 h-3.5 text-amber-700" />
+                  <span className="text-[11px] font-bold text-amber-950 font-mono uppercase tracking-wider">Shalat Ashar</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-emerald-700">{detailM.ah}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Hadir</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-amber-700">{detailM.as}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Sakit</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-blue-700">{detailM.ai}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Izin</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 text-center border border-slate-100 shadow-2xs">
+                    <p className="text-sm font-extrabold font-mono text-rose-700">{detailM.aa}</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">Alfa</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Shalat Maghrib Breakdown */}
               <div className="bg-emerald-50/50 rounded-2xl p-3 border border-emerald-200/60">
                 <div className="flex items-center gap-1.5 mb-2">
@@ -4314,7 +4645,7 @@ function PageRekap({
                 {detailRecs.slice(-10).reverse().map(r=>(
                   <div key={r.date} className="flex items-center justify-between py-1.5 border-b border-slate-50">
                     <span className="text-xs text-slate-400 font-mono">{format(parseISO(r.date),"d MMM",{locale:id})}</span>
-                    <div className="flex gap-1.5"><Chip s={r.subuh}/><Chip s={r.maghrib}/></div>
+                    <div className="flex gap-1.5"><Chip s={r.subuh}/><Chip s={r.ashar}/><Chip s={r.maghrib}/></div>
                   </div>
                 ))}
               </div>
@@ -4400,11 +4731,11 @@ function PageRiwayat({
   const [selId, setSelId] = useState(defaultRiwayatMusyrifId);
   const [activeTab, setActiveTab] = useState<"sholat" | "logbook" | "pengasuhan" | "mutabaah" | "izin" | "kegiatan">("sholat");
   const [selectedDay, setSelectedDay] = useState<{ date: Date; record?: AttendanceRecord } | null>(null);
-  const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "maghrib">("all");
+  const [calendarSlotFilter, setCalendarSlotFilter] = useState<"all" | "subuh" | "ashar" | "maghrib">("all");
   const [showMusyrifPicker, setShowMusyrifPicker] = useState(false);
   const [pickerAsrama, setPickerAsrama] = useState<string>("all");
   const [pickerSearch, setPickerSearch] = useState("");
-  const [editingSlot, setEditingSlot] = useState<"subuh" | "maghrib" | null>(null);
+  const [editingSlot, setEditingSlot] = useState<"subuh" | "ashar" | "maghrib" | null>(null);
   const [editNoteText, setEditNoteText] = useState("");
   const [expandedLogbookDate, setExpandedLogbookDate] = useState<string | null>(null);
   const [viewMonth, setViewMonth] = useState(new Date());
@@ -4465,6 +4796,10 @@ function PageRiwayat({
     const r = mRecs.find(x => x.date === ds);
     return getEffectiveAttendanceStatus(r, "subuh", ds, now);
   };
+  const getEffectiveAshar = (ds: string) => {
+    const r = mRecs.find(x => x.date === ds);
+    return getEffectiveAttendanceStatus(r, "ashar", ds, now);
+  };
   const getEffectiveMaghrib = (ds: string) => {
     const r = mRecs.find(x => x.date === ds);
     return getEffectiveAttendanceStatus(r, "maghrib", ds, now);
@@ -4474,11 +4809,17 @@ function PageRiwayat({
   pastDays.forEach(d => {
     const ds = format(d, "yyyy-MM-dd");
     const sSub = getEffectiveSubuh(ds);
+    const sAsh = getEffectiveAshar(ds);
     const sMag = getEffectiveMaghrib(ds);
     if (sSub === "hadir") totalHadir++;
     else if (sSub === "sakit") totalSakit++;
     else if (sSub === "izin") totalIzin++;
     else if (sSub === "alfa") totalAlfa++;
+
+    if (sAsh === "hadir") totalHadir++;
+    else if (sAsh === "sakit") totalSakit++;
+    else if (sAsh === "izin") totalIzin++;
+    else if (sAsh === "alfa") totalAlfa++;
 
     if (sMag === "hadir") totalHadir++;
     else if (sMag === "sakit") totalSakit++;
@@ -4486,39 +4827,44 @@ function PageRiwayat({
     else if (sMag === "alfa") totalAlfa++;
   });
 
-  const pct = pastDays.length ? Math.round(totalHadir / (pastDays.length * 2) * 100) : 0;
+  const pct = pastDays.length ? Math.round(totalHadir / (pastDays.length * 3) * 100) : 0;
 
   const trendData = [-2,-1,0].map(off=>{
     const m2=addMonths(viewMonth,off), mk2=format(m2,"yyyy-MM");
     const rs=allRecs.filter(r=>r.date.startsWith(mk2));
     const md=eachDayOfInterval({start:startOfMonth(m2),end:endOfMonth(m2)}).filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d));
-    let subuhCount = 0, maghribCount = 0;
+    let subuhCount = 0, asharCount = 0, maghribCount = 0;
     md.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = rs.find(x => x.date === ds);
       if (getEffectiveAttendanceStatus(r, "subuh", ds, now) === "hadir") subuhCount++;
+      if (getEffectiveAttendanceStatus(r, "ashar", ds, now) === "hadir") asharCount++;
       if (getEffectiveAttendanceStatus(r, "maghrib", ds, now) === "hadir") maghribCount++;
     });
     return {
       month: format(m2,"MMM",{locale:id}),
       subuh: md.length ? Math.round(subuhCount / md.length * 100) : 0,
+      ashar: md.length ? Math.round(asharCount / md.length * 100) : 0,
       maghrib: md.length ? Math.round(maghribCount / md.length * 100) : 0
     };
   });
 
   const nonHadirRecs = useMemo(() => {
-    const list: { date: string; subuh?: AttendanceStatus; maghrib?: AttendanceStatus; subuhNote?: string; maghribNote?: string }[] = [];
+    const list: { date: string; subuh?: AttendanceStatus; ashar?: AttendanceStatus; maghrib?: AttendanceStatus; subuhNote?: string; asharNote?: string; maghribNote?: string }[] = [];
     pastDays.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = mRecs.find(x => x.date === ds);
       const sSub = getEffectiveAttendanceStatus(r, "subuh", ds, now);
+      const sAsh = getEffectiveAttendanceStatus(r, "ashar", ds, now);
       const sMag = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
-      if ((sSub && sSub !== "hadir") || (sMag && sMag !== "hadir")) {
+      if ((sSub && sSub !== "hadir") || (sAsh && sAsh !== "hadir") || (sMag && sMag !== "hadir")) {
         list.push({
           date: ds,
           subuh: sSub,
+          ashar: sAsh,
           maghrib: sMag,
           subuhNote: r?.subuhNote,
+          asharNote: r?.asharNote,
           maghribNote: r?.maghribNote
         });
       }
@@ -5249,6 +5595,7 @@ function PageRiwayat({
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Tren 3 Bulan Terakhir</span>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"/><span className="text-[10px] text-slate-400 font-medium">Subuh</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500"/><span className="text-[10px] text-slate-400 font-medium">Ashar</span></div>
                 <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#0C4E8C]"/><span className="text-[10px] text-slate-400 font-medium">Maghrib</span></div>
               </div>
             </div>
@@ -5256,8 +5603,9 @@ function PageRiwayat({
               <BarChart data={trendData} barGap={4} barCategoryGap="30%">
                 <XAxis dataKey="month" tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false}/>
                 <YAxis domain={[0,100]} tick={{fontSize:10,fill:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`} width={28}/>
-                <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":"Maghrib"]}/>
+                <Tooltip contentStyle={{background:"#fff",border:"none",boxShadow:"0 8px 24px rgba(0,0,0,.1)",borderRadius:12,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n==="subuh"?"Subuh":n==="ashar"?"Ashar":"Maghrib"]}/>
                 <Bar dataKey="subuh"   name="subuh"   fill="#f59e0b" radius={[4,4,0,0]}/>
+                <Bar dataKey="ashar"   name="ashar"   fill="#f97316" radius={[4,4,0,0]}/>
                 <Bar dataKey="maghrib" name="maghrib"  fill="#0C4E8C" radius={[4,4,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
@@ -5295,8 +5643,8 @@ function PageRiwayat({
               )}
             </div>
 
-            {/* Compact 2-in-1 Slot Selector Ribbon */}
-            <div className="p-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 gap-2">
+            {/* Compact 3-in-1 Slot Selector Ribbon */}
+            <div className="p-2.5 bg-slate-50/80 border-b border-slate-100 grid grid-cols-3 gap-2">
               {/* Subuh Tab */}
               <button
                 onClick={()=>setCalendarSlotFilter(f=>f==="subuh"?"all":"subuh")}
@@ -5317,6 +5665,29 @@ function PageRiwayat({
                 </div>
                 <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="subuh" ? "text-white" : "text-amber-700"}`}>
                   {pastDays.length ? Math.round(mRecs.filter(r=>r.subuh==="hadir").length/pastDays.length*100) : 0}%
+                </span>
+              </button>
+
+              {/* Ashar Tab */}
+              <button
+                onClick={()=>setCalendarSlotFilter(f=>f==="ashar"?"all":"ashar")}
+                className={`p-2 rounded-2xl border text-left transition-all select-none flex items-center justify-between gap-2 ${
+                  calendarSlotFilter==="ashar" 
+                    ? "bg-amber-600 text-white border-amber-700 shadow-xs" 
+                    : "bg-white text-slate-700 border-slate-200/80 hover:border-amber-400"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Sun className={`w-3.5 h-3.5 flex-shrink-0 ${calendarSlotFilter==="ashar" ? "text-white" : "text-amber-600"}`}/>
+                  <div className="min-w-0 leading-tight">
+                    <p className="text-[11px] font-bold truncate">Ashar</p>
+                    <p className={`text-[9px] font-mono ${calendarSlotFilter==="ashar" ? "text-amber-100" : "text-slate-400"}`}>
+                      {mRecs.filter(r=>r.ashar==="hadir").length}/{pastDays.length} Hadir
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-xs font-extrabold font-mono flex-shrink-0 ${calendarSlotFilter==="ashar" ? "text-white" : "text-amber-800"}`}>
+                  {pastDays.length ? Math.round(mRecs.filter(r=>r.ashar==="hadir").length/pastDays.length*100) : 0}%
                 </span>
               </button>
 
@@ -5360,13 +5731,14 @@ function PageRiwayat({
                 const last=(adj+i+1)%7===0;
                 const dayStr = format(day, "yyyy-MM-dd");
                 const stSub = getEffectiveAttendanceStatus(r, "subuh", dayStr, now);
+                const stAsh = getEffectiveAttendanceStatus(r, "ashar", dayStr, now);
                 const stMag = getEffectiveAttendanceStatus(r, "maghrib", dayStr, now);
-                const perfect = stSub === "hadir" && stMag === "hadir";
+                const perfect = stSub === "hadir" && stAsh === "hadir" && stMag === "hadir";
 
                 return (
                   <div 
                     key={day.toISOString()} 
-                    onClick={() => !future && setSelectedDay({ date: day, record: r ? { ...r, subuh: stSub, maghrib: stMag } : { musyrifId: musyrif?.id || "", date: dayStr, subuh: stSub, maghrib: stMag } })}
+                    onClick={() => !future && setSelectedDay({ date: day, record: r ? { ...r, subuh: stSub, ashar: stAsh, maghrib: stMag } : { musyrifId: musyrif?.id || "", date: dayStr, subuh: stSub, ashar: stAsh, maghrib: stMag } })}
                     className={`min-h-[44px] border-b border-r border-slate-100/70 p-1 flex flex-col justify-between transition-all select-none ${
                       isToday(day) ? "bg-emerald-50/80 ring-1 ring-emerald-400 inset-0 z-10" : perfect&&!future ? "bg-emerald-50/30" : "bg-white"
                     } ${future ? "opacity-25 cursor-default bg-slate-50/30" : "cursor-pointer hover:bg-emerald-50/60 active:scale-95"} ${last ? "border-r-0" : ""}`}
@@ -5381,18 +5753,26 @@ function PageRiwayat({
                     </div>
 
                     {!future && (
-                      <div className="flex flex-col gap-1 my-0.5 px-0.5">
-                        {calendarSlotFilter !== "maghrib" && (
+                      <div className="flex flex-col gap-0.5 my-0.5 px-0.5">
+                        {(calendarSlotFilter === "all" || calendarSlotFilter === "subuh") && (
                           <div 
-                            className={`h-1.5 rounded-full transition-all ${
+                            className={`h-1 rounded-full transition-all ${
                               stSub ? S[stSub].dot : "bg-slate-200"
                             }`} 
                             title={`Subuh: ${stSub ? S[stSub].label : "Belum"}`}
                           />
                         )}
-                        {calendarSlotFilter !== "subuh" && (
+                        {(calendarSlotFilter === "all" || calendarSlotFilter === "ashar") && (
                           <div 
-                            className={`h-1.5 rounded-full transition-all ${
+                            className={`h-1 rounded-full transition-all ${
+                              stAsh ? S[stAsh].dot : "bg-slate-200"
+                            }`} 
+                            title={`Ashar: ${stAsh ? S[stAsh].label : "Belum"}`}
+                          />
+                        )}
+                        {(calendarSlotFilter === "all" || calendarSlotFilter === "maghrib") && (
+                          <div 
+                            className={`h-1 rounded-full transition-all ${
                               stMag ? S[stMag].dot : "bg-slate-200"
                             }`} 
                             title={`Maghrib: ${stMag ? S[stMag].label : "Belum"}`}
@@ -5436,6 +5816,7 @@ function PageRiwayat({
                   {nonHadirRecs.map((rec) => {
                     const dayDate = parseISO(rec.date);
                     const hasSubuhNonHadir = rec.subuh && rec.subuh !== "hadir";
+                    const hasAsharNonHadir = rec.ashar && rec.ashar !== "hadir";
                     const hasMaghribNonHadir = rec.maghrib && rec.maghrib !== "hadir";
 
                     return (
@@ -5446,13 +5827,21 @@ function PageRiwayat({
                               {format(dayDate, "EEEE, d MMM yyyy", { locale: id })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
                             {hasSubuhNonHadir && rec.subuh && (
                               <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
                                 rec.subuh === "sakit" ? "bg-amber-100 text-amber-800" :
                                 rec.subuh === "izin"  ? "bg-sky-100 text-sky-800" : "bg-rose-100 text-rose-800"
                               }`}>
                                 Subuh: {S[rec.subuh]?.label || rec.subuh}
+                              </span>
+                            )}
+                            {hasAsharNonHadir && rec.ashar && (
+                              <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                                rec.ashar === "sakit" ? "bg-amber-100 text-amber-800" :
+                                rec.ashar === "izin"  ? "bg-sky-100 text-sky-800" : "bg-rose-100 text-rose-800"
+                              }`}>
+                                Ashar: {S[rec.ashar]?.label || rec.ashar}
                               </span>
                             )}
                             {hasMaghribNonHadir && rec.maghrib && (
@@ -5466,10 +5855,13 @@ function PageRiwayat({
                           </div>
                         </div>
 
-                        {(rec.subuhNote || rec.maghribNote) && (
+                        {(rec.subuhNote || rec.asharNote || rec.maghribNote) && (
                           <div className="bg-slate-50 rounded-xl p-2 text-xs text-slate-600 border border-slate-100 flex flex-col gap-1 font-mono">
                             {rec.subuhNote && (
                               <p><strong className="text-slate-700 font-sans">Catatan Subuh:</strong> "{rec.subuhNote}"</p>
+                            )}
+                            {rec.asharNote && (
+                              <p><strong className="text-slate-700 font-sans">Catatan Ashar:</strong> "{rec.asharNote}"</p>
                             )}
                             {rec.maghribNote && (
                               <p><strong className="text-slate-700 font-sans">Catatan Maghrib:</strong> "{rec.maghribNote}"</p>
@@ -6435,7 +6827,7 @@ function PageRiwayat({
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
-                      <Sun className="w-4 h-4"/>
+                      <Sunrise className="w-4 h-4"/>
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800">Presensi Subuh</p>
@@ -6488,11 +6880,69 @@ function PageRiwayat({
                 )}
               </div>
 
+              {/* Ashar details & quick edit */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center">
+                      <Sunset className="w-4 h-4"/>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Presensi Ashar</p>
+                      <p className="text-[11px] text-slate-500">{selectedDay.record?.asharNote ? `"${selectedDay.record.asharNote}"` : "Tidak ada catatan"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Chip s={selectedDay.record?.ashar}/>
+                    {isPamongOrKoord && onMark && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSlot(editingSlot === "ashar" ? null : "ashar");
+                          setEditNoteText(selectedDay.record?.asharNote || "");
+                        }}
+                        className="text-[11px] font-bold text-emerald-700 hover:underline px-1 py-0.5"
+                      >
+                        {editingSlot === "ashar" ? "Tutup" : "Ubah"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {editingSlot === "ashar" && (
+                  <div className="pt-2 border-t border-slate-200/80 space-y-2 animate-in fade-in duration-150">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(["hadir", "izin", "sakit", "alfa"] as const).map(st => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => handleQuickMark("ashar", st)}
+                          className={`py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                            selectedDay.record?.ashar === st
+                              ? "bg-orange-600 text-white shadow-xs"
+                              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {st === "hadir" ? "Hadir" : st === "izin" ? "Izin" : st === "sakit" ? "Sakit" : "Alfa"}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Catatan keterangan Ashar..."
+                      value={editNoteText}
+                      onChange={e => setEditNoteText(e.target.value)}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Maghrib details & quick edit */}
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
                       <Moon className="w-4 h-4"/>
                     </div>
                     <div>
@@ -8050,7 +8500,8 @@ export default function App() {
 
   // Dynamic Navigation Items based on Role / Public Mode
   const navItems = useMemo(() => {
-    const currentPrayerSlot: Page = getTrustedDate().getHours() < 12 ? "subuh" : "maghrib";
+    const hr = getTrustedDate().getHours() + getTrustedDate().getMinutes() / 60;
+    const currentPrayerSlot: Page = hr < 11.5 ? "subuh" : hr < 16.5 ? "ashar" : "maghrib";
     if (!authUser) {
       return [
         { id: "dashboard" as Page, label: "Dasbor", Icon: LayoutDashboard },
@@ -8079,7 +8530,7 @@ export default function App() {
   // Route Fallback when in public mode or role restrictions
   useEffect(() => {
     if (!authUser) {
-      if (page === "subuh" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "logbook" || page === "notifikasi") {
+      if (page === "subuh" || page === "ashar" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "logbook" || page === "notifikasi") {
         setPage("dashboard");
       }
     } else if (authUser.role !== "koordinator_musyrif") {
@@ -9394,7 +9845,7 @@ export default function App() {
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
-    const nk = prayer==="subuh"?"subuhNote":"maghribNote";
+    const nk = prayer === "subuh" ? "subuhNote" : prayer === "ashar" ? "asharNote" : "maghribNote";
     setRecords(prev => {
       const ex = prev.find(r => r.musyrifId === mid && r.date === date);
       if (ex) {
@@ -9410,7 +9861,7 @@ export default function App() {
   },[authUser]);
 
   const handleResetMark = useCallback((mid: string, prayer: PrayerSlot, date: string) => {
-    const nk = prayer === "subuh" ? "subuhNote" : "maghribNote";
+    const nk = prayer === "subuh" ? "subuhNote" : prayer === "ashar" ? "asharNote" : "maghribNote";
     setRecords(prev => prev.map(r => {
       if (r.musyrifId === mid && r.date === date) {
         const copy = { ...r };
@@ -9484,6 +9935,9 @@ export default function App() {
       dates.forEach(d => {
         if (target.prayerSlot === "all" || target.prayerSlot === "subuh") {
           handleMark(target.musyrifId, "subuh", target.type, d, target.reason);
+        }
+        if (target.prayerSlot === "all" || target.prayerSlot === "ashar") {
+          handleMark(target.musyrifId, "ashar", target.type, d, target.reason);
         }
         if (target.prayerSlot === "all" || target.prayerSlot === "maghrib") {
           handleMark(target.musyrifId, "maghrib", target.type, d, target.reason);
@@ -10516,7 +10970,7 @@ export default function App() {
               />
             </motion.div>
           )}
-          {(page==="subuh" || page==="maghrib") && (
+          {(page==="subuh" || page==="ashar" || page==="maghrib") && (
             <motion.div key="presensi-input" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
               <PageInputPrayer
                 initialSlot={page}
@@ -10918,7 +11372,7 @@ export default function App() {
         <nav className="pointer-events-auto w-full max-w-md bg-white/95 backdrop-blur-2xl rounded-full shadow-[0_12px_36px_-8px_rgba(12,78,140,0.18),0_4px_12px_rgba(0,0,0,0.05)] ring-1 ring-slate-900/5 px-2 py-1.5 flex items-center justify-around border border-white/60">
           {navItems.map(nav=>{
             const isPresensiItem = nav.label === "Presensi";
-            const active = isPresensiItem ? (page === "subuh" || page === "maghrib") : page === nav.id;
+            const active = isPresensiItem ? (page === "subuh" || page === "ashar" || page === "maghrib") : page === nav.id;
 
             return (
               <button 
@@ -10927,8 +11381,9 @@ export default function App() {
                 onClick={() => {
                   triggerHaptic("light");
                   if (isPresensiItem) {
-                    if (page !== "subuh" && page !== "maghrib") {
-                      setPage(getTrustedDate().getHours() < 12 ? "subuh" : "maghrib");
+                    if (page !== "subuh" && page !== "ashar" && page !== "maghrib") {
+                      const hr = getTrustedDate().getHours() + getTrustedDate().getMinutes() / 60;
+                      setPage(hr < 11.5 ? "subuh" : hr < 16.5 ? "ashar" : "maghrib");
                     }
                   } else {
                     setPage(nav.id);
@@ -10936,7 +11391,7 @@ export default function App() {
                 }} 
                 className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-full relative active:scale-90 select-none transition-colors duration-200 ${
                   active 
-                    ? (page === "subuh" ? "text-amber-800 font-bold" : "text-[#0C81E4] font-bold") 
+                    ? (page === "subuh" ? "text-amber-800 font-bold" : page === "ashar" ? "text-orange-800 font-bold" : page === "maghrib" ? "text-[#0C4E8C] font-bold" : "text-[#0C81E4] font-bold") 
                     : "text-slate-400 hover:text-slate-600"
                 }`}
               >
@@ -10945,12 +11400,25 @@ export default function App() {
                     layoutId="activeNavPill"
                     transition={springSmooth}
                     className={`absolute inset-0 rounded-full ${
-                      page === "subuh" ? "bg-amber-100/80 shadow-2xs" : "bg-sky-100/80 shadow-2xs"
+                      page === "subuh" ? "bg-amber-100/80 shadow-2xs" : page === "ashar" ? "bg-orange-100/80 shadow-2xs" : page === "maghrib" ? "bg-indigo-100/80 shadow-2xs" : "bg-sky-100/80 shadow-2xs"
                     }`}
                   />
                 )}
                 <div className="relative z-10">
-                  <nav.Icon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-110" : ""}`}/>
+                  {isPresensiItem ? (
+                    (() => {
+                      const effectiveSlot = (page === "subuh" || page === "ashar" || page === "maghrib")
+                        ? page
+                        : (() => {
+                            const hr = getTrustedDate().getHours() + getTrustedDate().getMinutes() / 60;
+                            return hr < 11.5 ? "subuh" : hr < 16.5 ? "ashar" : "maghrib";
+                          })();
+                      const PrayerIcon = effectiveSlot === "subuh" ? Sunrise : effectiveSlot === "ashar" ? Sunset : Moon;
+                      return <PrayerIcon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-110" : ""}`} />;
+                    })()
+                  ) : (
+                    <nav.Icon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-110" : ""}`}/>
+                  )}
                 </div>
                 <span className="text-[10px] tracking-tight relative z-10">{nav.label}</span>
               </button>
