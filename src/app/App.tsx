@@ -466,7 +466,7 @@ const AUTH_USERS: AuthUser[] = [
   { id:"kaurkis", name:"Muhammad Shaleh, S.Pd.I., M.S.I.", email:"muhammad.shaleh@muallimin.sch.id", role:"kaur_kis", phone:"6281578968855" },
 
   // ─── KOORDINATOR MUSYRIF (SUPER ADMIN / FULL SCRUD) ───
-  { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com", role:"koordinator_musyrif", phone:"6285339213109" },
+  { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com, andiaqillah@muallimin.sch.id", role:"koordinator_musyrif", phone:"6285339213109" },
 
   // ─── PAMONG ASRAMA ───
   { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galangmuhammady@muallimin.sch.id", role:"pamong", asrama:"Asrama 1",                   phone:"6287711559827" },
@@ -3177,11 +3177,12 @@ function PageInputPrayer({
     </div>
   );
 
-  const isMusyrifOnly = authUser.role === "musyrif";
+  const isTestingBypassUser = Boolean(authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id"));
+  const isMusyrifOnly = authUser.role === "musyrif" && !isTestingBypassUser;
   const isKoordGedung = authUser.role === "koordinator_gedung";
-  // Koord. Gedung memiliki batasan sama dengan Musyrif: today only, time window, GPS required
-  const isMusyrifOrKoorGedung = isMusyrifOnly || isKoordGedung;
-  const fullAccess = hasFullAccess(authUser);
+  // Koord. Gedung memiliki batasan sama dengan Musyrif: today only, time window, GPS required (kecuali akun testing bypass)
+  const isMusyrifOrKoorGedung = (isMusyrifOnly || isKoordGedung) && !isTestingBypassUser;
+  const fullAccess = hasFullAccess(authUser) || isTestingBypassUser;
   const { isSedayuPamong, isPamongAnang, isPamongAbdan } = getPamongType(authUser);
 
   // Determine allowed asramas for this user using centralized utility
