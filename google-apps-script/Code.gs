@@ -25,6 +25,10 @@
 
 const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 
+const DRIVE_CONFIG = {
+  FOLDER_NAME: "Presensi_Muallimin_Uploads"
+};
+
 // Daftar sheet yang didukung beserta konfigurasi nama tab
 const TABLES = {
   RECORDS: "Records",
@@ -46,6 +50,96 @@ const TABLES = {
 };
 
 const STANDARD_HEADERS = ["id", "created_at", "updated_at", "is_deleted", "data_json"];
+
+/**
+ * ============================================================================
+ * GOOGLE DRIVE STORAGE UTILITIES (Auto extract Base64 to Drive)
+ * ============================================================================
+ */
+function getOrCreateDriveFolder(folderName) {
+  const folders = DriveApp.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  const folder = DriveApp.createFolder(folderName);
+  try {
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    console.warn("Gagal set sharing folder Drive:", e);
+  }
+  return folder;
+}
+
+function isDataUrl(str) {
+  return typeof str === "string" && str.indexOf("data:") === 0 && str.indexOf(";base64,") > -1;
+}
+
+function uploadBase64ToDrive(dataUrl, fileName, folder) {
+  try {
+    const parts = dataUrl.split(";base64,");
+    const contentType = parts[0].replace("data:", "");
+    const base64Data = parts[1];
+    const decoded = Utilities.base64Decode(base64Data);
+
+    let extension = ".jpg";
+    if (contentType.indexOf("png") > -1) extension = ".png";
+    else if (contentType.indexOf("pdf") > -1) extension = ".pdf";
+    else if (contentType.indexOf("webp") > -1) extension = ".webp";
+    else if (contentType.indexOf("svg") > -1) extension = ".svg";
+
+    let finalFileName = fileName || ("presensi_upload_" + Date.now());
+    if (!finalFileName.toLowerCase().endsWith(extension)) {
+      finalFileName += extension;
+    }
+    finalFileName = finalFileName.replace(/[^a-zA-Z0-9_.-]/g, "_");
+
+    const blob = Utilities.newBlob(decoded, contentType, finalFileName);
+    const file = folder.createFile(blob);
+
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {}
+
+    return file.getUrl();
+  } catch (err) {
+    console.error("Gagal upload file ke Drive:", err);
+    return dataUrl;
+  }
+}
+
+function processAndUploadFilesRecursively(data, folder, prefix) {
+  if (!data || typeof data !== "object") return data;
+
+  if (Array.isArray(data)) {
+    return data.map(val => processAndUploadFilesRecursively(val, folder, prefix));
+  }
+
+  const processed = {};
+  const keys = Object.keys(data);
+
+  keys.forEach(key => {
+    const val = data[key];
+
+    if (val && typeof val === "object") {
+      if (typeof val.url === "string" && isDataUrl(val.url)) {
+        const uploadedUrl = uploadBase64ToDrive(val.url, (val.name || (prefix + "_" + key)), folder);
+        const copyVal = Object.assign({}, val);
+        copyVal.url = uploadedUrl;
+        copyVal.isGoogleDrive = true;
+        processed[key] = copyVal;
+      } else {
+        processed[key] = processAndUploadFilesRecursively(val, folder, prefix);
+      }
+    } else if (typeof val === "string" && isDataUrl(val)) {
+      const uploadedUrlDirect = uploadBase64ToDrive(val, prefix + "_" + key, folder);
+      processed[key] = uploadedUrlDirect;
+    } else {
+      processed[key] = val;
+    }
+  });
+
+  return processed;
+}
 
 /**
  * Handle HTTP POST Request (Batch Upsert & Soft Delete)
@@ -313,6 +407,7 @@ function readSheetData(sheet, sinceTimestamp) {
 
 /**
  * Utility: Batch Upsert (Update jika ID ada, Insert jika baru)
+ * Dilengkapi AUTO EXTRACT DRIVE FILE: string Base64 otomatis diubah jadi file Google Drive
  */
 function executeBatchUpsert(sheet, records) {
   if (!records || records.length === 0) return 0;
@@ -328,17 +423,26 @@ function executeBatchUpsert(sheet, records) {
     }
   }
 
+  const driveFolder = getOrCreateDriveFolder(DRIVE_CONFIG.FOLDER_NAME);
   const now = new Date().toISOString();
   const newRows = [];
 
   records.forEach(rec => {
-    const id = String(rec.id);
-    const createdAt = rec.created_at || now;
-    const updatedAt = rec.updated_at || now;
-    const isDeleted = rec.is_deleted ? true : false;
+    // 1. Ekstrak Base64 ke file Google Drive secara rekursif
+    const processedRec = processAndUploadFilesRecursively(rec, driveFolder, rec.id || "presensi");
+
+    const id = String(processedRec.id);
+    const createdAt = processedRec.created_at || now;
+    const updatedAt = processedRec.updated_at || now;
+    const isDeleted = processedRec.is_deleted ? true : false;
+
+    // Khusus tabel Photos yang memiliki kolom photo_data
+    if (processedRec.photo_data && typeof processedRec.photo_data === "string" && isDataUrl(processedRec.photo_data)) {
+      processedRec.photo_data = uploadBase64ToDrive(processedRec.photo_data, "photo_" + id, driveFolder);
+    }
 
     // Simpan field payload non-standar ke dalam JSON
-    const payload = { ...rec };
+    const payload = { ...processedRec };
     delete payload.id;
     delete payload.created_at;
     delete payload.updated_at;

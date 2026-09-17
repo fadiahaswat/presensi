@@ -547,3 +547,48 @@ export async function getPhotosBatch(ids: string[]): Promise<Map<string, string>
   return getPhotosMap(ids);
 }
 
+/**
+ * Mengubah URL Google Drive View (/file/d/.../view) menjadi Direct Image Thumbnail URL
+ * agar bisa ditampilkan langsung di tag <img> browser tanpa kendala CORS/HTML preview.
+ */
+export function formatDriveImageUrl(url: string): string {
+  if (!url || typeof url !== 'string') return '';
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/') || url.startsWith('http://') || url.includes('unsplash.com') || url.includes('ui-avatars.com')) {
+    return url;
+  }
+
+  // Jika URL adalah Google Drive link
+  if (url.includes('drive.google.com') || url.includes('googleusercontent.com') || url.includes('docs.google.com')) {
+    const fileIdMatch =
+      url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+      url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+      url.match(/\/d\/([a-zA-Z0-9_-]+)/) ||
+      url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      const fileId = fileIdMatch[1];
+      return `https://lh3.googleusercontent.com/d/${fileId}=w1000`;
+    }
+  }
+
+  return url;
+}
+
+/**
+ * Cadangan alternatif URL Google Drive jika link primary mengalami kendala
+ */
+export function getFallbackDriveImageUrl(url: string): string {
+  if (!url || typeof url !== 'string') return '';
+  if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
+    const fileIdMatch =
+      url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+      url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+      url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      const fileId = fileIdMatch[1];
+      return `https://drive.usercontent.google.com/download?id=${fileId}&export=view`;
+    }
+  }
+  return url;
+}
+
+
