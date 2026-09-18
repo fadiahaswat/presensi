@@ -2356,7 +2356,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-mono bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded-md font-bold uppercase">
-                  Status: {selectedIzin.statusApproval.toUpperCase()}
+                  Status: {String(selectedIzin.statusApproval || "PENDING").toUpperCase()}
                 </span>
                 <h4 className="text-base font-extrabold text-slate-900 pt-1">
                   Kartu Tiket Izin Belum Diterbitkan
@@ -2533,7 +2533,7 @@ Syukron bapak-bapak satpam yang bertugas 🙏`;
               <p>
                 Status:{" "}
                 <strong className={lastSubmittedIzin.statusApproval === "approved" ? "text-emerald-700" : "text-amber-700"}>
-                  {lastSubmittedIzin.statusApproval.toUpperCase()}
+                  {String(lastSubmittedIzin.statusApproval || "PENDING").toUpperCase()}
                 </strong>
                 {lastSubmittedIzin.statusApproval !== "approved" && (
                   <span className="text-[10px] text-amber-800 font-sans block mt-0.5">

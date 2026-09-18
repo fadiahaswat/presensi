@@ -6652,7 +6652,7 @@ function PageRiwayat({
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 font-mono mt-1">
-                          📅 {req.startDate} s/d {req.endDate} {req.prayerSlot !== "all" && `(${req.prayerSlot.toUpperCase()})`}
+                          📅 {req.startDate} s/d {req.endDate} {req.prayerSlot && req.prayerSlot !== "all" && `(${String(req.prayerSlot).toUpperCase()})`}
                         </p>
                       </div>
 

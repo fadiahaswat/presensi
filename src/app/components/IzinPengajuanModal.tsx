@@ -570,11 +570,11 @@ export function IzinPengajuanModal({
                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                           req.type === "sakit" ? "bg-rose-100 text-rose-700" : "bg-sky-100 text-sky-700"
                         }`}>
-                          {req.type.toUpperCase()}
+                          {String(req.type || "izin").toUpperCase()}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Asrama {req.asrama} · Kamar {req.kamar} · Kategori: {req.category}
+                        Asrama {req.asrama || "-"} · Kamar {req.kamar || "-"} · Kategori: {req.category || "-"}
                       </p>
                     </div>
                   </div>
@@ -602,7 +602,7 @@ export function IzinPengajuanModal({
                   <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-slate-600 font-medium">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>{req.startDate} s/d {req.endDate} ({req.prayerSlot === "all" ? "Semua Shalat" : req.prayerSlot.toUpperCase()})</span>
+                      <span>{req.startDate || "-"} s/d {req.endDate || "-"} ({!req.prayerSlot || req.prayerSlot === "all" ? "Semua Shalat" : String(req.prayerSlot).toUpperCase()})</span>
                     </div>
                     {(() => {
                       const days = calculateDays(req.startDate, req.endDate);
