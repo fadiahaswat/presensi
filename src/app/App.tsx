@@ -180,25 +180,25 @@ export function calcPrayerTimes(date: Date, lat = -7.807631, lon = 110.350905, t
 // ─────────────────────────────────────────────────────────────────────────────
 // PRESENSI TIME CONFIGURATOR (Dynamic based on Prayer Time)
 // ─────────────────────────────────────────────────────────────────────────────
-// Konfigurasi waktu presensi: 15 menit SEBELUM waktu sholat
-const PRESENSI_OPEN_BEFORE_MINUTES = 15; // Buka 15 menit sebelum sholat
-const PRESENSI_CLOSE_HOURS_SUBUH = 6.0;  // Tutup jam 06:00 WIB
-const PRESENSI_CLOSE_HOURS_ASHAR = 16.0; // Tutup jam 16:00 WIB
-const PRESENSI_CLOSE_HOURS_MAGHRIB = 19.5; // Tutup jam 19:30 WIB
+// Konfigurasi waktu presensi: Tepat saat masuk waktu sholat (bukan sebelum sholat)
+const PRESENSI_OPEN_BEFORE_MINUTES = 0; // Buka saat waktu sholat tiba
+const PRESENSI_CLOSE_HOURS_SUBUH = 5.5;  // Tutup jam 05:30 WIB
+const PRESENSI_CLOSE_HOURS_ASHAR = 15.5; // Tutup jam 15:30 WIB
+const PRESENSI_CLOSE_HOURS_MAGHRIB = 19.0; // Tutup jam 19:00 WIB
 
 export interface PresensiTimeWindow {
-  openTime: number;      // Decimal hour (e.g., 4.25 = 04:15)
-  closeTime: number;     // Decimal hour (e.g., 6.0 = 06:00)
-  openDisplay: string;   // "04:15"
-  closeDisplay: string;  // "06:00"
+  openTime: number;      // Decimal hour (e.g., 4.5 = 04:30)
+  closeTime: number;     // Decimal hour (e.g., 5.5 = 05:30)
+  openDisplay: string;   // "04:30"
+  closeDisplay: string;  // "05:30"
   prayerTime: number;    // Raw prayer time decimal (e.g., 4.5 = 04:30)
   prayerDisplay: string; // "04:30"
 }
 
 /**
  * Hitung jendela waktu presensi berdasarkan waktu sholat
- * Buka: 15 menit SEBELUM waktu sholat
- * Tutup: jam 06:00 (Subuh), 16:00 (Ashar), atau 19:30 (Maghrib)
+ * Buka: Tepat saat masuk waktu sholat (0 menit sebelum)
+ * Tutup: jam 05:30 (Subuh), 15:30 (Ashar), atau 19:00 (Maghrib)
  */
 export function getPresensiTimeWindow(
   slot: PrayerSlot,
@@ -212,10 +212,10 @@ export function getPresensiTimeWindow(
   const defaultPrayerRaw = slot === "subuh" ? 4.5 : slot === "ashar" ? 15.2 : 17.75;
   const prayerRaw = prayerObj?.raw ?? defaultPrayerRaw;
 
-  // Open time: 15 minutes before prayer time
-  const openTime = prayerRaw - (PRESENSI_OPEN_BEFORE_MINUTES / 60);
+  // Open time: tepat saat waktu sholat (prayerRaw)
+  const openTime = prayerRaw;
 
-  // Close time: fixed hours
+  // Close time: fixed hours (Subuh 05:30, Ashar 15:30, Maghrib 19:00)
   const closeTime = slot === "subuh" 
     ? PRESENSI_CLOSE_HOURS_SUBUH 
     : slot === "ashar" 
@@ -3592,7 +3592,7 @@ function PageInputPrayer({
               </span>
             </div>
             <p className="text-xs text-rose-700/90 mt-1 leading-relaxed">
-              Jadwal ibadah {slotLabel} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> (15 menit sebelum sholat).
+              Jadwal ibadah {slotLabel} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> (saat masuk waktu sholat).
             </p>
           </div>
         </div>
@@ -3880,7 +3880,7 @@ function PageInputPrayer({
         </div>
       )}
 
-      {/* Modal Kamera Live (Non-Galeri & Polos Tanpa Watermark) untuk Presensi Mandiri Darurat */}
+      {/* Modal Kamera Live untuk Presensi Mandiri Darurat */}
       {activePhotoVerification && (
         <Suspense fallback={null}>
           <LiveCameraCaptureModal
@@ -3890,7 +3890,6 @@ function PageInputPrayer({
             musyrifName={activePhotoVerification.name}
             asramaName={activePhotoVerification.asrama}
             disableGallery={true}
-            noWatermark={true}
             onCapture={(result) => {
               const noteWithPhoto = `[Foto Kamera Live - Validasi Lokasi] ${result.takenAt}`;
               triggerHaptic("medium");
@@ -4953,7 +4952,6 @@ function PageRiwayat({
             photoUrl: tItem.photoUrl,
             photoTakenAt: tItem.photoTakenAt,
             photoSource: tItem.photoSource || "camera",
-            photoWatermark: tItem.photoWatermark,
             notes: tItem.notes,
             stepsCount: tItem.stepsCount,
             gpsVerified: tItem.gpsVerified
@@ -5001,8 +4999,7 @@ function PageRiwayat({
           ...currentTask,
           photoUrl: "", // Explicit signal to remove photo
           photoTakenAt: undefined,
-          photoSource: undefined,
-          photoWatermark: undefined
+          photoSource: undefined
         }
       };
 
@@ -6146,7 +6143,6 @@ function PageRiwayat({
                             photoUrl: tData.photoUrl,
                             photoTakenAt: tData.photoTakenAt,
                             photoSource: tData.photoSource,
-                            photoWatermark: tData.photoWatermark,
                             notes: tData.notes,
                             stepsCount: tData.stepsCount,
                             gpsVerified: tData.gpsVerified
@@ -8960,7 +8956,6 @@ export default function App() {
                   const cloudPhotoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
                   const completedAt = cr.completedAt || taskObj.completedAt || undefined;
                   const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
-                  const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
                   const photoSource = cr.photoSource || taskObj.photoSource || undefined;
                   const notes = cr.notes || taskObj.notes || undefined;
                   const stepsCount = Number(cr.stepsCount || taskObj.stepsCount || 0);
@@ -8987,12 +8982,10 @@ export default function App() {
                   if (finalPhotoUrl) {
                     updatedTaskObj.photoUrl = finalPhotoUrl;
                     if (photoTakenAt) updatedTaskObj.photoTakenAt = photoTakenAt;
-                    if (photoWatermark) updatedTaskObj.photoWatermark = photoWatermark;
                     if (photoSource) updatedTaskObj.photoSource = photoSource;
                   } else {
                     delete updatedTaskObj.photoUrl;
                     delete updatedTaskObj.photoTakenAt;
-                    delete updatedTaskObj.photoWatermark;
                     delete updatedTaskObj.photoSource;
                   }
 
@@ -9250,7 +9243,6 @@ export default function App() {
                     const cloudPhotoUrl = cr.photoUrl || taskObj.photoUrl || undefined;
                     const completedAt = cr.completedAt || taskObj.completedAt || undefined;
                     const photoTakenAt = cr.photoTakenAt || taskObj.photoTakenAt || undefined;
-                    const photoWatermark = cr.photoWatermark || taskObj.photoWatermark || undefined;
                     const photoSource = cr.photoSource || taskObj.photoSource || undefined;
                     const notes = cr.notes || taskObj.notes || undefined;
                     const stepsCount = Number(cr.stepsCount || taskObj.stepsCount || 0);
@@ -9277,12 +9269,10 @@ export default function App() {
                     if (finalPhotoUrl) {
                       updatedTaskObj.photoUrl = finalPhotoUrl;
                       if (photoTakenAt) updatedTaskObj.photoTakenAt = photoTakenAt;
-                      if (photoWatermark) updatedTaskObj.photoWatermark = photoWatermark;
                       if (photoSource) updatedTaskObj.photoSource = photoSource;
                     } else {
                       delete updatedTaskObj.photoUrl;
                       delete updatedTaskObj.photoTakenAt;
-                      delete updatedTaskObj.photoWatermark;
                       delete updatedTaskObj.photoSource;
                     }
 
@@ -9376,7 +9366,6 @@ export default function App() {
                           completedAt: tData.completedAt || "",
                           photoUrl: tData.photoUrl || "",
                           photoTakenAt: tData.photoTakenAt || "",
-                          photoWatermark: tData.photoWatermark || "",
                           photoSource: tData.photoSource || "",
                           notes: tData.notes || "",
                           gpsVerified: tData.gpsVerified ? "TRUE" : "FALSE",
@@ -10033,14 +10022,12 @@ export default function App() {
         
         let finalPhotoUrl = existingTask.photoUrl;
         let finalPhotoTakenAt = existingTask.photoTakenAt;
-        let finalPhotoWatermark = existingTask.photoWatermark;
         let finalPhotoSource = existingTask.photoSource;
 
         // Check if photo was explicitly removed
         if (incomingTask.photoUrl === "" || incomingTask.photoUrl === null) {
           finalPhotoUrl = undefined;
           finalPhotoTakenAt = undefined;
-          finalPhotoWatermark = undefined;
           finalPhotoSource = undefined;
 
           // Proactively purge local cache keys for this task photo
@@ -10056,7 +10043,6 @@ export default function App() {
         } else if (incomingTask.photoUrl) {
           finalPhotoUrl = incomingTask.photoUrl;
           finalPhotoTakenAt = incomingTask.photoTakenAt || new Date().toISOString();
-          finalPhotoWatermark = incomingTask.photoWatermark || existingTask.photoWatermark;
           finalPhotoSource = incomingTask.photoSource || existingTask.photoSource;
         }
 
@@ -10068,12 +10054,10 @@ export default function App() {
         if (finalPhotoUrl) {
           taskObj.photoUrl = finalPhotoUrl;
           taskObj.photoTakenAt = finalPhotoTakenAt;
-          taskObj.photoWatermark = finalPhotoWatermark;
           taskObj.photoSource = finalPhotoSource;
         } else {
           delete taskObj.photoUrl;
           delete taskObj.photoTakenAt;
-          delete taskObj.photoWatermark;
           delete taskObj.photoSource;
         }
 
@@ -10094,7 +10078,6 @@ export default function App() {
             completedAt: taskData.completedAt || "",
             photoUrl: taskData.photoUrl || "",
             photoTakenAt: taskData.photoTakenAt || "",
-            photoWatermark: taskData.photoWatermark || "",
             photoSource: taskData.photoSource || "",
             notes: taskData.notes || "",
             gpsVerified: taskData.gpsVerified ? "TRUE" : "FALSE",

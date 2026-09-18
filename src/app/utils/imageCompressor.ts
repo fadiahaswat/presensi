@@ -128,7 +128,7 @@ function touchCacheKey(key: string): void {
   }
 }
 
-export async function compressAndWatermarkImage(
+export async function compressImage(
   file: File,
   options?: ImageCompressOptions | null,
   initialMaxDim = INITIAL_MAX_DIM,
@@ -258,3 +258,6 @@ export function getCompressionCacheStats(): { size: number; keys: string[]; tota
     totalChars
   };
 }
+
+/** Backward compatibility alias */
+export const compressAndWatermarkImage = compressImage;

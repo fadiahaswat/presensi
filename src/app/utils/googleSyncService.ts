@@ -1482,6 +1482,12 @@ class GoogleSyncService {
   public reconcileLocalData(): void {
     if (typeof window === "undefined" || !this.gasUrl) return;
 
+    // Pastikan rekonsiliasi menyeluruh hanya berjalan satu kali per browser (bukan setiap kali aplikasi dibuka)
+    const RECONCILE_FLAG = "presensi_reconcile_v5_done";
+    if (localStorage.getItem(RECONCILE_FLAG)) {
+      return;
+    }
+
     try {
       let recoveredCount = 0;
       const existingQueueIds = new Set(this.queue.map(q => `${q.table}:${q.id}`));
@@ -1584,6 +1590,11 @@ class GoogleSyncService {
           }
         } catch (_) {}
       }
+
+      // Tandai bahwa rekonsiliasi satu kali sudah selesai agar tidak memindai ulang setiap kali refresh
+      try {
+        localStorage.setItem(RECONCILE_FLAG, new Date().toISOString());
+      } catch (_) {}
 
       if (recoveredCount > 0) {
         console.log(`[SyncService] Pemulihan otomatis: ${recoveredCount} data lokal berhasil dimasukkan ke antrean sinkronisasi.`);

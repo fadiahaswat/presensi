@@ -5,13 +5,11 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { triggerHaptic } from "../utils/animations";
-import syamsaWordmark from "../../assets/branding/Wordmark.webp";
 
 export interface CapturedPhotoResult {
   dataUrl: string;
   source: "camera" | "gallery";
   takenAt: string;
-  watermarkText: string;
 }
 
 interface LiveCameraCaptureModalProps {
@@ -22,7 +20,6 @@ interface LiveCameraCaptureModalProps {
   musyrifName: string;
   asramaName: string;
   disableGallery?: boolean;
-  noWatermark?: boolean;
 }
 
 export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
@@ -32,8 +29,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   taskTitle,
   musyrifName,
   asramaName,
-  disableGallery = false,
-  noWatermark = false
+  disableGallery = false
 }) => {
   const [activeTab, setActiveTab] = useState<"camera" | "gallery">("camera");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
@@ -98,7 +94,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       setCameraError(
         err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
           ? "Izin akses kamera belum diberikan. Izinkan akses kamera atau gunakan pengambilan kamera bawaan sistem."
-          : "Kamera langsung tidak dapat diakses di browser ini. Anda dapat menggunakan 'Galeri HP' atau 'Template Bawaan'."
+          : "Gagal menghubungkan kamera langsung. Silakan gunakan tombol ambil foto bawaan di bawah."
       );
     }
   };
@@ -119,8 +115,8 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     setFacingMode(prev => (prev === "environment" ? "user" : "environment"));
   };
 
-  // Watermark Renderer Helper
-  const applyWatermarkAndCompress = async (
+  // Image Compressor Helper (Murni tanpa watermark)
+  const compressPhotoSource = async (
     imageSource: CanvasImageSource,
     srcWidth: number,
     srcHeight: number,
@@ -146,8 +142,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
         return {
           dataUrl: "",
           source: sourceType,
-          takenAt: new Date().toISOString(),
-          watermarkText: ""
+          takenAt: new Date().toISOString()
         };
       }
 
@@ -169,122 +164,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
 
       const now = new Date();
 
-      if (!noWatermark) {
-        // Add Gradient Overlay at bottom for Watermark legibility
-        const overlayHeight = Math.min(140, Math.round(targetHeight * 0.28));
-        const gradient = ctx.createLinearGradient(0, targetHeight - overlayHeight, 0, targetHeight);
-        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-        gradient.addColorStop(0.4, "rgba(0, 0, 0, 0.65)");
-        gradient.addColorStop(1, "rgba(0, 0, 0, 0.92)");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, targetHeight - overlayHeight, targetWidth, overlayHeight);
-
-        // Date Time Formatting - Format: 12/8/2026 - 02.49.18
-        const dateStr = now.toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric"
-        });
-        const timeStr = now.toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit"
-        }).replace(/\./g, ":");
-        const dateTimeStr = `${dateStr} - ${timeStr}`;
-
-        const watermarkLine1 = `${musyrifName}`;
-        const watermarkLine2 = `${asramaName}`;
-        const watermarkLine3 = `${dateTimeStr}`;
-
-        // Helper to load image
-        const loadImage = (src: string): Promise<HTMLImageElement> => {
-          return new Promise((resolve) => {
-            const img = new window.Image();
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(img);
-            img.src = src;
-          });
-        };
-
-        // Helper to load font safely
-        const loadFont = (fontFamily: string, fontUrl: string): Promise<void> => {
-          return new Promise((resolve) => {
-            try {
-              if (document.fonts && document.fonts.check(`16px ${fontFamily}`)) {
-                resolve();
-                return;
-              }
-              const font = new FontFace(fontFamily, `url(${fontUrl})`);
-              font.load().then((loadedFont) => {
-                document.fonts.add(loadedFont);
-                resolve();
-              }).catch(() => resolve());
-            } catch (_) {
-              resolve();
-            }
-          });
-        };
-
-        try {
-          // Load Montserrat font safely
-          await loadFont("Montserrat", "https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg7_iudtI6l2W0JCmlqVvRKMMy8D.woff2");
-        } catch (_) {}
-
-        // Draw Watermark Texts - Left Side with Montserrat
-        const baseSize = Math.max(12, Math.round(targetWidth * 0.032));
-        ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
-        ctx.fontFamily = "Montserrat, sans-serif";
-
-        // Line 1 - Nama Ustadz
-        const nameSize = baseSize * 1.15;
-        ctx.font = `500 ${nameSize}px Montserrat, sans-serif`;
-        ctx.fillStyle = "#ffffff";
-        ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
-        ctx.fillText(watermarkLine1, 14, targetHeight - 12 - (nameSize * 1.5));
-
-        // Line 2 - Asrama
-        const asramaSize = baseSize * 0.95;
-        ctx.font = `400 ${asramaSize}px Montserrat, sans-serif`;
-        ctx.fillStyle = "#ffffff";
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetY = 1;
-        ctx.fillText(watermarkLine2, 14, targetHeight - 10 - (nameSize * 1.5) - (asramaSize * 1.25));
-
-        // Line 3 - DateTime
-        const dateSize = baseSize * 0.85;
-        ctx.font = `300 ${dateSize}px Montserrat, sans-serif`;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-        ctx.shadowBlur = 2;
-        ctx.shadowOffsetY = 1;
-        ctx.fillText(watermarkLine3, 14, targetHeight - 8);
-
-        // Reset shadow
-        ctx.shadowColor = "transparent";
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-
-        // Right Side - Draw SYAMSA Logo Image safely
-        try {
-          const logoImg = await loadImage(syamsaWordmark);
-          if (logoImg && logoImg.width > 0) {
-            const logoSize = Math.max(28, Math.round(targetWidth * 0.07));
-            const imgRatio = (logoImg.height && logoImg.width) ? (logoImg.height / logoImg.width) : 0.8;
-            ctx.drawImage(
-              logoImg,
-              targetWidth - logoSize - 12,
-              targetHeight - (logoSize * imgRatio) - 12,
-              logoSize,
-              logoSize * imgRatio
-            );
-          }
-        } catch (_) {}
-      }
-
       // Iterative Adaptive Compression strictly guaranteeing <= 8,500 characters per logbook photo
       let dataUrl = "";
       let quality = 0.52;
@@ -303,8 +182,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       return {
         dataUrl: dataUrl || canvas.toDataURL("image/jpeg", 0.35),
         source: sourceType,
-        takenAt: now.toISOString(),
-        watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
+        takenAt: now.toISOString()
       };
   };
 
@@ -316,7 +194,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
 
     try {
       const video = videoRef.current;
-      const result = await applyWatermarkAndCompress(
+      const result = await compressPhotoSource(
         video,
         video.videoWidth || 640,
         video.videoHeight || 480,
@@ -344,7 +222,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     reader.onload = (event) => {
       const img = new Image();
       img.onload = async () => {
-        const result = await applyWatermarkAndCompress(img, img.width, img.height, "camera");
+        const result = await compressPhotoSource(img, img.width, img.height, "camera");
         setCapturedPreview(result.dataUrl);
         setSelectedSourceType("camera");
         setIsProcessing(false);
@@ -367,7 +245,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     reader.onload = (event) => {
       const img = new Image();
       img.onload = async () => {
-        const result = await applyWatermarkAndCompress(img, img.width, img.height, "gallery");
+        const result = await compressPhotoSource(img, img.width, img.height, "gallery");
         setCapturedPreview(result.dataUrl);
         setSelectedSourceType("gallery");
         setIsProcessing(false);
@@ -383,22 +261,10 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     if (!capturedPreview) return;
     triggerHaptic();
     const now = new Date();
-    const dateStr = now.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric"
-    });
-    const timeStr = now.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    }).replace(/\./g, ":");
-    const dateTimeStr = `${dateStr} - ${timeStr}`;
     onCapture({
       dataUrl: capturedPreview,
       source: selectedSourceType,
-      takenAt: now.toISOString(),
-      watermarkText: `${musyrifName} • ${asramaName} • ${dateTimeStr}`
+      takenAt: now.toISOString()
     });
     onClose();
   };
@@ -488,7 +354,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 mt-2 text-center">
-                Watermark nama ustadz dan keterangan telah otomatis disematkan.
+                Foto dokumentasi siap disimpan dan diunggah.
               </p>
             </div>
           ) : activeTab === "camera" ? (
@@ -568,7 +434,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 Pilih Foto dari Galeri HP
               </h4>
               <p className="text-xs text-slate-400 max-w-sm mb-4 leading-relaxed">
-                Gunakan foto yang sudah Anda ambil sebelumnya saat mendampingi kegiatan di asrama. Watermark resmi akan disematkan secara otomatis.
+                Gunakan foto yang sudah Anda ambil sebelumnya saat mendampingi kegiatan di asrama.
               </p>
 
               <button
@@ -602,7 +468,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           className="hidden"
         />
 
-        {/* Hidden Canvas untuk Processing Watermark */}
+        {/* Hidden Canvas untuk Processing Image */}
         <canvas ref={canvasRef} className="hidden" />
 
         {/* Footer Actions */}

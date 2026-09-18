@@ -31,7 +31,6 @@ export interface LogbookTaskItem {
   photoUrl?: string;
   photoTakenAt?: string;
   photoSource?: "camera" | "preset" | "gallery";
-  photoWatermark?: string;
   photoUserAvatar?: string;
 }
 
@@ -693,7 +692,7 @@ export function JurnalLogbookModal({
   // Active Camera Task State & Fullscreen Photo Preview
   const [activeCameraTask, setActiveCameraTask] = useState<TaskDefinition | null>(null);
   const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; watermark?: string; taskKey?: keyof Omit<JurnalLogbookEntry, "generalNotes"> } | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string; subtitle?: string; taskKey?: keyof Omit<JurnalLogbookEntry, "generalNotes"> } | null>(null);
 
   // GPS Geofence Check State - use pre-checked GPS if available
   const [isCheckingGps, setIsCheckingGps] = useState<boolean>(false);
@@ -987,8 +986,7 @@ export function JurnalLogbookModal({
           completedAt: isPhotoMandatory ? undefined : cur.completedAt,
           photoUrl: "", // Explicit signal to remove photo
           photoTakenAt: undefined,
-          photoSource: undefined,
-          photoWatermark: undefined
+          photoSource: undefined
         }
       };
       setFormState(updatedEntry);
@@ -1795,7 +1793,6 @@ export function JurnalLogbookModal({
                               url: taskData.photoUrl!,
                               title: t.title,
                               subtitle: `${selectedMusyrif?.name || "Musyrif"} • ${asramaTarget}`,
-                              watermark: taskData.photoWatermark,
                               taskKey: t.key
                             })}
                             className="relative w-8 h-8 rounded-lg overflow-hidden border border-emerald-500/60 group hover:opacity-90 transition-opacity"
@@ -2077,11 +2074,6 @@ export function JurnalLogbookModal({
                 }
               />
             </div>
-            {previewPhoto.watermark && (
-              <div className="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400">
-                <span className="text-emerald-400 font-semibold">Metadata:</span> {previewPhoto.watermark}
-              </div>
-            )}
           </motion.div>
         </div>
       )}

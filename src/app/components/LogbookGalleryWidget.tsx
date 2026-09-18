@@ -46,7 +46,6 @@ export interface GalleryPostItem {
   photoThumbnailUrl?: string; // OPTIMIZATION: Smaller thumbnail for grid display
   photoTakenAt?: string;
   photoSource?: "camera" | "preset" | "gallery";
-  photoWatermark?: string;
   notes?: string;
   stepsCount?: number;
   gpsVerified?: boolean;
@@ -196,8 +195,7 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
           ...currentTask,
           photoUrl: "", // Explicit signal to remove photo
           photoTakenAt: undefined,
-          photoSource: undefined,
-          photoWatermark: undefined
+          photoSource: undefined
         }
       };
 
@@ -289,7 +287,6 @@ export const LogbookGalleryWidget: React.FC<LogbookGalleryWidgetProps> = memo(({
             photoThumbnailUrl: tItem.photoThumbnailUrl || tItem.photoThumbnail || undefined,
             photoTakenAt: tItem.photoTakenAt,
             photoSource: tItem.photoSource || "camera",
-            photoWatermark: tItem.photoWatermark,
             notes: tItem.notes,
             stepsCount: tItem.stepsCount,
             gpsVerified: tItem.gpsVerified

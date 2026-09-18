@@ -306,8 +306,8 @@ export function checkAsramaGeofence(
     const isClass4 = options?.isClass4 ?? (options?.musyrifKelas ? isClass4Musyrif(options.musyrifKelas) : false);
 
     // ============================================
-    // LOGIKA KHUSUS KAMPUS TERPADU SEDAYU
-    // Aturan Sholat Ashar:
+    // LOGIKA KAMPUS TERPADU SEDAYU
+    // Aturan Khusus Sholat Ashar:
     // Seluruh musyrif Kampus Terpadu Sedayu WAJIB di Masjid Hajah Yuliana,
     // KECUALI musyrif kelas 4 yang boleh di asrama masing-masing (Gedung A/B/C/D)
     // ============================================
@@ -319,11 +319,12 @@ export function checkAsramaGeofence(
         matchedAreaName = masjidYuliana.name;
       }
     } else {
-      // Sholat Subuh/Maghrib ATAU Ashar untuk Musyrif Kelas 4:
-      // Boleh di Masjid Yuliana, Gedung A/B/C/D mana saja, atau area Sedayu
+      // Sholat Subuh & Maghrib (atau Ashar untuk Kelas 4):
+      // Boleh di Masjid Hajah Yuliana atau di asrama mana saja (Gedung A, B, C, D)
+      // Contoh: Musyrif Asrama C boleh shalat di Asrama D atau di Masjid
       const sedayuBuildings = MUALLIMIN_LOCATIONS.filter(b => b.campus === "kampus_terpadu");
 
-      // Find nearest Sedayu building
+      // Cari gedung terdekat
       let minDistToBuilding = Infinity;
       let nearestBuilding: SpecificBuildingLocation | undefined;
 
@@ -335,7 +336,7 @@ export function checkAsramaGeofence(
         }
       }
 
-      // Check if within any building radius
+      // Cek apakah berada dalam radius gedung Sedayu mana saja (Masjid Yuliana, Gedung A/B/C/D)
       let inAnyBuilding = false;
       for (const building of sedayuBuildings) {
         const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
@@ -347,14 +348,16 @@ export function checkAsramaGeofence(
         }
       }
 
-      // Check campus radius
+      // Cek juga radius kawasan kampus Sedayu secara keseluruhan
       const inCampus = campusDist <= matchedCampus.radiusMeters + accuracyBuffer;
 
       isInRange = inAnyBuilding || inCampus;
-      if (!inAnyBuilding && inCampus) {
+      if (inAnyBuilding) {
+        // distance dan matchedAreaName sudah diset dari gedung yang cocok
+      } else if (inCampus) {
         distance = campusDist;
         matchedAreaName = matchedCampus.name;
-      } else if (!inAnyBuilding && !inCampus && nearestBuilding) {
+      } else if (nearestBuilding) {
         distance = minDistToBuilding;
         matchedAreaName = nearestBuilding.name;
       } else if (distance === undefined) {
@@ -364,29 +367,54 @@ export function checkAsramaGeofence(
 
   } else {
     // ============================================
-    // LOGIKA KAMPUS INDUK (strict - harus di gedung sendiri atau masjid)
+    // LOGIKA KAMPUS INDUK (WIROBRAJAN)
+    // Sholat Subuh & Maghrib bisa di Masjid Jami' Mu'allimin atau di asrama mana saja
+    // (Asrama 1, Asrama 8A/B/C, Asrama 10, Aula)
     // ============================================
+    const indukBuildings = MUALLIMIN_LOCATIONS.filter(b => b.campus === "kampus_induk");
 
-    if (exactBuilding) {
-      distance = getDistanceFromLatLonInMeters(userLat, userLng, exactBuilding.lat, exactBuilding.lng);
-      const buildingRadius = exactBuilding.radiusMeters + accuracyBuffer;
-      const campusRadius = matchedCampus.radiusMeters + accuracyBuffer;
+    // Cari gedung terdekat di Kampus Induk
+    let minDistToBuilding = Infinity;
+    let nearestBuilding: SpecificBuildingLocation | undefined;
 
-      // In range if within specific building radius OR within broad campus area
-      const inBuilding = distance <= buildingRadius;
-      const inCampus = campusDist <= campusRadius;
-      isInRange = inBuilding || inCampus;
-      matchedAreaName = inBuilding ? exactBuilding.name : inCampus ? matchedCampus.name : undefined;
-
-      // If verified via campus zone, show the campus-level distance for clearer UX
-      if (inCampus && !inBuilding) {
-        distance = campusDist;
+    for (const building of indukBuildings) {
+      const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
+      if (dist < minDistToBuilding) {
+        minDistToBuilding = dist;
+        nearestBuilding = building;
       }
+    }
+
+    // Cek apakah berada dalam radius gedung Kampus Induk mana saja (Masjid Jami', Asrama 1, 8A-C, 10, dll)
+    let inAnyBuilding = false;
+    for (const building of indukBuildings) {
+      const dist = getDistanceFromLatLonInMeters(userLat, userLng, building.lat, building.lng);
+      if (dist <= building.radiusMeters + accuracyBuffer) {
+        inAnyBuilding = true;
+        matchedAreaName = building.name;
+        distance = dist;
+        break;
+      }
+    }
+
+    // Cek juga radius kawasan kampus Induk secara keseluruhan
+    const inCampus = campusDist <= matchedCampus.radiusMeters + accuracyBuffer;
+
+    isInRange = inAnyBuilding || inCampus;
+    if (inAnyBuilding) {
+      // distance dan matchedAreaName sudah diset dari gedung yang cocok
+    } else if (inCampus) {
+      distance = campusDist;
+      matchedAreaName = matchedCampus.name;
+    } else if (nearestBuilding) {
+      distance = minDistToBuilding;
+      matchedAreaName = nearestBuilding.name;
+    } else if (exactBuilding) {
+      distance = getDistanceFromLatLonInMeters(userLat, userLng, exactBuilding.lat, exactBuilding.lng);
+      matchedAreaName = exactBuilding.name;
     } else {
       distance = campusDist;
-      const campusRadius = matchedCampus.radiusMeters + accuracyBuffer;
-      isInRange = distance <= campusRadius;
-      matchedAreaName = isInRange ? matchedCampus.name : undefined;
+      matchedAreaName = undefined;
     }
   }
 

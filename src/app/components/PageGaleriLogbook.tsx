@@ -221,7 +221,6 @@ export interface GalleryPostItem {
   photoUrl: string;
   photoTakenAt?: string;
   photoSource?: "camera" | "preset" | "gallery";
-  photoWatermark?: string;
   notes?: string;
   stepsCount?: number;
   gpsVerified?: boolean;
@@ -912,8 +911,7 @@ export const PageGaleriLogbook: React.FC<PageGaleriLogbookProps> = ({
           ...currentTask,
           photoUrl: "", // Explicit signal to remove photo
           photoTakenAt: undefined,
-          photoSource: undefined,
-          photoWatermark: undefined
+          photoSource: undefined
         }
       };
 
