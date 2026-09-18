@@ -712,44 +712,44 @@ export function MutabaahYaumiyahModal({
             {/* Progress Banner & Quick Actions */}
             <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200/60 flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl flex flex-col items-center justify-center font-black font-mono shadow-2xs ${
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black font-mono text-[11px] shadow-2xs ${
                     scorePct >= 80 ? "bg-emerald-600 text-white" : scorePct >= 50 ? "bg-emerald-100 text-emerald-900 border border-emerald-200/80" : "bg-amber-100 text-amber-900 border border-amber-200/80"
                   }`}>
-                    <span className="text-xs">{scorePct}%</span>
+                    <span>{scorePct}%</span>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                    <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1 leading-tight">
                       {scorePct >= 80 ? "Amalan Harian Sangat Baik ✓" : scorePct >= 50 ? "Tercapai Cukup Baik" : "Tingkatkan Amalan Sunnah"}
                     </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      <strong>{completedCount}</strong> dari <strong>{totalFields}</strong> amalan yaumiyah terlaksana
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5 leading-tight">
+                      {completedCount} dari {totalFields} amalan terlaksana
                     </p>
                   </div>
                 </div>
 
                 {isMusyrifUser && !isDateLocked && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleMarkAll(true)}
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[11px] font-bold active:scale-95 transition-all shadow-2xs"
+                      className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-bold active:scale-95 transition-all shadow-2xs"
                     >
                       Tandai Semua
                     </button>
                     <button
                       type="button"
                       onClick={handleResetToday}
-                      className="px-3 py-1.5 bg-white hover:bg-rose-50 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-slate-600 rounded-xl text-[11px] font-bold active:scale-95 transition-all shadow-2xs"
+                      className="px-2.5 py-1 bg-white hover:bg-rose-50 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-slate-600 rounded-lg text-[10px] font-bold active:scale-95 transition-all shadow-2xs"
                     >
-                      Reset Amalan
+                      Reset
                     </button>
                   </div>
                 )}
               </div>
 
               {/* Full-width clean progress bar */}
-              <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-200/80 h-1.5 rounded-full overflow-hidden">
                 <div 
                   className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
                   style={{ width: `${scorePct}%` }}
@@ -758,41 +758,41 @@ export function MutabaahYaumiyahModal({
             </div>
 
         {/* Monthly Summary 4 Cards Harmonized */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 pt-1">
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all shadow-2xs">
-            <div className="flex items-center justify-center gap-1 text-indigo-700 mb-1">
-              <Moon className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Tahajjud</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-xl p-2 text-center transition-all shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-indigo-700 mb-0.5">
+              <Moon className="w-3 h-3" />
+              <span className="text-[10px] font-bold">Tahajjud</span>
             </div>
-            <p className="text-lg sm:text-xl font-black text-slate-900 font-mono tracking-tight">{monthlyTahajjud}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+            <p className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight leading-none">{monthlyTahajjud}</p>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">hari</span>
           </div>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all shadow-2xs">
-            <div className="flex items-center justify-center gap-1 text-amber-700 mb-1">
-              <Sun className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Dhuha</span>
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-xl p-2 text-center transition-all shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-amber-700 mb-0.5">
+              <Sun className="w-3 h-3" />
+              <span className="text-[10px] font-bold">Dhuha</span>
             </div>
-            <p className="text-lg sm:text-xl font-black text-slate-900 font-mono tracking-tight">{monthlyDhuha}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+            <p className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight leading-none">{monthlyDhuha}</p>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">hari</span>
           </div>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all shadow-2xs">
-            <div className="flex items-center justify-center gap-1 text-emerald-700 mb-1">
-              <BookOpen className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Tilawah</span>
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-xl p-2 text-center transition-all shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-teal-700 mb-0.5">
+              <BookOpen className="w-3 h-3" />
+              <span className="text-[10px] font-bold">Tilawah</span>
             </div>
-            <p className="text-lg sm:text-xl font-black text-slate-900 font-mono tracking-tight">{monthlyTilawahTotal}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">halaman</span>
+            <p className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight leading-none">{monthlyTilawahTotal}</p>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">halaman</span>
           </div>
 
-          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-2xl p-2.5 text-center transition-all shadow-2xs">
-            <div className="flex items-center justify-center gap-1 text-teal-700 mb-1">
+          <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/70 rounded-xl p-2 text-center transition-all shadow-2xs">
+            <div className="flex items-center justify-center gap-1 text-emerald-700 mb-0.5">
               <Heart className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-bold">Puasa Sunnah</span>
+              <span className="text-[10px] font-bold">Puasa Sunnah</span>
             </div>
-            <p className="text-lg sm:text-xl font-black text-slate-900 font-mono tracking-tight">{monthlyPuasa}</p>
-            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">hari</span>
+            <p className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-tight leading-none">{monthlyPuasa}</p>
+            <span className="text-[9px] text-slate-400 font-medium block mt-0.5">hari</span>
           </div>
         </div>
       </div>

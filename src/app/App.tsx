@@ -70,6 +70,8 @@ const LiveCameraCaptureModal = lazy(() => import("./components/LiveCameraCapture
 const CloudSyncModal = lazy(() => import("./components/CloudSyncModal").then(m => ({ default: m.CloudSyncModal })));
 const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri").then(m => ({ default: m.PagePembinaanSantri })));
 const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
+const PageIbadah = lazy(() => import("./components/PageIbadah").then(m => ({ default: m.PageIbadah })));
+const LoginModal = lazy(() => import("./components/LoginModal").then(m => ({ default: m.LoginModal })));
 import { AgendaRapatRecord, AGENDA_CATEGORIES } from "./types/agendaRapat";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
@@ -84,13 +86,42 @@ import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAcc
 import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStatusInCloud, mapIzinSedayuToRecord } from "./utils/izinSedayuSync";
 import { DynamicDashboardBanner } from "./components/DynamicDashboardBanner";
 import { calculateMonthlyPembinaanStats, MusyrifAttendanceStats } from "./utils/pembinaanMusyrifUtils";
+import {
+  calcPrayerTimes,
+  getPresensiTimeWindow,
+  getEffectiveAttendanceStatus,
+  getQiblaAngle,
+  getMeccaDist,
+  AUTO_ALFA_START_DATE,
+  AUTO_ALFA_ASHAR_START_DATE,
+  PRESENSI_OPEN_BEFORE_MINUTES,
+  PRESENSI_CLOSE_HOURS_SUBUH,
+  PRESENSI_CLOSE_HOURS_ASHAR,
+  PRESENSI_CLOSE_HOURS_MAGHRIB,
+  type PrayerSlot,
+  type AttendanceStatus,
+  type AttendanceRecord,
+  type PresensiTimeWindow
+} from "./utils/prayerTimes";
+
+export {
+  calcPrayerTimes,
+  getPresensiTimeWindow,
+  getEffectiveAttendanceStatus,
+  getQiblaAngle,
+  getMeccaDist,
+  AUTO_ALFA_START_DATE,
+  AUTO_ALFA_ASHAR_START_DATE,
+  type PrayerSlot,
+  type AttendanceStatus,
+  type AttendanceRecord,
+  type PresensiTimeWindow
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
-type PrayerSlot = "subuh" | "ashar" | "maghrib";
-type AttendanceStatus = "hadir" | "sakit" | "izin" | "alfa";
 type Page = "dashboard" | "subuh" | "ashar" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
@@ -109,181 +140,10 @@ interface Musyrif {
   avatar?: string;
   role?: Role;
 }
-interface AttendanceRecord {
-  musyrifId: string; date: string;
-  subuh?: AttendanceStatus; ashar?: AttendanceStatus; maghrib?: AttendanceStatus;
-  subuhNote?: string; asharNote?: string; maghribNote?: string;
-  markedBy?: string;
-}
 interface SunnahFast { id: string; name: string; desc: string; type: "weekly"|"monthly"|"annual"; icon: string; }
 
 type MarkFn    = (mid: string, prayer: PrayerSlot, status: AttendanceStatus, date: string, note?: string) => void;
 type MarkAllFn = (asrama: string, prayer: PrayerSlot, status: AttendanceStatus, date: string) => void;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PRAYER TIME CALCULATOR (Muhammadiyah / KHGT Standard)
-// ─────────────────────────────────────────────────────────────────────────────
-export function calcPrayerTimes(date: Date, lat = -7.807631, lon = 110.350905, tz = 7) {
-  const toR = (d: number) => (d * Math.PI) / 180;
-  const toD = (r: number) => (r * 180) / Math.PI;
-  const fix = (h: number) => ((h % 24) + 24) % 24;
-
-  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
-  const jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d
-    + (m <= 2 ? -Math.floor((y+1)/100)+Math.floor((y+1)/400)+1 : -Math.floor(y/100)+Math.floor(y/400)+1) - 1524.5;
-
-  const D  = jd - 2451545.0;
-  const g  = toR((357.529 + 0.98560028 * D) % 360);
-  const q  = (280.459 + 0.98564736 * D) % 360;
-  const L  = toR((q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) % 360);
-  const e  = toR(23.439 - 0.00000036 * D);
-  const RA = toD(Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L))) / 15;
-  const dec = Math.asin(Math.sin(e) * Math.sin(L));
-  const EqT = q / 15 - ((RA + 360) % 24);
-
-  const transit = 12 + tz - lon / 15 - EqT;
-  const latR = toR(lat);
-
-  function ha(angle: number) {
-    const c = (Math.sin(toR(angle)) - Math.sin(latR) * Math.sin(dec)) / (Math.cos(latR) * Math.cos(dec));
-    if (c < -1 || c > 1) return NaN;
-    return toD(Math.acos(c)) / 15;
-  }
-
-  // Ashar: bayang-bayang 1 kali panjang benda + bayang-bayang zawal
-  const asrAlt = toD(Math.atan(1 / (1 + Math.tan(Math.abs(latR - dec)))));
-
-  const fmt = (h: number) => {
-    if (isNaN(h)) return "--:--";
-    const hh = Math.floor(fix(h)) % 24;
-    const mm = Math.round((fix(h) % 1) * 60);
-    return `${String(hh).padStart(2,"0")}:${String(mm % 60).padStart(2,"0")}`;
-  };
-
-  const subuhRaw = transit - ha(-18) + 2 / 60; // Muhammadiyah -18° + 2m ihtiyat
-  const terbitRaw = transit - ha(-0.8333);
-  const dhuhrRaw = transit + 2 / 60;
-  const asrRaw = transit + ha(asrAlt) + 2 / 60;
-  const maghribRaw = transit + ha(-1) + 2 / 60;
-  const ishaRaw = transit + ha(-18) + 2 / 60;
-
-  return [
-    { key:"subuh",   name:"Subuh",   time: fmt(subuhRaw),   raw: subuhRaw },
-    { key:"terbit",  name:"Terbit",  time: fmt(terbitRaw),  raw: terbitRaw },
-    { key:"dhuhr",   name:"Dzuhur",  time: fmt(dhuhrRaw),   raw: dhuhrRaw },
-    { key:"asr",     name:"Ashar",   time: fmt(asrRaw),     raw: asrRaw },
-    { key:"maghrib", name:"Maghrib", time: fmt(maghribRaw), raw: maghribRaw },
-    { key:"isha",    name:"Isya",    time: fmt(ishaRaw),    raw: ishaRaw },
-  ];
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PRESENSI TIME CONFIGURATOR (Dynamic based on Prayer Time)
-// ─────────────────────────────────────────────────────────────────────────────
-// Konfigurasi waktu presensi: Tepat saat masuk waktu sholat (bukan sebelum sholat)
-const PRESENSI_OPEN_BEFORE_MINUTES = 0; // Buka saat waktu sholat tiba
-const PRESENSI_CLOSE_HOURS_SUBUH = 5.5;  // Tutup jam 05:30 WIB
-const PRESENSI_CLOSE_HOURS_ASHAR = 15.5; // Tutup jam 15:30 WIB
-const PRESENSI_CLOSE_HOURS_MAGHRIB = 19.0; // Tutup jam 19:00 WIB
-
-export interface PresensiTimeWindow {
-  openTime: number;      // Decimal hour (e.g., 4.5 = 04:30)
-  closeTime: number;     // Decimal hour (e.g., 5.5 = 05:30)
-  openDisplay: string;   // "04:30"
-  closeDisplay: string;  // "05:30"
-  prayerTime: number;    // Raw prayer time decimal (e.g., 4.5 = 04:30)
-  prayerDisplay: string; // "04:30"
-}
-
-/**
- * Hitung jendela waktu presensi berdasarkan waktu sholat
- * Buka: Tepat saat masuk waktu sholat (0 menit sebelum)
- * Tutup: jam 05:30 (Subuh), 15:30 (Ashar), atau 19:00 (Maghrib)
- */
-export function getPresensiTimeWindow(
-  slot: PrayerSlot,
-  date: Date = new Date()
-): PresensiTimeWindow {
-  const prayerTimes = calcPrayerTimes(date, -7.807631, 110.350905, 7);
-  const prayerKey = slot === "ashar" ? "asr" : slot;
-  const prayerObj = prayerTimes.find(p => p.key === prayerKey);
-
-  // Get raw prayer time (decimal hours)
-  const defaultPrayerRaw = slot === "subuh" ? 4.5 : slot === "ashar" ? 15.2 : 17.75;
-  const prayerRaw = prayerObj?.raw ?? defaultPrayerRaw;
-
-  // Open time: tepat saat waktu sholat (prayerRaw)
-  const openTime = prayerRaw;
-
-  // Close time: fixed hours (Subuh 05:30, Ashar 15:30, Maghrib 19:00)
-  const closeTime = slot === "subuh" 
-    ? PRESENSI_CLOSE_HOURS_SUBUH 
-    : slot === "ashar" 
-    ? PRESENSI_CLOSE_HOURS_ASHAR 
-    : PRESENSI_CLOSE_HOURS_MAGHRIB;
-
-  // Format helpers
-  const fmtHour = (h: number): string => {
-    const hour = Math.floor(h);
-    const min = Math.round((h - hour) * 60);
-    return `${String(hour).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-  };
-
-  return {
-    openTime,
-    closeTime,
-    openDisplay: fmtHour(openTime),
-    closeDisplay: fmtHour(closeTime),
-    prayerTime: prayerRaw,
-    prayerDisplay: prayerObj?.time ?? fmtHour(prayerRaw),
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// OTOMATIS ALPA CONFIGURATOR
-// Subuh & Maghrib mulai 1 September 2026, Ashar baru mulai 18 September 2026
-// ─────────────────────────────────────────────────────────────────────────────
-export const AUTO_ALFA_START_DATE = "2026-09-01";
-export const AUTO_ALFA_ASHAR_START_DATE = "2026-09-18";
-
-/**
- * Evaluasi status presensi efektif:
- * - Mengembalikan status aktual jika sudah ada data tersimpan (hadir/sakit/izin/alfa).
- * - Tanggal sebelum 1 September 2026 (< AUTO_ALFA_START_DATE): TIDAK dijadikan alfa (return undefined).
- * - Khusus Ashar: sebelum 18 September 2026 (< AUTO_ALFA_ASHAR_START_DATE) TIDAK dijadikan alfa.
- * - Tanggal aktif:
- *   - Jika tanggal lampau (< hari ini): otomatis "alfa"
- *   - Jika hari ini dan waktu saat ini > jam tutup presensi: otomatis "alfa"
- *   - Selain itu (masih dalam jam buka atau tanggal mendatang): return undefined
- */
-export function getEffectiveAttendanceStatus(
-  record: AttendanceRecord | undefined,
-  slot: PrayerSlot,
-  dateStr: string,
-  now: Date = new Date()
-): AttendanceStatus | undefined {
-  if (record?.[slot]) return record[slot];
-  
-  // Khusus Ashar baru dihitung per 18 September 2026
-  const effectiveStartDate = slot === "ashar" ? AUTO_ALFA_ASHAR_START_DATE : AUTO_ALFA_START_DATE;
-  if (dateStr < effectiveStartDate) return undefined;
-
-  const today = format(now, "yyyy-MM-dd");
-  if (dateStr > today) return undefined;
-
-  if (dateStr < today) {
-    return "alfa";
-  }
-
-  // dateStr === today
-  const timeWindow = getPresensiTimeWindow(slot, now);
-  const nowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
-  if (nowH > timeWindow.closeTime) {
-    return "alfa";
-  }
-
-  return undefined;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUNNAH FASTING CALCULATOR (KHGT Muhammadiyah)
@@ -345,25 +205,6 @@ function getUpcomingSunnahFasts(days = 14): { date: Date; fasts: SunnahFast[] }[
   return result.slice(0, 6);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QIBLA CALCULATOR
-// ─────────────────────────────────────────────────────────────────────────────
-const KAABA = { lat: 21.4225, lon: 39.8262 };
-
-function getQiblaAngle(lat: number, lon: number) {
-  const toR = (d: number) => d * Math.PI / 180;
-  const kLat = toR(KAABA.lat), kLon = toR(KAABA.lon), uLat = toR(lat), dLon = kLon - toR(lon);
-  const y = Math.sin(dLon) * Math.cos(kLat);
-  const x = Math.cos(uLat) * Math.sin(kLat) - Math.sin(uLat) * Math.cos(kLat) * Math.cos(dLon);
-  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
-}
-
-function getMeccaDist(lat: number, lon: number) {
-  const toR = (d: number) => d * Math.PI / 180;
-  const R = 6371, dLat = toR(KAABA.lat - lat), dLon = toR(KAABA.lon - lon);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toR(lat)) * Math.cos(toR(KAABA.lat)) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NICKNAME / PANGGILAN HELPER (Ust. [CallName])
@@ -2910,23 +2751,33 @@ function PageDashboard({
             </div>
 
             {/* Daftar streak - klik buka detail individu */}
-            <div className="divide-y divide-slate-50">
+            <div className="divide-y divide-slate-100">
               {streakTop.map((m,i)=>(
                 <button
                   key={m.id}
                   onClick={()=>setDetailMusyrif(m)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-slate-50 transition-colors"
                 >
-                  <div className="w-6 flex items-center justify-center shrink-0">
-                    {i === 0 ? <Crown className="w-4 h-4 text-amber-500" /> :
-                     i === 1 ? <Medal className="w-4 h-4 text-slate-400" /> :
-                     i === 2 ? <Award className="w-4 h-4 text-amber-700" /> :
-                     <span className="text-xs font-bold text-slate-400 font-mono">{i + 1}</span>}
+                  <div className="w-5 flex items-center justify-center shrink-0">
+                    {i === 0 ? <Crown className="w-3.5 h-3.5 text-amber-500" /> :
+                     i === 1 ? <Medal className="w-3.5 h-3.5 text-slate-400" /> :
+                     i === 2 ? <Award className="w-3.5 h-3.5 text-amber-700" /> :
+                     <span className="text-[11px] font-bold text-slate-400 font-mono">{i + 1}</span>}
                   </div>
-                  <Av name={m.name} src={m.photo} sz="sm"/>
-                  <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-500">{m.asrama}</p></div>
-                  <div className="text-right"><div className="flex items-center gap-1"><Flame className="w-3.5 h-3.5 text-amber-500"/><span className="font-bold text-slate-800 font-mono">{m.cur}</span><span className="text-xs text-slate-500">hari</span></div><p className="text-[10px] text-slate-400">terbaik: {m.best}h</p></div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1"/>
+                  <Av name={m.name} src={m.photo} sz="xs"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate leading-tight">{m.name}</p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{m.asrama}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <Flame className="w-3 h-3 text-amber-500"/>
+                      <span className="font-bold text-slate-800 font-mono text-xs">{m.cur}</span>
+                      <span className="text-[10px] text-slate-500">hari</span>
+                    </div>
+                    <p className="text-[9px] text-slate-400 font-mono">terbaik: {m.best}h</p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/>
                 </button>
               ))}
             </div>
@@ -2935,7 +2786,7 @@ function PageDashboard({
             <button
               type="button"
               onClick={()=>onGoTo("leaderboard")}
-              className="w-full flex items-center justify-between px-4 py-3 border-t border-slate-100 text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-50/60 transition-colors group"
+              className="w-full flex items-center justify-between px-3.5 py-2.5 border-t border-slate-100 text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-50/60 transition-colors group"
             >
               <div className="flex items-center gap-1.5">
                 <Trophy className="w-3.5 h-3.5"/>
@@ -2955,17 +2806,24 @@ function PageDashboard({
             indicatorColor="bg-rose-500"
             className="mb-2"
           />
-          <Card ch={<div className="divide-y divide-slate-50">
+          <Card ch={<div className="divide-y divide-slate-100">
             {alfaRank.map(m=>(
               <button 
                 key={m.id} 
                 onClick={()=>setDetailMusyrif(m)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-slate-50 transition-colors"
               >
-                <Av name={m.name} src={m.photo} sz="sm"/>
-                <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-800 truncate">{m.name}</p><p className="text-xs text-slate-500">{m.asrama}</p></div>
-                <div className="flex items-center gap-1.5 bg-rose-50 px-3 py-1.5 rounded-xl"><AlertCircle className="w-3.5 h-3.5 text-rose-500"/><span className="text-sm font-bold text-rose-700 font-mono">{m.alfa}</span><span className="text-xs text-rose-600 font-semibold">Alfa</span></div>
-                <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1"/>
+                <Av name={m.name} src={m.photo} sz="xs"/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-800 truncate leading-tight">{m.name}</p>
+                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{m.asrama}</p>
+                </div>
+                <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 px-2 py-1 rounded-lg">
+                  <AlertCircle className="w-3 h-3 text-rose-500"/>
+                  <span className="text-xs font-bold text-rose-700 font-mono">{m.alfa}</span>
+                  <span className="text-[10px] text-rose-600 font-semibold">Alfa</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/>
               </button>
             ))}
           </div>}/>
@@ -2976,14 +2834,14 @@ function PageDashboard({
       {authUser && (
         <div className="grid grid-cols-3 gap-2">
           {[
-            {label:"Rekap",   sub:"Statistik",    page:"rekap"   as Page, icon:<TrendingUp className="w-5 h-5"/>, col:"bg-emerald-50 text-emerald-700"},
-            {label:"Riwayat", sub: authUser ? "Kalender" : "Katalog", page:(authUser ? "riwayat" : "rekap") as Page, icon:<Calendar   className="w-5 h-5"/>, col:"bg-teal-50 text-teal-700"},
-            {label:"Ibadah",  sub:"Sholat & Kiblat",page:"ibadah"  as Page, icon:<Compass    className="w-5 h-5"/>, col:"bg-amber-50 text-amber-700"},
+            {label:"Rekap",   sub:"Statistik",    page:"rekap"   as Page, icon:<TrendingUp className="w-4 h-4"/>, col:"bg-emerald-50 text-emerald-700"},
+            {label:"Riwayat", sub: authUser ? "Kalender" : "Katalog", page:(authUser ? "riwayat" : "rekap") as Page, icon:<Calendar   className="w-4 h-4"/>, col:"bg-teal-50 text-teal-700"},
+            {label:"Ibadah",  sub:"Sholat & Kiblat",page:"ibadah"  as Page, icon:<Compass    className="w-4 h-4"/>, col:"bg-amber-50 text-amber-700"},
           ].map(n=>(
-            <button key={n.label} onClick={()=>onGoTo(n.page)} className="bg-white ring-1 ring-slate-200/80 rounded-2xl p-3.5 text-left hover:ring-emerald-300 hover:shadow-xs transition-all active:scale-[0.97]">
-              <div className={`w-9 h-9 rounded-xl ${n.col} flex items-center justify-center mb-2`}>{n.icon}</div>
-              <p className="font-bold text-sm text-slate-800">{n.label}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{n.sub}</p>
+            <button key={n.label} onClick={()=>onGoTo(n.page)} className="bg-white ring-1 ring-slate-200/80 rounded-xl p-2.5 sm:p-3 text-left hover:ring-emerald-300 hover:shadow-xs transition-all active:scale-[0.97]">
+              <div className={`w-7 h-7 rounded-lg ${n.col} flex items-center justify-center mb-1.5`}>{n.icon}</div>
+              <p className="font-bold text-xs sm:text-sm text-slate-800 leading-tight">{n.label}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-tight truncate">{n.sub}</p>
             </button>
           ))}
         </div>
@@ -3578,40 +3436,41 @@ function PageInputPrayer({
       )}
 
       {isNotYetTime && (
-        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-4 sm:p-5 flex items-start gap-3 shadow-xs animate-in fade-in">
-          <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
-            <Lock className="w-5 h-5"/>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h4 className="font-bold text-sm text-rose-900 leading-tight">
-                Presensi {slotLabel} Belum Dibuka
-              </h4>
-              <span className="text-[10px] font-bold bg-rose-200 text-rose-800 px-2 py-0.5 rounded-full font-mono">
-                Terkunci
-              </span>
+        <div className="bg-rose-50/90 border border-rose-200/80 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2.5 shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+              <Lock className="w-3.5 h-3.5"/>
             </div>
-            <p className="text-xs text-rose-700/90 mt-1 leading-relaxed">
-              Jadwal ibadah {slotLabel} hari ini adalah pukul <strong>{prayerTimeStr} WIB</strong>. Form pengisian presensi akan otomatis dibuka mulai pukul <strong>{openTimeDisplayStr} WIB</strong> (saat masuk waktu sholat).
-            </p>
+            <div className="min-w-0">
+              <p className="font-bold text-xs text-rose-900 leading-tight">
+                Presensi {slotLabel} Belum Dibuka
+              </p>
+              <p className="text-[11px] text-rose-700/85 mt-0.5 leading-tight">
+                Dibuka otomatis pukul <strong>{openTimeDisplayStr} WIB</strong> (masuk waktu sholat).
+              </p>
+            </div>
           </div>
+          <span className="text-[10px] font-bold bg-rose-200/80 text-rose-800 px-2 py-0.5 rounded-lg font-mono shrink-0">
+            Terkunci
+          </span>
         </div>
       )}
 
       {/* 2. Compact Progress, Quick Action & Search Container */}
       {!isFuture && (
-        <div className="bg-white rounded-3xl p-3.5 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-2xs border border-slate-200/80 flex flex-col gap-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* Progress track & label */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-slate-700">
-                  {isMusyrifOnly ? "Status Presensi Mandiri Anda" : "Progress Presensi"}
+              <div className="flex items-center justify-between mb-1 text-xs">
+                <span className="font-bold text-slate-700 truncate mr-2">
+                  {isMusyrifOnly ? "Presensi Mandiri" : "Progress Presensi"}
                 </span>
-                <span className="text-xs font-bold text-slate-700 font-mono">
-                  {doneCount} / {musyrifList.length} Musyrif
+                <span className="font-bold text-slate-600 font-mono shrink-0">
+                  {doneCount}/{musyrifList.length} Musyrif
                 </span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all duration-300 ${
                     isSubuh 
@@ -3625,26 +3484,30 @@ function PageInputPrayer({
               </div>
             </div>
 
-            {!isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
-              <button
-                onClick={()=>setConfirmAll(slot)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 ${
-                  isSubuh
-                    ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
-                    : isAshar
-                    ? "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-600/20"
-                    : "bg-[#0C4E8C] hover:bg-[#0A3E70] text-white shadow-sky-900/20"
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5"/> Semua Hadir
-              </button>
-            )}
+            {/* Quick Actions (Semua Hadir / Terkunci) */}
+            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+              {!isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
+                <button
+                  type="button"
+                  onClick={()=>setConfirmAll(slot)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shadow-2xs active:scale-95 ${
+                    isSubuh
+                      ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20"
+                      : isAshar
+                      ? "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-600/20"
+                      : "bg-[#0C4E8C] hover:bg-[#0A3E70] text-white shadow-sky-900/20"
+                  }`}
+                >
+                  <Zap className="w-3 h-3"/> Semua Hadir
+                </button>
+              )}
 
-            {isNotYetTime && !isMusyrifOnly && (
-              <span className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 flex items-center gap-1.5 cursor-not-allowed">
-                <Lock className="w-3.5 h-3.5"/> Terkunci
-              </span>
-            )}
+              {isNotYetTime && !isMusyrifOnly && (
+                <span className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-400 border border-slate-200 flex items-center gap-1 cursor-not-allowed">
+                  <Lock className="w-3 h-3"/> Terkunci
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Integrated Search Bar inside container - Hide for Musyrif and Koord. Gedung */}
@@ -5409,8 +5272,8 @@ function PageRiwayat({
 
           {/* Quick Cards Grid */}
           <div className="pt-2 text-left">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Daftar Musyrif Binaan:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Daftar Musyrif Binaan:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[420px] overflow-y-auto pr-1">
               {allowed.map(m => {
                 const mRecsCount = records.filter(r => r.musyrifId === m.id && r.date.startsWith(mk) && (r.subuh === "hadir" || r.maghrib === "hadir")).length;
                 
@@ -5419,26 +5282,26 @@ function PageRiwayat({
                     key={m.id}
                     type="button"
                     onClick={() => setSelId(m.id)}
-                    className="group p-3.5 rounded-2xl bg-white hover:bg-teal-50/60 border border-slate-200/80 hover:border-teal-300 transition-all shadow-2xs hover:shadow-md flex flex-col justify-between gap-2.5 cursor-pointer text-left active:scale-[0.98]"
+                    className="group p-2.5 sm:p-3 rounded-xl bg-white hover:bg-teal-50/60 border border-slate-200/80 hover:border-teal-300 transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between gap-2 cursor-pointer text-left active:scale-[0.98]"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                         {m.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate">{m.name}</h4>
-                        <span className="text-[10px] text-slate-400 block truncate">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate leading-tight">{m.name}</h4>
+                        <span className="text-[10px] text-slate-400 block truncate mt-0.5">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
                       </div>
                     </div>
                     
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                    <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
                         mRecsCount > 0 ? "bg-teal-100 text-teal-800" : "bg-slate-100 text-slate-500"
                       }`}>
-                        {mRecsCount > 0 ? `${mRecsCount} Shalat Hadir` : "Belum Ada Presensi"}
+                        {mRecsCount > 0 ? `${mRecsCount} Hadir` : "Belum Mengisi"}
                       </span>
-                      <span className="text-[11px] font-bold text-teal-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                        Lihat Riwayat ➔
+                      <span className="text-[10px] font-bold text-teal-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        Buka ➔
                       </span>
                     </div>
                   </button>
@@ -7233,646 +7096,9 @@ function PageRiwayat({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PAGE: IBADAH (Prayer + Qibla + Sunnah Fasting)
-// ─────────────────────────────────────────────────────────────────────────────
-function PageIbadah({ 
-  onBack, 
-  onOpenKalenderHijriah,
-  onOpenKalenderPendidikan 
-}: { 
-  onBack?: () => void; 
-  onOpenKalenderHijriah?: () => void;
-  onOpenKalenderPendidikan?: () => void;
-}) {
-  const [loc, setLoc]         = useState<{lat:number;lon:number;name:string}>({lat:-7.807631,lon:110.350905,name:"Mu'allimin Yogyakarta"});
-  const [locLoading, setLocLoading] = useState(false);
-  const [heading, setHeading] = useState<number|null>(null);
-  const [demoH, setDemoH]     = useState(0);
-  const [permDenied, setPermDenied] = useState(false);
-  const [tab, setTab]         = useState<"jadwal"|"kiblat">("jadwal");
 
-  const now = new Date();
-  const hijri = toHijri(now);
-  const prayers = calcPrayerTimes(now, loc.lat, loc.lon, 7);
-  const nowH = now.getHours() + now.getMinutes() / 60;
-  const activeIdx = [...prayers].reduce((best, p, i) => p.raw <= nowH ? i : best, -1);
-  const qibla = getQiblaAngle(loc.lat, loc.lon);
-  const dist = getMeccaDist(loc.lat, loc.lon);
 
-  // Countdown to next prayer
-  const nextPrayer = prayers[(activeIdx + 1) % prayers.length];
-  const countdownMins = Math.round((nextPrayer.raw - nowH) * 60 + (nextPrayer.raw < nowH ? 1440 : 0));
 
-  const getLoc = () => {
-    setLocLoading(true);
-    navigator.geolocation.getCurrentPosition(pos => {
-      setLoc({lat:pos.coords.latitude,lon:pos.coords.longitude,name:"Lokasi Anda"});
-      setLocLoading(false);
-    },()=>setLocLoading(false));
-  };
-
-  // Request compass sensor permission only when user switches to Kiblat tab
-  const [sensorRequested, setSensorRequested] = useState(false);
-
-  useEffect(() => {
-    if (tab !== "kiblat" || sensorRequested) return;
-
-    setSensorRequested(true);
-    const handler = (e: DeviceOrientationEvent) => {
-      const h = (e as any).webkitCompassHeading ?? (e.alpha != null ? (360-e.alpha) : null);
-      if (h != null) setHeading(h);
-    };
-    const req = (DeviceOrientationEvent as any).requestPermission;
-    if (typeof req === "function") {
-      req().then((p:string)=>{ if(p==="granted") window.addEventListener("deviceorientation",handler); else setPermDenied(true); }).catch(()=>setPermDenied(true));
-    } else {
-      window.addEventListener("deviceorientation",handler);
-    }
-    return ()=>{ window.removeEventListener("deviceorientation",handler); };
-  },[tab, sensorRequested]);
-
-  // Demo rotation fallback only when viewing Kiblat tab and physical sensor is unavailable
-  useEffect(() => {
-    if (tab !== "kiblat" || heading !== null) return;
-    const iv = setInterval(() => setDemoH(h => (h + 1) % 360), 100);
-    return () => clearInterval(iv);
-  }, [tab, heading]);
-
-  const activeHeading = heading ?? demoH;
-  const relQibla = (qibla - activeHeading + 360) % 360;
-  const isAligned = Math.abs(relQibla) < 5 || Math.abs(relQibla - 360) < 5;
-  const SIZE = 260, C = SIZE/2, RING = 100;
-  const qRad  = (relQibla - 90) * Math.PI / 180;
-  const dotX = C + RING * Math.cos(qRad);
-  const dotY = C + RING * Math.sin(qRad);
-
-  const pIcons: Record<string,React.ReactNode> = {
-    subuh:<Sunrise className="w-4 h-4"/>, terbit:<Sun className="w-4 h-4 opacity-50"/>,
-    dhuhr:<Sun className="w-4 h-4"/>, asr:<Sun className="w-4 h-4 opacity-70"/>,
-    maghrib:<Sunset className="w-4 h-4"/>, isha:<Moon className="w-4 h-4"/>,
-  };
-
-  return (
-    <div className="flex flex-col gap-3 sm:gap-4 pb-16">
-      {/* 1. Unified Master Header Card */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
-        {/* Top Row: Back button + Icon + Title + Calendar links */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {onBack && (
-              <button 
-                onClick={onBack} 
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs flex items-center justify-center transition-all shrink-0 active:scale-95"
-                title="Kembali ke Dasbor"
-              >
-                <ChevronLeft className="w-4 h-4"/>
-              </button>
-            )}
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
-              <Clock className="w-5 h-5"/>
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
-                Jadwal Ibadah
-              </h2>
-              <p className="text-[11px] text-slate-400 font-medium truncate">
-                {hijri.day} {hijri.monthName} {hijri.year} H · KHGT Muhammadiyah
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {onOpenKalenderHijriah && (
-              <button
-                type="button"
-                onClick={onOpenKalenderHijriah}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-[#0C4E8C] ring-1 ring-sky-200/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
-                title="Buka Kalender Hijriah"
-              >
-                <Calendar className="w-3.5 h-3.5 text-[#0C81E4]" />
-                <span className="hidden sm:inline">Kalender Hijriah</span>
-              </button>
-            )}
-            {onOpenKalenderPendidikan && (
-              <button
-                type="button"
-                onClick={onOpenKalenderPendidikan}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 ring-1 ring-teal-200/80 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-2xs shrink-0"
-                title="Buka Kalender Pendidikan"
-              >
-                <Calendar className="w-3.5 h-3.5 text-teal-700" />
-                <span className="hidden sm:inline">Kaldik</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Integrated Segmented Tabs */}
-        <div className="flex p-1 bg-slate-50/80 rounded-2xl gap-1 border border-slate-100/80">
-          {([["jadwal","Jadwal Sholat"],["kiblat","Arah Kiblat"]] as const).map(([t,l])=>(
-            <button
-              key={t}
-              onClick={()=>{
-                if(t!=="kiblat"){setHeading(null);setSensorRequested(false);}
-                setTab(t);
-              }}
-              className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                tab===t
-                  ? "bg-white text-emerald-800 shadow-xs ring-1 ring-slate-200/80 font-black"
-                  : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-              }`}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-
-        {/* Integrated Location Row */}
-        <div className="px-3.5 py-2.5 bg-slate-50/80 rounded-2xl border border-slate-100/80 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <MapPin className="w-4 h-4 text-emerald-600 flex-shrink-0"/>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">{loc.name}</p>
-              <p className="text-[10px] text-slate-400 font-mono truncate">{loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}°</p>
-            </div>
-          </div>
-          <button 
-            onClick={getLoc} 
-            disabled={locLoading} 
-            className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200/80 px-2.5 py-1 rounded-xl hover:bg-emerald-100 transition-all disabled:opacity-50 active:scale-95 shrink-0"
-          >
-            {locLoading?<RefreshCw className="w-3 h-3 animate-spin"/>:<Navigation className="w-3 h-3"/>}
-            <span>Lokasiku</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── TAB: JADWAL ── */}
-      {tab==="jadwal"&&<>
-
-        {/* Next prayer countdown */}
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl px-5 py-4 flex items-center gap-4 text-white shadow-lg shadow-emerald-500/20">
-          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">{pIcons[nextPrayer.key]}</div>
-          <div className="flex-1"><p className="text-sm opacity-80">Waktu sholat berikutnya</p><p className="text-xl font-bold">{nextPrayer.name}</p></div>
-          <div className="text-right"><p className="text-2xl font-bold font-mono">{nextPrayer.time}</p><p className="text-xs opacity-70">{countdownMins < 60 ? `${countdownMins}m lagi` : `${Math.floor(countdownMins/60)}j ${countdownMins%60}m`}</p></div>
-        </div>
-
-        {/* Full schedule */}
-        <Card ch={<div>
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <p className="font-bold text-slate-800">Jadwal Sholat — {format(now,"d MMMM yyyy",{locale:id})}</p>
-            <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">{hijri.day} {hijri.monthName} {hijri.year} H</span>
-          </div>
-          <div className="divide-y divide-slate-50">
-            {prayers.map((p,i)=>{
-              const isActive = i === activeIdx;
-              const isNext   = i === activeIdx+1;
-              return (
-                <div key={p.key} className={`flex items-center gap-3 px-5 py-3.5 ${isActive?"bg-emerald-50":isNext?"bg-slate-50/80":""}`}>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive?"bg-emerald-600 text-white":isNext?"bg-slate-200 text-slate-600":"bg-slate-100 text-slate-400"}`}>{pIcons[p.key]}</div>
-                  <div className="flex-1"><p className={`text-sm font-semibold ${isActive?"text-emerald-700":isNext?"text-slate-700":"text-slate-500"}`}>{p.name}</p>{isNext&&<p className="text-[10px] text-emerald-400">Berikutnya</p>}</div>
-                  <p className={`font-bold font-mono ${isActive?"text-emerald-700 text-base":isNext?"text-slate-700":"text-slate-400 text-sm"}`}>{p.time}</p>
-                  {isActive&&<div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>}
-                </div>
-              );
-            })}
-          </div>
-        </div>}/>
-      </>}
-
-      {/* ── TAB: KIBLAT ── */}
-      {tab==="kiblat"&&<>
-
-        <Card ch={<div className="py-8 flex flex-col items-center gap-6">
-          <div className="relative">
-            <svg width={SIZE} height={SIZE} className="overflow-visible">
-              {Array.from({length:72}).map((_,i)=>{
-                const a=(i*5-90)*Math.PI/180, r1=RING+18, r2=RING+(i%6===0?26:20);
-                return <line key={i} x1={C+r1*Math.cos(a)} y1={C+r1*Math.sin(a)} x2={C+r2*Math.cos(a)} y2={C+r2*Math.sin(a)} stroke={i%6===0?"#94a3b8":"#e2e8f0"} strokeWidth={i%6===0?1.5:1}/>;
-              })}
-              {[{l:"U",a:-90},{l:"T",a:0},{l:"S",a:90},{l:"B",a:180}].map(({l,a})=>{
-                const ar=(a-90)*Math.PI/180;
-                return <text key={l} x={C+(RING+36)*Math.cos(ar)} y={C+(RING+36)*Math.sin(ar)} textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight="700" fontFamily="'JetBrains Mono',monospace" fill={l==="U"?"#ef4444":"#94a3b8"}>{l}</text>;
-              })}
-              <circle cx={C} cy={C} r={RING} fill="none" stroke={isAligned ? "#10b981" : "#e2e8f0"} strokeWidth={isAligned ? 3 : 1.5} className="transition-all duration-300"/>
-              {/* Inner decor */}
-              <circle cx={C} cy={C} r={RING*0.5} fill="none" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 6"/>
-              {/* Glow halos */}
-              <circle cx={dotX} cy={dotY} r={24} fill="rgba(5,150,105,0.06)"/>
-              <circle cx={dotX} cy={dotY} r={16} fill="rgba(5,150,105,0.12)"/>
-              {/* Line from center */}
-              <line x1={C} y1={C} x2={dotX} y2={dotY} stroke="#059669" strokeWidth="1.5" strokeDasharray="4 5" opacity="0.3"/>
-              {/* Kaaba dot */}
-              <circle cx={dotX} cy={dotY} r={12} fill="#059669"/>
-              <text x={dotX} y={dotY} textAnchor="middle" dominantBaseline="central" fontSize="12">🕋</text>
-              {/* Center arrow */}
-              <g transform={`rotate(${relQibla} ${C} ${C})`}>
-                <polygon points={`${C},${C-30} ${C-7},${C+12} ${C+7},${C+12}`} fill={isAligned ? "#10b981" : "#059669"} opacity="0.9"/>
-                <polygon points={`${C},${C+30} ${C-7},${C-12} ${C+7},${C-12}`} fill="#d1fae5" opacity="0.6"/>
-              </g>
-              <circle cx={C} cy={C} r={6} fill="white" stroke="#059669" strokeWidth="2"/>
-            </svg>
-          </div>
-          <div className="text-center px-4">
-            {isAligned ? (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono mb-2 animate-bounce">
-                <span>✓ Menghadap Kiblat Tepat!</span>
-              </div>
-            ) : null}
-            <p className="text-3xl font-bold text-slate-800 font-mono">{Math.round(dist).toLocaleString()} <span className="text-base font-normal text-slate-400">km</span></p>
-            <p className="text-sm text-slate-400 mt-0.5">dari Ka'bah · Makkah</p>
-            <p className="text-xs text-slate-400 mt-2 font-mono">{Math.round(qibla)}° dari Utara</p>
-          </div>
-
-          {/* Interactive manual compass tester for desktop / non-sensor */}
-          {heading === null && (
-            <div className="w-full px-6 pt-3 border-t border-slate-100 flex flex-col gap-2 max-w-sm">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-600">Simulasi Sudut Kompas:</span>
-                <span className="font-mono font-bold text-emerald-700">{Math.round(demoH)}°</span>
-              </div>
-              <input 
-                type="range" 
-                min="0" 
-                max="360" 
-                value={Math.round(demoH)} 
-                onChange={e => setDemoH(Number(e.target.value))}
-                className="w-full accent-emerald-600 cursor-pointer"
-              />
-              <div className="flex justify-between text-[9px] text-slate-400 font-mono">
-                <span>0° U</span>
-                <span>90° T</span>
-                <span>180° S</span>
-                <span>270° B</span>
-              </div>
-            </div>
-          )}
-
-          {permDenied&&<div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-xl px-4 py-2.5 mx-4 text-center"><AlertCircle className="w-4 h-4 flex-shrink-0"/>Izinkan akses kompas di pengaturan browser/perangkat.</div>}
-        </div>}/>
-      </>}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LOGIN MODAL
-// ─────────────────────────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = "336443539411-b7uv4udqqhbqpdmeuja54dhfsda4q7cm.apps.googleusercontent.com";
-
-function parseJwt(token: string): { email?: string; name?: string; picture?: string } | null {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error("Gagal membaca Google JWT:", e);
-    return null;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LOGIN MODAL (Google Identity Services + Whitelist Protection)
-// ─────────────────────────────────────────────────────────────────────────────
-function LoginModal({ 
-  onClose, 
-  onLogin, 
-  authUsers = AUTH_USERS, 
-  musyrifList = MUSYRIF_LIST,
-  musyrifSource,
-  onInjectMaster,
-}: { 
-  onClose: () => void; 
-  onLogin: (u: AuthUser) => void; 
-  authUsers?: AuthUser[]; 
-  musyrifList?: Musyrif[];
-  musyrifSource?: Musyrif[];
-  onInjectMaster?: () => void;
-}) {
-  const [errorMsg, setErrorMsg]     = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [isGisLoaded, setIsGisLoaded] = useState(false);
-  const [isInjecting, setIsInjecting] = useState(false);
-  const [injectDone, setInjectDone] = useState(false);
-  const googleBtnRef = useRef<HTMLDivElement>(null);
-  const gisInitializedRef = useRef(false);
-
-  const handleInject = () => {
-    if (!onInjectMaster || isInjecting) return;
-    setIsInjecting(true);
-    setInjectDone(false);
-    try {
-      onInjectMaster();
-      setTimeout(() => {
-        setIsInjecting(false);
-        setInjectDone(true);
-        setTimeout(() => setInjectDone(false), 3000);
-      }, 1500);
-    } catch {
-      setIsInjecting(false);
-    }
-  };
-
-  const ROLE_LABELS: Record<string, string> = {
-    wadir4: "Wakil Direktur IV",
-    kaur_kis: "Kaur KIS",
-    koordinator_musyrif: "Koord. Musyrif",
-    pamong: "Pamong Asrama",
-    koordinator_gedung: "Koord. Asrama",
-    musyrif: "Musyrif Asrama",
-  };
-
-  // Whitelist verification handler strictly from Google OAuth JWT
-  const handleGoogleCredential = useCallback((inputEmail: string, googlePicture?: string) => {
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    const clean = (inputEmail || "").trim().toLowerCase();
-
-    if (!clean) {
-      setErrorMsg("Email akun Google tidak terdeteksi.");
-      return;
-    }
-
-    // 1. Selalu cek hardcoded AUTH_USERS dulu (tidak bergantung cloud)
-    const foundAuth = AUTH_USERS.find(u => matchesEmail(u.email, clean));
-    if (foundAuth) {
-      const userToLogin: AuthUser = {
-        ...foundAuth,
-        picture: googlePicture || foundAuth.picture,
-      };
-      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundAuth.name} (${ROLE_LABELS[foundAuth.role] || "Pengelola"})...`);
-      setTimeout(() => {
-        onLogin(userToLogin);
-        onClose();
-      }, 500);
-      return;
-    }
-
-    // 2. Selalu cek hardcoded MUSYRIF_LIST dulu (tidak bergantung cloud)
-    const foundInHardcoded = MUSYRIF_LIST.find(m => matchesEmail(m.email, clean));
-    if (foundInHardcoded) {
-      const assignedRole: Role = (foundInHardcoded.role as Role) || "musyrif";
-      const userToLogin: AuthUser = {
-        id: foundInHardcoded.id,
-        name: foundInHardcoded.name,
-        email: clean,
-        role: assignedRole,
-        asrama: foundInHardcoded.asrama,
-        musyrifId: foundInHardcoded.id,
-        picture: googlePicture,
-      };
-      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundInHardcoded.name} (${ROLE_LABELS[assignedRole] || "Musyrif"})...`);
-      setTimeout(() => {
-        onLogin(userToLogin);
-        onClose();
-      }, 500);
-      return;
-    }
-
-    // 3. Fallback: cek cloud data (authUsers & musyrifList dari Google Sheets)
-    const cloudAuthList = (authUsers && authUsers.length > 0) ? authUsers : [];
-    const foundCloudAuth = cloudAuthList.find(u => matchesEmail(u.email, clean));
-    if (foundCloudAuth) {
-      const userToLogin: AuthUser = {
-        ...foundCloudAuth,
-        picture: googlePicture || foundCloudAuth.picture,
-      };
-      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundCloudAuth.name} (${ROLE_LABELS[foundCloudAuth.role] || "Pengelola"})...`);
-      setTimeout(() => {
-        onLogin(userToLogin);
-        onClose();
-      }, 500);
-      return;
-    }
-
-    const currentList = musyrifSource || musyrifList || [];
-    const foundInList = currentList.find(m => matchesEmail(m.email, clean));
-    if (foundInList) {
-      const assignedRole: Role = (foundInList.role as Role) || "musyrif";
-      const userToLogin: AuthUser = {
-        id: foundInList.id,
-        name: foundInList.name,
-        email: clean,
-        role: assignedRole,
-        asrama: foundInList.asrama,
-        musyrifId: foundInList.id,
-        picture: googlePicture,
-      };
-      setSuccessMsg(`Autentikasi Berhasil! Masuk sebagai ${foundInList.name} (${ROLE_LABELS[assignedRole] || "Musyrif"})...`);
-      setTimeout(() => {
-        onLogin(userToLogin);
-        onClose();
-      }, 500);
-      return;
-    }
-
-    // Rejected - Not in authorized Whitelist
-    setErrorMsg(`Akses Ditolak: Akun Google "${inputEmail}" tidak terdaftar dalam database Musyrif maupun Pengelola.`);
-  }, [onLogin, onClose, authUsers, musyrifList, musyrifSource]);
-
-  // Initialize official Google Identity Services
-  useEffect(() => {
-    let active = true;
-    const initGis = () => {
-      try {
-        // @ts-ignore
-        if (active && typeof window !== "undefined" && window.google?.accounts?.id && googleBtnRef.current && !gisInitializedRef.current) {
-          gisInitializedRef.current = true;
-          // @ts-ignore
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: (response: any) => {
-              if (response?.credential) {
-                const payload = parseJwt(response.credential);
-                if (payload?.email) {
-                  handleGoogleCredential(payload.email, payload.picture);
-                } else {
-                  setErrorMsg("Gagal membaca profil akun Google.");
-                }
-              }
-            },
-            auto_select: false,
-          });
-
-          if (googleBtnRef.current) {
-            googleBtnRef.current.innerHTML = "";
-            // @ts-ignore
-            window.google.accounts.id.renderButton(googleBtnRef.current, {
-              type: "standard",
-              theme: "outline",
-              size: "large",
-              text: "signin_with",
-              shape: "pill",
-              logo_alignment: "left",
-              width: 280,
-            });
-            setIsGisLoaded(true);
-          }
-        }
-      } catch (e) {
-        console.warn("GSI notice:", e);
-      }
-    };
-
-    initGis();
-    const timer = setInterval(() => {
-      // @ts-ignore
-      if (window.google?.accounts?.id && !gisInitializedRef.current) {
-        initGis();
-        clearInterval(timer);
-      }
-    }, 300);
-
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [handleGoogleCredential]);
-
-  return (
-    <motion.div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md" 
-      variants={modalBackdropVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      onClick={() => { triggerHaptic("light"); onClose(); }}
-    >
-      <motion.div 
-        className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-slate-100/80" 
-        variants={modalContentVariants}
-        onClick={e=>e.stopPropagation()}
-      >
-        
-        {/* Header */}
-        <div className="px-6 pt-5 pb-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-2xs">
-              P
-            </div>
-            <div>
-              <h2 className="font-bold text-sm text-slate-800 tracking-tight">Presensi Asrama</h2>
-              <p className="text-[10px] text-slate-400">Portal Pamong & Koordinator</p>
-            </div>
-          </div>
-          <button 
-            type="button"
-            onClick={() => { triggerHaptic("light"); onClose(); }} 
-            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-100 transition-colors shadow-2xs active:scale-90"
-          >
-            <X className="w-4 h-4 text-slate-500"/>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 flex flex-col items-center justify-center text-center">
-          
-          <div className="w-14 h-14 rounded-2xl bg-slate-50 shadow-xs flex items-center justify-center border border-slate-200/80 mb-4">
-            <svg viewBox="0 0 24 24" className="w-7 h-7">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-          </div>
-          
-          <h3 className="text-base font-bold text-slate-800">Masuk Akun Google</h3>
-          <p className="text-xs text-slate-500 mt-1 mb-5 max-w-[260px] leading-relaxed">
-            Gunakan akun Google yang terdaftar sebagai Pamong atau Koordinator
-          </p>
-
-          {/* Centered Google Button */}
-          <div className="w-full flex items-center justify-center min-h-[48px] overflow-visible">
-            <div 
-              ref={googleBtnRef} 
-              className="flex items-center justify-center [&>div]:!mx-auto [&>iframe]:!mx-auto" 
-              style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}
-            />
-          </div>
-
-          {/* Fallback button if GIS script still loading */}
-          {!isGisLoaded && (
-            <div className="w-full flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    // @ts-ignore
-                    if (window.google?.accounts?.id) {
-                      // @ts-ignore
-                      window.google.accounts.id.prompt();
-                    } else {
-                      setErrorMsg("Sedang memuat Google SDK...");
-                    }
-                  } catch {
-                    setErrorMsg("Gagal memanggil Google Login. Silakan coba lagi.");
-                  }
-                }}
-                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2.5 shadow-sm transition-all text-xs font-semibold mt-1 active:scale-95"
-              >
-                <span>Login dengan Google</span>
-              </button>
-            </div>
-          )}
-
-          {/* Error Alert with recovery hint */}
-          {errorMsg && (
-            <div className="w-full mt-4 bg-rose-50 border border-rose-200 rounded-2xl p-3 flex flex-col gap-1.5 text-left animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-start gap-2 text-rose-700">
-                <ShieldAlert className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5"/>
-                <p className="text-xs text-rose-600 leading-relaxed font-medium">{errorMsg}</p>
-              </div>
-              <p className="text-[11px] text-amber-700 bg-amber-50/80 p-2 rounded-xl border border-amber-200/60 leading-relaxed">
-                💡 <b>Petunjuk:</b> Jika email Anda sudah resmi namun belum terdeteksi, silakan klik tombol <b>"Pulihkan Data"</b> di pojok kanan bawah, lalu coba login kembali.
-              </p>
-            </div>
-          )}
-
-          {/* Success Alert */}
-          {successMsg && (
-            <div className="w-full mt-4 bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-start gap-2.5 text-emerald-700 text-left animate-in fade-in zoom-in-95 duration-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5"/>
-              <p className="text-xs text-emerald-600 leading-relaxed font-medium">{successMsg}</p>
-            </div>
-          )}
-
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1 text-[11px] text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600"/> Whitelist Terproteksi
-          </span>
-          {onInjectMaster && (
-            <button
-              type="button"
-              onClick={handleInject}
-              disabled={isInjecting}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-60"
-              style={{ background: injectDone ? "#d1fae5" : "#f1f5f9", color: injectDone ? "#065f46" : "#475569" }}
-            >
-              {isInjecting ? (
-                <><RefreshCw className="w-3 h-3 animate-spin"/> Memulihkan...</>
-              ) : injectDone ? (
-                <><CheckCircle2 className="w-3 h-3 text-emerald-600"/> Berhasil!</>
-              ) : (
-                <><RefreshCw className="w-3 h-3"/> Pulihkan Data</>
-              )}
-            </button>
-          )}
-        </div>
-
-      </motion.div>
-    </motion.div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOT APP
@@ -9427,26 +8653,9 @@ export default function App() {
     };
   }, []);
 
-  // ─── AUTO-INJECT MASTER DATA setiap 10 menit (khusus Koordinator Musyrif) ───
-  useEffect(() => {
-    if (authUser?.role !== "koordinator_musyrif") return;
-    const autoInject = () => {
-      DEFAULT_ALL_PERSONNEL.forEach(p => {
-        googleSyncService.enqueue("Musyrif", p, "upsert");
-      });
-      const pamongAuths = DEFAULT_ALL_PERSONNEL.filter(p => p.role === "pamong").map(p => ({
-        id: p.id, name: p.name, email: p.email, role: "pamong" as Role, asrama: p.asrama
-      }));
-      pamongAuths.forEach(pa => {
-        googleSyncService.enqueue(SYNC_TABLE_AUTH_USERS, pa, "upsert");
-      });
-      googleSyncService.flushQueue();
-      setMusyrifList(DEFAULT_ALL_PERSONNEL);
-    };
-    autoInject(); // langsung inject saat login
-    const t = setInterval(autoInject, 10 * 60 * 1000); // setiap 10 menit
-    return () => clearInterval(t);
-  }, [authUser?.role]);
+  // ─── MASTER DATA INJECTION (HANYA MANUAL BILA DIBUTUHKAN) ───
+  // Dulu meng-inject 75 item (Musyrif & Pamong) setiap kali login atau reload, menyebabkan antrean 75 item terus berulang.
+  // Sekarang hanya dijalankan jika diminta secara manual melalui tombol Sinkronisasi Master Data.
 
   const handleLogin = (u: AuthUser) => {
     setAuthUser(u);
@@ -11443,21 +10652,21 @@ export default function App() {
         </nav>
       </div>
 
-      {/* Login Modal */}
-      <AnimatePresence>
-        {showLogin && (
-          <LoginModal
-            onClose={()=>setShowLogin(false)}
-            onLogin={handleLogin}
-            authUsers={authUsers}
-            musyrifList={musyrifList}
-            onInjectMaster={handleSilentInjectMaster}
-          />
-        )}
-      </AnimatePresence>
-
       {/* ─── MODALS (LAZY LOADED) ─── */}
       <Suspense fallback={null}>
+        {/* Login Modal */}
+        <AnimatePresence>
+          {showLogin && (
+            <LoginModal
+              onClose={()=>setShowLogin(false)}
+              onLogin={handleLogin}
+              authUsers={authUsers}
+              musyrifList={musyrifList}
+              onInjectMaster={handleSilentInjectMaster}
+            />
+          )}
+        </AnimatePresence>
+
         {/* 1. WhatsApp Generator Modal */}
         <AnimatePresence>
           {showWA && (

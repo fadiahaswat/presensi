@@ -19,6 +19,7 @@ import {
   KategoriPengasuhan, 
   KATEGORI_PENGASUHAN_CONFIG 
 } from "../types/pengasuhanKhusus";
+import { LazyImage } from "./LazyImage";
 
 interface Musyrif {
   id: string;
@@ -342,28 +343,28 @@ export function PagePengasuhanSantri({
       <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
         {/* Metric Chips / 4 Pilar Highlights */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="bg-rose-50/70 border border-rose-200/70 rounded-2xl p-2.5 text-center">
+          <div className="bg-rose-50/70 border border-rose-200/70 rounded-xl p-2 text-center">
             <span className="text-[10px] text-rose-700 font-bold block mb-0.5">Rujukan RS/PKU</span>
-            <p className="text-xl sm:text-2xl font-black text-rose-950 font-mono">{stats.pkuCount}</p>
-            <span className="text-[10px] text-rose-600 font-medium block mt-0.5">+10 Pts / Santri</span>
+            <p className="text-base sm:text-lg font-black text-rose-950 font-mono leading-tight">{stats.pkuCount}</p>
+            <span className="text-[9px] text-rose-600 font-medium block mt-0.5">+10 Pts / Santri</span>
           </div>
 
-          <div className="bg-indigo-50/70 border border-indigo-200/70 rounded-2xl p-2.5 text-center">
+          <div className="bg-indigo-50/70 border border-indigo-200/70 rounded-xl p-2 text-center">
             <span className="text-[10px] text-indigo-700 font-bold block mb-0.5">Bimbingan Santri</span>
-            <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{stats.binaCount}</p>
-            <span className="text-[10px] text-indigo-600 font-medium block mt-0.5">+5 Pts / Santri</span>
+            <p className="text-base sm:text-lg font-black text-indigo-950 font-mono leading-tight">{stats.binaCount}</p>
+            <span className="text-[9px] text-indigo-600 font-medium block mt-0.5">+5 Pts / Santri</span>
           </div>
 
-          <div className="bg-amber-50/70 border border-amber-200/70 rounded-2xl p-2.5 text-center">
+          <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-2 text-center">
             <span className="text-[10px] text-amber-700 font-bold block mb-0.5">Pengantaran Lain</span>
-            <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{stats.lainCount}</p>
-            <span className="text-[10px] text-amber-600 font-medium block mt-0.5">+5 Pts / Santri</span>
+            <p className="text-base sm:text-lg font-black text-amber-950 font-mono leading-tight">{stats.lainCount}</p>
+            <span className="text-[9px] text-amber-600 font-medium block mt-0.5">+5 Pts / Santri</span>
           </div>
 
-          <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-2xl p-2.5 text-center">
+          <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-2 text-center">
             <span className="text-[10px] text-emerald-700 font-bold block mb-0.5">Total Poin Pilar 2</span>
-            <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">+{stats.totalPoin}</p>
-            <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">{stats.totalRecords} Penugasan</span>
+            <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-tight">+{stats.totalPoin}</p>
+            <span className="text-[9px] text-emerald-600 font-medium block mt-0.5">{stats.totalRecords} Penugasan</span>
           </div>
         </div>
 
@@ -810,7 +811,14 @@ export function PagePengasuhanSantri({
                           onClick={() => setPreviewPhoto(item.photoUrl!)}
                           className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 flex-shrink-0 relative group shadow-2xs"
                         >
-                          <img src={item.photoUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <LazyImage
+                            src={item.photoUrl}
+                            alt=""
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            recordId={item.id}
+                            photoField="photoUrl"
+                            tableName="PengasuhanKhusus"
+                          />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                             <Eye className="w-4 h-4" />
                           </div>
@@ -891,7 +899,7 @@ export function PagePengasuhanSantri({
             onClick={() => setPreviewPhoto(null)}
           >
             <div className="relative max-w-xl max-h-[85vh] bg-slate-900 rounded-3xl overflow-hidden p-1 shadow-2xl">
-              <img src={previewPhoto} alt="Bukti Foto" className="max-h-[80vh] w-auto object-contain rounded-2xl" />
+              <LazyImage src={previewPhoto} alt="Bukti Foto" className="max-h-[80vh] w-auto object-contain rounded-2xl" />
               <button
                 onClick={() => setPreviewPhoto(null)}
                 className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition-colors"

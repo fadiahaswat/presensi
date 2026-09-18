@@ -1420,8 +1420,8 @@ export function JurnalLogbookModal({
 
           {/* Quick Cards Grid */}
           <div className="pt-2 text-left">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Daftar Musyrif Binaan:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Daftar Musyrif Binaan:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[380px] overflow-y-auto pr-1">
               {activeMusyrifList.map(m => {
                 const mLogsToday = logbookData[m.id]?.[selectedDate] || {};
                 const doneCount = Object.values(mLogsToday).filter((t: any) => t?.done).length;
@@ -1431,25 +1431,25 @@ export function JurnalLogbookModal({
                     key={m.id}
                     type="button"
                     onClick={() => handleDateOrMusyrifChange(m.id, selectedDate)}
-                    className="group p-3.5 rounded-2xl bg-white hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-300 transition-all shadow-2xs hover:shadow-md flex flex-col justify-between gap-2.5 cursor-pointer text-left active:scale-[0.98]"
+                    className="group p-2.5 sm:p-3 rounded-xl bg-white hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-300 transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between gap-2 cursor-pointer text-left active:scale-[0.98]"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                         {m.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-emerald-800 truncate">{m.name}</h4>
-                        <span className="text-[10px] text-slate-400 block truncate">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-emerald-800 truncate leading-tight">{m.name}</h4>
+                        <span className="text-[10px] text-slate-400 block truncate mt-0.5">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
                       </div>
                     </div>
                     
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                    <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
                         doneCount > 0 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
                       }`}>
-                        {doneCount > 0 ? `${doneCount} Melaksanakan` : "Belum Mengisi"}
+                        {doneCount > 0 ? `${doneCount} Selesai` : "Belum Mengisi"}
                       </span>
-                      <span className="text-[11px] font-bold text-emerald-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                      <span className="text-[10px] font-bold text-emerald-600 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
                         Buka ➔
                       </span>
                     </div>
@@ -1463,13 +1463,19 @@ export function JurnalLogbookModal({
         <>
           <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm ring-1 ring-slate-200/60 space-y-4">
             {/* Progress Box */}
-            <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border border-slate-200/60 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-2xl flex flex-col items-center justify-center font-black font-mono shadow-2xs ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200/80"}`}><span className="text-xs">{scorePct}%</span></div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800">{scorePct === 100 ? "Seluruh Tugas Terlaksana ✓" : `${completedTasks} Melaksanakan · ${totalTasks - completedTasks} Tidak Melaksanakan`}</h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5"><strong>{completedTasks}</strong> Melaksanakan · <strong>{totalTasks - completedTasks}</strong> Tidak Melaksanakan</p>
+            <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/60 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black font-mono text-[11px] shadow-2xs shrink-0 ${scorePct === 100 ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-900 border border-emerald-200/80"}`}>
+                    <span>{scorePct}%</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-slate-800 truncate leading-tight">
+                      {scorePct === 100 ? "Seluruh Tugas Terlaksana ✓" : `${completedTasks} Melaksanakan · ${totalTasks - completedTasks} Belum`}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5 leading-tight">
+                      {completedTasks} dari {totalTasks} agenda tuntas
+                    </p>
                   </div>
                 </div>
                 {isCanBypass && (
@@ -1477,7 +1483,7 @@ export function JurnalLogbookModal({
                     type="button"
                     onClick={handleResetLogbook}
                     title="Reset Isian Logbook Tanggal Ini"
-                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[11px] font-bold transition-all shadow-2xs active:scale-95"
+                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-[10px] font-bold transition-all shadow-2xs active:scale-95 shrink-0"
                   >
                     Reset Logbook
                   </button>

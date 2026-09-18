@@ -12,15 +12,18 @@
  * - LRU cache with size limit
  */
 
-const MAX_SHEET_SAFE_CHARS = 15000; // Safe payload ceiling (<= 15,000 chars / ~11 KB) for Google Sheets cell safety
-const INITIAL_MAX_DIM = 640;
-const INITIAL_QUALITY = 0.72;
+// Ukuran seimbang (Balanced Profile):
+// Resolusi 960px, kualitas jernih tapi ukuran tetap mini (~40 - 55 KB / 50.000 - 75.000 karakter Base64)
+// Terbukti sangat aman untuk Google Apps Script & Google Drive (tidak timeout dan tidak kepental)
+const MAX_SHEET_SAFE_CHARS = 75000; // ~55 KB Base64 ceiling (super safe for network transmission & GAS)
+const INITIAL_MAX_DIM = 960; // 960px menjamin wajah dan tulisan tajam di layar HP & desktop
+const INITIAL_QUALITY = 0.78;
 
-// Quality presets for faster convergence - descending order
-const QUALITY_PRESETS = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.30];
+// Quality presets untuk adaptasi halus - descending order
+const QUALITY_PRESETS = [0.82, 0.76, 0.70, 0.62, 0.55, 0.48, 0.40];
 
-// Dimension reduction factors
-const DIM_REDUCTION_FACTORS = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3];
+// Dimension reduction factors jika foto sangat kompleks
+const DIM_REDUCTION_FACTORS = [0.92, 0.85, 0.78, 0.70, 0.60, 0.50, 0.40];
 
 // Maximum compression cache size (prevents memory bloat)
 const MAX_CACHE_SIZE = 50;

@@ -86,6 +86,9 @@ const TABLE_NAME_MAP: Record<string, string> = {
   'SantriSakit': 'santrisakit',
   'records': 'records',
   'Records': 'records',
+  'pengasuhankhusus': 'pengasuhankhusus',
+  'PengasuhanKhusus': 'pengasuhankhusus',
+  'pengasuhan_khusus': 'pengasuhankhusus',
 };
 
 export interface PhotoQueueItem {
@@ -724,7 +727,7 @@ class GoogleSyncService {
       if (photoCacheOperations.length > 0) {
         await Promise.allSettled(
           photoCacheOperations.map(op =>
-            this.cachePhotoLocally(op.table, op.id, op.field, op.data)
+            this.cacheRecordPhoto(op.id, op.field, op.data, op.table)
           )
         );
       }
@@ -986,7 +989,10 @@ class GoogleSyncService {
       'santri_requests': 'presensi_santri_change_requests_v1',
       'santrirequests': 'presensi_santri_change_requests_v1',
       'auth_users': 'presensi_auth_users_master_v5',
-      'authusers': 'presensi_auth_users_master_v5'
+      'authusers': 'presensi_auth_users_master_v5',
+      'pengasuhan_khusus': 'presensi_pengasuhan_khusus_v5',
+      'pengasuhankhusus': 'presensi_pengasuhan_khusus_v5',
+      'PengasuhanKhusus': 'presensi_pengasuhan_khusus_v5'
     };
 
     for (const [table, key] of Object.entries(tableKeys)) {

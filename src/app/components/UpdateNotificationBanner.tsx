@@ -31,39 +31,39 @@ export const UpdateNotificationBanner: React.FC = () => {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.25 }}
-        className="sticky top-0 z-50 w-full bg-gradient-to-r from-sky-600 via-indigo-600 to-[#0C4E8C] text-white shadow-md border-b border-white/10"
+        exit={{ opacity: 0, y: -16 }}
+        transition={{ duration: 0.2 }}
+        className="sticky top-0 z-50 w-full bg-gradient-to-r from-emerald-800 via-teal-700 to-[#0C4E8C] text-white shadow-xs border-b border-emerald-500/20 select-none"
       >
-        <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 text-amber-300 shadow-xs animate-bounce">
-              <Sparkles className="w-4 h-4" />
+        <div className="max-w-5xl mx-auto px-3.5 py-1.5 sm:py-2 flex items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-5 h-5 rounded-md bg-white/15 flex items-center justify-center shrink-0 text-emerald-200">
+              <Sparkles className="w-3 h-3" />
             </div>
-            <div className="min-w-0">
-              <p className="font-bold text-white text-[13px] leading-tight flex items-center gap-1.5 truncate">
-                <span>Versi Baru Tersedia!</span>
-                <span className="text-[10px] bg-sky-400/30 border border-sky-300/40 text-sky-100 font-mono px-1.5 py-0.2 rounded-full font-bold">
-                  {updateState.latestVersion || "v2.0"}
-                </span>
+            <div className="min-w-0 flex items-center gap-1.5 truncate">
+              <p className="font-bold text-white text-[11px] sm:text-xs leading-none truncate">
+                Versi Baru Tersedia!
               </p>
-              <p className="text-[11px] text-sky-100/90 truncate mt-0.5">
-                Pembaruan sistem telah dirilis. Muat ulang untuk mendapatkan fitur & perbaikan terbaru.
-              </p>
+              <span className="text-[9px] bg-white/20 border border-white/25 text-emerald-100 font-mono px-1 py-0.2 rounded font-bold shrink-0">
+                {updateState.latestVersion || "v2.0"}
+              </span>
+              <span className="text-[10.5px] text-emerald-100/80 hidden md:inline truncate">
+                — Muat ulang untuk mendapatkan fitur & perbaikan terbaru.
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleHardRefresh}
               disabled={isUpdating}
-              className="px-3.5 py-1.5 rounded-xl bg-white text-[#0C4E8C] font-extrabold text-xs flex items-center gap-1.5 shadow-sm hover:bg-sky-50 active:scale-95 transition-all cursor-pointer disabled:opacity-80"
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-emerald-800 font-bold text-[11px] flex items-center gap-1 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-75"
               title="Lakukan Hard Refresh & bersihkan cache peramban"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin text-sky-600" : ""}`} />
+              <RefreshCw className={`w-3 h-3 ${isUpdating ? "animate-spin text-emerald-600" : ""}`} />
               <span>{isUpdating ? "Memperbarui..." : "Perbarui Sekarang"}</span>
             </button>
 
@@ -73,10 +73,10 @@ export const UpdateNotificationBanner: React.FC = () => {
                 triggerHaptic("light");
                 setIsDismissed(true);
               }}
-              className="w-7 h-7 rounded-lg text-white/70 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
-              title="Tutup pemberitahuan sementara"
+              className="w-6 h-6 rounded-md text-white/70 hover:text-white hover:bg-white/15 flex items-center justify-center transition-colors"
+              title="Tutup pemberitahuan"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -115,12 +115,11 @@ export const HeaderUpdateBadge: React.FC = () => {
         type="button"
         onClick={handleClick}
         disabled={isUpdating}
-        className="h-8 px-2.5 rounded-full relative bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-xs flex items-center gap-1.5 hover:from-amber-600 hover:to-rose-600 transition-all active:scale-95 select-none animate-pulse"
-        title="Versi baru tersedia! Klik untuk Hard Refresh"
+        className="w-8 h-8 rounded-full relative bg-emerald-50 border border-emerald-200/80 text-emerald-700 hover:bg-emerald-100/80 hover:text-emerald-800 shadow-2xs flex items-center justify-center transition-all active:scale-95 select-none"
+        title="Versi baru tersedia! Klik untuk Perbarui Aplikasi"
       >
-        <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isUpdating ? "animate-spin" : ""}`} />
-        <span className="text-[11px] font-extrabold tracking-tight hidden sm:inline">Update</span>
-        <span className="w-2 h-2 rounded-full bg-white animate-ping absolute -top-0.5 -right-0.5" />
+        <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin text-emerald-600" : ""}`} />
+        <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white absolute -top-0.5 -right-0.5" />
       </button>
     );
   }

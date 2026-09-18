@@ -18,6 +18,7 @@ import {
   KategoriPengasuhan, 
   KATEGORI_PENGASUHAN_CONFIG 
 } from "../types/pengasuhanKhusus";
+import { LazyImage } from "./LazyImage";
 
 interface Musyrif {
   id: string;
@@ -724,7 +725,14 @@ export function PengasuhanKhususModal({
                                 onClick={() => setPreviewPhoto(item.photoUrl!)}
                                 className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 relative group"
                               >
-                                <img src={item.photoUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                <LazyImage
+                                  src={item.photoUrl}
+                                  alt=""
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  recordId={item.id}
+                                  photoField="photoUrl"
+                                  tableName="PengasuhanKhusus"
+                                />
                                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                                   <Eye className="w-4 h-4" />
                                 </div>
@@ -807,7 +815,7 @@ export function PengasuhanKhususModal({
               onClick={() => setPreviewPhoto(null)}
             >
               <div className="relative max-w-xl max-h-[85vh] bg-slate-900 rounded-2xl overflow-hidden p-1 shadow-2xl">
-                <img src={previewPhoto} alt="Bukti Foto" className="max-h-[80vh] w-auto object-contain rounded-xl" />
+                <LazyImage src={previewPhoto} alt="Bukti Foto" className="max-h-[80vh] w-auto object-contain rounded-xl" />
                 <button
                   onClick={() => setPreviewPhoto(null)}
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition-colors"
