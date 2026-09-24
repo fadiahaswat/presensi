@@ -3605,9 +3605,9 @@ function PageInputPrayer({
                         if (isMusyrifOnly && !isMe) {
                           showToast?.("Anda hanya dapat mengisi presensi mandiri atas nama Anda sendiri.", "error");
                         } else if (isNotYetTime) {
-                          showToast?.(`Presensi ${isSubuh ? "Subuh" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
+                          showToast?.(`Presensi ${slotLabel} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
                         } else if (isPastTimeMusyrif) {
-                          showToast?.(`Waktu presensi mandiri ${isSubuh ? "Subuh" : "Maghrib"} telah ditutup (${closeTimeDisplayStr} WIB).`, "error");
+                          showToast?.(`Waktu presensi mandiri ${slotLabel} telah ditutup (${closeTimeDisplayStr} WIB).`, "error");
                         } else if (gpsResult && !gpsResult.isInRange) {
                           if (s === "hadir" && isMe) {
                             // Tawarkan verifikasi foto langsung live kamera (non galeri)
@@ -3737,7 +3737,16 @@ function PageInputPrayer({
             <p className="text-sm text-slate-500 mt-1 mb-5">Semua musyrif <b>{activeAsrama}</b> ditandai <b>Hadir</b> untuk <b>Presensi {confirmAll === "subuh" ? "Subuh" : confirmAll === "ashar" ? "Ashar" : "Maghrib"}</b> · {format(parseISO(selDate),"d MMM yyyy",{locale:id})}</p>
             <div className="flex gap-2">
               <button onClick={()=>setConfirmAll(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 rounded-xl text-sm font-semibold">Batal</button>
-              <button onClick={()=>{onMarkAll(activeAsrama,confirmAll,"hadir",selDate);showToast?.(`Semua musyrif ${activeAsrama} ditandai Hadir (${confirmAll === "subuh" ? "Subuh" : confirmAll === "ashar" ? "Ashar" : "Maghrib"})`);setConfirmAll(null);}} className={`flex-1 py-2.5 text-white rounded-xl text-sm font-semibold transition-all ${confirmAll === "subuh" ? "bg-amber-600 hover:bg-amber-700" : confirmAll === "ashar" ? "bg-amber-700 hover:bg-amber-800" : "bg-emerald-600 hover:bg-emerald-700"}`}>Ya, Tandai Hadir</button>
+              <button onClick={()=>{
+                if (isNotYetTime && !fullAccess) {
+                  showToast?.(`Presensi ${confirmAll === "subuh" ? "Subuh" : confirmAll === "ashar" ? "Ashar" : "Maghrib"} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
+                  setConfirmAll(null);
+                  return;
+                }
+                onMarkAll(activeAsrama,confirmAll,"hadir",selDate);
+                showToast?.(`Semua musyrif ${activeAsrama} ditandai Hadir (${confirmAll === "subuh" ? "Subuh" : confirmAll === "ashar" ? "Ashar" : "Maghrib"})`);
+                setConfirmAll(null);
+              }} className={`flex-1 py-2.5 text-white rounded-xl text-sm font-semibold transition-all ${confirmAll === "subuh" ? "bg-amber-600 hover:bg-amber-700" : confirmAll === "ashar" ? "bg-amber-700 hover:bg-amber-800" : "bg-emerald-600 hover:bg-emerald-700"}`}>Ya, Tandai Hadir</button>
             </div>
           </div>
         </div>
@@ -9070,6 +9079,27 @@ export default function App() {
   };
 
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
+    // Root Guard: Cegah presensi slot shalat sebelum waktunya dibuka untuk tanggal hari ini
+    const today = todayStr();
+    const isTestingUser = Boolean(authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id"));
+    const isSuper = (authUser ? checkFullAccess(authUser) : false) || isTestingUser;
+    
+    if (date > today && !isSuper) {
+      showToast?.("Tidak dapat mengisi presensi untuk tanggal di masa depan.", "error");
+      return;
+    }
+
+    if (date === today && !isSuper) {
+      const now = new Date();
+      const curH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+      const window = getPresensiTimeWindow(prayer, now);
+      if (curH < window.openTime) {
+        const pLabel = prayer === "subuh" ? "Subuh" : prayer === "ashar" ? "Ashar" : "Maghrib";
+        showToast?.(`Presensi ${pLabel} baru dibuka mulai pukul ${window.openDisplay} WIB.`, "error");
+        return;
+      }
+    }
+
     const nk = prayer === "subuh" ? "subuhNote" : prayer === "ashar" ? "asharNote" : "maghribNote";
     setRecords(prev => {
       const ex = prev.find(r => r.musyrifId === mid && r.date === date);
@@ -9083,7 +9113,7 @@ export default function App() {
       setTimeout(() => googleSyncService.enqueue("Records", { ...newRec, id: `${mid}_${date}` }, "upsert"), 0);
       return [...prev, newRec];
     });
-  },[authUser]);
+  },[authUser, showToast]);
 
   const handleResetMark = useCallback((mid: string, prayer: PrayerSlot, date: string) => {
     const nk = prayer === "subuh" ? "subuhNote" : prayer === "ashar" ? "asharNote" : "maghribNote";

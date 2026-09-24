@@ -579,18 +579,6 @@ export function JurnalLogbookModal({
     authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id")
   );
 
-  // Aturan Anti-Backdate: Pengisian/perubahan logbook hanya diizinkan untuk Hari Ini (H) dan Kemarin (H-1).
-  // Tanggal lebih lampau dari kemarin (< H-1) atau masa depan (> H) TERKUNCI PERMANEN demi integritas data.
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
-
-  const isAllowedEditDate = (selectedDate === todayStr || selectedDate === yesterdayStr) || isSpecialBypassUser;
-  const isPastLocked = selectedDate < yesterdayStr && !isSpecialBypassUser;
-  const isFutureLocked = selectedDate > todayStr && !isSpecialBypassUser;
-
-  // Bypass jadwal jam (upcoming/passed) dan GPS: Pamong, Koordinator Musyrif, Admin
-  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
-
   const activeMusyrifList = useMemo(() => {
     if (isKoordinatorMusyrif || isAdmin || isSpecialBypassUser) {
       return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
@@ -619,6 +607,7 @@ export function JurnalLogbookModal({
   // Check supervisory role (Pamong / Admin / Koordinator Musyrif)
   const isSupervisoryRole = authUser?.role === "pamong" || authUser?.role === "admin" || authUser?.role === "koordinator_musyrif";
 
+  // Form State: Musyrif & Date
   const defaultMusyrifId = initialMusyrifId 
     ? initialMusyrifId 
     : isSupervisoryRole 
@@ -632,6 +621,18 @@ export function JurnalLogbookModal({
   const [expandedTask, setExpandedTask] = useState<string | null>(initialTaskKey || null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [showAllScheduled, setShowAllScheduled] = useState(Boolean(initialTaskKey));
+
+  // Aturan Anti-Backdate: Pengisian/perubahan logbook hanya diizinkan untuk Hari Ini (H) dan Kemarin (H-1).
+  // Tanggal lebih lampau dari kemarin (< H-1) atau masa depan (> H) TERKUNCI PERMANEN demi integritas data.
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
+
+  const isAllowedEditDate = (selectedDate === todayStr || selectedDate === yesterdayStr) || isSpecialBypassUser;
+  const isPastLocked = selectedDate < yesterdayStr && !isSpecialBypassUser;
+  const isFutureLocked = selectedDate > todayStr && !isSpecialBypassUser;
+
+  // Bypass jadwal jam (upcoming/passed) dan GPS: Pamong, Koordinator Musyrif, Admin
+  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
 
   // Searchable Musyrif Dropdown state
   const [isMusyrifDropdownOpen, setIsMusyrifDropdownOpen] = useState(false);
