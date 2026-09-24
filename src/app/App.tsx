@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  isToday, subMonths, addMonths, isBefore, startOfDay, parseISO, addDays
+  isToday, subMonths, addMonths, isBefore, startOfDay, parseISO, addDays, subDays
 } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -9213,6 +9213,15 @@ export default function App() {
 
   // Save Jurnal Logbook (Synchronized to Google Sheet via Granular Per-Task Rows: 1 Orang 1 Foto 1 Sel)
   const handleSaveLogbook = (musyrifId: string, date: string, entry: JurnalLogbookEntry) => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
+    const isSpecialBypass = Boolean(
+      authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id")
+    );
+    if (!isSpecialBypass && (date < yesterdayStr || date > todayStr)) {
+      showToast("Pengisian logbook terkunci oleh sistem Anti-Backdate (maksimal toleransi H-1).", "error");
+      return;
+    }
     setLogbookData(prev => {
       const prevEntry = prev[musyrifId]?.[date] || {};
       const standardKeys = [
@@ -9355,6 +9364,15 @@ export default function App() {
 
   // Save Mutabaah (Synchronized to Google Sheet)
   const handleSaveMutabaah = (musyrifId: string, date: string, entry: MutabaahEntry) => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
+    const isSpecialBypass = Boolean(
+      authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id")
+    );
+    if (!isSpecialBypass && (date < yesterdayStr || date > todayStr)) {
+      showToast("Pengisian mutaba'ah terkunci oleh sistem Anti-Backdate (maksimal toleransi H-1).", "error");
+      return;
+    }
     setMutabaahData(prev => ({
       ...prev,
       [musyrifId]: {

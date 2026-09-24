@@ -7,7 +7,7 @@ import {
   Sunrise, Sunset, Star, Camera, Image as ImageIcon, Trash2, Maximize2, ClipboardList,
   Users, Heart, Search, ChevronDown
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
 import { checkAsramaGeofenceBrowser, GeofenceResult } from "../utils/geoUtils";
@@ -579,12 +579,17 @@ export function JurnalLogbookModal({
     authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id")
   );
 
-  // Yang berwenang bypass jadwal (masa depan, masa lalu, dan input tanpa batasan waktu): Pamong, Koordinator Musyrif, Admin, serta akun khusus (andiaqillah@muallimin.sch.id)
-  // Koordinator Gedung TIDAK termasuk bypass tanggal lampau - hanya bisa isi untuk HARI INI saja
-  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
-  // Koor Gedung hanya bisa bypass untuk HARI INI (bukan tanggal lampau)
-  const isKoorGedungToday = isKoorGedung;
+  // Aturan Anti-Backdate: Pengisian/perubahan logbook hanya diizinkan untuk Hari Ini (H) dan Kemarin (H-1).
+  // Tanggal lebih lampau dari kemarin (< H-1) atau masa depan (> H) TERKUNCI PERMANEN demi integritas data.
   const todayStr = format(new Date(), "yyyy-MM-dd");
+  const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
+
+  const isAllowedEditDate = (selectedDate === todayStr || selectedDate === yesterdayStr) || isSpecialBypassUser;
+  const isPastLocked = selectedDate < yesterdayStr && !isSpecialBypassUser;
+  const isFutureLocked = selectedDate > todayStr && !isSpecialBypassUser;
+
+  // Bypass jadwal jam (upcoming/passed) dan GPS: Pamong, Koordinator Musyrif, Admin
+  const isCanBypass = isPamong || isKoordinatorMusyrif || isAdmin || isSpecialBypassUser;
 
   const activeMusyrifList = useMemo(() => {
     if (isKoordinatorMusyrif || isAdmin || isSpecialBypassUser) {
@@ -802,24 +807,13 @@ export function JurnalLogbookModal({
   const toggleTask = (taskDef: TaskDefinition) => {
     if (!isMusyrifUser && !isCanBypass) return;
 
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const isToday = selectedDate === todayStr;
-    const isFuture = selectedDate > todayStr;
-    const isPast = selectedDate < todayStr;
-    
-    // 1. Must be today (Strict: only Pamong/Admin can bypass; Koor Gedung hanya bisa hari ini)
-    // Koor Gedung TIDAK bisa isi tanggal lampau
-    if (isFuture && !isCanBypass) {
-      appAlert("Pengisian dan pencentangan logbook untuk tanggal masa depan tidak diizinkan. Silakan pilih tanggal hari ini.", "Tanggal Belum Tiba", "warning");
+    // 1. Validasi Anti-Backdate (Hanya Hari Ini H atau Kemarin H-1)
+    if (isFutureLocked) {
+      appAlert("Pengisian dan pencentangan logbook untuk tanggal masa depan tidak diizinkan. Silakan pilih tanggal hari ini atau kemarin.", "Tanggal Belum Tiba", "warning");
       return;
     }
-    if (isPast && !isCanBypass) {
-      appAlert("Pengisian dan pencentangan logbook untuk tanggal selain hari ini telah terkunci secara otomatis. Hanya Pamong yang berwenang mengubah catatan lampau.", "Waktu Terkunci", "warning");
-      return;
-    }
-    // Koor Gedung hanya bisa isi untuk hari ini (bukan kemarin/lampau)
-    if (isKoorGedung && isPast) {
-      appAlert("Koordinator Gedung hanya dapat mengisi logbook untuk tanggal hari ini. Catatan tanggal lampau terkunci otomatis.", "Waktu Terkunci", "warning");
+    if (isPastLocked) {
+      appAlert("Pengisian dan pencentangan logbook untuk tanggal lampau (lebih dari H-1) telah terkunci permanen oleh sistem Anti-Backdate demi integritas data.", "Anti-Backdate Terkunci", "warning");
       return;
     }
 
@@ -891,9 +885,8 @@ export function JurnalLogbookModal({
     const file = e.target.files?.[0];
     if (!file || !activeCameraTask) return;
 
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    if (selectedDate !== todayStr && !isCanBypass) {
-      appAlert("Pengunggahan foto hanya diizinkan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+    if (!isAllowedEditDate) {
+      appAlert("Pengunggahan foto hanya diizinkan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis oleh sistem Anti-Backdate.", "Tanggal Terkunci", "warning");
       return;
     }
 
@@ -963,9 +956,8 @@ export function JurnalLogbookModal({
 
   // Handle Remove Photo
   const handleRemovePhoto = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">) => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    if (selectedDate !== todayStr && !isCanBypass) {
-      appAlert("Penghapusan foto hanya diizinkan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+    if (!isAllowedEditDate) {
+      appAlert("Penghapusan foto hanya diizinkan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis oleh sistem Anti-Backdate.", "Tanggal Terkunci", "warning");
       return;
     }
 
@@ -996,8 +988,7 @@ export function JurnalLogbookModal({
 
   // Handle note updates
   const updateTaskNotes = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, notes: string) => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    if (selectedDate !== todayStr && !isCanBypass) {
+    if (!isAllowedEditDate) {
       return;
     }
 
@@ -1013,9 +1004,8 @@ export function JurnalLogbookModal({
 
   // Save complete logbook
   const handleSave = () => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    if (selectedDate !== todayStr && !isCanBypass) {
-      appAlert("Penyimpanan logbook untuk tanggal lampau terkunci secara otomatis. Hanya Pamong/Admin yang berwenang mengubah catatan lampau.", "Tanggal Terkunci", "warning");
+    if (!isAllowedEditDate) {
+      appAlert("Penyimpanan logbook untuk tanggal lampau terkunci secara otomatis oleh sistem Anti-Backdate (maksimal toleransi H-1).", "Tanggal Terkunci", "warning");
       return;
     }
 
@@ -1026,9 +1016,8 @@ export function JurnalLogbookModal({
 
   // Complete Patrol Task with Step count
   const handlePatrolSuccess = (key: keyof Omit<JurnalLogbookEntry, "generalNotes">, steps: number) => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    if (selectedDate !== todayStr && !isCanBypass) {
-      appAlert("Patroli hanya dapat dilakukan pada tanggal hari ini.", "Tanggal Terkunci", "warning");
+    if (!isAllowedEditDate) {
+      appAlert("Patroli hanya dapat dilakukan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
       return;
     }
 
@@ -1384,12 +1373,20 @@ export function JurnalLogbookModal({
           </div>
         </div>
 
-        {/* Mode Read-Only Alert Banner for Non-Bypass Users on Past/Future Dates */}
-        {!isCanBypass && selectedDate !== format(new Date(), "yyyy-MM-dd") && (
-          <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2.5 shadow-2xs">
-            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+        {/* Mode Read-Only Alert Banner Anti-Backdate */}
+        {isPastLocked && (
+          <div className="p-3 bg-rose-50 border border-rose-200/90 rounded-2xl text-xs font-bold text-rose-900 flex items-center gap-2.5 shadow-2xs">
+            <Lock className="w-4 h-4 text-rose-600 shrink-0" />
             <p className="leading-tight">
-              <strong>Mode Riwayat (Hanya Baca):</strong> Anda sedang melihat tanggal lampau ({format(parseISO(selectedDate), "dd MMMM yyyy", { locale: id })}). Pengisian, pencentangan, foto, dan perubahan logbook terkunci otomatis.
+              <strong>Mode Riwayat (Anti-Backdate Terkunci):</strong> Anda sedang melihat tanggal lampau ({format(parseISO(selectedDate), "dd MMMM yyyy", { locale: id })}). Pengisian dan perubahan logbook telah ditutup permanen oleh sistem Anti-Backdate demi menjaga integritas data (maksimal toleransi H-1).
+            </p>
+          </div>
+        )}
+        {selectedDate === yesterdayStr && (
+          <div className="p-2.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2 shadow-2xs">
+            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="leading-tight">
+              <strong>Toleransi Pengisian H-1 (Kemarin):</strong> Anda sedang mengisi/meninjau logbook kemarin. Pastikan seluruh laporan diselesaikan sebelum terkunci otomatis.
             </p>
           </div>
         )}
@@ -1615,7 +1612,7 @@ export function JurnalLogbookModal({
               const taskData = formState[t.key] || { done: false };
               const isDone = taskData.done;
               const timeInfo = getTaskTimeStatus(t);
-              const isLocked = (!isDone && timeInfo.isLocked && !isCanBypass) || (selectedDate !== todayStr && !isCanBypass);
+              const isLocked = (!isDone && timeInfo.isLocked && !isCanBypass) || !isAllowedEditDate;
               const isPassed = (timeInfo.status === "passed" || timeInfo.status === "past_date") && !isDone;
               const isUpcoming = (timeInfo.status === "upcoming" || timeInfo.status === "future_date") && !isDone;
               const isExpanded = expandedTask === t.key;
@@ -1627,7 +1624,7 @@ export function JurnalLogbookModal({
                   className={`bg-white rounded-3xl border transition-all overflow-hidden shadow-2xs ${
                     isDone
                       ? "border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/15"
-                      : timeInfo.status === "active" && selectedDate === todayStr
+                      : timeInfo.status === "active" && isAllowedEditDate
                       ? "border-emerald-500 ring-2 ring-emerald-300/40 bg-white shadow-xs"
                       : isPassed
                       ? "border-slate-200 bg-slate-50/70 opacity-60"
@@ -1639,10 +1636,10 @@ export function JurnalLogbookModal({
                       {/* Checkbox button */}
                       <button
                         type="button"
-                        disabled={!isCanBypass && (isLocked || !isMusyrifUser || isDone || selectedDate !== todayStr)}
+                        disabled={(!isCanBypass && (isLocked || !isMusyrifUser || isDone)) || !isAllowedEditDate}
                         onClick={() => {
-                          if (selectedDate !== todayStr && !isCanBypass) {
-                            appAlert("Pengisian logbook hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+                          if (!isAllowedEditDate) {
+                            appAlert("Pengisian logbook hanya dapat dilakukan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis oleh sistem Anti-Backdate.", "Tanggal Terkunci", "warning");
                             return;
                           }
                           if (t.isPatrol && !isCanBypass && isMusyrifUser && !isDone) {

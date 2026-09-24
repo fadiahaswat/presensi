@@ -547,6 +547,23 @@ class GoogleSyncService {
   }
 
   public enqueue(table: string, record: any, action: "upsert" | "delete" = "upsert", immediate: boolean = false) {
+    // ANTI-BACKDATE SHIELD: Tolak upsert data Logbook & Mutabaah untuk tanggal lampau (< H-1)
+    if (action === "upsert" && record?.date) {
+      const lowerTable = (table || "").toLowerCase();
+      if (lowerTable.includes("logbook") || lowerTable.includes("mutabaah")) {
+        const nowDate = new Date();
+        const yDate = new Date();
+        yDate.setDate(nowDate.getDate() - 1);
+        const yStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, "0")}-${String(yDate.getDate()).padStart(2, "0")}`;
+        const tStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-${String(nowDate.getDate()).padStart(2, "0")}`;
+        
+        if (record.date < yStr || record.date > tStr) {
+          console.warn(`[SyncService] ANTI-BACKDATE SHIELD BLOCKED: Menolak sinkronisasi ${table} tanggal ${record.date} (hanya diizinkan ${yStr} s.d. ${tStr})`);
+          return;
+        }
+      }
+    }
+
     const id = String(record.id || crypto.randomUUID());
     const now = new Date().toISOString();
 

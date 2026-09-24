@@ -4,7 +4,7 @@ import {
   Sparkles, Calendar, TrendingUp, Sun, Moon, Heart, ChevronRight, User, ShieldCheck, Eye, CheckCircle2,
   ChevronLeft, Sunrise, Sunset, BookMarked, Lock, ClipboardList, Search, ChevronDown, HandHeart, Coins
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "motion/react";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
@@ -82,8 +82,14 @@ export function MutabaahYaumiyahModal({
   const canEdit = isMusyrifUser || isCanBypass;
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
+  const yesterdayStr = format(subDays(new Date(), 1), "yyyy-MM-dd");
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || format(new Date(), "yyyy-MM-dd"));
-  const isDateLocked = selectedDate !== todayStr && !isCanBypass && !isKoorGedung;
+
+  // Anti-Backdate: Pengisian Mutaba'ah hanya diizinkan untuk Hari Ini (H) dan Kemarin (H-1).
+  // Tanggal lebih lampau dari kemarin (< H-1) atau masa depan (> H) TERKUNCI PERMANEN demi integritas data.
+  const isDateLocked = (selectedDate < yesterdayStr || selectedDate > todayStr) && !isSpecialBypassUser;
+  const isPastLocked = selectedDate < yesterdayStr && !isSpecialBypassUser;
+  const isYesterday = selectedDate === yesterdayStr;
 
   const activeMusyrifList = useMemo(() => {
     // Pamong, Koordinator Musyrif, Admin: lihat semua musyrif
@@ -280,9 +286,8 @@ export function MutabaahYaumiyahModal({
 
   const toggleField = (field: keyof Omit<MutabaahEntry, "tilawahPages">) => {
     if (!canEdit) return;
-    // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
-    if (selectedDate !== todayStr && !isCanBypass && !isKoorGedung) {
-      appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+    if (isDateLocked) {
+      appAlert("Pengisian amalan mutaba'ah hanya diizinkan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis oleh sistem Anti-Backdate.", "Tanggal Terkunci", "warning");
       return;
     }
 
@@ -309,9 +314,8 @@ export function MutabaahYaumiyahModal({
 
   const handleTilawahChange = (pages: number) => {
     if (!canEdit) return;
-    // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
-    if (selectedDate !== todayStr && !isCanBypass && !isKoorGedung) {
-      appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+    if (isDateLocked) {
+      appAlert("Pengisian amalan mutaba'ah hanya diizinkan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis oleh sistem Anti-Backdate.", "Tanggal Terkunci", "warning");
       return;
     }
     const updated: MutabaahEntry = {
@@ -325,9 +329,8 @@ export function MutabaahYaumiyahModal({
 
   const handleMarkAll = (done: boolean) => {
     if (!canEdit) return;
-    // Koor Gedung hanya bisa mengisi untuk hari ini (bukan tanggal lampau)
-    if (selectedDate !== todayStr && !isCanBypass && !isKoorGedung) {
-      appAlert("Pengisian amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini. Tanggal lampau terkunci otomatis.", "Tanggal Terkunci", "warning");
+    if (isDateLocked) {
+      appAlert("Pengisian amalan mutaba'ah hanya diizinkan untuk hari ini atau kemarin (H-1). Tanggal lampau terkunci otomatis oleh sistem Anti-Backdate.", "Tanggal Terkunci", "warning");
       return;
     }
     const updated: MutabaahEntry = {
@@ -348,8 +351,8 @@ export function MutabaahYaumiyahModal({
 
   const handleResetToday = async () => {
     if (!canEdit) return;
-    if (selectedDate !== todayStr && !isCanBypass) {
-      appAlert("Pengosongan amalan hanya dapat dilakukan pada tanggal hari ini.", "Tanggal Terkunci", "warning");
+    if (isDateLocked) {
+      appAlert("Pengosongan amalan hanya dapat dilakukan untuk hari ini atau kemarin (H-1).", "Tanggal Terkunci", "warning");
       return;
     }
     const ok = await appConfirm(
@@ -370,8 +373,8 @@ export function MutabaahYaumiyahModal({
   };
 
   const handleSave = () => {
-    if (selectedDate !== todayStr && !isCanBypass) {
-      appAlert("Penyimpanan amalan mutaba'ah untuk tanggal lampau terkunci secara otomatis.", "Tanggal Terkunci", "warning");
+    if (isDateLocked) {
+      appAlert("Penyimpanan amalan mutaba'ah untuk tanggal lampau terkunci secara otomatis oleh sistem Anti-Backdate (maksimal toleransi H-1).", "Tanggal Terkunci", "warning");
       return;
     }
     onSaveMutabaah(selectedMusyrifId, selectedDate, { ...entry, updatedAt: new Date().toISOString() });
@@ -618,12 +621,20 @@ export function MutabaahYaumiyahModal({
           </div>
         </div>
 
-        {/* Mode Read-Only Alert Banner for Non-Bypass Users on Past/Future Dates */}
-        {isDateLocked && (
-          <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2.5 shadow-2xs">
-            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+        {/* Mode Read-Only Alert Banner Anti-Backdate */}
+        {isPastLocked && (
+          <div className="p-3 bg-rose-50 border border-rose-200/90 rounded-2xl text-xs font-bold text-rose-900 flex items-center gap-2.5 shadow-2xs">
+            <Lock className="w-4 h-4 text-rose-600 shrink-0" />
             <p className="leading-tight">
-              <strong>Mode Riwayat (Hanya Baca):</strong> Anda sedang melihat tanggal lampau ({format(parseISO(selectedDate), "dd MMMM yyyy", { locale: id })}). Pengisian dan perubahan amalan mutaba'ah hanya dapat dilakukan pada tanggal hari ini.
+              <strong>Mode Riwayat (Anti-Backdate Terkunci):</strong> Anda sedang melihat tanggal lampau ({format(parseISO(selectedDate), "dd MMMM yyyy", { locale: id })}). Pengisian amalan mutaba'ah telah ditutup permanen oleh sistem Anti-Backdate demi integritas data (maksimal toleransi H-1).
+            </p>
+          </div>
+        )}
+        {isYesterday && (
+          <div className="p-2.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs font-bold text-amber-900 flex items-center gap-2 shadow-2xs">
+            <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="leading-tight">
+              <strong>Toleransi Pengisian H-1 (Kemarin):</strong> Anda sedang mengisi/meninjau mutaba'ah kemarin. Pastikan seluruh amalan diselesaikan sebelum terkunci otomatis.
             </p>
           </div>
         )}
