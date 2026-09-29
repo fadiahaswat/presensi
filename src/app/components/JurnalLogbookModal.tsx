@@ -1433,10 +1433,10 @@ export function JurnalLogbookModal({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                        {m.name.substring(0, 2).toUpperCase()}
+                        {(m?.name || "M").substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-emerald-800 truncate leading-tight">{m.name}</h4>
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-emerald-800 truncate leading-tight">{m?.name || "Musyrif"}</h4>
                         <span className="text-[10px] text-slate-400 block truncate mt-0.5">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
                       </div>
                     </div>

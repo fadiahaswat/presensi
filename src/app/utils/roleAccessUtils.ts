@@ -50,7 +50,9 @@ export function isFieldMusyrif(user: { id?: string; role?: Role | string; name?:
   if (
     name.includes("ahmad salim") ||
     name.includes("muhammad shaleh") ||
-    name.includes("andi aqillah")
+    name.includes("andi aqillah") ||
+    name.includes("andi testing") ||
+    id.includes("test_andi")
   ) {
     return false;
   }

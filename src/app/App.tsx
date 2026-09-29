@@ -59,6 +59,7 @@ const LeaderboardModal = lazy(() => import("./components/LeaderboardModal").then
 const RaportSertifikatModal = lazy(() => import("./components/RaportSertifikatModal").then(m => ({ default: m.RaportSertifikatModal })));
 const MusyrifManagerModal = lazy(() => import("./components/MusyrifManagerModal").then(m => ({ default: m.MusyrifManagerModal })));
 const PamongManagerModal = lazy(() => import("./components/PamongManagerModal").then(m => ({ default: m.PamongManagerModal })));
+const RekapSolatKoordinatorModal = lazy(() => import("./components/RekapSolatKoordinatorModal").then(m => ({ default: m.RekapSolatKoordinatorModal })));
 const PageKalenderHijriah = lazy(() => import("./components/PageKalenderHijriah").then(m => ({ default: m.PageKalenderHijriah })));
 const PageKalenderPendidikan = lazy(() => import("./components/PageKalenderPendidikan").then(m => ({ default: m.PageKalenderPendidikan })));
 const PageAboutSyamsa = lazy(() => import("./components/PageAboutSyamsa").then(m => ({ default: m.PageAboutSyamsa })));
@@ -86,6 +87,7 @@ import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAcc
 import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStatusInCloud, mapIzinSedayuToRecord } from "./utils/izinSedayuSync";
 import { DynamicDashboardBanner } from "./components/DynamicDashboardBanner";
 import { calculateMonthlyPembinaanStats, MusyrifAttendanceStats } from "./utils/pembinaanMusyrifUtils";
+import { compressAndWatermarkImage } from "./utils/imageCompressor";
 import {
   calcPrayerTimes,
   getPresensiTimeWindow,
@@ -307,7 +309,7 @@ const AUTH_USERS: AuthUser[] = [
   { id:"kaurkis", name:"Muhammad Shaleh, S.Pd.I., M.S.I.", email:"muhammad.shaleh@muallimin.sch.id", role:"kaur_kis", phone:"6281578968855" },
 
   // ─── KOORDINATOR MUSYRIF (SUPER ADMIN / FULL SCRUD) ───
-  { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com, andiaqillah@muallimin.sch.id", role:"koordinator_musyrif", phone:"6285339213109" },
+  { id:"k1", name:"Andi Aqillah Fadia Haswat, S.A.P.", email:"andiaqillahfadiahaswat@gmail.com", role:"koordinator_musyrif", phone:"6285339213109" },
 
   // ─── PAMONG ASRAMA ───
   { id:"p1",  name:"Galang Putra Muhammady, S.Pd.",     email:"galangmuhammady@muallimin.sch.id", role:"pamong", asrama:"Asrama 1",                   phone:"6287711559827" },
@@ -321,6 +323,9 @@ const AUTH_USERS: AuthUser[] = [
 ];
 
 const MUSYRIF_LIST: Musyrif[] = [
+  // ─── AKUN TESTING MUSYRIF BIASA ───
+  { id:"m_test_andi", name:"Andi Aqillah (Musyrif)", role:"musyrif", kelas:"1 A", tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A", pamong:"Ariel Amarta Dzikrillah, S.Sos.", email:"andiaqillah@muallimin.sch.id", phone:"6285339213109" },
+
   // ─── ASRAMA SEDAYU GEDUNG D (Pamong: Ariel Amarta Dzikrillah, S.Sos.) ───
   { id:"m1",  name:"Wahyu Dermawan",               role:"koordinator_gedung", kelas:"1 A",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 A",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"wahyudermawan1212@gmail.com",     phone:"6282180998704" },
   { id:"m3",  name:"Muhammad Farras Mamduh",       role:"musyrif",            kelas:"1 B",         tingkat:"Kelas 1", asrama:"Asrama Sedayu Gedung D", kamar:"1 B",         pamong:"Ariel Amarta Dzikrillah, S.Sos.",     email:"farrasmdh@gmail.com",             phone:"6285117104411" },
@@ -697,6 +702,7 @@ function PageDashboard({
   onOpenLeaderboard,
   onOpenRaport,
   onOpenMusyrifManager,
+  onOpenRekapSolatKoordinator,
   onOpenPamongManager,
   onOpenKalenderHijriah,
   onOpenKalenderPendidikan,
@@ -738,6 +744,7 @@ function PageDashboard({
   onOpenRaport: () => void;
   onSetTargetAsrama?: (asrama: string) => void;
   onOpenMusyrifManager?: () => void;
+  onOpenRekapSolatKoordinator?: () => void;
   onOpenPamongManager?: () => void;
   onOpenKalenderHijriah?: () => void;
   onOpenKalenderPendidikan?: () => void;
@@ -2508,6 +2515,26 @@ function PageDashboard({
                     </div>
                   </button>
                 )}
+
+                {/* 13. Rekap Salat Musyrif Bulanan (Koordinator Only) */}
+                {authUser?.role === "koordinator_musyrif" && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenRekapSolatKoordinator && onOpenRekapSolatKoordinator()}
+                    className="group p-2.5 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-sky-500 hover:shadow-xs transition-all text-left flex items-center gap-2.5 active:scale-[0.98]"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+                      <Printer className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="font-bold text-xs text-slate-800 truncate">Rekap Salat</p>
+                        <span className="text-[9px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded font-mono shrink-0">PDF</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">Sparman & Sedayu</p>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2996,6 +3023,51 @@ function PageInputPrayer({
     asrama: string;
     prayer: PrayerSlot;
   } | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<{
+    dataUrl: string;
+    takenAt: string;
+    target: {
+      mid: string;
+      name: string;
+      asrama: string;
+      prayer: PrayerSlot;
+    };
+  } | null>(null);
+
+  const triggerNativeCamera = (target: { mid: string; name: string; asrama: string; prayer: PrayerSlot }) => {
+    setActivePhotoVerification(target);
+    if (nativeCameraInputRef.current) {
+      nativeCameraInputRef.current.value = "";
+      nativeCameraInputRef.current.click();
+    }
+  };
+
+  const handleNativePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activePhotoVerification) return;
+    try {
+      setIsProcessingPhoto(true);
+      triggerHaptic("light");
+      const compressed = await compressAndWatermarkImage(file);
+      const takenAt = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+      setPhotoPreview({
+        dataUrl: compressed,
+        takenAt,
+        target: { ...activePhotoVerification }
+      });
+      triggerHaptic("medium");
+    } catch (err) {
+      console.error("Gagal memproses foto selfie kamera:", err);
+      showToast?.("Gagal memproses foto kamera bawaan. Silakan coba lagi.", "error");
+    } finally {
+      setIsProcessingPhoto(false);
+      if (nativeCameraInputRef.current) {
+        nativeCameraInputRef.current.value = "";
+      }
+    }
+  };
 
   // Helper to resolve Google avatar photo for each musyrif
   const getMusyrifAvatar = useCallback((m: Musyrif) => {
@@ -3035,12 +3107,12 @@ function PageInputPrayer({
     </div>
   );
 
-  const isTestingBypassUser = Boolean(authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id"));
-  const isMusyrifOnly = authUser.role === "musyrif" && !isTestingBypassUser;
+  const isTestingBypassUser = false;
+  const isMusyrifOnly = authUser.role === "musyrif";
   const isKoordGedung = authUser.role === "koordinator_gedung";
-  // Koord. Gedung memiliki batasan sama dengan Musyrif: today only, time window, GPS required (kecuali akun testing bypass)
-  const isMusyrifOrKoorGedung = (isMusyrifOnly || isKoordGedung) && !isTestingBypassUser;
-  const fullAccess = hasFullAccess(authUser) || isTestingBypassUser;
+  // Koord. Gedung memiliki batasan sama dengan Musyrif: today only, time window, GPS required
+  const isMusyrifOrKoorGedung = isMusyrifOnly || isKoordGedung;
+  const fullAccess = hasFullAccess(authUser);
   const { isSedayuPamong, isPamongAnang, isPamongAbdan } = getPamongType(authUser);
 
   // Determine allowed asramas for this user using centralized utility
@@ -3418,7 +3490,7 @@ function PageInputPrayer({
         onEmergencyPhoto={() => {
           const myMusyrif = musyrifList.find(m => m.id === myMusyrifId || matchesEmail(authUser.email, m.email || ""));
           if (myMusyrif) {
-            setActivePhotoVerification({
+            triggerNativeCamera({
               mid: myMusyrif.id,
               name: myMusyrif.name,
               asrama: myMusyrif.asrama || activeAsrama,
@@ -3558,6 +3630,11 @@ function PageInputPrayer({
                         Akun Anda
                       </span>
                     )}
+                    {isMusyrifOnly && isMe && !isDone && !isNotYetTime && !isPastTimeMusyrif && (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <Camera className="w-2.5 h-2.5" /> Wajib Selfie
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-400 truncate mt-0.5">Pamong: {m.pamong || "-"}</p>
                 </div>
@@ -3623,9 +3700,21 @@ function PageInputPrayer({
                         }
                         return;
                       }
-                      // Jika user adalah diri sendiri, mencoba presensi hadir, dan GPS tidak valid -> paksa foto kamera live
+
+                      // Aturan: Musyrif biasa yang presensi mandiri (hadir) wajib selfie kamera live (tanpa upload galeri)
+                      if (s === "hadir" && isMusyrifOnly && isMe) {
+                        triggerNativeCamera({
+                          mid: m.id,
+                          name: m.name,
+                          asrama: m.asrama || activeAsrama,
+                          prayer: slot
+                        });
+                        return;
+                      }
+
+                      // Jika user adalah diri sendiri (misal Koord Gedung), mencoba presensi hadir, dan GPS tidak valid -> paksa foto kamera live
                       if (s === "hadir" && isMusyrifOrKoorGedung && isMe && gpsResult && !gpsResult.isInRange) {
-                        setActivePhotoVerification({
+                        triggerNativeCamera({
                           mid: m.id,
                           name: m.name,
                           asrama: m.asrama || activeAsrama,
@@ -3659,12 +3748,12 @@ function PageInputPrayer({
                       <Camera className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                       <span>GPS Terlempar / Di Luar Radius?</span>
                     </p>
-                    <p className="text-[10px] text-amber-800/80 truncate">Presensi mandiri tetap sah dengan foto live kamera asrama.</p>
+                    <p className="text-[10px] text-amber-800/80 truncate">Presensi mandiri tetap sah dengan foto kamera bawaan HP.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      setActivePhotoVerification({
+                      triggerNativeCamera({
                         mid: m.id,
                         name: m.name,
                         asrama: m.asrama || activeAsrama,
@@ -3752,26 +3841,99 @@ function PageInputPrayer({
         </div>
       )}
 
-      {/* Modal Kamera Live untuk Presensi Mandiri Darurat */}
-      {activePhotoVerification && (
-        <Suspense fallback={null}>
-          <LiveCameraCaptureModal
-            isOpen={Boolean(activePhotoVerification)}
-            onClose={() => setActivePhotoVerification(null)}
-            taskTitle={`Presensi ${activePhotoVerification.prayer === "subuh" ? "Subuh" : activePhotoVerification.prayer === "ashar" ? "Ashar" : "Maghrib"} (Verifikasi Foto Live)`}
-            musyrifName={activePhotoVerification.name}
-            asramaName={activePhotoVerification.asrama}
-            disableGallery={true}
-            onCapture={(result) => {
-              const noteWithPhoto = `[Foto Kamera Live - Validasi Lokasi] ${result.takenAt}`;
-              triggerHaptic("medium");
-              onMark(activePhotoVerification.mid, activePhotoVerification.prayer, "hadir", selDate, noteWithPhoto);
-              const pLabel = activePhotoVerification.prayer === "subuh" ? "Subuh" : activePhotoVerification.prayer === "ashar" ? "Ashar" : "Maghrib";
-              showToast?.(`Presensi ${pLabel} berhasil diverifikasi dengan foto kamera live.`);
-              setActivePhotoVerification(null);
-            }}
-          />
-        </Suspense>
+      {/* Hidden Native Camera Input - Wajib Kamera Bawaan (Selfie HP, Tanpa Galeri) */}
+      <input
+        ref={nativeCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={handleNativePhotoSelected}
+      />
+
+      {/* Loading Overlay saat mengompresi foto kamera */}
+      {isProcessingPhoto && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-3 max-w-xs text-center border border-slate-100">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center animate-spin">
+              <Camera className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 text-sm">Memproses Foto Kamera...</p>
+              <p className="text-xs text-slate-500 mt-1">Mengompres foto selfie kamera bawaan HP untuk presensi.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Dialog Konfirmasi Foto Selfie Kamera Bawaan */}
+      {photoPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 flex flex-col gap-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Konfirmasi Selfie Hadir</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Kamera Bawaan HP</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-mono uppercase">
+                {photoPreview.target.prayer}
+              </span>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-3/4 max-h-[360px] flex items-center justify-center shadow-inner">
+              <img
+                src={photoPreview.dataUrl}
+                alt="Selfie Kamera Bawaan"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-xl text-white text-[10px] font-mono flex items-center justify-between">
+                <span className="truncate">{photoPreview.target.name}</span>
+                <span className="shrink-0 text-amber-300 font-bold">{photoPreview.takenAt.split(" ")[1]} WIB</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 text-center leading-relaxed">
+              Pastikan wajah terlihat jelas dan berada di lingkungan asrama/masjid. Gunakan foto ini untuk presensi <b>{photoPreview.target.prayer.toUpperCase()}</b>?
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = photoPreview.target;
+                  setPhotoPreview(null);
+                  triggerNativeCamera(target);
+                }}
+                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Foto Ulang</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = photoPreview.target;
+                  const noteWithPhoto = `[Selfie Kamera Bawaan] ${photoPreview.takenAt}`;
+                  triggerHaptic("medium");
+                  onMark(target.mid, target.prayer, "hadir", selDate, noteWithPhoto);
+                  const pLabel = target.prayer === "subuh" ? "Subuh" : target.prayer === "ashar" ? "Ashar" : "Maghrib";
+                  showToast?.(`Presensi ${pLabel} berhasil diverifikasi dengan foto selfie kamera bawaan.`);
+                  setPhotoPreview(null);
+                  setActivePhotoVerification(null);
+                }}
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Gunakan Foto</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -3795,6 +3957,7 @@ function PageRekap({
   onSelectMusyrif, 
   onGoTo,
   musyrifListAll,
+  onOpenRekapSolatKoordinator,
   logbookData = {},
   mutabaahData = {},
   kegiatanRecords = [],
@@ -3806,6 +3969,7 @@ function PageRekap({
   onSelectMusyrif?: (id: string) => void; 
   onGoTo?: (p: Page) => void;
   musyrifListAll?: Musyrif[];
+  onOpenRekapSolatKoordinator?: () => void;
   logbookData?: Record<string, any>;
   mutabaahData?: Record<string, any>;
   kegiatanRecords?: any[];
@@ -4091,14 +4255,27 @@ function PageRekap({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => exportPDF(records, viewMonth, filterAsrama, musyrifListAll)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
-          >
-            <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
-            <span>Cetak PDF</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {authUser?.role === "koordinator_musyrif" && onOpenRekapSolatKoordinator && (
+              <button
+                type="button"
+                onClick={onOpenRekapSolatKoordinator}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-sky-800 ring-sky-300 bg-sky-100 hover:bg-sky-200"
+              >
+                <Award className="w-3.5 h-3.5 text-sky-600"/>
+                <span>Rekap Salat (Sparman & Sedayu)</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => exportPDF(records, viewMonth, filterAsrama, musyrifListAll)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
+              <span>Cetak PDF</span>
+            </button>
+          </div>
         </div>
 
         {/* Integrated Month Navigation Row */}
@@ -5295,10 +5472,10 @@ function PageRiwayat({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                        {m.name.substring(0, 2).toUpperCase()}
+                        {(m?.name || "M").substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate leading-tight">{m.name}</h4>
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-teal-800 truncate leading-tight">{m?.name || "Musyrif"}</h4>
                         <span className="text-[10px] text-slate-400 block truncate mt-0.5">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
                       </div>
                     </div>
@@ -7286,7 +7463,7 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
     if (!p || !p.id) return false;
     const nameLow = (p.name || "").toLowerCase();
     const emailLow = (p.email || "").toLowerCase();
-    const isTestItem = nameLow.includes("testing") || nameLow.includes("test ") || emailLow.includes("testing");
+    const isTestItem = (nameLow.includes("testing") || nameLow.includes("test ") || emailLow.includes("testing")) && p.id !== "m_test_andi";
 
     if (
       DEPRECATED_PERSONNEL_IDS.has(p.id) ||
@@ -7296,7 +7473,7 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
       emailLow.includes("afifnashrul") ||
       emailLow.includes("nitikan3321@gmail.com") ||
       isTestItem ||
-      (p.id.startsWith("m_") && (p.role === "pamong" || p.role === "koordinator_musyrif" || !p.name || p.name.trim() === "" || isTestItem)) ||
+      (p.id.startsWith("m_") && p.id !== "m_test_andi" && (p.role === "pamong" || p.role === "koordinator_musyrif" || !p.name || p.name.trim() === "" || isTestItem)) ||
       (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role))
     ) {
       return false;
@@ -7630,6 +7807,7 @@ export default function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRaport, setShowRaport] = useState(false);
   const [showMusyrifManager, setShowMusyrifManager] = useState(false);
+  const [showRekapSolatKoordinator, setShowRekapSolatKoordinator] = useState(false);
   const [showPamongManager, setShowPamongManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
   const [targetMusyrifId, setTargetMusyrifId] = useState<string | undefined>(undefined);
@@ -9081,8 +9259,7 @@ export default function App() {
   const handleMark = useCallback<MarkFn>((mid, prayer, status, date, note) => {
     // Root Guard: Cegah presensi slot shalat sebelum waktunya dibuka untuk tanggal hari ini
     const today = todayStr();
-    const isTestingUser = Boolean(authUser?.email?.toLowerCase().includes("andiaqillah@muallimin.sch.id"));
-    const isSuper = (authUser ? checkFullAccess(authUser) : false) || isTestingUser;
+    const isSuper = authUser ? checkFullAccess(authUser) : false;
     
     if (date > today && !isSuper) {
       showToast?.("Tidak dapat mengisi presensi untuk tanggal di masa depan.", "error");
@@ -10219,6 +10396,7 @@ export default function App() {
                 onOpenLeaderboard={() => setPage("leaderboard")}
                 onOpenRaport={() => setShowRaport(true)}
                 onOpenMusyrifManager={() => setPage("musyrif-manager")}
+                onOpenRekapSolatKoordinator={() => setShowRekapSolatKoordinator(true)}
                 onOpenPamongManager={() => setPage("pamong-manager")}
                 onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
                 onOpenKalenderPendidikan={() => setPage("kalender-pendidikan")}
@@ -10269,6 +10447,7 @@ export default function App() {
                 onSelectMusyrif={setSelectedMusyrifId} 
                 onGoTo={setPage}
                 musyrifListAll={musyrifList}
+                onOpenRekapSolatKoordinator={() => setShowRekapSolatKoordinator(true)}
                 logbookData={logbookData}
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
@@ -10877,6 +11056,21 @@ export default function App() {
             onSyncAllOfficialData={handleSyncAllOfficialData}
             authUser={authUser}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 10b. Rekap Salat Musyrif Bulanan Modal (Khusus Koordinator Musyrif) */}
+      <AnimatePresence>
+        {showRekapSolatKoordinator && (
+          <Suspense fallback={null}>
+            <RekapSolatKoordinatorModal
+              isOpen={showRekapSolatKoordinator}
+              onClose={() => setShowRekapSolatKoordinator(false)}
+              records={records}
+              musyrifList={musyrifList}
+              currentUserName={authUser?.name || "Andi Aqillah Fadia Haswat, S.A.P."}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 

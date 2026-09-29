@@ -20,6 +20,8 @@ interface LiveCameraCaptureModalProps {
   musyrifName: string;
   asramaName: string;
   disableGallery?: boolean;
+  initialFacingMode?: "environment" | "user";
+  modalTitle?: string;
 }
 
 export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
@@ -29,10 +31,12 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
   taskTitle,
   musyrifName,
   asramaName,
-  disableGallery = false
+  disableGallery = false,
+  initialFacingMode = "environment",
+  modalTitle = "Dokumentasi Logbook"
 }) => {
   const [activeTab, setActiveTab] = useState<"camera" | "gallery">("camera");
-  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [facingMode, setFacingMode] = useState<"environment" | "user">(initialFacingMode);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
@@ -53,6 +57,10 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
       return;
     }
 
+    if (initialFacingMode) {
+      setFacingMode(initialFacingMode);
+    }
+
     if (activeTab === "camera" && !capturedPreview) {
       startCamera();
     } else {
@@ -62,7 +70,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
     return () => {
       stopCamera();
     };
-  }, [isOpen, activeTab, facingMode]);
+  }, [isOpen, activeTab, facingMode, initialFacingMode]);
 
   const startCamera = async () => {
     stopCamera();
@@ -287,7 +295,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
-                Dokumentasi Logbook
+                {modalTitle}
               </h3>
               <p className="text-[11px] text-slate-400 truncate max-w-[220px] sm:max-w-[300px]">
                 {taskTitle}
@@ -345,7 +353,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
               <div className="relative rounded-xl overflow-hidden border border-slate-700 shadow-xl max-h-[58vh] flex items-center justify-center bg-slate-900">
                 <img
                   src={capturedPreview}
-                  alt="Hasil Foto Logbook"
+                  alt="Hasil Foto"
                   className="w-full h-auto max-h-[56vh] object-contain"
                 />
                 <div className="absolute top-2.5 left-2.5 bg-emerald-500/90 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg">
@@ -354,7 +362,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 mt-2 text-center">
-                Foto dokumentasi siap disimpan dan diunggah.
+                Foto dokumentasi siap disimpan dan diverifikasi.
               </p>
             </div>
           ) : activeTab === "camera" ? (
@@ -377,13 +385,15 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                       <Camera className="w-4 h-4" />
                       Buka Kamera Bawaan HP
                     </button>
-                    <button
-                      onClick={() => fileInputGalleryRef.current?.click()}
-                      className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      Pilih dari Galeri HP
-                    </button>
+                    {!disableGallery && (
+                      <button
+                        onClick={() => fileInputGalleryRef.current?.click()}
+                        className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center gap-2"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        Pilih dari Galeri HP
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -449,24 +459,26 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
           )}
         </div>
 
-        {/* Hidden File Input dengan capture="environment" (Kamera HP) */}
+        {/* Hidden File Input dengan capture sesuai facingMode (Kamera HP) */}
         <input
           ref={fileInputCameraRef}
           type="file"
           accept="image/*"
-          capture="environment"
+          capture={facingMode === "user" ? "user" : "environment"}
           onChange={handleNativeCameraCapture}
           className="hidden"
         />
 
         {/* Hidden File Input untuk Galeri HP (Tanpa capture) */}
-        <input
-          ref={fileInputGalleryRef}
-          type="file"
-          accept="image/*"
-          onChange={handleGalleryPhotoUpload}
-          className="hidden"
-        />
+        {!disableGallery && (
+          <input
+            ref={fileInputGalleryRef}
+            type="file"
+            accept="image/*"
+            onChange={handleGalleryPhotoUpload}
+            className="hidden"
+          />
+        )}
 
         {/* Hidden Canvas untuk Processing Image */}
         <canvas ref={canvasRef} className="hidden" />
@@ -479,7 +491,6 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 onClick={() => {
                   triggerHaptic();
                   setCapturedPreview(null);
-                  setSelectedPresetId(null);
                   if (activeTab === "camera") {
                     startCamera();
                   }
@@ -499,13 +510,17 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
             </>
           ) : activeTab === "camera" && !cameraError ? (
             <div className="w-full flex items-center justify-between px-2">
-              <button
-                onClick={() => fileInputGalleryRef.current?.click()}
-                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center gap-1.5 transition-colors"
-              >
-                <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Galeri HP</span>
-              </button>
+              {!disableGallery ? (
+                <button
+                  onClick={() => fileInputGalleryRef.current?.click()}
+                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Galeri HP</span>
+                </button>
+              ) : (
+                <div className="w-20" /> /* Placeholder untuk menjaga shutter button tetap center */
+              )}
 
               {/* Shutter Button */}
               <button
@@ -518,12 +533,14 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureModalProps> = ({
                 </div>
               </button>
 
-              <button
-                onClick={onClose}
-                className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
-              >
-                Tutup
-              </button>
+              <div className="w-20 flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           ) : (
             <button

@@ -92,19 +92,20 @@ export function MutabaahYaumiyahModal({
   const isYesterday = selectedDate === yesterdayStr;
 
   const activeMusyrifList = useMemo(() => {
+    const validList = (musyrifList || []).filter(m => m && typeof m === "object" && Boolean(m.id));
     // Pamong, Koordinator Musyrif, Admin: lihat semua musyrif
     if (isPamong || isAdmin) {
-      return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+      return validList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
     }
     if (isKoordinator || isSpecialBypassUser) {
-      return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+      return validList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
     }
     // Koor Gedung: hanya lihat musyrif di asramanya
     if (isKoorGedung) {
-      return musyrifList.filter(m => m.asrama === authUser.asrama);
+      return validList.filter(m => m.asrama === authUser?.asrama);
     }
     // Default: semua musyrif
-    return musyrifList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
+    return validList.filter(m => !m.role || m.role === "musyrif" || m.role === "koordinator_gedung");
   }, [musyrifList, authUser, isKoordinator, isPamong, isAdmin, isKoorGedung, isSpecialBypassUser]);
 
   const isSupervisoryRole = authUser?.role === "pamong" || authUser?.role === "admin" || authUser?.role === "koordinator_musyrif" || authUser?.role === "koordinator_gedung";
@@ -602,10 +603,10 @@ export function MutabaahYaumiyahModal({
                             >
                               <div className="min-w-0">
                                 <div className="truncate font-bold text-slate-800">
-                                  {m.name}
+                                  {m?.name || "Musyrif"}
                                 </div>
                                 <div className="text-[10px] text-slate-400 truncate">
-                                  {m.asrama}{m.kamar ? ` · Kamar ${m.kamar}` : ""}{m.role ? ` · ${m.role}` : ""}
+                                  {m?.asrama || ""}{m?.kamar ? ` · Kamar ${m.kamar}` : ""}{m?.role ? ` · ${m.role}` : ""}
                                 </div>
                               </div>
                               {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
@@ -693,11 +694,11 @@ export function MutabaahYaumiyahModal({
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                        {m.name.substring(0, 2).toUpperCase()}
+                        {(m?.name || "M").substring(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-purple-800 truncate">{m.name}</h4>
-                        <span className="text-[10px] text-slate-400 block truncate">{m.asrama}{m.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
+                        <h4 className="text-xs font-bold text-slate-800 group-hover:text-purple-800 truncate">{m?.name || "Musyrif"}</h4>
+                        <span className="text-[10px] text-slate-400 block truncate">{m?.asrama || ""}{m?.kamar ? ` • Kmr ${m.kamar}` : ""}</span>
                       </div>
                     </div>
                     

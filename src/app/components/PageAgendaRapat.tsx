@@ -497,12 +497,12 @@ export function PageAgendaRapat({
                   </button>
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0 font-bold text-xs">
-                    {item.musyrif.name.substring(0, 2).toUpperCase()}
+                    {(item.musyrif?.name || "M").substring(0, 2).toUpperCase()}
                   </div>
                 )}
 
                 <div className="min-w-0">
-                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 truncate">{item.musyrif.name}</h4>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-800 truncate">{item.musyrif?.name || "Musyrif"}</h4>
                   <p className="text-[11px] text-slate-400 truncate">{item.musyrif.asrama}{item.musyrif.kamar ? ` • Kmr ${item.musyrif.kamar}` : ""}</p>
                   {item.isDone && (
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">

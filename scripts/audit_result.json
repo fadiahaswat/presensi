@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-09-28T06:38:03.597Z",
+  "tableSummary": {
+    "Records": 2002,
+    "santri_sakit": 74,
+    "PengasuhanKhusus": 376,
+    "DataPerizinan": 0,
+    "agenda_rapat": 4,
+    "GalleryInteractions": 177,
+    "SantriIzin": 29,
+    "SantriRequests": 2,
+    "Santri": 10,
+    "AuthUsers": 45,
+    "Logbook": 16153,
+    "Mutabaah": 567,
+    "SantriSakit": 113,
+    "Izin": 13,
+    "Musyrif": 89
+  },
+  "suspiciousEntries": [],
+  "attendanceStats": {
+    "totalRecords": 2002,
+    "duplicates": 0,
+    "invalidStatusCount": 0,
+    "invalidDateCount": 0,
+    "months": [
+      "2026-08",
+      "2026-09"
+    ]
+  },
+  "musyrifStats": {
+    "total": 89,
+    "sedayuCount": 44,
+    "sparmanCount": 45,
+    "asramas": [
+      "Semua Asrama",
+      "Asrama 1",
+      "Asrama 8A & 8C Kelas 6",
+      "Asrama 8B & 8C Kelas 5",
+      "Asrama 10",
+      "Asrama Sedayu Gedung A",
+      "Asrama Sedayu Gedung B",
+      "Asrama Sedayu Gedung C",
+      "Asrama Sedayu Gedung D",
+      null,
+      "Asrama 8C",
+      "Asrama 8A",
+      "Asrama 8B"
+    ]
+  }
+}
