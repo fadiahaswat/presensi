@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import {
-  LogIn, LogOut, CheckCircle2, Calendar, Sun, Sunset, Camera,
+  LogIn, LogOut, CheckCircle2, Check, Calendar, Sun, Sunset, Camera,
   ChevronLeft, ChevronRight, TrendingUp, LayoutDashboard,
   ClipboardList, X, Users, BookOpen, Lock, Search,
   Download, SlidersHorizontal, Flame, AlertCircle,
