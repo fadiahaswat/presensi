@@ -68,7 +68,9 @@ export function RaportSertifikatModal({
   agendaList = [],
   isPage = false
 }: RaportSertifikatModalProps) {
-  const activeMusyrifList = musyrifList.filter(m => isFieldMusyrif(m));
+  const activeMusyrifList = useMemo(() => {
+    return (musyrifList || []).filter(m => Boolean(m && m.id && m.name && m.name.trim() !== "" && isFieldMusyrif(m)));
+  }, [musyrifList]);
   const [activeTab, setActiveTab] = useState<"raport" | "sertifikat">("raport");
   const currentMonthKey = format(new Date(), "yyyy-MM");
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);

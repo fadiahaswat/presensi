@@ -69,3 +69,7 @@ export const GPS_CONFIG = {
 
 // LocalStorage Encryption Key (should be set via environment)
 export const STORAGE_ENCRYPTION_KEY = import.meta.env.VITE_STORAGE_KEY || "muallimin-presensi-2024-default-key";
+
+// Cloud Sync HMAC Security Secret (Anti-Bot & Anti-Data-Injection Shield)
+export const SYAMSA_API_SECRET = import.meta.env.VITE_SYAMSA_API_SECRET || "syamsa_muallimin_sec_token_2026_9x8q";
+

@@ -73,6 +73,9 @@ const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri"
 const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
 const PageIbadah = lazy(() => import("./components/PageIbadah").then(m => ({ default: m.PageIbadah })));
 const LoginModal = lazy(() => import("./components/LoginModal").then(m => ({ default: m.LoginModal })));
+const IntegrityAuditModal = lazy(() => import("./components/IntegrityAuditModal").then(m => ({ default: m.IntegrityAuditModal })));
+import { scanAnomalies, IntegrityViolation } from "./utils/anomalyDetector";
+
 import { AgendaRapatRecord, AGENDA_CATEGORIES } from "./types/agendaRapat";
 import { googleSyncService } from "./utils/googleSyncService";
 import { getTrustedDate, syncServerTime, subscribeTimeSync, TimeSyncState } from "./utils/trustedTime";
@@ -706,6 +709,7 @@ function PageDashboard({
   onOpenPamongManager,
   onOpenKalenderHijriah,
   onOpenKalenderPendidikan,
+  onOpenIntegrityAudit,
   onInstallPWA,
   onLogin,
   onSetTargetAsrama,
@@ -725,7 +729,8 @@ function PageDashboard({
   agendaRapatList = [],
   canDeletePhoto = false,
   onSaveLogbook,
-  showToast
+  showToast,
+  detectedViolations = []
 }: {
   records: AttendanceRecord[];
   authUser: AuthUser|null;
@@ -746,6 +751,7 @@ function PageDashboard({
   onOpenMusyrifManager?: () => void;
   onOpenRekapSolatKoordinator?: () => void;
   onOpenPamongManager?: () => void;
+  onOpenIntegrityAudit?: () => void;
   onOpenKalenderHijriah?: () => void;
   onOpenKalenderPendidikan?: () => void;
   onInstallPWA?: () => void;
@@ -767,6 +773,7 @@ function PageDashboard({
   canDeletePhoto?: boolean;
   onSaveLogbook?: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
   showToast?: (msg: string, type: "success" | "error" | "info") => void;
+  detectedViolations?: IntegrityViolation[];
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif).sort(sortMusyrifByClass);
@@ -1326,8 +1333,10 @@ function PageDashboard({
         </div>
       </div>
 
-      {/* DYNAMIC UNIFIED DASHBOARD BANNER (Peringatan Pembinaan / Pengumuman Koor / Logbook / Mutabaah / Sakit / Izin / Rapat / Perpulangan / Puasa) */}
+      {/* DYNAMIC UNIFIED DASHBOARD BANNER (Audit Integritas / Peringatan Pembinaan / Pengumuman Koor / Logbook / Mutabaah / Sakit / Izin / Rapat / Perpulangan / Puasa) */}
       <DynamicDashboardBanner
+        detectedViolations={detectedViolations}
+        onOpenIntegrityAudit={onOpenIntegrityAudit}
         myPembinaanStats={myPembinaanStats}
         isKoorMusyrif={isKoorMusyrif}
         todayFasts={todayFasts}
@@ -1567,9 +1576,9 @@ function PageDashboard({
 
         {/* 1. INTERACTIVE RICH WIDGET ROW (Izin Santri & Santri Sakit) - MUNCUL DI SEMUA ROLE */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Widget 1: Perizinan Santri dengan Real-time Approval Queue & Active Permits */}
+          {/* Widget 1: Perizinan Santri dengan Real-time Approval Queue & Active Permits (HANYA HARI INI) */}
           {(() => {
-            const todayStr = format(new Date(), "yyyy-MM-dd");
+            const todayStrVal = todayStr();
             const pamongAsramas = authUser ? getPamongAssignedAsramas(authUser) : [];
 
             // Scope izin list based on role with flexible fallback
@@ -1617,25 +1626,31 @@ function PageDashboard({
             })();
 
             const validIzinList = (scopedSantriIzinList || []).filter(iz => Boolean(iz && iz.namaSantri && iz.namaSantri.trim() !== ""));
-            const pendingSantriList = validIzinList.filter(iz => String(iz?.statusApproval || "").startsWith("pending"));
-            const approvedTodayList = validIzinList.filter(iz => {
-              if (String(iz?.statusApproval || "") !== "approved") return false;
-              return iz.tglKeluarRencana === todayStr || iz.tglKembaliRencana === todayStr || (iz.tglKeluarRencana <= todayStr && iz.tglKembaliRencana >= todayStr);
-            });
-            const santriDiLuarList = validIzinList.filter(iz => String(iz?.statusApproval || "") === "approved" && iz?.statusPKM === "di_luar");
-            
-            // Prioritas tampilan: 1. Pending approval -> 2. Santri di luar -> 3. Izin aktif hari ini -> 4. Izin terbaru (Maksimal 5)
-            const displayList = pendingSantriList.length > 0 
-              ? pendingSantriList.slice(0, 5)
-              : santriDiLuarList.length > 0
-              ? santriDiLuarList.slice(0, 5)
-              : approvedTodayList.length > 0
-              ? approvedTodayList.slice(0, 5)
-              : validIzinList.slice(0, 5);
 
-            const pendingCount = pendingSantriList.length;
-            const diLuarCount = santriDiLuarList.length;
-            const totalActiveCount = approvedTodayList.length;
+            // Filter ketat: HANYA IZIN YANG BERLAKU / DIBUAT HARI INI
+            const isTodayIzin = (iz: SantriIzinRecord) => {
+              const createdDate = (iz.createdAt || "").slice(0, 10);
+              const isCreatedToday = createdDate === todayStrVal;
+              const isDateMatch = iz.tglKeluarRencana === todayStrVal || iz.tglKembaliRencana === todayStrVal;
+              const isDateSpanningToday = Boolean(iz.tglKeluarRencana && iz.tglKembaliRencana && iz.tglKeluarRencana <= todayStrVal && iz.tglKembaliRencana >= todayStrVal);
+              return isCreatedToday || isDateMatch || isDateSpanningToday;
+            };
+
+            const todayIzinList = validIzinList.filter(isTodayIzin);
+            const pendingTodayList = todayIzinList.filter(iz => String(iz?.statusApproval || "").startsWith("pending"));
+            const approvedTodayList = todayIzinList.filter(iz => String(iz?.statusApproval || "") === "approved");
+            const santriDiLuarTodayList = approvedTodayList.filter(iz => iz?.statusPKM === "di_luar");
+            
+            // Prioritas tampilan hari ini: 1. Pending approval hari ini -> 2. Santri di luar hari ini -> 3. Izin disetujui hari ini (Maksimal 5)
+            const displayList = pendingTodayList.length > 0 
+              ? pendingTodayList.slice(0, 5)
+              : santriDiLuarTodayList.length > 0
+              ? santriDiLuarTodayList.slice(0, 5)
+              : approvedTodayList.slice(0, 5);
+
+            const pendingCount = pendingTodayList.length;
+            const diLuarCount = santriDiLuarTodayList.length;
+            const totalActiveCount = todayIzinList.length;
 
             return (
               <div
@@ -1662,7 +1677,7 @@ function PageDashboard({
                         ? "bg-sky-50 text-sky-800 border border-sky-200"
                         : totalActiveCount > 0
                         ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "bg-blue-50 text-blue-700 border border-blue-200"
+                        : "bg-slate-50 text-slate-500 border border-slate-200"
                     }`}>
                       {isLoadingIzinSedayu
                         ? "Menyinkron..."
@@ -1672,9 +1687,7 @@ function PageDashboard({
                         ? `${diLuarCount} di Luar`
                         : totalActiveCount > 0
                         ? `${totalActiveCount} Hari Ini`
-                        : validIzinList.length > 0
-                        ? `${validIzinList.length} Izin`
-                        : "Nihil ✓"}
+                        : "Nihil Hari Ini ✓"}
                     </span>
                   </div>
 
@@ -1731,15 +1744,15 @@ function PageDashboard({
                       })}
                     </div>
                   ) : (
-                    <div className="py-3 text-center text-slate-400 text-xs">
+                    <div className="py-4 text-center text-slate-400 text-xs">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
-                      <p className="text-[11px] font-medium text-slate-500">Belum ada perizinan santri aktif</p>
+                      <p className="text-[11px] font-medium text-slate-500">Tidak ada perizinan santri hari ini</p>
                     </div>
                   )}
 
-                  {/* ADAPTIVE PHOTO GRID (Max 5x2 = 10 Foto) */}
+                  {/* ADAPTIVE PHOTO GRID (HANYA FOTO IZIN HARI INI, Max 5x2 = 10 Foto) */}
                   {(() => {
-                    const izinWithPhotos = validIzinList
+                    const izinWithPhotos = todayIzinList
                       .filter(iz => Boolean(iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl))
                       .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
                       .slice(0, 10);
@@ -1806,8 +1819,9 @@ function PageDashboard({
             );
           })()}
 
-          {/* Widget 2: Pantauan Santri Sakit (UKS & PKU) dengan Daftar Santri */}
+          {/* Widget 2: Pantauan Santri Sakit (UKS & PKU) dengan Daftar Santri (HANYA HARI INI) */}
           {(() => {
+            const todayStrVal = todayStr();
             const pamongAsramas = authUser ? getPamongAssignedAsramas(authUser) : [];
             const rawSakit = (santriSakitList || []).filter(s => s.status === "dalam_perawatan");
             
@@ -1848,8 +1862,16 @@ function PageDashboard({
               return rawSakit;
             })();
 
+            // Filter ketat: HANYA SANTRI SAKIT HARI INI
+            const isTodaySakit = (s: SantriSakitRecord) => {
+              const createdDate = (s.createdAt || "").slice(0, 10);
+              return s.date === todayStrVal || createdDate === todayStrVal;
+            };
+
+            const todaySakitList = scopedSakit.filter(isTodaySakit);
+
             // Urutkan paling atas yang terbaru
-            const sortedSakit = [...scopedSakit].sort((a, b) => {
+            const sortedSakit = [...todaySakitList].sort((a, b) => {
               const timeA = a.createdAt || a.date || "";
               const timeB = b.createdAt || b.date || "";
               if (timeA && timeB && timeA !== timeB) return timeB.localeCompare(timeA);
@@ -1857,7 +1879,6 @@ function PageDashboard({
             });
 
             const activeSakit = sortedSakit.slice(0, 5);
-            const todayStrVal = todayStr();
 
             return (
               <div
@@ -1876,26 +1897,23 @@ function PageDashboard({
                       </div>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                      scopedSakit.length > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      todaySakitList.length > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                     }`}>
-                      {scopedSakit.length > 0 ? `${scopedSakit.length} Santri` : "Nihil ✓"}
+                      {todaySakitList.length > 0 ? `${todaySakitList.length} Hari Ini` : "Nihil Hari Ini ✓"}
                     </span>
                   </div>
 
                   {activeSakit.length > 0 ? (
                     <div className="space-y-1.5">
                       {activeSakit.map(s => {
-                        const isNew = s.date === todayStrVal || (s.createdAt && s.createdAt.startsWith(todayStrVal));
                         return (
                           <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-slate-100/80 transition-colors">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
                                 <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
-                                {isNew && (
-                                  <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
-                                    Baru
-                                  </span>
-                                )}
+                                <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                                  Hari Ini
+                                </span>
                               </div>
                               <p className="text-[10px] text-slate-400 truncate">{s.keluhan || "Gejala Sakit"} • {s.asrama}</p>
                             </div>
@@ -1912,9 +1930,9 @@ function PageDashboard({
                       })}
                     </div>
                   ) : (
-                    <div className="py-3 text-center text-slate-400 text-xs">
+                    <div className="py-4 text-center text-slate-400 text-xs">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
-                      <p className="text-[11px] font-medium text-slate-500">Semua santri dalam kondisi sehat</p>
+                      <p className="text-[11px] font-medium text-slate-500">Tidak ada santri sakit baru hari ini</p>
                     </div>
                   )}
 
@@ -2535,6 +2553,24 @@ function PageDashboard({
                     </div>
                   </button>
                 )}
+
+                {/* 14. Papan Audit Integritas & Deteksi Anomali */}
+                <button
+                  type="button"
+                  onClick={() => onOpenIntegrityAudit && onOpenIntegrityAudit()}
+                  className="group p-2.5 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-rose-500 hover:shadow-xs transition-all text-left flex items-center gap-2.5 active:scale-[0.98]"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-bold text-xs text-slate-800 truncate">Audit</p>
+                      <span className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded font-mono shrink-0">Shield</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">Anti-Bot & Anomali</p>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
@@ -3130,18 +3166,51 @@ function PageInputPrayer({
 
   const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
   
-  // Musyrif only sees his own record in his dormitory or full building list where only he can edit himself
-  const musyrifList = allM.filter(m => {
-    if (m.asrama !== activeAsrama || !isFieldMusyrif(m)) return false;
-    if (isPamongAnang && activeAsrama === "Asrama 8C") {
-      return (m.kelas || "").startsWith("5");
-    }
-    if (isPamongAbdan && activeAsrama === "Asrama 8C") {
-      return (m.kelas || "").startsWith("6");
-    }
-    return true;
-  }).sort(sortMusyrifByClass);
-  const filtered = search ? musyrifList.filter(m => (m.name || "").toLowerCase().includes(search.toLowerCase())) : musyrifList;
+  // Musyrif pada asrama yang sedang aktif dipilih
+  const musyrifList = useMemo(() => {
+    return allM.filter(m => {
+      if (m.asrama !== activeAsrama || !isFieldMusyrif(m)) return false;
+      if (isPamongAnang && activeAsrama === "Asrama 8C") {
+        return (m.kelas || "").startsWith("5");
+      }
+      if (isPamongAbdan && activeAsrama === "Asrama 8C") {
+        return (m.kelas || "").startsWith("6");
+      }
+      return true;
+    }).sort(sortMusyrifByClass);
+  }, [allM, activeAsrama, isPamongAnang, isPamongAbdan]);
+
+  // Seluruh musyrif dalam lingkup wewenang/otoritas user (untuk pencarian lintas asrama)
+  const authorizedMusyrifList = useMemo(() => {
+    return allM.filter(m => {
+      if (!isFieldMusyrif(m)) return false;
+      if (!fullAccess && !allowedAsramaList.includes(m.asrama)) return false;
+      if (isPamongAnang && m.asrama === "Asrama 8C") {
+        return (m.kelas || "").startsWith("5");
+      }
+      if (isPamongAbdan && m.asrama === "Asrama 8C") {
+        return (m.kelas || "").startsWith("6");
+      }
+      return true;
+    }).sort((a, b) => {
+      // Kelompokkan per asrama terlebih dahulu, lalu per kelas
+      if (a.asrama !== b.asrama) return (a.asrama || "").localeCompare(b.asrama || "");
+      return sortMusyrifByClass(a, b);
+    });
+  }, [allM, fullAccess, allowedAsramaList, isPamongAnang, isPamongAbdan]);
+
+  // Logika pencarian: jika ada query search, cari lintas asrama dalam wewenang akun. Jika kosong, tampilkan asrama aktif.
+  const isSearchActive = Boolean(search && search.trim() !== "");
+  const filtered = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return musyrifList;
+    return authorizedMusyrifList.filter(m => 
+      (m.name || "").toLowerCase().includes(q) ||
+      (m.kelas || "").toLowerCase().includes(q) ||
+      (m.asrama || "").toLowerCase().includes(q) ||
+      (m.pamong || "").toLowerCase().includes(q)
+    );
+  }, [search, musyrifList, authorizedMusyrifList]);
 
   // Find logged in musyrif ID and musyrif profile
   const myMusyrifId = authUser.musyrifId || authUser.id;
@@ -3558,7 +3627,13 @@ function PageInputPrayer({
 
             {/* Quick Actions (Semua Hadir / Terkunci) */}
             <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-              {!isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
+              {isSearchActive && (
+                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg font-mono">
+                  {filtered.length} Ditemukan
+                </span>
+              )}
+
+              {!isSearchActive && !isMusyrifOnly && doneCount < musyrifList.length && !isLocked && (
                 <button
                   type="button"
                   onClick={()=>setConfirmAll(slot)}
@@ -3589,7 +3664,7 @@ function PageInputPrayer({
               <input 
                 value={search} 
                 onChange={e=>setSearch(e.target.value)} 
-                placeholder="Cari nama musyrif..." 
+                placeholder={fullAccess ? "Cari nama musyrif (lintas seluruh asrama)..." : "Cari nama musyrif (lintas asrama binaan)..."} 
                 className="w-full pl-9 pr-8 py-2 bg-slate-50/80 border border-slate-100/80 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:bg-white placeholder:text-slate-400 font-medium transition-all"
               />
               {search && (
@@ -3608,175 +3683,202 @@ function PageInputPrayer({
 
       {/* Cards: Single prayer focused view */}
       <div className="flex flex-col gap-3">
-        {filtered.map(m=>{
-          const rec = getRecord(m.id);
-          const cur = getEffectiveAttendanceStatus(rec, slot, selDate, now);
-          const isAutoAlfa = cur === "alfa" && !rec?.[slot];
-          const note = slot === "subuh" ? rec?.subuhNote : slot === "ashar" ? rec?.asharNote : rec?.maghribNote;
-          const isDone = Boolean(cur);
-          const isMe = m.id === myMusyrifId || matchesEmail(authUser.email, m.email || "");
-          const isCardDisabled = isLocked || (isMusyrifOnly && !isMe);
+        {filtered.length > 0 ? (
+          filtered.map(m=>{
+            const rec = getRecord(m.id);
+            const cur = getEffectiveAttendanceStatus(rec, slot, selDate, now);
+            const isAutoAlfa = cur === "alfa" && !rec?.[slot];
+            const note = slot === "subuh" ? rec?.subuhNote : slot === "ashar" ? rec?.asharNote : rec?.maghribNote;
+            const isDone = Boolean(cur);
+            const isMe = m.id === myMusyrifId || matchesEmail(authUser.email, m.email || "");
+            const isCardDisabled = isLocked || (isMusyrifOnly && !isMe);
 
-          return (
-            <Card key={m.id} cls={`${isDone ? "ring-2 ring-emerald-200" : isNotYetTime ? "opacity-75 bg-slate-50/40" : ""} ${isMusyrifOnly && isMe ? "ring-2 ring-amber-400/80 bg-amber-50/10" : ""}`} ch={<div className="p-3.5 sm:p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Av name={m.name} src={getMusyrifAvatar(m)}/>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="font-bold text-sm text-slate-800 truncate">{m.name}</p>
-                    <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold font-mono">{m.kelas}</span>
-                    {isMusyrifOnly && isMe && (
-                      <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 font-bold px-1.5 py-0.5 rounded-full">
-                        Akun Anda
+            return (
+              <Card key={m.id} cls={`${isDone ? "ring-2 ring-emerald-200" : isNotYetTime ? "opacity-75 bg-slate-50/40" : ""} ${isMusyrifOnly && isMe ? "ring-2 ring-amber-400/80 bg-amber-50/10" : ""}`} ch={<div className="p-3.5 sm:p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Av name={m.name} src={getMusyrifAvatar(m)}/>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="font-bold text-sm text-slate-800 truncate">{m.name}</p>
+                      <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-bold font-mono">{m.kelas}</span>
+                      {/* Badge Asrama: selalu informatif, makin kontras saat mode pencarian lintas asrama */}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                        isSearchActive 
+                          ? "bg-blue-100 text-blue-800 border border-blue-200" 
+                          : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {m.asrama || activeAsrama}
                       </span>
-                    )}
-                    {isMusyrifOnly && isMe && !isDone && !isNotYetTime && !isPastTimeMusyrif && (
-                      <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                        <Camera className="w-2.5 h-2.5" /> Wajib Selfie
-                      </span>
-                    )}
+                      {isMusyrifOnly && isMe && (
+                        <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 font-bold px-1.5 py-0.5 rounded-full">
+                          Akun Anda
+                        </span>
+                      )}
+                      {isMusyrifOnly && isMe && !isDone && !isNotYetTime && !isPastTimeMusyrif && (
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                          <Camera className="w-2.5 h-2.5" /> Wajib Selfie
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 truncate mt-0.5">Pamong: {m.pamong || "-"}</p>
                   </div>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">Pamong: {m.pamong || "-"}</p>
-                </div>
-                {isDone ? (
-                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 flex-shrink-0 ${
-                    cur === "hadir" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
-                    cur === "sakit" ? "bg-amber-100 text-amber-800 border border-amber-200" :
-                    cur === "izin" ? "bg-blue-100 text-blue-800 border border-blue-200" :
-                    "bg-red-100 text-red-800 border border-red-200"
-                  }`}>
-                    {cur === "hadir" && <CheckCircle2 className="w-3.5 h-3.5"/>}
-                    {isAutoAlfa ? "Alfa (Otomatis)" : S[cur].label}
-                  </span>
-                ) : isNotYetTime ? (
-                  <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
-                    <Lock className="w-3 h-3"/> Belum Waktunya
-                  </span>
-                ) : isPastTimeMusyrif ? (
-                  <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
-                    <Lock className="w-3 h-3"/> Waktu Habis
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 flex-shrink-0 font-medium">Belum Presensi</span>
-                )}
-              </div>
-
-              {/* Note preview if any */}
-              {note && (
-                <div className="mb-3 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-slate-500 italic truncate">"{note}"</span>
-                  {!isLocked && (
-                    <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText(note);}} className="text-emerald-600 font-semibold ml-2 flex-shrink-0 hover:underline">Edit</button>
+                  {isDone ? (
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 flex-shrink-0 ${
+                      cur === "hadir" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" :
+                      cur === "sakit" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                      cur === "izin" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                      "bg-red-100 text-red-800 border border-red-200"
+                    }`}>
+                      {cur === "hadir" && <CheckCircle2 className="w-3.5 h-3.5"/>}
+                      {isAutoAlfa ? "Alfa (Otomatis)" : S[cur].label}
+                    </span>
+                  ) : isNotYetTime ? (
+                    <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
+                      <Lock className="w-3 h-3"/> Belum Waktunya
+                    </span>
+                  ) : isPastTimeMusyrif ? (
+                    <span className="text-[11px] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 flex-shrink-0 font-semibold flex items-center gap-1">
+                      <Lock className="w-3 h-3"/> Waktu Habis
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 flex-shrink-0 font-medium">Belum Presensi</span>
                   )}
                 </div>
-              )}
 
-              {/* Action Buttons: Hadir, Sakit, Izin, Alfa */}
-              <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                {(["hadir","sakit","izin","alfa"] as AttendanceStatus[]).map(s=>(
-                  <button
-                    key={s}
-                    disabled={isCardDisabled}
-                    onClick={()=>{
-                      if (isCardDisabled) {
-                        if (isMusyrifOnly && !isMe) {
-                          showToast?.("Anda hanya dapat mengisi presensi mandiri atas nama Anda sendiri.", "error");
-                        } else if (isNotYetTime) {
-                          showToast?.(`Presensi ${slotLabel} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
-                        } else if (isPastTimeMusyrif) {
-                          showToast?.(`Waktu presensi mandiri ${slotLabel} telah ditutup (${closeTimeDisplayStr} WIB).`, "error");
-                        } else if (gpsResult && !gpsResult.isInRange) {
-                          if (s === "hadir" && isMe) {
-                            // Tawarkan verifikasi foto langsung live kamera (non galeri)
-                            setActivePhotoVerification({
-                              mid: m.id,
-                              name: m.name,
-                              asrama: m.asrama || activeAsrama,
-                              prayer: slot
-                            });
-                          } else {
-                            showToast?.(`Lokasi Anda di luar jangkauan (${gpsResult.distanceMeters}m). Silakan gunakan opsi Presensi dengan Foto Kamera.`, "error");
-                          }
-                        }
-                        return;
-                      }
-
-                      // Aturan: Musyrif biasa yang presensi mandiri (hadir) wajib selfie kamera live (tanpa upload galeri)
-                      if (s === "hadir" && isMusyrifOnly && isMe) {
-                        triggerNativeCamera({
-                          mid: m.id,
-                          name: m.name,
-                          asrama: m.asrama || activeAsrama,
-                          prayer: slot
-                        });
-                        return;
-                      }
-
-                      // Jika user adalah diri sendiri (misal Koord Gedung), mencoba presensi hadir, dan GPS tidak valid -> paksa foto kamera live
-                      if (s === "hadir" && isMusyrifOrKoorGedung && isMe && gpsResult && !gpsResult.isInRange) {
-                        triggerNativeCamera({
-                          mid: m.id,
-                          name: m.name,
-                          asrama: m.asrama || activeAsrama,
-                          prayer: slot
-                        });
-                        return;
-                      }
-                      // Prevent duplicate clicks on same status
-                      if(cur===s) return;
-                      mark(m.id,slot,s);
-                    }}
-                    className={`min-h-[44px] py-2.5 px-1 rounded-2xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${
-                      cur===s
-                        ? `${S[s].btn} shadow-xs ring-2 ring-emerald-500/20 scale-[1.02]`
-                        : isCardDisabled
-                        ? "bg-slate-100/70 text-slate-400 border border-slate-200/50 cursor-not-allowed"
-                        : "bg-slate-100/90 text-slate-700 hover:bg-slate-200 active:scale-95 border border-slate-200/50"
-                    }`}
-                  >
-                    {isCardDisabled && cur !== s && <Lock className="w-3 h-3 text-slate-400 mr-0.5" />}
-                    <span>{S[s].label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Opsi Presensi Darurat dengan Foto Kamera Live jika GPS di luar radius */}
-              {isMe && !isDone && !isNotYetTime && !isPastTimeMusyrif && gpsResult && !gpsResult.isInRange && (
-                <div className="mt-2.5 p-2.5 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-between gap-2 text-xs">
-                  <div className="min-w-0">
-                    <p className="font-bold text-amber-900 text-[11px] flex items-center gap-1">
-                      <Camera className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                      <span>GPS Terlempar / Di Luar Radius?</span>
-                    </p>
-                    <p className="text-[10px] text-amber-800/80 truncate">Presensi mandiri tetap sah dengan foto kamera bawaan HP.</p>
+                {/* Note preview if any */}
+                {note && (
+                  <div className="mb-3 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-slate-500 italic truncate">"{note}"</span>
+                    {!isLocked && (
+                      <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText(note);}} className="text-emerald-600 font-semibold ml-2 flex-shrink-0 hover:underline">Edit</button>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerNativeCamera({
-                        mid: m.id,
-                        name: m.name,
-                        asrama: m.asrama || activeAsrama,
-                        prayer: slot
-                      });
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-xs shrink-0 active:scale-95 transition-all flex items-center gap-1"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>Ambil Foto</span>
-                  </button>
-                </div>
-              )}
+                )}
 
-              {/* Bottom row: note link only */}
-              {cur && !isFuture && (cur==="sakit"||cur==="izin"||cur==="alfa") && !note ? (
-                <div className="mt-2">
-                  <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText("");}} className="text-xs text-emerald-700 font-semibold hover:underline">+ Tambah Catatan</button>
+                {/* Action Buttons: Hadir, Sakit, Izin, Alfa */}
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+                  {(["hadir","sakit","izin","alfa"] as AttendanceStatus[]).map(s=>(
+                    <button
+                      key={s}
+                      disabled={isCardDisabled}
+                      onClick={()=>{
+                        if (isCardDisabled) {
+                          if (isMusyrifOnly && !isMe) {
+                            showToast?.("Anda hanya dapat mengisi presensi mandiri atas nama Anda sendiri.", "error");
+                          } else if (isNotYetTime) {
+                            showToast?.(`Presensi ${slotLabel} baru dibuka mulai pukul ${openTimeDisplayStr} WIB.`, "error");
+                          } else if (isPastTimeMusyrif) {
+                            showToast?.(`Waktu presensi mandiri ${slotLabel} telah ditutup (${closeTimeDisplayStr} WIB).`, "error");
+                          } else if (gpsResult && !gpsResult.isInRange) {
+                            if (s === "hadir" && isMe) {
+                              // Tawarkan verifikasi foto langsung live kamera (non galeri)
+                              setActivePhotoVerification({
+                                mid: m.id,
+                                name: m.name,
+                                asrama: m.asrama || activeAsrama,
+                                prayer: slot
+                              });
+                            } else {
+                              showToast?.(`Lokasi Anda di luar jangkauan (${gpsResult.distanceMeters}m). Silakan gunakan opsi Presensi dengan Foto Kamera.`, "error");
+                            }
+                          }
+                          return;
+                        }
+
+                        // Aturan: Musyrif biasa yang presensi mandiri (hadir) wajib selfie kamera live (tanpa upload galeri)
+                        if (s === "hadir" && isMusyrifOnly && isMe) {
+                          triggerNativeCamera({
+                            mid: m.id,
+                            name: m.name,
+                            asrama: m.asrama || activeAsrama,
+                            prayer: slot
+                          });
+                          return;
+                        }
+
+                        // Jika user adalah diri sendiri (misal Koord Gedung), mencoba presensi hadir, dan GPS tidak valid -> paksa foto kamera live
+                        if (s === "hadir" && isMusyrifOrKoorGedung && isMe && gpsResult && !gpsResult.isInRange) {
+                          triggerNativeCamera({
+                            mid: m.id,
+                            name: m.name,
+                            asrama: m.asrama || activeAsrama,
+                            prayer: slot
+                          });
+                          return;
+                        }
+                        // Prevent duplicate clicks on same status
+                        if(cur===s) return;
+                        mark(m.id,slot,s);
+                      }}
+                      className={`min-h-[44px] py-2.5 px-1 rounded-2xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed ${
+                        cur===s
+                          ? `${S[s].btn} shadow-xs ring-2 ring-emerald-500/20 scale-[1.02]`
+                          : isCardDisabled
+                          ? "bg-slate-100/70 text-slate-400 border border-slate-200/50 cursor-not-allowed"
+                          : "bg-slate-100/90 text-slate-700 hover:bg-slate-200 active:scale-95 border border-slate-200/50"
+                      }`}
+                    >
+                      {isCardDisabled && cur !== s && <Lock className="w-3 h-3 text-slate-400 mr-0.5" />}
+                      <span>{S[s].label}</span>
+                    </button>
+                  ))}
                 </div>
-              ) : <span/>}
-            </div>}/>
-          );
-        })}
+
+                {/* Opsi Presensi Darurat dengan Foto Kamera Live jika GPS di luar radius */}
+                {isMe && !isDone && !isNotYetTime && !isPastTimeMusyrif && gpsResult && !gpsResult.isInRange && (
+                  <div className="mt-2.5 p-2.5 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0">
+                      <p className="font-bold text-amber-900 text-[11px] flex items-center gap-1">
+                        <Camera className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                        <span>GPS Terlempar / Di Luar Radius?</span>
+                      </p>
+                      <p className="text-[10px] text-amber-800/80 truncate">Presensi mandiri tetap sah dengan foto kamera bawaan HP.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerNativeCamera({
+                          mid: m.id,
+                          name: m.name,
+                          asrama: m.asrama || activeAsrama,
+                          prayer: slot
+                        });
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-xs shrink-0 active:scale-95 transition-all flex items-center gap-1"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Ambil Foto</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Bottom row: note link only */}
+                {cur && !isFuture && (cur==="sakit"||cur==="izin"||cur==="alfa") && !note ? (
+                  <div className="mt-2">
+                    <button onClick={()=>{setNoteFor({id:m.id,prayer:slot});setNoteText("");}} className="text-xs text-emerald-700 font-semibold hover:underline">+ Tambah Catatan</button>
+                  </div>
+                ) : <span/>}
+              </div>}/>
+            );
+          })
+        ) : (
+          <div className="bg-white rounded-3xl p-8 text-center border border-slate-200/70 shadow-2xs">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <Search className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-sm text-slate-800 mb-1">Musyrif Tidak Ditemukan</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
+              Tidak ada musyrif yang cocok dengan kata kunci &ldquo;{search}&rdquo; dalam lingkup asrama wewenang Anda.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all active:scale-95"
+            >
+              Hapus Pencarian
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Note modal */}
@@ -7458,11 +7560,12 @@ const DEPRECATED_PERSONNEL_IDS = new Set([
 function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return DEFAULT_ALL_PERSONNEL;
 
-  // 1. Filter out deprecated IDs and test records
+  // 1. Filter out deprecated IDs, test records, and corrupted/empty rows
   const filtered = rawList.filter(p => {
-    if (!p || !p.id) return false;
-    const nameLow = (p.name || "").toLowerCase();
-    const emailLow = (p.email || "").toLowerCase();
+    if (!p || !p.id || typeof p.id !== "string" || !p.id.trim()) return false;
+    if (!p.name || typeof p.name !== "string" || !p.name.trim()) return false;
+    const nameLow = (p.name || "").toLowerCase().trim();
+    const emailLow = (p.email || "").toLowerCase().trim();
     const isTestItem = (nameLow.includes("testing") || nameLow.includes("test ") || emailLow.includes("testing")) && p.id !== "m_test_andi";
 
     if (
@@ -7473,7 +7576,7 @@ function sanitizeMusyrifList(rawList: Musyrif[]): Musyrif[] {
       emailLow.includes("afifnashrul") ||
       emailLow.includes("nitikan3321@gmail.com") ||
       isTestItem ||
-      (p.id.startsWith("m_") && p.id !== "m_test_andi" && (p.role === "pamong" || p.role === "koordinator_musyrif" || !p.name || p.name.trim() === "" || isTestItem)) ||
+      (p.id.startsWith("m_") && p.id !== "m_test_andi" && (p.role === "pamong" || p.role === "koordinator_musyrif" || isTestItem)) ||
       (p.id.startsWith("g") && (p.role === "koordinator_gedung" || p.role === "musyrif" || !p.role))
     ) {
       return false;
@@ -7810,6 +7913,8 @@ export default function App() {
   const [showRekapSolatKoordinator, setShowRekapSolatKoordinator] = useState(false);
   const [showPamongManager, setShowPamongManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
+  const [showIntegrityAudit, setShowIntegrityAudit] = useState(false);
+  const [isPurgingAnomalies, setIsPurgingAnomalies] = useState(false);
   const [targetMusyrifId, setTargetMusyrifId] = useState<string | undefined>(undefined);
   const [targetDate, setTargetDate] = useState<string | undefined>(undefined);
   const [targetTaskKey, setTargetTaskKey] = useState<string | undefined>(undefined);
@@ -9020,6 +9125,91 @@ export default function App() {
     googleSyncService.enqueue("Musyrif", createdMusyrif, "upsert", true);
     showToast(`Pamong ${createdAuth.name} berhasil ditambahkan!`, "success");
   };
+
+  // Anomaly & Bot Injection Scanner (Single Source of Truth)
+  const detectedViolations = useMemo<IntegrityViolation[]>(() => {
+    // Extract flattened logbook records from logbookData
+    const flattenedLogs: any[] = [];
+    Object.entries(logbookData).forEach(([mId, dateMap]: [string, any]) => {
+      if (dateMap && typeof dateMap === "object") {
+        Object.entries(dateMap).forEach(([dt, tObj]: [string, any]) => {
+          if (tObj && typeof tObj === "object") {
+            Object.entries(tObj).forEach(([tKey, val]: [string, any]) => {
+              if (val && typeof val === "object" && (val.done || val.stepsCount)) {
+                flattenedLogs.push({
+                  id: `${mId}_${dt}_${tKey}`,
+                  musyrifId: mId,
+                  date: dt,
+                  taskKey: tKey,
+                  ...val
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+
+    const res = scanAnomalies(flattenedLogs, records, musyrifList);
+    return res.violations;
+  }, [logbookData, records, musyrifList]);
+
+  const handlePurgeAnomalies = async () => {
+    setIsPurgingAnomalies(true);
+    try {
+      // 1. Purge m16 anomalous fake logs (steps = 250 without photo)
+      let cleanedLogCount = 0;
+      setLogbookData(prev => {
+        const next: LogbookStorage = { ...prev };
+        if (next["m16"]) {
+          const dateCopy = { ...next["m16"] };
+          Object.keys(dateCopy).forEach(dt => {
+            const dayTasks = { ...dateCopy[dt] };
+            let hasChange = false;
+            Object.keys(dayTasks).forEach(tKey => {
+              const task = dayTasks[tKey];
+              if (task && task.stepsCount === 250 && (!task.photoUrl || task.photoUrl === "")) {
+                delete dayTasks[tKey];
+                hasChange = true;
+                cleanedLogCount++;
+                googleSyncService.enqueue("Logbook", { id: `m16_${dt}_${tKey}` }, "delete");
+              }
+            });
+            if (hasChange) {
+              dateCopy[dt] = dayTasks;
+            }
+          });
+          next["m16"] = dateCopy;
+        }
+        return next;
+      });
+
+      // 2. Revert any bypass records
+      setRecords(prev => {
+        return prev.map(r => {
+          if (r.musyrifId === "m16" && (r.markedBy === "admin_syamsa_bypass_01" || r.markedBy === "super_admin_01")) {
+            const updated = {
+              ...r,
+              subuh: "alpa" as AttendanceStatus,
+              markedBy: "audit_revoked_fraud"
+            };
+            googleSyncService.enqueue("Records", updated, "upsert");
+            return updated;
+          }
+          return r;
+        });
+      });
+
+      // Flush queue immediately
+      await googleSyncService.flush();
+      showToast(`Pembersihan anomali selesai! Data palsu berhasil dibatalkan dan disinkronkan ke cloud.`, "success");
+    } catch (err) {
+      showToast("Gagal memproses pembersihan anomali.", "error");
+    } finally {
+      setIsPurgingAnomalies(false);
+    }
+  };
+
 
   const handleUpdatePamong = (updatedPamong: Pamong) => {
     if (authUser?.role !== "koordinator_musyrif") {
@@ -10398,6 +10588,7 @@ export default function App() {
                 onOpenMusyrifManager={() => setPage("musyrif-manager")}
                 onOpenRekapSolatKoordinator={() => setShowRekapSolatKoordinator(true)}
                 onOpenPamongManager={() => setPage("pamong-manager")}
+                onOpenIntegrityAudit={() => setShowIntegrityAudit(true)}
                 onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
                 onOpenKalenderPendidikan={() => setPage("kalender-pendidikan")}
                 onInstallPWA={handleInstallPWA}
@@ -10416,6 +10607,7 @@ export default function App() {
                 kegiatanRecords={kegiatanRecords}
                 isLoadingIzinSedayu={isLoadingIzinSedayu}
                 canDeletePhoto={canDeletePhoto}
+                detectedViolations={detectedViolations}
                 onSaveLogbook={handleSaveLogbook}
                 showToast={showToast}
               />
@@ -11088,6 +11280,20 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* 11b. Papan Integritas & Deteksi Anomali Modal */}
+      <AnimatePresence>
+        {showIntegrityAudit && (
+          <IntegrityAuditModal
+            isOpen={showIntegrityAudit}
+            onClose={() => setShowIntegrityAudit(false)}
+            violations={detectedViolations}
+            onPurgeAnomalies={handlePurgeAnomalies}
+            isPurging={isPurgingAnomalies}
+          />
+        )}
+      </AnimatePresence>
+
 
       {/* 12. Google Sheets Cloud Sync Modal */}
       <CloudSyncModal

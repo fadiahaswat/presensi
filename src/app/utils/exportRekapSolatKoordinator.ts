@@ -78,7 +78,7 @@ export function calculateRekapSolatBulanan(
 
   // Filter musyrif lapangan aktif (Pastikan akun Koordinator/Andi Aqillah & testing tidak masuk)
   const fieldMusyrifs = (musyrifListAll || []).filter(m => {
-    if (!m) return false;
+    if (!m || !m.id || !m.name || typeof m.name !== "string" || !m.name.trim()) return false;
     const nameLow = (m.name || m.nama || "").toLowerCase();
     const idLow = (m.id || "").toLowerCase();
     if (

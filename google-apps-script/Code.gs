@@ -142,6 +142,70 @@ function processAndUploadFilesRecursively(data, folder, prefix) {
   return processed;
 }
 
+// Kunci Rahasia HMAC (Anti-Bot & Anti-Data-Injection Shield)
+// Dapat diatur juga di PropertiesService: File > Project Settings > Script Properties > SYAMSA_API_SECRET
+const DEFAULT_API_SECRET = "syamsa_muallimin_sec_token_2026_9x8q";
+
+function getSecuritySecret() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const sec = props.getProperty("SYAMSA_API_SECRET");
+    if (sec && sec.trim()) return sec.trim();
+  } catch (_) {}
+  return DEFAULT_API_SECRET;
+}
+
+/**
+ * Validasi HMAC-SHA256 Signature untuk mencegah injeksi data langsung oleh script/bot liar.
+ */
+function verifyHmacSignature(message, signature) {
+  if (!signature) return false;
+  try {
+    const secret = getSecuritySecret();
+    const signatureBytes = Utilities.computeHmacSha256Signature(message, secret);
+    const computedHex = signatureBytes.map(function(b) {
+      const byteVal = (b < 0 ? b + 256 : b);
+      return (byteVal < 16 ? "0" : "") + byteVal.toString(16);
+    }).join("");
+    return computedHex.toLowerCase() === String(signature).toLowerCase();
+  } catch (err) {
+    console.error("Gagal verifikasi HMAC:", err);
+    return false;
+  }
+}
+
+/**
+ * Validasi Anti-Bot & Integritas Tugas Logbook:
+ * Mencegah pengisian tugas masa depan (contoh cek tidur diisi jam 6 pagi)
+ */
+function validateRecordIntegrity(table, rec) {
+  if (!rec || typeof rec !== "object") return true;
+  
+  // Jika sedang menghapus data (soft delete / purge anomali), selalu izinkan
+  if (rec.is_deleted === true || rec.is_deleted === "TRUE" || rec.is_deleted === 1) {
+    return true;
+  }
+
+  const tbl = (table || "").toLowerCase();
+  
+  // 1. Anti-Backdate: cegah logbook/mutabaah masa lalu > 3 hari jika bukan hapus
+  if ((tbl.includes("logbook") || tbl.includes("mutabaah")) && rec.date) {
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() - 3); // toleransi H-3
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 1); // toleransi H+1 (timezone)
+    
+    const recDate = new Date(rec.date);
+    if (recDate < minDate || recDate > maxDate) {
+      console.warn("Ditolak: Tanggal rekaman di luar batas wajar:", rec.date);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /**
  * Handle HTTP POST Request (Batch Upsert & Soft Delete)
  */
@@ -162,13 +226,45 @@ function doPost(e) {
 
     const payload = JSON.parse(e.postData.contents);
     const action = payload.action || "batch_upsert";
+
+    // === SHIELD ANTI-INJEKSI & BOT: WAJIB VERIFIKASI HMAC SIGNATURE ===
+    if (action === "multi_table_upsert" || action === "batch_upsert" || action === "batchSync") {
+      let signMessage = "";
+      if (action === "multi_table_upsert") {
+        signMessage = action + ":" + (payload.clientTimestamp || "") + ":" + JSON.stringify(payload.tables || {});
+      } else if (action === "batch_upsert") {
+        signMessage = action + ":" + (payload.table || "") + ":" + (payload.clientTimestamp || "") + ":" + JSON.stringify(payload.records || []);
+      }
+
+      if (!payload.signature) {
+        console.warn("BLOCKED: Request ditolak karena tidak memiliki signature keamanan!");
+        return createResponse({
+          status: "error",
+          message: "Akses Ditolak: Request wajib menyertakan signature HMAC autentik."
+        }, 403);
+      }
+
+      const isValid = verifyHmacSignature(signMessage, payload.signature);
+      if (!isValid) {
+        console.warn("BLOCKED: Injeksi data ditolak karena signature HMAC tidak valid!");
+        return createResponse({
+          status: "error",
+          message: "Akses Ditolak: Signature keamanan HMAC tidak valid (Deteksi Injeksi Data/Bot)."
+        }, 403);
+      }
+    }
+
+
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
     if (action === "batch_upsert") {
       const table = payload.table;
-      const records = payload.records || [];
+      let records = payload.records || [];
       if (!table) throw new Error("Parameter 'table' wajib disertakan.");
       
+      // Filter rekaman yang mencurigakan / tidak valid
+      records = records.filter(function(r) { return validateRecordIntegrity(table, r); });
+
       const sheet = getOrCreateSheet(ss, table);
       const count = executeBatchUpsert(sheet, records);
       
@@ -181,6 +277,7 @@ function doPost(e) {
       });
     }
 
+
     if (action === "multi_table_upsert" || action === "batchSync") {
       // payload.tables = { records: [...], izin: [...], ... }
       const tablesData = payload.tables || {};
@@ -188,13 +285,17 @@ function doPost(e) {
 
       for (const tableName in tablesData) {
         if (Object.prototype.hasOwnProperty.call(tablesData, tableName)) {
-          const recs = tablesData[tableName] || [];
+          let recs = tablesData[tableName] || [];
+          // Filter rekaman yang mencurigakan / tidak valid
+          recs = recs.filter(function(r) { return validateRecordIntegrity(tableName, r); });
+          
           if (recs.length > 0) {
             const sheet = getOrCreateSheet(ss, tableName);
             results[tableName] = executeBatchUpsert(sheet, recs);
           }
         }
       }
+
 
       return createResponse({
         status: "success",

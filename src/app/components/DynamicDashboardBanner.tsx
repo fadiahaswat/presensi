@@ -28,6 +28,7 @@ import {
 } from "../data/kalenderPendidikanData";
 import { getTrustedDate } from "../utils/trustedTime";
 import { AgendaRapatRecord } from "../types/agendaRapat";
+import { IntegrityViolation } from "../utils/anomalyDetector";
 
 interface DynamicDashboardBannerProps {
   myPembinaanStats?: MusyrifAttendanceStats;
@@ -37,6 +38,10 @@ interface DynamicDashboardBannerProps {
   onOpenKalenderPendidikan?: () => void;
   onGoTo?: (page: any) => void;
   renderFastIconFn?: (iconName: string, className?: string) => React.ReactNode;
+  
+  // Audit Integritas Data & Anti-Bypass
+  detectedViolations?: IntegrityViolation[];
+  onOpenIntegrityAudit?: () => void;
   
   // Kontekstual pengasuhan & asrama
   userRole?: string;
@@ -74,6 +79,8 @@ export function DynamicDashboardBanner({
   onOpenKalenderPendidikan,
   onGoTo,
   renderFastIconFn,
+  detectedViolations = [],
+  onOpenIntegrityAudit,
   userRole,
   todayLogDoneCount = 0,
   isMutabaahDoneToday = false,
@@ -187,8 +194,35 @@ export function DynamicDashboardBanner({
     borderColor: string;
     badgeColor: string;
     textColor: string;
+    titleColor?: string;
+    iconBg?: string;
+    chevronColor?: string;
     onClick?: () => void;
   }> = [];
+
+  // 0. Peringatan Audit Integritas Data (Jika terdeteksi bot/injeksi/bypass)
+  if (detectedViolations && detectedViolations.length > 0) {
+    const totalAnomali = detectedViolations.reduce((acc, v) => acc + v.jumlahEntri, 0);
+    const firstViolator = detectedViolations[0]?.musyrifName;
+    const extraCount = detectedViolations.length - 1;
+    
+    slides.push({
+      id: "slide_integrity_audit",
+      type: "integrity",
+      title: "Audit Integritas Data",
+      badge: `${totalAnomali} Anomali`,
+      desc: `Injeksi bot & bypass terdeteksi: ${firstViolator}${extraCount > 0 ? ` & ${extraCount} lainnya` : ""} • Seluruh data dibekukan`,
+      icon: <ShieldAlert className="w-4 h-4 text-rose-300 animate-pulse" />,
+      bgColor: "bg-gradient-to-r from-rose-950 via-red-950 to-rose-950 hover:border-rose-400/80 shadow-xs",
+      borderColor: "border-rose-600/50",
+      badgeColor: "bg-rose-600 text-white font-mono uppercase tracking-tight",
+      textColor: "text-rose-200",
+      titleColor: "text-white",
+      iconBg: "bg-rose-900/60 border-rose-500/40 text-rose-300",
+      chevronColor: "text-rose-400 group-hover:text-white",
+      onClick: onOpenIntegrityAudit,
+    });
+  }
 
   // 1. Peringatan Pembinaan (Jika musyrif masuk 25% terbawah dan kehadiran < 75%)
   if (myPembinaanStats && myPembinaanStats.needsPembinaan) {
@@ -439,7 +473,7 @@ export function DynamicDashboardBanner({
         className={`group relative flex items-center justify-between gap-2.5 sm:gap-3 border rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 cursor-pointer shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-[0.99] select-none ${currentSlide.bgColor} ${currentSlide.borderColor}`}
       >
         {/* Left Icon */}
-        <div className="w-8 h-8 rounded-xl bg-white/95 border border-white/80 flex items-center justify-center shrink-0 shadow-2xs">
+        <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-2xs ${currentSlide.iconBg || "bg-white/95 border-white/80"}`}>
           {currentSlide.icon}
         </div>
 
@@ -449,11 +483,11 @@ export function DynamicDashboardBanner({
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md font-mono tracking-tight shrink-0 ${currentSlide.badgeColor}`}>
               {currentSlide.badge}
             </span>
-            <h4 className="text-xs font-bold text-slate-900 truncate leading-tight">
+            <h4 className={`text-xs font-bold truncate leading-tight ${currentSlide.titleColor || "text-slate-900"}`}>
               {currentSlide.title}
             </h4>
           </div>
-          <p className={`text-[11px] truncate mt-0.5 leading-tight font-medium opacity-85 ${currentSlide.textColor}`}>
+          <p className={`text-[11px] truncate mt-0.5 leading-tight font-medium opacity-90 ${currentSlide.textColor}`}>
             {currentSlide.desc}
           </p>
         </div>
@@ -461,7 +495,7 @@ export function DynamicDashboardBanner({
         {/* Right side: Dots indicator & Chevron */}
         <div className="flex items-center gap-1.5 shrink-0 self-center">
           {slides.length > 1 && (
-            <div className="flex items-center gap-0.5 bg-white/80 px-1.5 py-0.5 rounded-full border border-black/5 shadow-2xs">
+            <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-xs px-1.5 py-0.5 rounded-full border border-white/10 shadow-2xs">
               {slides.map((_, idx) => (
                 <button
                   key={idx}
@@ -472,8 +506,8 @@ export function DynamicDashboardBanner({
                   }}
                   className={`transition-all duration-300 rounded-full ${
                     currentIndex === idx 
-                      ? "w-3.5 h-1 bg-[#0C81E4]" 
-                      : "w-1 h-1 bg-slate-300 hover:bg-slate-400"
+                      ? "w-3.5 h-1 bg-white" 
+                      : "w-1 h-1 bg-white/40 hover:bg-white/70"
                   }`}
                   title={`Slide ${idx + 1}`}
                 />
@@ -481,7 +515,7 @@ export function DynamicDashboardBanner({
             </div>
           )}
 
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+          <ChevronRight className={`w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform shrink-0 ${currentSlide.chevronColor || "text-slate-400 group-hover:text-slate-700"}`} />
         </div>
       </div>
 

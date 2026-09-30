@@ -97,6 +97,9 @@ export function MusyrifManagerModal({
   const [selectedAsrama, setSelectedAsrama] = useState<string>(!isKoordinator && userAsrama ? userAsrama : "all");
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [editingMusyrif, setEditingMusyrif] = useState<Musyrif | null>(null);
+  const cleanMusyrifList = useMemo(() => {
+    return (musyrifList || []).filter(m => Boolean(m && m.id && m.name && typeof m.name === "string" && m.name.trim() !== ""));
+  }, [musyrifList]);
 
   // Form State for Add / Edit
   const [name, setName] = useState("");
@@ -190,8 +193,7 @@ export function MusyrifManagerModal({
 
   // Filtered List (Search by Name, Role, Kamar, Kelas, Phone, Email, Asrama)
   const filteredList = useMemo(() => {
-    return musyrifList.filter(m => {
-      if (!m) return false;
+    return cleanMusyrifList.filter(m => {
       const mRole = m.role || "musyrif";
       const matchRole = selectedRole === "all" || mRole === selectedRole;
       const matchAsrama = selectedAsrama === "all" || m.asrama === selectedAsrama;
@@ -214,7 +216,7 @@ export function MusyrifManagerModal({
       }
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [musyrifList, selectedAsrama, selectedRole, searchQuery]);
+  }, [cleanMusyrifList, selectedAsrama, selectedRole, searchQuery]);
 
   const content = (
     <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
@@ -527,9 +529,9 @@ export function MusyrifManagerModal({
                   onChange={e => setSelectedAsrama(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-2 font-bold text-slate-700 outline-none cursor-pointer shadow-2xs hover:bg-slate-100"
                 >
-                  <option value="all">Semua Asrama ({musyrifList.length})</option>
+                  <option value="all">Semua Asrama ({cleanMusyrifList.length})</option>
                   {activeAsramaList.map(asr => {
-                    const count = musyrifList.filter(m => m.asrama === asr).length;
+                    const count = cleanMusyrifList.filter(m => m.asrama === asr).length;
                     return (
                       <option key={asr} value={asr}>
                         {asr} ({count})
@@ -551,12 +553,12 @@ export function MusyrifManagerModal({
                     : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/70"
                 }`}
               >
-                Semua Role ({musyrifList.length})
+                Semua Role ({cleanMusyrifList.length})
               </button>
               {(Object.keys(ROLE_CONFIG) as MusyrifRole[]).map((rKey) => {
                 const conf = ROLE_CONFIG[rKey];
                 const IconComp = conf.icon;
-                const count = musyrifList.filter(m => (m.role || "musyrif") === rKey).length;
+                const count = cleanMusyrifList.filter(m => (m.role || "musyrif") === rKey).length;
                 return (
                   <button
                     key={rKey}

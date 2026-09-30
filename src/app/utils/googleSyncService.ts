@@ -27,6 +27,8 @@ export interface SyncState {
 
 type SyncListener = (state: SyncState) => void;
 type DataUpdateListener = (table: string, records: any[], isFullReplace?: boolean) => void;
+import { SYAMSA_API_SECRET } from "../config/envConfig";
+import { generateHmacSha256 } from "./cryptoUtils";
 
 const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxDargFr4lg3KqDkXZRHGzHvpEUgAZsGKgMKiuyFAlXz0l0MwsOUhXyA7dbbYuiscEe/exec";
 const GAS_URL_KEY = "presensi_gas_url";
@@ -749,19 +751,31 @@ class GoogleSyncService {
         );
       }
 
+      const clientTimestamp = Date.now();
+      const payloadObj: any = {
+        action: "multi_table_upsert",
+        tables: tablesPayload,
+        clientTimestamp
+      };
+
+      // Sign payload with HMAC SHA-256 for Anti-Bot & Anti-Data-Injection Shield
+      const signMessage = `${payloadObj.action}:${clientTimestamp}:${JSON.stringify(payloadObj.tables)}`;
+      const signature = await generateHmacSha256(signMessage, SYAMSA_API_SECRET);
+      if (signature) {
+        payloadObj.signature = signature;
+      }
+
       const res = await this.fetchWithRetry(
         this.gasUrl,
         {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({
-            action: "multi_table_upsert",
-            tables: tablesPayload
-          })
+          body: JSON.stringify(payloadObj)
         },
         operation,
         DEFAULT_TIMEOUT
       );
+
 
       const resData = await res.json();
       if (resData.status === "success") {
@@ -891,17 +905,27 @@ class GoogleSyncService {
 
         try {
           console.log(`[SyncService] Uploading photo chunk (${chunk.length} photos, ${this.photoQueue.length} pending)...`);
+          const clientTimestamp = Date.now();
+          const photoPayloadObj: any = {
+            action: "batch_upsert",
+            table: "Photos",
+            records: photoRecords,
+            clientTimestamp
+          };
+          const signMessage = `${photoPayloadObj.action}:${photoPayloadObj.table}:${clientTimestamp}:${JSON.stringify(photoRecords)}`;
+          const signature = await generateHmacSha256(signMessage, SYAMSA_API_SECRET);
+          if (signature) {
+            photoPayloadObj.signature = signature;
+          }
+
           const res = await fetch(this.gasUrl, {
             method: "POST",
             mode: "cors",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-              action: "batch_upsert",
-              table: "Photos",
-              records: photoRecords
-            }),
+            body: JSON.stringify(photoPayloadObj),
             signal: controller.signal
           });
+
           clearTimeout(timeoutId);
 
           if (res.ok) {

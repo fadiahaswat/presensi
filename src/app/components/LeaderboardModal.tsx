@@ -176,7 +176,9 @@ export function LeaderboardModal({
   };
 
   // Calculate scores across the 4 Pillars strictly for field Musyrif (Wadir, Kaur KIS, Pamong, Koordinator Musyrif are excluded)
-  const activeMusyrifList = musyrifList.filter(m => isFieldMusyrif(m));
+  const activeMusyrifList = useMemo(() => {
+    return (musyrifList || []).filter(m => Boolean(m && m.id && m.name && m.name.trim() !== "" && isFieldMusyrif(m)));
+  }, [musyrifList]);
   const now = new Date();
 
   const leaderboardData = useMemo(() => {
@@ -569,8 +571,10 @@ export function LeaderboardModal({
                 #{idx + 4}
               </span>
               <div className="min-w-0">
-                <h5 className="font-bold text-xs text-slate-900 truncate">{m.name}</h5>
-                <p className="text-[11px] text-slate-500">{m.asrama} · Kamar {m.kamar}</p>
+                <h5 className="font-bold text-xs text-slate-900 truncate">{m.name || "Musyrif"}</h5>
+                <p className="text-[11px] text-slate-500">
+                  {m.asrama ? `${m.asrama}${m.kamar ? ` · Kamar ${m.kamar}` : ""}` : (m.kamar ? `Kamar ${m.kamar}` : "-")}
+                </p>
               </div>
             </div>
 

@@ -83,3 +83,29 @@ export const secureStorage = {
     localStorage.clear();
   },
 };
+
+/**
+ * Generate HMAC-SHA256 signature using Web Crypto API.
+ * Digunakan untuk menandatangani payload request ke Google Apps Script
+ * agar script/bot liar di luar aplikasi tidak bisa melakukan injeksi data.
+ */
+export async function generateHmacSha256(message: string, secretKey: string): Promise<string> {
+  try {
+    const enc = new TextEncoder();
+    const keyData = enc.encode(secretKey);
+    const cryptoKey = await window.crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: { name: "SHA-256" } },
+      false,
+      ["sign"]
+    );
+    const signature = await window.crypto.subtle.sign("HMAC", cryptoKey, enc.encode(message));
+    const hashArray = Array.from(new Uint8Array(signature));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (err) {
+    console.error("[cryptoUtils] Failed to generate HMAC signature:", err);
+    return "";
+  }
+}
+

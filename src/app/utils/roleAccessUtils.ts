@@ -19,10 +19,12 @@ export function hasFullAccess(user: AuthUser): boolean {
 
 // Check if user is field musyrif (not pamong, koordinator, kaur, or wadir4)
 export function isFieldMusyrif(user: { id?: string; role?: Role | string; name?: string }): boolean {
-  if (!user) return false;
+  if (!user || !user.id || !user.name || typeof user.name !== "string" || user.name.trim() === "") {
+    return false;
+  }
   const role = (user.role || "").toLowerCase();
   const id = (user.id || "").toLowerCase();
-  const name = (user.name || "").toLowerCase();
+  const name = (user.name || "").toLowerCase().trim();
 
   if (
     role === "pamong" ||
