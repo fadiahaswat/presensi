@@ -333,8 +333,8 @@ export function PagePengasuhanSantri({
             }}
             className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-rose-600/20 active:scale-95 transition-all whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
-            <span>{activeTab === "catat" ? "Tutup Form" : "+ Catat Tugas"}</span>
+            {activeTab === "catat" ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{activeTab === "catat" ? "Tutup Form" : "Catat Tugas"}</span>
           </button>
         </div>
       </div>
@@ -792,7 +792,7 @@ export function PagePengasuhanSantri({
                 </div>
                 <h4 className="text-sm font-bold text-slate-800">Belum Ada Catatan Tugas Pengasuhan</h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Klik tombol <b>"+ Catat Tugas"</b> di kanan atas untuk mendokumentasikan rujukan PKU/RS atau bimbingan santri.
+                  Klik tombol <b>"Catat Tugas"</b> di kanan atas untuk mendokumentasikan rujukan PKU/RS atau bimbingan santri.
                 </p>
               </div>
             ) : (

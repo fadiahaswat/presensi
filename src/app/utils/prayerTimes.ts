@@ -132,6 +132,38 @@ export function getPresensiTimeWindow(
 
 export const AUTO_ALFA_START_DATE = "2026-09-01";
 export const AUTO_ALFA_ASHAR_START_DATE = "2026-09-18";
+// Tanggal mulai efektif auto alfa khusus Asrama 8 (8A, 8B, 8C) - belum aktif/dihitung
+export const ASRAMA_8_AUTO_ALFA_START_DATE = "2099-12-31";
+
+// Daftar ID Musyrif Asrama 8 (8A, 8B, 8C)
+export const ASRAMA_8_MUSYRIF_IDS = new Set([
+  "m51", // Habib Fajar Rohman (Asrama 8C)
+  "m52", // Muhammad Rafif Said (Asrama 8A)
+  "m53", // Gilang Cahya Ghufroni (Asrama 8A)
+  "m54", // Hilmy Muwafaq 'Adman (Asrama 8A)
+  "m55", // Aflah Naufal Nabiih (Asrama 8A)
+  "m41", // Wildan Faalul Abror (Asrama 8C)
+  "m42", // Rahmat Khoirul Anwar (Asrama 8B)
+  "m43", // Muhammad Rafi Feriansyah (Asrama 8B)
+  "m44", // Muhammad Syahrul Mubarok (Asrama 8B)
+]);
+
+/**
+ * Cek apakah sebuah musyrifId adalah musyrif Asrama 8 (8A, 8B, 8C)
+ */
+export function isAsrama8MusyrifId(musyrifId?: string): boolean {
+  if (!musyrifId) return false;
+  return ASRAMA_8_MUSYRIF_IDS.has(musyrifId);
+}
+
+/**
+ * Cek apakah sebuah nama asrama adalah Asrama 8 (8A, 8B, 8C)
+ */
+export function isAsrama8(asrama?: string): boolean {
+  if (!asrama) return false;
+  const lower = asrama.toLowerCase();
+  return lower.includes("asrama 8") || lower.includes("asrama 8a") || lower.includes("asrama 8b") || lower.includes("asrama 8c") || lower.includes("8a") || lower.includes("8b") || lower.includes("8c");
+}
 
 /**
  * Evaluasi status presensi efektif
@@ -140,10 +172,17 @@ export function getEffectiveAttendanceStatus(
   record: AttendanceRecord | undefined,
   slot: PrayerSlot,
   dateStr: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  asrama?: string
 ): AttendanceStatus | undefined {
   if (record?.[slot]) return record[slot];
   
+  // Jika musyrif berasal dari Asrama 8 (baik dicek lewat nama asrama maupun musyrifId), auto-alfa belum berlaku
+  const isFromAsrama8 = (asrama && isAsrama8(asrama)) || (record?.musyrifId && isAsrama8MusyrifId(record.musyrifId));
+  if (isFromAsrama8) {
+    if (dateStr < ASRAMA_8_AUTO_ALFA_START_DATE) return undefined;
+  }
+
   const effectiveStartDate = slot === "ashar" ? AUTO_ALFA_ASHAR_START_DATE : AUTO_ALFA_START_DATE;
   if (dateStr < effectiveStartDate) return undefined;
 

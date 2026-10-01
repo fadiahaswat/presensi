@@ -44,8 +44,7 @@ import { useDebouncedPersistence, createDebouncedSave, cleanupLegacyStorage } fr
 import { LazyImage } from "./components/LazyImage";
 import { AppSkeleton } from "./components/AppSkeleton";
 
-// Dynamic Code Splitting for Heavy Modals & Subpages
-const WhatsAppShareModal = lazy(() => import("./components/WhatsAppShareModal").then(m => ({ default: m.WhatsAppShareModal })));
+
 const IzinPengajuanModal = lazy(() => import("./components/IzinPengajuanModal").then(m => ({ default: m.IzinPengajuanModal })));
 const PageSantriIzin = lazy(() => import("./components/PageSantriIzin").then(m => ({ default: m.PageSantriIzin })));
 const PageNotifikasi = lazy(() => import("./components/PageNotifikasi").then(m => ({ default: m.PageNotifikasi })));
@@ -127,7 +126,7 @@ export {
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
-type Page = "dashboard" | "subuh" | "ashar" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
+type Page = "dashboard" | "subuh" | "ashar" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "rekap-solat-koordinator" | "integrity-audit" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
@@ -574,41 +573,63 @@ function isDbAdmin(u: AuthUser | null): boolean { return checkDbAdmin(u); }
 function isFieldMusyrif(m: { role?: Role | string }): boolean { return checkFieldMusyrif(m); }
 const STREAK_START_DATE = "2026-09-01";
 
-function computeStreak(mid: string, records: AttendanceRecord[]) {
+function computeStreak(mid: string, records: AttendanceRecord[], liveDate: Date = new Date()) {
+  if (!records || !Array.isArray(records)) return { cur: 0, best: 0 };
+
   let cur = 0, best = 0, tmp = 0;
   let streakBroken = false;
-  const today = new Date();
-  const todayStr = format(today, "yyyy-MM-dd");
+  const todayStr = format(liveDate, "yyyy-MM-dd");
 
-  // Check if today is completed (subuh, ashar, and maghrib hadir)
-  const todayRec = records.find(x => x.musyrifId === mid && x.date === todayStr);
-  const todaySub = getEffectiveAttendanceStatus(todayRec, "subuh", todayStr);
-  const todayAsh = getEffectiveAttendanceStatus(todayRec, "ashar", todayStr);
-  const todayMag = getEffectiveAttendanceStatus(todayRec, "maghrib", todayStr);
-  const todayCompletedHadir = todaySub === "hadir" && todayAsh === "hadir" && todayMag === "hadir";
+  // Evaluasi hari ini (today) secara adaptif sesuai slot shalat yang sudah efektif/berjalan
+  const todayRec = records.find(x => x && x.musyrifId === mid && x.date === todayStr);
+  const todaySub = getEffectiveAttendanceStatus(todayRec, "subuh", todayStr, liveDate);
+  const todayAsh = getEffectiveAttendanceStatus(todayRec, "ashar", todayStr, liveDate);
+  const todayMag = getEffectiveAttendanceStatus(todayRec, "maghrib", todayStr, liveDate);
 
-  const startOffset = todayCompletedHadir ? 0 : 1;
+  const nowH = liveDate.getHours() + liveDate.getMinutes() / 60 + liveDate.getSeconds() / 3600;
+  const subWindow = getPresensiTimeWindow("subuh", liveDate);
+  const ashWindow = getPresensiTimeWindow("ashar", liveDate);
+  const magWindow = getPresensiTimeWindow("maghrib", liveDate);
 
-  for (let i = startOffset; i < 365; i++) {
-    const d = new Date(today);
+  const subClosed = nowH > subWindow.closeTime;
+  const ashClosed = nowH > ashWindow.closeTime;
+  const magClosed = nowH > magWindow.closeTime;
+
+  // Aturan streak: minimal shubuh dan maghrib hadir di hari itu (Ashar tidak wajib memutus streak)
+  const todaySubMagHadir = todaySub === "hadir" && todayMag === "hadir";
+  const subFailed = subClosed && todaySub !== "hadir";
+  const magFailed = magClosed && todayMag !== "hadir";
+
+  if (todaySubMagHadir) {
+    // Hari ini Shubuh dan Maghrib sudah dihadiri: terhitung aktif hari ini (+1)
+    tmp = 1;
+    cur = 1;
+  } else if (subFailed || magFailed) {
+    // Jika waktu Shubuh atau Maghrib sudah ditutup dan musyrif tidak hadir (alpa/izin/sakit), streak putus
+    streakBroken = true;
+  }
+  // Jika belum tutup (misal siang hari baru shubuh hadir, menunggu maghrib):
+  // streak dari hari sebelumnya tetap aman/terjaga.
+
+  // Iterasi mundur ke hari-hari lampau (akumulatif lintas bulan tanpa batas/reset)
+  for (let i = 1; i < 365; i++) {
+    const d = new Date(liveDate);
     d.setDate(d.getDate() - i);
     const dateStr = format(d, "yyyy-MM-dd");
 
-    // Streak resmi dimulai 1 September 2026 (Masa beta Agustus tidak dihitung)
-    // Berlanjut terus di bulan Oktober dan seterusnya tanpa reset ke 0
+    // Streak resmi dihitung mulai 1 September 2026 (Masa uji coba/beta Agustus tidak dihitung)
+    // Streak berlanjut terus lintas bulan (September, Oktober, November, dst.) tanpa pernah direset ke 0
     if (dateStr < STREAK_START_DATE) {
       break;
     }
 
-    const r = records.find(x => x.musyrifId === mid && x.date === dateStr);
-    const sSub = getEffectiveAttendanceStatus(r, "subuh", dateStr);
-    const sAsh = getEffectiveAttendanceStatus(r, "ashar", dateStr);
-    const sMag = getEffectiveAttendanceStatus(r, "maghrib", dateStr);
+    const r = records.find(x => x && x.musyrifId === mid && x.date === dateStr);
+    const sSub = getEffectiveAttendanceStatus(r, "subuh", dateStr, liveDate);
+    const sAsh = getEffectiveAttendanceStatus(r, "ashar", dateStr, liveDate);
+    const sMag = getEffectiveAttendanceStatus(r, "maghrib", dateStr, liveDate);
     
-    // Sebelum 18 September 2026, shalat Ashar belum wajib dihitung dalam streak harian
-    const dayHadir = dateStr < AUTO_ALFA_ASHAR_START_DATE
-      ? (sSub === "hadir" && sMag === "hadir")
-      : (sSub === "hadir" && sAsh === "hadir" && sMag === "hadir");
+    // Syarat streak harian: minimal shubuh dan maghrib hadir
+    const dayHadir = sSub === "hadir" && sMag === "hadir";
 
     if (dayHadir) { 
       tmp++; 
@@ -642,9 +663,9 @@ function exportPDF(records: AttendanceRecord[], month: Date, asramaFilter: strin
     days.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = rs.find(x => x.date === ds);
-      const subuhSt = getEffectiveAttendanceStatus(r, "subuh", ds);
-      const asharSt = getEffectiveAttendanceStatus(r, "ashar", ds);
-      const maghribSt = getEffectiveAttendanceStatus(r, "maghrib", ds);
+      const subuhSt = getEffectiveAttendanceStatus(r, "subuh", ds, undefined, m.asrama);
+      const asharSt = getEffectiveAttendanceStatus(r, "ashar", ds, undefined, m.asrama);
+      const maghribSt = getEffectiveAttendanceStatus(r, "maghrib", ds, undefined, m.asrama);
       if (subuhSt === "hadir") sh++;
       else if (subuhSt === "sakit") ss++;
       else if (subuhSt === "izin") si++;
@@ -693,7 +714,6 @@ function PageDashboard({
   authUser,
   onGoTo,
   onSelectMusyrif,
-  onOpenWA,
   onOpenIzin,
   onOpenAlarm,
   onOpenKegiatan,
@@ -736,7 +756,6 @@ function PageDashboard({
   authUser: AuthUser|null;
   onGoTo: (p: Page) => void;
   onSelectMusyrif?: (id: string) => void;
-  onOpenWA: () => void;
   onOpenIzin: () => void;
   onOpenAlarm: () => void;
   onOpenKegiatan: () => void;
@@ -788,9 +807,18 @@ function PageDashboard({
     return () => clearInterval(timer);
   }, []);
 
-  const getSubuh = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "subuh", today, liveNow);
-  const getAshar = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "ashar", today, liveNow);
-  const getMaghrib = (mid: string) => getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "maghrib", today, liveNow);
+  const getSubuh = (mid: string) => {
+    const mObj = mList.find(x => x.id === mid);
+    return getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "subuh", today, liveNow, mObj?.asrama);
+  };
+  const getAshar = (mid: string) => {
+    const mObj = mList.find(x => x.id === mid);
+    return getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "ashar", today, liveNow, mObj?.asrama);
+  };
+  const getMaghrib = (mid: string) => {
+    const mObj = mList.find(x => x.id === mid);
+    return getEffectiveAttendanceStatus(todayRecs.find(r => r.musyrifId === mid), "maghrib", today, liveNow, mObj?.asrama);
+  };
 
   const sh = mList.filter(m => getSubuh(m.id) === "hadir").length;
   const ah = mList.filter(m => getAshar(m.id) === "hadir").length;
@@ -852,7 +880,7 @@ function PageDashboard({
     };
   });
 
-  const streakTop = useMemo(() => mList.map(m=>({...m,...computeStreak(m.id,records)})).sort((a,b)=>b.cur-a.cur).slice(0,5),[mList,records]);
+  const streakTop = useMemo(() => mList.map(m=>({...m,...computeStreak(m.id,records,liveNow)})).sort((a,b)=>b.cur-a.cur).slice(0,5),[mList,records,liveNow]);
 
   const now = liveNow;
   const thisMK = format(now,"yyyy-MM");
@@ -871,9 +899,9 @@ function PageDashboard({
     daysInMonth.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = rs.find(x => x.date === ds);
-      if (getEffectiveAttendanceStatus(r, "subuh", ds, liveNow) === "alfa") mAlfa++;
-      if (getEffectiveAttendanceStatus(r, "ashar", ds, liveNow) === "alfa") mAlfa++;
-      if (getEffectiveAttendanceStatus(r, "maghrib", ds, liveNow) === "alfa") mAlfa++;
+      if (getEffectiveAttendanceStatus(r, "subuh", ds, liveNow, m.asrama) === "alfa") mAlfa++;
+      if (getEffectiveAttendanceStatus(r, "ashar", ds, liveNow, m.asrama) === "alfa") mAlfa++;
+      if (getEffectiveAttendanceStatus(r, "maghrib", ds, liveNow, m.asrama) === "alfa") mAlfa++;
     });
     return { ...m, alfa: mAlfa };
   }).filter(m=>m.alfa>0).sort((a,b)=>b.alfa-a.alfa).slice(0,5);
@@ -2366,23 +2394,6 @@ function PageDashboard({
                   </div>
                 </button>
 
-                {/* 3. Kirim WA - Frequent Reporting */}
-                <button
-                  type="button"
-                  onClick={onOpenWA}
-                  className="group p-2.5 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-emerald-500 hover:shadow-xs transition-all text-left flex items-center gap-2.5 active:scale-[0.98]"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                    <Share2 className="w-4 h-4"/>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="font-bold text-xs text-slate-800 truncate">Laporan WA</p>
-                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono shrink-0">1-Klik</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">Rekap WhatsApp</p>
-                  </div>
-                </button>
 
                 {/* 4. Kalender Hijriah KHGT - Frequent Reference */}
                 <button
@@ -2723,9 +2734,9 @@ function PageDashboard({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {ins.map(m => {
                             const rec = todayRecs.find(r => r.musyrifId === m.id);
-                            const stS = getEffectiveAttendanceStatus(rec, "subuh", today, liveNow);
-                            const stA = getEffectiveAttendanceStatus(rec, "ashar", today, liveNow);
-                            const stM = getEffectiveAttendanceStatus(rec, "maghrib", today, liveNow);
+                            const stS = getEffectiveAttendanceStatus(rec, "subuh", today, liveNow, m.asrama);
+                            const stA = getEffectiveAttendanceStatus(rec, "ashar", today, liveNow, m.asrama);
+                            const stM = getEffectiveAttendanceStatus(rec, "maghrib", today, liveNow, m.asrama);
 
                             const getBadgeStyle = (status: string | undefined) => {
                               if (!status || status === "belum") return "bg-slate-100 text-slate-400";
@@ -2805,7 +2816,7 @@ function PageDashboard({
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-800 leading-tight">Konsistensi Presensi Beruntun</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Apresiasi musyrif teladan jamaah</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Apresiasi musyrif teladan jamaah · Akumulatif lintas bulan</p>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full font-mono shrink-0">
@@ -2861,8 +2872,8 @@ function PageDashboard({
         </div>
       )}
 
-      {/* Perlu perhatian - HANYA TAMPIL SETELAH LOGIN (Pamong / Koor) */}
-      {authUser && alfaRank.length > 0 && (
+      {/* Perlu perhatian - HANYA TAMPIL SETELAH LOGIN (Pamong / Koor / Admin) */}
+      {authUser && authUser.role !== "musyrif" && alfaRank.length > 0 && (
         <div>
           <SectionHeader
             title="Catatan Kehadiran Perlu Perhatian"
@@ -3240,7 +3251,7 @@ function PageInputPrayer({
 
   const getRecord = (mid: string) => records.find(r => r.musyrifId === mid && r.date === selDate);
   const now = new Date();
-  const doneCount = musyrifList.filter(m => Boolean(getEffectiveAttendanceStatus(getRecord(m.id), slot, selDate, now))).length;
+  const doneCount = musyrifList.filter(m => Boolean(getEffectiveAttendanceStatus(getRecord(m.id), slot, selDate, now, m.asrama))).length;
 
   const isSubuh = slot === "subuh";
   const isAshar = slot === "ashar";
@@ -3686,7 +3697,7 @@ function PageInputPrayer({
         {filtered.length > 0 ? (
           filtered.map(m=>{
             const rec = getRecord(m.id);
-            const cur = getEffectiveAttendanceStatus(rec, slot, selDate, now);
+            const cur = getEffectiveAttendanceStatus(rec, slot, selDate, now, m.asrama);
             const isAutoAlfa = cur === "alfa" && !rec?.[slot];
             const note = slot === "subuh" ? rec?.subuhNote : slot === "ashar" ? rec?.asharNote : rec?.maghribNote;
             const isDone = Boolean(cur);
@@ -4121,9 +4132,9 @@ function PageRekap({
     days.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = mRecs.find(x => x.musyrifId === m.id && x.date === ds);
-      const subSt = getEffectiveAttendanceStatus(r, "subuh", ds, now);
-      const ashSt = getEffectiveAttendanceStatus(r, "ashar", ds, now);
-      const magSt = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+      const subSt = getEffectiveAttendanceStatus(r, "subuh", ds, now, m.asrama);
+      const ashSt = getEffectiveAttendanceStatus(r, "ashar", ds, now, m.asrama);
+      const magSt = getEffectiveAttendanceStatus(r, "maghrib", ds, now, m.asrama);
       if (subSt === "hadir") sh++;
       else if (subSt === "sakit") ss++;
       else if (subSt === "izin") si++;
@@ -4961,20 +4972,20 @@ function PageRiwayat({
   const pastDays = days.filter(d=>!isBefore(new Date(),startOfDay(d))||isToday(d));
   const adj = (startOfMonth(viewMonth).getDay()||7)-1;
   const getR = (d: Date) => mRecs.find(r=>r.date===format(d,"yyyy-MM-dd"));
-  const streak = useMemo(()=>musyrif ? computeStreak(musyrif.id,records) : 0,[musyrif,records]);
+  const streak = useMemo(()=>musyrif ? computeStreak(musyrif.id,records) : { cur: 0, best: 0 },[musyrif,records]);
   const now = new Date();
 
   const getEffectiveSubuh = (ds: string) => {
     const r = mRecs.find(x => x.date === ds);
-    return getEffectiveAttendanceStatus(r, "subuh", ds, now);
+    return getEffectiveAttendanceStatus(r, "subuh", ds, now, musyrif?.asrama);
   };
   const getEffectiveAshar = (ds: string) => {
     const r = mRecs.find(x => x.date === ds);
-    return getEffectiveAttendanceStatus(r, "ashar", ds, now);
+    return getEffectiveAttendanceStatus(r, "ashar", ds, now, musyrif?.asrama);
   };
   const getEffectiveMaghrib = (ds: string) => {
     const r = mRecs.find(x => x.date === ds);
-    return getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+    return getEffectiveAttendanceStatus(r, "maghrib", ds, now, musyrif?.asrama);
   };
 
   let totalHadir = 0, totalSakit = 0, totalIzin = 0, totalAlfa = 0;
@@ -5009,9 +5020,9 @@ function PageRiwayat({
     md.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = rs.find(x => x.date === ds);
-      if (getEffectiveAttendanceStatus(r, "subuh", ds, now) === "hadir") subuhCount++;
-      if (getEffectiveAttendanceStatus(r, "ashar", ds, now) === "hadir") asharCount++;
-      if (getEffectiveAttendanceStatus(r, "maghrib", ds, now) === "hadir") maghribCount++;
+      if (getEffectiveAttendanceStatus(r, "subuh", ds, now, musyrif?.asrama) === "hadir") subuhCount++;
+      if (getEffectiveAttendanceStatus(r, "ashar", ds, now, musyrif?.asrama) === "hadir") asharCount++;
+      if (getEffectiveAttendanceStatus(r, "maghrib", ds, now, musyrif?.asrama) === "hadir") maghribCount++;
     });
     return {
       month: format(m2,"MMM",{locale:id}),
@@ -5026,9 +5037,9 @@ function PageRiwayat({
     pastDays.forEach(d => {
       const ds = format(d, "yyyy-MM-dd");
       const r = mRecs.find(x => x.date === ds);
-      const sSub = getEffectiveAttendanceStatus(r, "subuh", ds, now);
-      const sAsh = getEffectiveAttendanceStatus(r, "ashar", ds, now);
-      const sMag = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+      const sSub = getEffectiveAttendanceStatus(r, "subuh", ds, now, musyrif?.asrama);
+      const sAsh = getEffectiveAttendanceStatus(r, "ashar", ds, now, musyrif?.asrama);
+      const sMag = getEffectiveAttendanceStatus(r, "maghrib", ds, now, musyrif?.asrama);
       if ((sSub && sSub !== "hadir") || (sAsh && sAsh !== "hadir") || (sMag && sMag !== "hadir")) {
         list.push({
           date: ds,
@@ -5742,6 +5753,7 @@ function PageRiwayat({
                     {streak.cur} <span className="text-xs font-normal font-sans text-amber-800">hari</span>
                   </p>
                   <p className="text-[11px] text-amber-700/90 font-medium mt-1">Streak saat ini</p>
+                  <span className="text-[9px] text-amber-700/70 block mt-0.5 font-medium leading-none">Akumulatif lintas bulan</span>
                 </div>
               </div>
 
@@ -5754,6 +5766,7 @@ function PageRiwayat({
                     {streak.best} <span className="text-xs font-normal font-sans text-sky-800">hari</span>
                   </p>
                   <p className="text-[11px] text-sky-700/90 font-medium mt-1">Streak terbaik</p>
+                  <span className="text-[9px] text-sky-700/70 block mt-0.5 font-medium leading-none">Rekor beruntun tertinggi</span>
                 </div>
               </div>
             </div>
@@ -5900,9 +5913,9 @@ function PageRiwayat({
                 const future=isBefore(new Date(),startOfDay(day))&&!isToday(day);
                 const last=(adj+i+1)%7===0;
                 const dayStr = format(day, "yyyy-MM-dd");
-                const stSub = getEffectiveAttendanceStatus(r, "subuh", dayStr, now);
-                const stAsh = getEffectiveAttendanceStatus(r, "ashar", dayStr, now);
-                const stMag = getEffectiveAttendanceStatus(r, "maghrib", dayStr, now);
+                const stSub = getEffectiveAttendanceStatus(r, "subuh", dayStr, now, musyrif?.asrama);
+                const stAsh = getEffectiveAttendanceStatus(r, "ashar", dayStr, now, musyrif?.asrama);
+                const stMag = getEffectiveAttendanceStatus(r, "maghrib", dayStr, now, musyrif?.asrama);
                 const perfect = stSub === "hadir" && stAsh === "hadir" && stMag === "hadir";
 
                 return (
@@ -7898,7 +7911,6 @@ export default function App() {
   });
 
   // Modals Visibility
-  const [showWA, setShowWA] = useState(false);
   const [showIzin, setShowIzin] = useState(false);
   const [showSantriIzin, setShowSantriIzin] = useState(false);
   const [showAlarm, setShowAlarm] = useState(false);
@@ -8071,13 +8083,13 @@ export default function App() {
   // Route Fallback when in public mode or role restrictions
   useEffect(() => {
     if (!authUser) {
-      if (page === "subuh" || page === "ashar" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "logbook" || page === "notifikasi") {
+      if (page === "subuh" || page === "ashar" || page === "maghrib" || page === "riwayat" || page === "musyrif-manager" || page === "pamong-manager" || page === "rekap-solat-koordinator" || page === "logbook" || page === "notifikasi") {
         setPage("dashboard");
       }
     } else if (authUser.role !== "koordinator_musyrif") {
-      if (page === "musyrif-manager" || page === "pamong-manager") {
+      if (page === "musyrif-manager" || page === "pamong-manager" || page === "rekap-solat-koordinator") {
         setPage("dashboard");
-        showToast("Akses ditolak: Menu Master Data hanya untuk Koordinator Musyrif.", "error");
+        showToast("Akses ditolak: Menu ini khusus untuk Koordinator Musyrif.", "error");
       }
     }
   }, [authUser, page]);
@@ -9828,44 +9840,7 @@ export default function App() {
 
   // Handlers for Tugas Pengasuhan Khusus (Antar PKU/RS & Bimbingan Santri)
   const handleSavePengasuhanKhusus = (rec: PengasuhanKhususRecord) => {
-    setPengasuhanKhususList(prev => {
-      const idx = prev.findIndex(p => p.id === rec.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = rec;
-        return next;
-      }
-      return [rec, ...prev];
-    });
-    googleSyncService.enqueue("PengasuhanKhusus", rec, "upsert", true);
-
-    // Auto sync to Santri Sakit if category is "antar_pku_rs" and not yet exists
-    if (rec.kategori === "antar_pku_rs") {
-      const existingSakit = santriSakitList.find(
-        s => String(s?.namaSantri || "").toLowerCase() === String(rec?.namaSantri || "").toLowerCase() && s?.date === rec?.date
-      );
-      if (!existingSakit) {
-        const newSakitRecord: SantriSakitRecord = {
-          id: "sakit_pku_" + Date.now(),
-          musyrifId: rec.musyrifId,
-          musyrifName: rec.musyrifName,
-          asrama: rec.asrama,
-          kamar: rec.kamar,
-          date: rec.date,
-          namaSantri: rec.namaSantri,
-          kelasSantri: rec.kelasSantri,
-          keluhan: rec.catatan,
-          lokasiPerawatan: "rs_pku",
-          catatanTindakan: `Dirujuk ke ${rec.lokasiTujuan} oleh ${rec.musyrifName}`,
-          status: "dalam_perawatan",
-          photoUrl: rec.photoUrl,
-          createdAt: rec.createdAt
-        };
-        handleSaveSantriSakit(newSakitRecord);
-      }
-    }
-
-    showToast(`Tugas pengasuhan (${rec.namaSantri}) berhasil disimpan (+${rec.poin} Poin)!`, "success");
+    handleSaveBatchPengasuhanKhusus([rec]);
   };
 
   const handleSaveBatchPengasuhanKhusus = (records: PengasuhanKhususRecord[]) => {
@@ -10011,8 +9986,11 @@ export default function App() {
       } catch {}
     }
 
-    const totalPts = records.reduce((acc, curr) => acc + curr.poin, 0);
-    showToast(`Tugas pengasuhan ${records.length} santri tersimpan & tersinkron ke Logbook, Sakit, Izin Keluar & Pembinaan (+${totalPts} Poin)!`, "success");
+    const totalPts = records.reduce((acc, curr) => acc + (curr.poin || 0), 0);
+    const toastMsg = records.length === 1
+      ? `Tugas pengasuhan (${records[0].namaSantri}) tersimpan & tersinkron (+${totalPts} Poin)!`
+      : `Tugas pengasuhan ${records.length} santri tersimpan & tersinkron ke Logbook, Sakit, Izin Keluar & Pembinaan (+${totalPts} Poin)!`;
+    showToast(toastMsg, "success");
   };
 
   const handleDeletePengasuhanKhusus = (id: string) => {
@@ -10528,7 +10506,13 @@ export default function App() {
       </header>
 
       {/* Main */}
-      <main className={page === "galeri-logbook" ? "w-full max-w-lg mx-auto px-0 py-0 pb-24 flex-1" : "max-w-2xl mx-auto px-4 py-5 pb-24 w-full flex-1"}>
+      <main className={
+        page === "galeri-logbook"
+          ? "w-full max-w-lg mx-auto px-0 py-0 pb-24 flex-1"
+          : (page === "rekap-solat-koordinator" || page === "integrity-audit" || page === "rekap")
+            ? "max-w-6xl mx-auto px-3 sm:px-6 py-5 pb-24 w-full flex-1"
+            : "max-w-2xl mx-auto px-4 py-5 pb-24 w-full flex-1"
+      }>
         {/* Anti Time-Spoofing & Drift Alert Banner */}
         {timeSyncState?.status === "drift_detected" && (
           <div className="mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 backdrop-blur-md flex items-start gap-3 shadow-xs">
@@ -10563,7 +10547,6 @@ export default function App() {
                 authUser={authUser} 
                 onGoTo={setPage} 
                 onSelectMusyrif={setSelectedMusyrifId}
-                onOpenWA={() => setShowWA(true)}
                 onOpenIzin={() => setShowIzin(true)}
                 onOpenAlarm={() => setShowAlarm(true)}
                 onOpenKegiatan={() => setShowKegiatan(true)}
@@ -10586,9 +10569,9 @@ export default function App() {
                 onOpenLeaderboard={() => setPage("leaderboard")}
                 onOpenRaport={() => setShowRaport(true)}
                 onOpenMusyrifManager={() => setPage("musyrif-manager")}
-                onOpenRekapSolatKoordinator={() => setShowRekapSolatKoordinator(true)}
+                onOpenRekapSolatKoordinator={() => setPage("rekap-solat-koordinator")}
                 onOpenPamongManager={() => setPage("pamong-manager")}
-                onOpenIntegrityAudit={() => setShowIntegrityAudit(true)}
+                onOpenIntegrityAudit={() => setPage("integrity-audit")}
                 onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
                 onOpenKalenderPendidikan={() => setPage("kalender-pendidikan")}
                 onInstallPWA={handleInstallPWA}
@@ -10639,7 +10622,7 @@ export default function App() {
                 onSelectMusyrif={setSelectedMusyrifId} 
                 onGoTo={setPage}
                 musyrifListAll={musyrifList}
-                onOpenRekapSolatKoordinator={() => setShowRekapSolatKoordinator(true)}
+                onOpenRekapSolatKoordinator={() => setPage("rekap-solat-koordinator")}
                 logbookData={logbookData}
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
@@ -10975,6 +10958,9 @@ export default function App() {
                 authUser={authUser}
                 musyrifList={musyrifList}
                 santriList={santriList}
+                pengasuhanList={pengasuhanKhususList}
+                onSavePengasuhan={handleSavePengasuhanKhusus}
+                onDeletePengasuhan={handleDeletePengasuhanKhusus}
               />
             </motion.div>
           )}
@@ -11004,6 +10990,28 @@ export default function App() {
                 onSaveBatchPengasuhan={handleSaveBatchPengasuhanKhusus}
                 onDeletePengasuhan={handleDeletePengasuhanKhusus}
                 initialMusyrifId={selectedMusyrifId}
+              />
+            </motion.div>
+          )}
+          {page==="rekap-solat-koordinator" && (
+            <motion.div key="rekap-solat-koordinator" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <RekapSolatKoordinatorModal
+                isPage={true}
+                onClose={() => setPage("dashboard")}
+                records={records}
+                musyrifList={musyrifList}
+                currentUserName={authUser?.name || "Andi Aqillah Fadia Haswat, S.A.P."}
+              />
+            </motion.div>
+          )}
+          {page==="integrity-audit" && (
+            <motion.div key="integrity-audit" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
+              <IntegrityAuditModal
+                isPage={true}
+                onClose={() => setPage("dashboard")}
+                violations={detectedViolations}
+                onPurgeAnomalies={handlePurgeAnomalies}
+                isPurging={isPurgingAnomalies}
               />
             </motion.div>
           )}
@@ -11086,18 +11094,6 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* 1. WhatsApp Generator Modal */}
-        <AnimatePresence>
-          {showWA && (
-          <WhatsAppShareModal
-            onClose={() => setShowWA(false)}
-            musyrifList={musyrifList}
-            records={recordsMap}
-            asramaList={ASRAMAS}
-            authUser={authUser}
-          />
-        )}
-      </AnimatePresence>
 
       {/* 2. Izin & Sakit Modal */}
       <AnimatePresence>

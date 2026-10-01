@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { triggerHaptic } from "../utils/animations";
 import { searchSantri, SantriData, ALL_SANTRI_DATA } from "../data/santriData";
 import { appAlert, appConfirm } from "../utils/customDialog";
+import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
 import syamsaLogomark from "../../assets/branding/Logomark.webp";
 
 export type JenisCatatan = "pelanggaran" | "prestasi";
@@ -53,6 +54,106 @@ export interface PembinaanRecord {
   catatanPamong?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+// Helper untuk konversi otomatis catatan Tugas Pengasuhan (Pilar 2) ke Lembar Pembinaan
+export function convertPengasuhanToPembinaan(rec: PengasuhanKhususRecord): PembinaanRecord {
+  const noteLower = (rec.catatan || "").toLowerCase().trim();
+  
+  // Cari data santri lengkap di database jika kelas belum terisi spesifik
+  const matchedSantri = ALL_SANTRI_DATA.find(s => 
+    (rec.santriId && (s.id === rec.santriId || s.nisn === rec.nisn)) || 
+    (s.nama && rec.namaSantri && s.nama.trim().toLowerCase() === rec.namaSantri.trim().toLowerCase())
+  );
+  const resolvedKelas = (rec.kelasSantri && rec.kelasSantri !== "Mu'allimin" && rec.kelasSantri.trim() !== "")
+    ? rec.kelasSantri.trim()
+    : (matchedSantri?.kelasLengkap || "Santri Mu'allimin");
+  const resolvedAsrama = (rec.asrama && rec.asrama.trim() !== "")
+    ? rec.asrama.trim()
+    : (matchedSantri?.asrama || "Asrama Mu'allimin");
+
+  // Deteksi kata-kata pelanggaran / kedisiplinan vs prestasi / bimbingan
+  const isTelat = noteLower.includes("telat") || noteLower.includes("lambat") || noteLower.includes("terlambat");
+  const isKamar = noteLower.includes("kamar") || noteLower.includes("kasur") || noteLower.includes("berantakan") || noteLower.includes("sampah") || noteLower.includes("jemuran");
+  const isIbadah = noteLower.includes("sholat") || noteLower.includes("solat") || noteLower.includes("masjid") || noteLower.includes("subuh") || noteLower.includes("maghrib") || noteLower.includes("ashar") || noteLower.includes("isya") || noteLower.includes("dzuhur") || noteLower.includes("jamaah") || noteLower.includes("masbuq");
+  const isDisiplin = isTelat || noteLower.includes("bolos") || noteLower.includes("keluar") || noteLower.includes("izin") || noteLower.includes("seragam") || noteLower.includes("hp") || noteLower.includes("gadget") || noteLower.includes("tidur");
+  const isPelanggaran = isTelat || isKamar || isIbadah || isDisiplin || noteLower.includes("langgar") || noteLower.includes("sanksi") || noteLower.includes("hukuman");
+
+  let jenis: JenisCatatan = isPelanggaran ? "pelanggaran" : "prestasi";
+  let kategori: KategoriPembinaan = "kedisiplinan";
+  let tingkat: TingkatPelanggaran = "ringan";
+  let poin = isPelanggaran ? -5 : 5;
+  let judulPeristiwa = "Bimbingan & Konseling Santri";
+  let deskripsi = rec.catatan || "Sesi bimbingan santri bersama musyrif";
+  let tindakanPembinaan = "Bimbingan, konseling motivasi, dan evaluasi adab";
+
+  if (isTelat) {
+    kategori = "kedisiplinan";
+    tingkat = "ringan";
+    poin = -5;
+    judulPeristiwa = "Terlambat Apel / Kegiatan Asrama";
+    const rawNote = (rec.catatan || "").trim();
+    deskripsi = (rawNote.toLowerCase() === "telat" || rawNote.toLowerCase() === "terlambat")
+      ? "Terlambat hadir pada agenda asrama / apel santri"
+      : rawNote;
+    tindakanPembinaan = "Nasihat musyrif & pembinaan kedisiplinan asrama";
+  } else if (isIbadah) {
+    kategori = "ibadah";
+    tingkat = "ringan";
+    poin = -5;
+    judulPeristiwa = "Pembinaan Ibadah & Halaqah";
+    deskripsi = rec.catatan || "Evaluasi ketertiban ibadah & halaqah";
+    tindakanPembinaan = "Pendampingan sholat berjamaah & evaluasi mutabaah";
+  } else if (isKamar) {
+    kategori = "kebersihan_kerapian";
+    tingkat = "ringan";
+    poin = -5;
+    judulPeristiwa = "Ketertiban & Kerapian Kamar";
+    deskripsi = rec.catatan || "Evaluasi kebersihan kamar dan kasur asrama";
+    tindakanPembinaan = "Edukasi kerapian kamar & piket mandiri";
+  } else if (isPelanggaran) {
+    kategori = "kedisiplinan";
+    tingkat = "ringan";
+    poin = -5;
+    judulPeristiwa = "Pembinaan Tata Tertib Santri";
+    deskripsi = rec.catatan || "Pembinaan kedisiplinan santri asrama";
+    tindakanPembinaan = "Konseling edukatif & pembinaan musyrif";
+  } else {
+    // Sesi apresiasi / bimbingan karakter
+    jenis = "prestasi";
+    kategori = "akhlak_adab";
+    tingkat = "prestasi";
+    poin = 5;
+    judulPeristiwa = "Bimbingan Karakter & Konseling";
+    deskripsi = rec.catatan || "Sesi pembinaan santri dan bimbingan akhlak";
+    tindakanPembinaan = "Sesi motivasi, konseling, dan pembinaan karakter";
+  }
+
+  return {
+    id: "pembinaan_sync_" + (rec.id || Math.random().toString(36).substring(2, 8)),
+    tanggal: rec.date || new Date().toISOString().split("T")[0],
+    waktu: rec.waktu || "07:00",
+    santriId: rec.santriId || matchedSantri?.id || "",
+    nisn: rec.nisn || matchedSantri?.nisn || "",
+    namaSantri: (rec.namaSantri || matchedSantri?.nama || "Santri").trim(),
+    kelasSantri: resolvedKelas,
+    asrama: resolvedAsrama,
+    kamar: rec.kamar || matchedSantri?.kamar || "",
+    jenis,
+    kategori,
+    tingkat,
+    poin,
+    judulPeristiwa,
+    deskripsi,
+    lokasiKejadian: rec.lokasiTujuan || "Asrama",
+    tindakanPembinaan,
+    status: "selesai",
+    pelaporId: rec.musyrifId || "musyrif",
+    pelaporName: rec.musyrifName || "Musyrif",
+    pelaporRole: "Musyrif",
+    catatanPamong: "Otomatis tersinkron dari Tugas Pengasuhan (Pilar 2)",
+    createdAt: rec.createdAt || new Date().toISOString()
+  };
 }
 
 // Preset Kamus Aturan & Poin Edukatif Mu'allimin
@@ -132,15 +233,63 @@ interface PagePembinaanSantriProps {
   authUser: any;
   musyrifList?: any[];
   santriList?: SantriData[];
+  pengasuhanList?: PengasuhanKhususRecord[];
+  onSavePengasuhan?: (record: PengasuhanKhususRecord) => void;
+  onDeletePengasuhan?: (id: string) => void;
 }
 
 export function PagePembinaanSantri({
   onBack,
   authUser,
   musyrifList = [],
-  santriList = ALL_SANTRI_DATA
+  santriList = ALL_SANTRI_DATA,
+  pengasuhanList = [],
+  onSavePengasuhan,
+  onDeletePengasuhan
 }: PagePembinaanSantriProps) {
-  const [records, setRecords] = useState<PembinaanRecord[]>(() => loadPembinaanRecords());
+  const [localRecords, setLocalRecords] = useState<PembinaanRecord[]>(() => loadPembinaanRecords());
+  const [deletedSyncIds, setDeletedSyncIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem("syamsa_deleted_bina_sync_v1");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Gabungkan catatan lokal dengan catatan Tugas Pengasuhan (kategori bina_santri)
+  const records = useMemo(() => {
+    const map = new Map<string, PembinaanRecord>();
+
+    // 1. Data dari Tugas Pengasuhan & RS (Pilar 2)
+    (pengasuhanList || [])
+      .filter(p => p && p.kategori === "bina_santri" && p.id)
+      .forEach(p => {
+        if (deletedSyncIds.includes(p.id) || deletedSyncIds.includes("pembinaan_sync_" + p.id)) return;
+        if (typeof p.id === "string" && p.id.startsWith("pengasuhan_from_bina_")) {
+          const originalId = p.id.replace("pengasuhan_from_bina_", "");
+          if (localRecords.some(r => r && r.id === originalId)) return;
+        }
+        const converted = convertPengasuhanToPembinaan(p);
+        if (converted && converted.id) {
+          map.set(converted.id, converted);
+        }
+      });
+
+    // 2. Data lokal Lembar Pembinaan (prioritas jika ada edit/update)
+    (localRecords || []).forEach(r => {
+      if (r && r.id) {
+        map.set(r.id, r);
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      const dateComp = (b.tanggal || "").localeCompare(a.tanggal || "");
+      if (dateComp !== 0) return dateComp;
+      return (b.waktu || "").localeCompare(a.waktu || "");
+    });
+  }, [localRecords, pengasuhanList, deletedSyncIds]);
+
   const [activeTab, setActiveTab] = useState<"daftar" | "tambah" | "rekap" | "panduan">("daftar");
   
   // Scope & Filters
@@ -177,8 +326,8 @@ export function PagePembinaanSantri({
 
   // Sync to localstorage
   useEffect(() => {
-    savePembinaanRecords(records);
-  }, [records]);
+    savePembinaanRecords(localRecords);
+  }, [localRecords]);
 
   // Handle Autocomplete Search
   const handleSearchSantriChange = (val: string) => {
@@ -248,9 +397,32 @@ export function PagePembinaanSantri({
       createdAt: new Date().toISOString()
     };
 
-    setRecords(prev => [newRecord, ...prev]);
+    setLocalRecords(prev => [newRecord, ...prev]);
     triggerHaptic("success");
-    appAlert(`Catatan ${formJenis === "pelanggaran" ? "pembinaan" : "prestasi"} untuk "${newRecord.namaSantri}" berhasil disimpan.`, "Berhasil Disimpan");
+
+    // Sinkronisasi otomatis ke Tugas Pengasuhan & RS (Pilar 2) jika ada handler
+    if (onSavePengasuhan) {
+      onSavePengasuhan({
+        id: "pengasuhan_from_bina_" + newRecord.id,
+        musyrifId: newRecord.pelaporId,
+        musyrifName: newRecord.pelaporName,
+        asrama: newRecord.asrama,
+        kamar: newRecord.kamar,
+        date: newRecord.tanggal,
+        waktu: newRecord.waktu,
+        kategori: "bina_santri",
+        santriId: newRecord.santriId,
+        nisn: newRecord.nisn,
+        namaSantri: newRecord.namaSantri,
+        kelasSantri: newRecord.kelasSantri,
+        lokasiTujuan: newRecord.lokasiKejadian || "Asrama",
+        catatan: `${newRecord.judulPeristiwa} (${newRecord.deskripsi || newRecord.tindakanPembinaan})`,
+        poin: 5,
+        createdAt: newRecord.createdAt
+      });
+    }
+
+    appAlert(`Catatan ${formJenis === "pelanggaran" ? "pembinaan" : "prestasi"} untuk "${newRecord.namaSantri}" berhasil disimpan dan disinkronkan ke Tugas Pengasuhan (+5 Pts Musyrif)!`, "Berhasil Disimpan");
 
     // Reset Form
     setFormNamaSantri("");
@@ -265,7 +437,16 @@ export function PagePembinaanSantri({
   // Delete Record
   const handleDelete = (id: string) => {
     appConfirm("Hapus catatan pembinaan ini secara permanen?", () => {
-      setRecords(prev => prev.filter(r => r.id !== id));
+      setLocalRecords(prev => prev.filter(r => r.id !== id));
+      if (id.startsWith("pembinaan_sync_")) {
+        const origId = id.replace("pembinaan_sync_", "");
+        setDeletedSyncIds(prev => {
+          const next = [...prev, id, origId];
+          try { localStorage.setItem("syamsa_deleted_bina_sync_v1", JSON.stringify(next)); } catch {}
+          return next;
+        });
+        if (onDeletePengasuhan) onDeletePengasuhan(origId);
+      }
       if (selectedRecord?.id === id) setSelectedRecord(null);
       triggerHaptic("medium");
     });
@@ -273,7 +454,17 @@ export function PagePembinaanSantri({
 
   // Update Status
   const handleUpdateStatus = (id: string, newStatus: StatusPembinaan) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, updatedAt: new Date().toISOString() } : r));
+    setLocalRecords(prev => {
+      const existing = prev.find(r => r.id === id);
+      if (existing) {
+        return prev.map(r => r.id === id ? { ...r, status: newStatus, updatedAt: new Date().toISOString() } : r);
+      }
+      const fromMerged = records.find(r => r.id === id);
+      if (fromMerged) {
+        return [{ ...fromMerged, status: newStatus, updatedAt: new Date().toISOString() }, ...prev];
+      }
+      return prev;
+    });
     if (selectedRecord && selectedRecord.id === id) {
       setSelectedRecord(prev => prev ? { ...prev, status: newStatus } : null);
     }
@@ -295,12 +486,15 @@ export function PagePembinaanSantri({
     }> = {};
 
     records.forEach(r => {
-      const key = `${r.namaSantri.trim()}_${r.kelasSantri.trim()}`;
+      if (!r) return;
+      const nama = (r.namaSantri || "Santri").trim();
+      const kelas = (r.kelasSantri || "-").trim();
+      const key = `${nama}_${kelas}`;
       if (!map[key]) {
         map[key] = {
-          nama: r.namaSantri,
-          kelas: r.kelasSantri,
-          asrama: r.asrama,
+          nama,
+          kelas,
+          asrama: r.asrama || "-",
           totalPoinPelanggaran: 0,
           totalPoinPrestasi: 0,
           netPoin: 0,
@@ -310,11 +504,11 @@ export function PagePembinaanSantri({
         };
       }
       if (r.jenis === "pelanggaran") {
-        map[key].totalPoinPelanggaran += Math.abs(r.poin);
+        map[key].totalPoinPelanggaran += Math.abs(r.poin || 0);
         map[key].countPelanggaran += 1;
         if (r.status === "perlu_tindakan") map[key].pendingTindakanCount += 1;
       } else {
-        map[key].totalPoinPrestasi += Math.abs(r.poin);
+        map[key].totalPoinPrestasi += Math.abs(r.poin || 0);
         map[key].countPrestasi += 1;
       }
       map[key].netPoin = map[key].totalPoinPrestasi - map[key].totalPoinPelanggaran;
@@ -452,8 +646,8 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
             }}
             className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-amber-600/20 active:scale-95 transition-all whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
-            <span>+ Catat Kasus</span>
+            {activeTab === "tambah" ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{activeTab === "tambah" ? "Tutup Form" : "Catat Kasus"}</span>
           </button>
         </div>
       </div>
@@ -622,88 +816,113 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {filteredRecords.map(rec => {
                 const isPelanggaran = rec.jenis === "pelanggaran";
                 return (
                   <div
                     key={rec.id}
-                    className="p-4 bg-white rounded-3xl border border-slate-100 shadow-xs ring-1 ring-slate-200/60 hover:border-amber-400 hover:shadow-sm transition-all flex flex-col justify-between group"
+                    className="p-4 sm:p-5 bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-xs ring-1 ring-slate-200/60 hover:border-amber-400 hover:shadow-sm transition-all flex flex-col justify-between group"
                   >
                     <div>
-                      <div className="flex items-start justify-between gap-2 mb-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                      {/* Top Header Row */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
                             isPelanggaran 
                               ? "bg-rose-50 text-rose-700 border border-rose-200" 
                               : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           }`}>
                             {isPelanggaran ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
                           </span>
-                          <div>
-                            <h4 className="font-bold text-xs text-slate-900 leading-tight">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-sm text-slate-900 leading-snug truncate">
                               {rec.namaSantri}
                             </h4>
-                            <p className="text-[10px] text-slate-400">
-                              {rec.kelasSantri} • {rec.asrama}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {rec.kelasSantri} • {rec.asrama}
+                              </span>
+                              {rec.id.startsWith("pembinaan_sync_") && (
+                                <span className="text-[9px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.2 rounded-md font-mono whitespace-nowrap shrink-0">
+                                  Pilar 2
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md font-mono ${
-                          isPelanggaran ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"
+
+                        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-xl font-mono shrink-0 whitespace-nowrap shadow-2xs ${
+                          isPelanggaran 
+                            ? "bg-rose-100 text-rose-800 border border-rose-200/80" 
+                            : "bg-emerald-100 text-emerald-800 border border-emerald-200/80"
                         }`}>
                           {rec.poin > 0 ? `+${rec.poin}` : rec.poin} Poin
                         </span>
                       </div>
 
-                      <div className="p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 text-xs space-y-1 mb-2.5">
-                        <p className="font-bold text-slate-800 leading-snug">
-                          {rec.judulPeristiwa}
-                        </p>
-                        {rec.deskripsi && (
-                          <p className="text-[11px] text-slate-500 line-clamp-2">
+                      {/* Content Box */}
+                      <div className="p-3 rounded-2xl bg-slate-50/90 border border-slate-100 text-xs space-y-1.5 mb-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider shrink-0 ${
+                            isPelanggaran ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          }`}>
+                            {rec.kategori.replace("_", " ")}
+                          </span>
+                          <p className="font-bold text-xs text-slate-800 truncate flex-1">
+                            {rec.judulPeristiwa}
+                          </p>
+                        </div>
+                        
+                        {rec.deskripsi && rec.deskripsi.toLowerCase() !== rec.judulPeristiwa.toLowerCase() && (
+                          <p className="text-[11px] text-slate-600 leading-relaxed">
                             {rec.deskripsi}
                           </p>
                         )}
+
                         {rec.tindakanPembinaan && (
-                          <div className="pt-1.5 border-t border-slate-200/60 mt-1 flex items-start gap-1.5 text-[10px] text-amber-900 font-medium">
-                            <HeartHandshake className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                            <span>{rec.tindakanPembinaan}</span>
+                          <div className="pt-2 border-t border-slate-200/60 mt-1 flex items-start gap-2 text-[11px] text-amber-950 font-medium">
+                            <HeartHandshake className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                            <span className="leading-snug">{rec.tindakanPembinaan}</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]">
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <Clock className="w-3 h-3" />
-                        <span>{rec.tanggal}</span>
-                        <span>•</span>
-                        <span className={`font-semibold px-1.5 py-0.2 rounded-md ${
+                    {/* Bottom Footer Row */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-[11px] gap-2">
+                      <div className="flex items-center gap-2 text-slate-500 min-w-0">
+                        <span className="flex items-center gap-1 whitespace-nowrap shrink-0 font-mono text-[10px] text-slate-400">
+                          <Clock className="w-3 h-3" />
+                          {rec.tanggal}
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className={`font-bold px-2 py-0.5 rounded-lg whitespace-nowrap text-[10px] border ${
                           rec.status === "selesai" 
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
                             : rec.status === "sedang_berjalan" 
-                            ? "bg-blue-50 text-blue-700 border border-blue-100" 
-                            : "bg-amber-50 text-amber-700 border border-amber-100"
+                            ? "bg-blue-50 text-blue-700 border-blue-200" 
+                            : "bg-amber-50 text-amber-700 border-amber-200"
                         }`}>
                           {rec.status === "selesai" ? "Selesai" : rec.status === "sedang_berjalan" ? "Berjalan" : "Perlu Tindakan"}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => handleShareWA(rec)}
                           title="Kirim ke WhatsApp"
-                          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors active:scale-95"
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60 text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-2xs"
                         >
                           <Share2 className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Kirim WA</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setSelectedRecord(rec)}
                           title="Detail & Update"
-                          className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors active:scale-95"
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition-all active:scale-95 shadow-2xs"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -711,7 +930,7 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
                           type="button"
                           onClick={() => handleDelete(rec.id)}
                           title="Hapus"
-                          className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors active:scale-95"
+                          className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/60 transition-all active:scale-95 shadow-2xs"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1130,6 +1349,13 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
                 <p className="font-bold text-[11px]">Bentuk Tindakan / Apresiasi:</p>
                 <p className="text-xs mt-0.5">{selectedRecord.tindakanPembinaan || "Belum ada tindakan spesifik."}</p>
               </div>
+
+              {selectedRecord.catatanPamong && (
+                <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-2xl text-[11px] text-rose-800 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{selectedRecord.catatanPamong}</span>
+                </div>
+              )}
 
               {/* Status Updater */}
               <div>

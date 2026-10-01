@@ -1,7 +1,9 @@
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfDay, isToday, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { isFieldMusyrif } from "./roleAccessUtils";
 import { getEffectiveAttendanceStatus } from "./prayerTimes";
+
+export type RekapPeriodType = "pekan" | "bulan" | "semester" | "tahun_ajaran";
 
 export interface RekapMusyrifRow {
   rank: number;
@@ -45,34 +47,92 @@ export interface CampusRekapData {
 }
 
 /**
- * Memisahkan dan menghitung rekap salat bulanan musyrif untuk Kampus Sparman dan Sedayu
+ * Menghitung interval tanggal berdasarkan tipe periode
+ */
+export function getRekapPeriodInterval(
+  periodType: RekapPeriodType,
+  targetDate: Date,
+  semesterNumber: 1 | 2 = 1,
+  academicYearStart: number = 2026
+): { start: Date; end: Date; label: string } {
+  if (periodType === "pekan") {
+    const start = startOfWeek(targetDate, { weekStartsOn: 1 }); // Senin
+    const end = endOfWeek(targetDate, { weekStartsOn: 1 }); // Ahad
+    const label = `Pekan (${format(start, "d MMM", { locale: id })} - ${format(end, "d MMM yyyy", { locale: id })})`;
+    return { start, end, label };
+  }
+
+  if (periodType === "semester") {
+    // Semester 1: Juli - Desember
+    // Semester 2: Januari - Juni
+    const yr = targetDate.getFullYear();
+    if (semesterNumber === 1) {
+      const start = new Date(yr, 6, 1); // 1 Juli
+      const end = new Date(yr, 11, 31); // 31 Desember
+      const label = `Semester 1 (Ganjil) TA ${yr}/${yr + 1}`;
+      return { start, end, label };
+    } else {
+      const start = new Date(yr, 0, 1); // 1 Januari
+      const end = new Date(yr, 5, 30); // 30 Juni
+      const label = `Semester 2 (Genap) TA ${yr - 1}/${yr}`;
+      return { start, end, label };
+    }
+  }
+
+  if (periodType === "tahun_ajaran") {
+    // 1 Tahun Ajaran: 1 Juli s/d 30 Juni tahun berikutnya
+    const start = new Date(academicYearStart, 6, 1); // 1 Juli
+    const end = new Date(academicYearStart + 1, 5, 30); // 30 Juni
+    const label = `Tahun Ajaran ${academicYearStart}/${academicYearStart + 1}`;
+    return { start, end, label };
+  }
+
+  // Default: bulan
+  const start = startOfMonth(targetDate);
+  const end = endOfMonth(targetDate);
+  const label = format(targetDate, "MMMM yyyy", { locale: id });
+  return { start, end, label };
+}
+
+/**
+ * Memisahkan dan menghitung rekap salat periode musyrif untuk Kampus Sparman dan Sedayu
  */
 export function calculateRekapSolatBulanan(
   records: any[],
-  month: Date,
-  musyrifListAll: any[]
+  monthOrTargetDate: Date,
+  musyrifListAll: any[],
+  options?: {
+    periodType?: RekapPeriodType;
+    semesterNumber?: 1 | 2;
+    academicYearStart?: number;
+  }
 ): {
   sparman: CampusRekapData;
   sedayu: CampusRekapData;
   activeDaysCount: number;
   periodLabel: string;
 } {
-  const monthKey = format(month, "yyyy-MM");
-  const periodLabel = format(month, "MMMM yyyy", { locale: id });
+  const periodType = options?.periodType || "bulan";
+  const { start, end, label: periodLabel } = getRekapPeriodInterval(
+    periodType,
+    monthOrTargetDate,
+    options?.semesterNumber,
+    options?.academicYearStart
+  );
 
-  // Hari-hari aktif pada bulan yang dipilih
-  const allMonthDays = eachDayOfInterval({
-    start: startOfMonth(month),
-    end: endOfMonth(month),
-  });
+  const startStr = format(start, "yyyy-MM-dd");
+  const endStr = format(end, "yyyy-MM-dd");
 
+  // Hari-hari dalam interval
+  const allIntervalDays = eachDayOfInterval({ start, end });
   const now = new Date();
-  const currentMonthKey = format(now, "yyyy-MM");
+  const todayStr = format(now, "yyyy-MM-dd");
 
-  // Jika bulan berjalan, hanya evaluasi hari hingga hari ini. Jika bulan lalu, seluruh hari.
-  const evalDays = (monthKey === currentMonthKey)
-    ? allMonthDays.filter(d => !isBefore(now, startOfDay(d)) || isToday(d))
-    : (monthKey < currentMonthKey ? allMonthDays : []);
+  // Filter hari yang sudah berjalan (tidak mengevaluasi masa depan)
+  const evalDays = allIntervalDays.filter(d => {
+    const ds = format(d, "yyyy-MM-dd");
+    return ds <= todayStr;
+  });
 
   const activeDaysCount = evalDays.length;
 
@@ -110,7 +170,7 @@ export function calculateRekapSolatBulanan(
     campusTag: "sparman" | "sedayu"
   ): CampusRekapData => {
     const computedRows: Omit<RekapMusyrifRow, "rank">[] = list.map(m => {
-      const rs = records.filter(r => r.musyrifId === m.id && r.date && r.date.startsWith(monthKey));
+      const rs = records.filter(r => r.musyrifId === m.id && r.date && r.date >= startStr && r.date <= endStr);
       
       let sh = 0, ss = 0, si = 0, sa = 0;
       let ah = 0, as = 0, ai = 0, aa = 0;
@@ -119,9 +179,9 @@ export function calculateRekapSolatBulanan(
       evalDays.forEach(d => {
         const ds = format(d, "yyyy-MM-dd");
         const r = rs.find(x => x.date === ds);
-        const subuhSt = getEffectiveAttendanceStatus(r, "subuh", ds, now);
-        const asharSt = getEffectiveAttendanceStatus(r, "ashar", ds, now);
-        const maghribSt = getEffectiveAttendanceStatus(r, "maghrib", ds, now);
+        const subuhSt = getEffectiveAttendanceStatus(r, "subuh", ds, now, m.asrama);
+        const asharSt = getEffectiveAttendanceStatus(r, "ashar", ds, now, m.asrama);
+        const maghribSt = getEffectiveAttendanceStatus(r, "maghrib", ds, now, m.asrama);
 
         if (subuhSt === "hadir") sh++;
         else if (subuhSt === "sakit") ss++;

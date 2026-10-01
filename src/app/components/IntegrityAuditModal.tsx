@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { ShieldAlert, AlertTriangle, Trash2, CheckCircle2, RefreshCw, X, Eye } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Trash2, CheckCircle2, RefreshCw, X, Eye, ChevronLeft } from "lucide-react";
 import { IntegrityViolation } from "../utils/anomalyDetector";
 
 interface IntegrityAuditModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
+  isPage?: boolean;
   onClose: () => void;
   violations: IntegrityViolation[];
   onPurgeAnomalies: () => Promise<void>;
@@ -11,7 +12,8 @@ interface IntegrityAuditModalProps {
 }
 
 export const IntegrityAuditModal: React.FC<IntegrityAuditModalProps> = ({
-  isOpen,
+  isOpen = true,
+  isPage = false,
   onClose,
   violations,
   onPurgeAnomalies,
@@ -19,33 +21,44 @@ export const IntegrityAuditModal: React.FC<IntegrityAuditModalProps> = ({
 }) => {
   const [selectedViolation, setSelectedViolation] = useState<IntegrityViolation | null>(null);
 
-  if (!isOpen) return null;
+  if (!isPage && !isOpen) return null;
 
   const totalViolations = violations.reduce((acc, v) => acc + v.jumlahEntri, 0);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-rose-200 dark:border-rose-900/50 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 p-5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md">
-              <ShieldAlert className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight">Papan Integritas & Deteksi Anomali</h2>
-              <p className="text-xs text-rose-100">
-                Sistem Audit Anti-Bot, Anti-Injeksi Data, dan Pelanggaran Presensi
-              </p>
-            </div>
+  const content = (
+    <div className={`relative w-full ${isPage ? "rounded-3xl border border-rose-200/80 shadow-xs" : "max-w-2xl rounded-2xl shadow-2xl border border-rose-200 dark:border-rose-900/50 max-h-[90vh]"} bg-white dark:bg-slate-900 overflow-hidden flex flex-col`}>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 p-4 sm:p-5 text-white flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {isPage ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-10 h-10 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all active:scale-95 shrink-0"
+              title="Kembali ke Dasbor"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          ) : null}
+          <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+            <ShieldAlert className="w-6 h-6 text-white" />
           </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold tracking-tight">Papan Integritas & Deteksi Anomali</h2>
+            <p className="text-xs text-rose-100">
+              Sistem Audit Anti-Bot, Anti-Injeksi Data, dan Pelanggaran Presensi
+            </p>
+          </div>
+        </div>
+        {!isPage && (
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
+        )}
+      </div>
 
         {/* Overview Banner */}
         <div className="p-4 bg-rose-50/80 dark:bg-rose-950/20 border-b border-rose-100 dark:border-rose-900/30 flex items-center justify-between gap-4">
@@ -136,10 +149,19 @@ export const IntegrityAuditModal: React.FC<IntegrityAuditModalProps> = ({
             onClick={onClose}
             className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors cursor-pointer"
           >
-            Tutup
+            {isPage ? "Kembali ke Dasbor" : "Tutup"}
           </button>
         </div>
       </div>
+  );
+
+  if (isPage) {
+    return <div className="w-full pb-20">{content}</div>;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+      {content}
     </div>
   );
 };

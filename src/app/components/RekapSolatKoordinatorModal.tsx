@@ -15,19 +15,23 @@ import {
   Users,
   Award,
   Sparkles,
-  Info
+  Info,
+  AlertCircle
 } from "lucide-react";
-import { format, subMonths, addMonths } from "date-fns";
+import { format, subMonths, addMonths, subWeeks, addWeeks, subYears, addYears } from "date-fns";
 import { id } from "date-fns/locale";
 import {
   calculateRekapSolatBulanan,
   printRekapSolatKoordinatorPDF,
   RekapMusyrifRow,
-  CampusRekapData
+  CampusRekapData,
+  RekapPeriodType,
+  getRekapPeriodInterval
 } from "../utils/exportRekapSolatKoordinator";
 
 interface RekapSolatKoordinatorModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
+  isPage?: boolean;
   onClose: () => void;
   records: any[];
   musyrifList: any[];
@@ -35,23 +39,38 @@ interface RekapSolatKoordinatorModalProps {
 }
 
 export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProps> = ({
-  isOpen,
+  isOpen = true,
+  isPage = false,
   onClose,
   records,
   musyrifList,
   currentUserName = "Andi Aqillah Fadia Haswat, S.A.P."
 }) => {
-  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [periodType, setPeriodType] = useState<RekapPeriodType>("bulan");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [semesterNumber, setSemesterNumber] = useState<1 | 2>(() => {
+    const m = new Date().getMonth(); // 0-11
+    return m >= 6 ? 1 : 2; // Juli-Desember = Sem 1, Jan-Juni = Sem 2
+  });
+  const [academicYearStart, setAcademicYearStart] = useState<number>(() => {
+    const now = new Date();
+    return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  });
+
   const [activeTab, setActiveTab] = useState<"sparman" | "sedayu" | "overview">("sparman");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDiscipline, setFilterDiscipline] = useState<"all" | "green" | "yellow" | "red">("all");
 
-  // Hitung data rekap bulanan
+  // Hitung data rekap sesuai periode
   const rekapData = useMemo(() => {
-    return calculateRekapSolatBulanan(records, selectedMonth, musyrifList);
-  }, [records, selectedMonth, musyrifList]);
+    return calculateRekapSolatBulanan(records, selectedDate, musyrifList, {
+      periodType,
+      semesterNumber,
+      academicYearStart
+    });
+  }, [records, selectedDate, musyrifList, periodType, semesterNumber, academicYearStart]);
 
-  if (!isOpen) return null;
+  if (!isPage && !isOpen) return null;
 
   const currentCampusData: CampusRekapData =
     activeTab === "sedayu" ? rekapData.sedayu : rekapData.sparman;
@@ -86,31 +105,41 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* HEADER MODAL */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-sky-50 via-white to-blue-50/40">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md shadow-sky-600/20">
-              <Award className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
-                  Rekap Presensi Salat Musyrif
-                </h2>
-                <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-mono">
-                  Khusus Koordinator
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Evaluasi tertib ibadah musyrif · Ekspor cetak PDF 1 halaman Sparman & Sedayu
-              </p>
-            </div>
+  const content = (
+    <div className={`bg-white w-full ${isPage ? "rounded-3xl border border-slate-200/80 shadow-xs" : "max-w-5xl rounded-3xl shadow-2xl border border-slate-200 max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"} flex flex-col overflow-hidden`}>
+      
+      {/* HEADER */}
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-sky-50 via-white to-blue-50/40">
+        <div className="flex items-center gap-3">
+          {isPage ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-10 h-10 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-all shadow-2xs active:scale-95 shrink-0"
+              title="Kembali"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          ) : null}
+          <div className="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md shadow-sky-600/20 shrink-0">
+            <Award className="w-5 h-5" />
           </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
+                Rekap Presensi Salat Musyrif
+              </h2>
+              <span className="text-[10px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-mono">
+                Khusus Koordinator
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Evaluasi tertib ibadah musyrif · Ekspor cetak PDF 1 halaman Sparman & Sedayu
+            </p>
+          </div>
+        </div>
 
+        {!isPage && (
           <button
             type="button"
             onClick={onClose}
@@ -118,41 +147,199 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
+        )}
+      </div>
 
-        {/* CONTROLS BAR: PILIH BULAN & NAVIGASI */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Month Selector */}
-          <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200 shadow-2xs w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => setSelectedMonth(prev => subMonths(prev, 1))}
-              title="Bulan sebelumnya"
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-2 px-3 text-center min-w-[170px] justify-center">
-              <Calendar className="w-4 h-4 text-sky-600" />
-              <span className="text-sm font-bold text-slate-800 capitalize">
-                {format(selectedMonth, "MMMM yyyy", { locale: id })}
-              </span>
+        {/* PERIOD TYPE SELECTOR & NAVIGASI */}
+        <div className="p-4 border-b border-slate-100 bg-slate-50/70 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+            {/* Segmented Pill: Pekan / Bulan / Semester / Tahun Ajaran */}
+            <div className="flex items-center p-1 bg-white rounded-2xl border border-slate-200/90 shadow-2xs gap-1">
+              <button
+                type="button"
+                onClick={() => setPeriodType("pekan")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  periodType === "pekan"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Pekan
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodType("bulan")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  periodType === "bulan"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Bulan
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodType("semester")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  periodType === "semester"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Semester
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodType("tahun_ajaran")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  periodType === "tahun_ajaran"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Tahun Ajaran
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedMonth(prev => addMonths(prev, 1))}
-              title="Bulan berikutnya"
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+
+            {/* Date/Interval Navigator sesuai PeriodType */}
+            {periodType === "bulan" && (
+              <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(prev => subMonths(prev, 1))}
+                  title="Bulan sebelumnya"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1.5 px-2.5 text-center min-w-[140px] justify-center">
+                  <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span className="text-xs font-bold text-slate-800 capitalize">
+                    {format(selectedDate, "MMMM yyyy", { locale: id })}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(prev => addMonths(prev, 1))}
+                  title="Bulan berikutnya"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {periodType === "pekan" && (
+              <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(prev => subWeeks(prev, 1))}
+                  title="Pekan sebelumnya"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1.5 px-2.5 text-center min-w-[150px] justify-center">
+                  <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span className="text-xs font-bold text-slate-800">
+                    {rekapData.periodLabel}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(prev => addWeeks(prev, 1))}
+                  title="Pekan berikutnya"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {periodType === "semester" && (
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center p-1 bg-white rounded-2xl border border-slate-200/90 shadow-2xs gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSemesterNumber(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-xl transition-all ${
+                      semesterNumber === 1
+                        ? "bg-sky-100 text-sky-800 font-extrabold"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Sem 1 (Ganjil)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSemesterNumber(2)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-xl transition-all ${
+                      semesterNumber === 2
+                        ? "bg-sky-100 text-sky-800 font-extrabold"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Sem 2 (Genap)
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(prev => subYears(prev, 1))}
+                    title="Tahun sebelumnya"
+                    className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-bold text-slate-800 px-2">
+                    {selectedDate.getFullYear()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(prev => addYears(prev, 1))}
+                    title="Tahun berikutnya"
+                    className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {periodType === "tahun_ajaran" && (
+              <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/90 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setAcademicYearStart(prev => prev - 1)}
+                  title="Tahun Ajaran sebelumnya"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1.5 px-3 text-center min-w-[150px] justify-center">
+                  <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span className="text-xs font-bold text-slate-800">
+                    TA {academicYearStart}/{academicYearStart + 1}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAcademicYearStart(prev => prev + 1)}
+                  title="Tahun Ajaran berikutnya"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Quick Info & Action Buttons */}
-          <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto justify-end">
-            <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-sky-50/80 border border-sky-100 text-sky-800 text-xs rounded-xl font-medium">
-              <Info className="w-3.5 h-3.5 text-sky-600" />
-              <span>Hari Aktif Evaluasi: <b>{rekapData.activeDaysCount} Hari</b></span>
+          <div className="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-sky-50/90 border border-sky-200/70 text-sky-800 text-xs rounded-xl font-medium shadow-2xs">
+              <Info className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+              <span>Hari Aktif Evaluasi: <b className="font-bold text-sky-900">{rekapData.activeDaysCount} Hari</b></span>
             </div>
 
             <button
@@ -161,26 +348,28 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
               className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm shadow-sky-600/25 flex items-center gap-2 transition-all active:scale-95"
             >
               <Printer className="w-4 h-4" />
-              <span>Cetak PDF (2 Halaman: Sparman & Sedayu)</span>
+              <span>Cetak PDF Lengkap (2 Hal)</span>
             </button>
           </div>
         </div>
 
-        {/* CAMPUS TAB NAVIGASI */}
-        <div className="px-5 pt-3 border-b border-slate-100 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        {/* CAMPUS TAB NAVIGASI - CLEAN SEGMENTED PILL */}
+        <div className="px-4 sm:px-5 py-3 border-b border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 gap-1 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveTab("sparman")}
-              className={`px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 transition-all flex items-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
                 activeTab === "sparman"
-                  ? "border-sky-600 text-sky-700 bg-sky-50/50"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
+                  ? "bg-white text-sky-700 shadow-xs ring-1 ring-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-3.5 h-3.5 text-sky-600 shrink-0" />
               <span>Kampus S. Parman</span>
-              <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-slate-200/70 text-slate-700 font-mono">
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+                activeTab === "sparman" ? "bg-sky-50 text-sky-700 font-bold" : "bg-slate-200/70 text-slate-600"
+              }`}>
                 {rekapData.sparman.musyrifCount} Musyrif · {rekapData.sparman.avgPct}%
               </span>
             </button>
@@ -188,15 +377,17 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
             <button
               type="button"
               onClick={() => setActiveTab("sedayu")}
-              className={`px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 transition-all flex items-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
                 activeTab === "sedayu"
-                  ? "border-sky-600 text-sky-700 bg-sky-50/50"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
+                  ? "bg-white text-sky-700 shadow-xs ring-1 ring-slate-200/60"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-3.5 h-3.5 text-sky-600 shrink-0" />
               <span>Kampus Terpadu Sedayu</span>
-              <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-slate-200/70 text-slate-700 font-mono">
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+                activeTab === "sedayu" ? "bg-sky-50 text-sky-700 font-bold" : "bg-slate-200/70 text-slate-600"
+              }`}>
                 {rekapData.sedayu.musyrifCount} Musyrif · {rekapData.sedayu.avgPct}%
               </span>
             </button>
@@ -206,9 +397,9 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
           <button
             type="button"
             onClick={() => handlePrintCurrent(activeTab === "sedayu" ? "sedayu" : "sparman")}
-            className="text-xs text-sky-700 font-semibold hover:underline flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs text-sky-700 bg-sky-50/80 hover:bg-sky-100 border border-sky-200/80 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-all self-end sm:self-auto"
           >
-            <Printer className="w-3.5 h-3.5" />
+            <Printer className="w-3.5 h-3.5 text-sky-600" />
             <span>Cetak Khusus {activeTab === "sedayu" ? "Sedayu" : "Sparman"} (1 Lembar)</span>
           </button>
         </div>
@@ -268,28 +459,67 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
             </div>
           </div>
 
+          {/* PERLU PERHATIAN ALERT (Musyrif dengan Alfa Terbanyak) */}
+          {currentCampusData.rows.filter(r => r.totalAlpa > 0).length > 0 && (
+            <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-4 rounded-full bg-rose-500"></span>
+                  <p className="text-xs font-bold text-rose-950 uppercase tracking-wide">
+                    Catatan Kehadiran Perlu Perhatian
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full font-mono">
+                  {currentCampusData.rows.filter(r => r.totalAlpa >= 3).length > 0 ? "Prioritas Pembinaan (≥3 Alfa)" : "Tercatat Alfa"}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {currentCampusData.rows
+                  .filter(r => r.totalAlpa > 0)
+                  .sort((a, b) => b.totalAlpa - a.totalAlpa)
+                  .slice(0, 6)
+                  .map(m => (
+                    <div 
+                      key={m.id}
+                      className="bg-white rounded-xl p-2.5 border border-rose-100 flex items-center justify-between gap-2 shadow-2xs"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{m.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{m.asrama} · {m.kamar}</p>
+                      </div>
+                      <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 px-2 py-1 rounded-lg shrink-0">
+                        <AlertCircle className="w-3 h-3 text-rose-500" />
+                        <span className="text-xs font-bold text-rose-700 font-mono">{m.totalAlpa}</span>
+                        <span className="text-[10px] text-rose-600 font-semibold">Alfa</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {/* SEARCH & FILTER CONTROLS */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1">
-            <div className="relative w-full sm:w-72">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Cari nama atau asrama musyrif..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white shadow-2xs placeholder:text-slate-400"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-              <span className="text-[11px] text-slate-400 font-medium shrink-0">Filter Status:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto p-1 bg-slate-100/80 rounded-xl border border-slate-200/70">
+              <span className="text-[11px] text-slate-500 font-semibold px-2 shrink-0">Filter:</span>
               <button
                 type="button"
                 onClick={() => setFilterDiscipline("all")}
-                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all shrink-0 ${
                   filterDiscipline === "all"
-                    ? "bg-slate-800 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-white text-slate-900 shadow-2xs ring-1 ring-slate-200/60"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 Semua ({currentCampusData.rows.length})
@@ -297,10 +527,10 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
               <button
                 type="button"
                 onClick={() => setFilterDiscipline("green")}
-                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all shrink-0 ${
                   filterDiscipline === "green"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    ? "bg-emerald-600 text-white shadow-2xs"
+                    : "text-emerald-700 hover:bg-emerald-50/70"
                 }`}
               >
                 Hijau ({currentCampusData.highCount})
@@ -308,10 +538,10 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
               <button
                 type="button"
                 onClick={() => setFilterDiscipline("yellow")}
-                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all shrink-0 ${
                   filterDiscipline === "yellow"
-                    ? "bg-amber-500 text-white"
-                    : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    ? "bg-amber-500 text-white shadow-2xs"
+                    : "text-amber-700 hover:bg-amber-50/70"
                 }`}
               >
                 Kuning ({currentCampusData.midCount})
@@ -319,10 +549,10 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
               <button
                 type="button"
                 onClick={() => setFilterDiscipline("red")}
-                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all shrink-0 ${
                   filterDiscipline === "red"
-                    ? "bg-rose-600 text-white"
-                    : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                    ? "bg-rose-600 text-white shadow-2xs"
+                    : "text-rose-700 hover:bg-rose-50/70"
                 }`}
               >
                 Merah ({currentCampusData.lowCount})
@@ -430,7 +660,7 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-colors"
             >
-              Tutup
+              {isPage ? "Kembali ke Dasbor" : "Tutup"}
             </button>
 
             <button
@@ -445,6 +675,15 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
         </div>
 
       </div>
+  );
+
+  if (isPage) {
+    return <div className="w-full pb-20">{content}</div>;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      {content}
     </div>
   );
 };

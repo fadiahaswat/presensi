@@ -199,9 +199,9 @@ export function LeaderboardModal({
             return;
           }
 
-          const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now);
-          const ashSt = getEffectiveAttendanceStatus(rec, "ashar", rec.date, now);
-          const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now);
+          const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now, m.asrama);
+          const ashSt = getEffectiveAttendanceStatus(rec, "ashar", rec.date, now, m.asrama);
+          const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now, m.asrama);
 
           if (subSt === "hadir") { hadirCount++; subuhCount++; }
           else if (subSt === "izin") izinCount++;
@@ -473,6 +473,53 @@ export function LeaderboardModal({
               <span>{p.label}</span>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* 4 Pilar KPI Aggregate Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="bg-amber-50/70 rounded-2xl p-3 border border-amber-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Pilar 1: Shalat</span>
+            <Sun className="w-3.5 h-3.5 text-amber-600"/>
+          </div>
+          <p className="text-base sm:text-lg font-black text-amber-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.hadirCount, 0)} <span className="text-xs font-normal text-amber-700">hadir</span>
+          </p>
+          <p className="text-[9px] text-amber-700 mt-0.5">Total shalat tercatat</p>
+        </div>
+
+        <div className="bg-sky-50/70 rounded-2xl p-3 border border-sky-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">Pilar 2: Logbook</span>
+            <ClipboardList className="w-3.5 h-3.5 text-sky-600"/>
+          </div>
+          <p className="text-base sm:text-lg font-black text-sky-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.logbookTasksDone, 0)} <span className="text-xs font-normal text-sky-700">tugas</span>
+          </p>
+          <p className="text-[9px] text-sky-700 mt-0.5">Checklist & pengasuhan</p>
+        </div>
+
+        <div className="bg-purple-50/70 rounded-2xl p-3 border border-purple-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider">Pilar 3: Agenda</span>
+            <Building2 className="w-3.5 h-3.5 text-purple-600"/>
+          </div>
+          <p className="text-base sm:text-lg font-black text-purple-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.kegiatanDone, 0)} <span className="text-xs font-normal text-purple-700">sesi</span>
+          </p>
+          <p className="text-[9px] text-purple-700 mt-0.5">Rapat & agenda asrama</p>
+        </div>
+
+        <div className="bg-emerald-50/70 rounded-2xl p-3 border border-emerald-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Pilar 4: Sunnah</span>
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600"/>
+          </div>
+          <p className="text-base sm:text-lg font-black text-emerald-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.mutabaahScore, 0)} <span className="text-xs font-normal text-emerald-700">pts</span>
+          </p>
+          <p className="text-[9px] text-emerald-700 mt-0.5">Akumulasi Mutaba'ah</p>
         </div>
       </div>
 
