@@ -1597,378 +1597,382 @@ function PageDashboard({
           className="mb-2"
         />
 
-        {/* 1. INTERACTIVE RICH WIDGET ROW (Izin Santri & Santri Sakit) - MUNCUL DI SEMUA ROLE */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Widget 1: Perizinan Santri dengan Real-time Approval Queue & Active Permits (HANYA HARI INI) */}
-          {(() => {
-            const todayStrVal = todayStr();
-            const pamongAsramas = authUser ? getPamongAssignedAsramas(authUser) : [];
+        {/* 1. INTERACTIVE RICH WIDGET ROW (Izin Santri & Santri Sakit) - OTOMATIS SEMBUNYI JIKA NIHIL HARI INI */}
+        {(() => {
+          const todayStrVal = todayStr();
+          const pamongAsramas = authUser ? getPamongAssignedAsramas(authUser) : [];
 
-            // Scope izin list based on role with flexible fallback
-            const scopedSantriIzinList = (() => {
-              if (!authUser || checkFullAccess(authUser) || authUser.role === "admin" || authUser.role === "koordinator_musyrif") {
-                return santriIzinList || [];
-              }
-              let filtered: SantriIzinRecord[] = [];
-              if (authUser.role === "pamong") {
-                filtered = (santriIzinList || []).filter(iz => {
-                  if (!iz) return false;
-                  const izAsrama = String(iz.asrama || "").toLowerCase();
-                  if (pamongAsramas.length > 0) {
-                    return pamongAsramas.some(pa => !iz.asrama || iz.asrama === "Kampus Asrama" || (pa && (izAsrama.includes(String(pa).toLowerCase()) || String(pa).toLowerCase().includes(izAsrama))));
-                  }
-                  const authAsrama = String(authUser.asrama || "").toLowerCase();
-                  return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || (authAsrama && izAsrama.includes(authAsrama));
-                });
-              } else if (authUser.role === "koordinator_gedung") {
+          // Scope izin list based on role with flexible fallback
+          const scopedSantriIzinList = (() => {
+            if (!authUser || checkFullAccess(authUser) || authUser.role === "admin" || authUser.role === "koordinator_musyrif") {
+              return santriIzinList || [];
+            }
+            let filtered: SantriIzinRecord[] = [];
+            if (authUser.role === "pamong") {
+              filtered = (santriIzinList || []).filter(iz => {
+                if (!iz) return false;
+                const izAsrama = String(iz.asrama || "").toLowerCase();
+                if (pamongAsramas.length > 0) {
+                  return pamongAsramas.some(pa => !iz.asrama || iz.asrama === "Kampus Asrama" || (pa && (izAsrama.includes(String(pa).toLowerCase()) || String(pa).toLowerCase().includes(izAsrama))));
+                }
                 const authAsrama = String(authUser.asrama || "").toLowerCase();
-                filtered = (santriIzinList || []).filter(iz => {
-                  if (!iz) return false;
-                  const izAsrama = String(iz.asrama || "").toLowerCase();
-                  return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || (authAsrama && izAsrama.includes(authAsrama));
-                });
-              } else if (authUser.role === "musyrif") {
-                const authAsrama = String(authUser.asrama || "").toLowerCase();
-                const authKamar = String(authUser.kamar || "").toLowerCase();
-                const authKelas = String(authUser.kelas || "").toLowerCase();
-                filtered = (santriIzinList || []).filter(iz => {
-                  if (!iz) return false;
-                  const izAsrama = String(iz.asrama || "").toLowerCase();
-                  const izKamar = String(iz.kamar || "").toLowerCase();
-                  const izKelas = String(iz.kelas || "").toLowerCase();
-                  return (
-                    (authAsrama && izAsrama && izAsrama.includes(authAsrama)) || 
-                    (authKamar && izKamar && izKamar.includes(authKamar)) ||
-                    (authKelas && izKelas && izKelas.includes(authKelas)) ||
-                    iz.dibuatOleh === authUser.name ||
-                    !iz.asrama || iz.asrama === "Kampus Asrama"
-                  );
-                });
-              }
-              return filtered.length > 0 ? filtered : (santriIzinList || []);
-            })();
+                return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || (authAsrama && izAsrama.includes(authAsrama));
+              });
+            } else if (authUser.role === "koordinator_gedung") {
+              const authAsrama = String(authUser.asrama || "").toLowerCase();
+              filtered = (santriIzinList || []).filter(iz => {
+                if (!iz) return false;
+                const izAsrama = String(iz.asrama || "").toLowerCase();
+                return !iz.asrama || iz.asrama === "Kampus Asrama" || !authUser.asrama || (authAsrama && izAsrama.includes(authAsrama));
+              });
+            } else if (authUser.role === "musyrif") {
+              const authAsrama = String(authUser.asrama || "").toLowerCase();
+              const authKamar = String(authUser.kamar || "").toLowerCase();
+              const authKelas = String(authUser.kelas || "").toLowerCase();
+              filtered = (santriIzinList || []).filter(iz => {
+                if (!iz) return false;
+                const izAsrama = String(iz.asrama || "").toLowerCase();
+                const izKamar = String(iz.kamar || "").toLowerCase();
+                const izKelas = String(iz.kelas || "").toLowerCase();
+                return (
+                  (authAsrama && izAsrama && izAsrama.includes(authAsrama)) || 
+                  (authKamar && izKamar && izKamar.includes(authKamar)) ||
+                  (authKelas && izKelas && izKelas.includes(authKelas)) ||
+                  iz.dibuatOleh === authUser.name ||
+                  !iz.asrama || iz.asrama === "Kampus Asrama"
+                );
+              });
+            }
+            return filtered.length > 0 ? filtered : (santriIzinList || []);
+          })();
 
-            const validIzinList = (scopedSantriIzinList || []).filter(iz => Boolean(iz && iz.namaSantri && iz.namaSantri.trim() !== ""));
+          const validIzinList = (scopedSantriIzinList || []).filter(iz => Boolean(iz && iz.namaSantri && iz.namaSantri.trim() !== ""));
 
-            // Filter ketat: HANYA IZIN YANG BERLAKU / DIBUAT HARI INI
-            const isTodayIzin = (iz: SantriIzinRecord) => {
-              const createdDate = (iz.createdAt || "").slice(0, 10);
-              const isCreatedToday = createdDate === todayStrVal;
-              const isDateMatch = iz.tglKeluarRencana === todayStrVal || iz.tglKembaliRencana === todayStrVal;
-              const isDateSpanningToday = Boolean(iz.tglKeluarRencana && iz.tglKembaliRencana && iz.tglKeluarRencana <= todayStrVal && iz.tglKembaliRencana >= todayStrVal);
-              return isCreatedToday || isDateMatch || isDateSpanningToday;
-            };
+          // Filter ketat: HANYA IZIN YANG BERLAKU / DIBUAT HARI INI
+          const isTodayIzin = (iz: SantriIzinRecord) => {
+            const createdDate = (iz.createdAt || "").slice(0, 10);
+            const isCreatedToday = createdDate === todayStrVal;
+            const isDateMatch = iz.tglKeluarRencana === todayStrVal || iz.tglKembaliRencana === todayStrVal;
+            const isDateSpanningToday = Boolean(iz.tglKeluarRencana && iz.tglKembaliRencana && iz.tglKeluarRencana <= todayStrVal && iz.tglKembaliRencana >= todayStrVal);
+            return isCreatedToday || isDateMatch || isDateSpanningToday;
+          };
 
-            const todayIzinList = validIzinList.filter(isTodayIzin);
-            const pendingTodayList = todayIzinList.filter(iz => String(iz?.statusApproval || "").startsWith("pending"));
-            const approvedTodayList = todayIzinList.filter(iz => String(iz?.statusApproval || "") === "approved");
-            const santriDiLuarTodayList = approvedTodayList.filter(iz => iz?.statusPKM === "di_luar");
-            
-            // Prioritas tampilan hari ini: 1. Pending approval hari ini -> 2. Santri di luar hari ini -> 3. Izin disetujui hari ini (Maksimal 5)
-            const displayList = pendingTodayList.length > 0 
-              ? pendingTodayList.slice(0, 5)
-              : santriDiLuarTodayList.length > 0
-              ? santriDiLuarTodayList.slice(0, 5)
-              : approvedTodayList.slice(0, 5);
+          const todayIzinList = validIzinList.filter(isTodayIzin);
+          const pendingTodayList = todayIzinList.filter(iz => String(iz?.statusApproval || "").startsWith("pending"));
+          const approvedTodayList = todayIzinList.filter(iz => String(iz?.statusApproval || "") === "approved");
+          const santriDiLuarTodayList = approvedTodayList.filter(iz => iz?.statusPKM === "di_luar");
+          
+          // Prioritas tampilan hari ini: 1. Pending approval hari ini -> 2. Santri di luar hari ini -> 3. Izin disetujui hari ini (Maksimal 5)
+          const displayIzinList = pendingTodayList.length > 0 
+            ? pendingTodayList.slice(0, 5)
+            : santriDiLuarTodayList.length > 0
+            ? santriDiLuarTodayList.slice(0, 5)
+            : approvedTodayList.slice(0, 5);
 
-            const pendingCount = pendingTodayList.length;
-            const diLuarCount = santriDiLuarTodayList.length;
-            const totalActiveCount = todayIzinList.length;
+          const pendingCount = pendingTodayList.length;
+          const diLuarCount = santriDiLuarTodayList.length;
+          const totalActiveIzinCount = todayIzinList.length;
+          const showIzinWidget = totalActiveIzinCount > 0;
 
-            return (
-              <div
-                onClick={() => onGoTo("izin-santri")}
-                className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-blue-300 transition-all cursor-pointer flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-                        <FileCheck2 className="w-4 h-4"/>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-800 leading-tight">Perizinan Santri</h4>
-                        <span className="text-[10px] text-slate-400">Keluar & Pulang Asrama</span>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                      isLoadingIzinSedayu
-                        ? "bg-slate-100 text-slate-500 animate-pulse border border-slate-200"
-                        : pendingCount > 0 
-                        ? "bg-rose-500 text-white animate-pulse" 
-                        : diLuarCount > 0 
-                        ? "bg-sky-50 text-sky-800 border border-sky-200"
-                        : totalActiveCount > 0
-                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                        : "bg-slate-50 text-slate-500 border border-slate-200"
-                    }`}>
-                      {isLoadingIzinSedayu
-                        ? "Menyinkron..."
-                        : pendingCount > 0 
-                        ? `${pendingCount} Pending` 
-                        : diLuarCount > 0 
-                        ? `${diLuarCount} di Luar`
-                        : totalActiveCount > 0
-                        ? `${totalActiveCount} Hari Ini`
-                        : "Nihil Hari Ini ✓"}
-                    </span>
-                  </div>
-
-                  {isLoadingIzinSedayu ? (
-                    <div className="space-y-2 py-1">
-                      {/* Shimmer Item 1 */}
-                      <div className="p-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 border border-slate-200/70 flex items-center justify-between gap-2.5 animate-pulse">
-                        <div className="w-8 h-8 rounded-xl bg-slate-200/90 shrink-0 flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-slate-300 animate-spin" />
-                        </div>
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                          <div className="h-3 bg-slate-200 rounded-md w-3/4"></div>
-                          <div className="h-2 bg-slate-200/70 rounded-md w-1/2"></div>
-                        </div>
-                        <div className="h-4 bg-amber-100/80 rounded-md w-12 shrink-0 border border-amber-200/60"></div>
-                      </div>
-                      {/* Shimmer Item 2 */}
-                      <div className="p-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 border border-slate-200/70 flex items-center justify-between gap-2.5 animate-pulse">
-                        <div className="w-8 h-8 rounded-xl bg-slate-200/90 shrink-0 flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-slate-300" />
-                        </div>
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                          <div className="h-3 bg-slate-200 rounded-md w-2/3"></div>
-                          <div className="h-2 bg-slate-200/70 rounded-md w-1/3"></div>
-                        </div>
-                        <div className="h-4 bg-sky-100/80 rounded-md w-12 shrink-0 border border-sky-200/60"></div>
-                      </div>
-                    </div>
-                  ) : displayList.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {displayList.map(iz => {
-                        const isPending = String(iz?.statusApproval || "").startsWith("pending");
-                        const isDiLuar = iz?.statusPKM === "di_luar";
-
-                        return (
-                          <div key={iz.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-blue-50/50 transition">
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-slate-800 truncate">{iz.namaSantri || "Santri"}</p>
-                              <p className="text-[10px] text-slate-400 truncate">
-                                {iz.kelas || "Santri"} {iz.keperluan ? `• ${iz.keperluan}` : ""}
-                              </p>
-                            </div>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                              isPending 
-                                ? "bg-amber-100 text-amber-900 border border-amber-200" 
-                                : isDiLuar 
-                                ? "bg-sky-100 text-sky-900 border border-sky-200"
-                                : "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                            }`}>
-                              {isPending ? "Pending" : isDiLuar ? "Di Luar" : "Disetujui"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="py-4 text-center text-slate-400 text-xs">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
-                      <p className="text-[11px] font-medium text-slate-500">Tidak ada perizinan santri hari ini</p>
-                    </div>
-                  )}
-
-                  {/* ADAPTIVE PHOTO GRID (HANYA FOTO IZIN HARI INI, Max 5x2 = 10 Foto) */}
-                  {(() => {
-                    const izinWithPhotos = todayIzinList
-                      .filter(iz => Boolean(iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl))
-                      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-                      .slice(0, 10);
-
-                    if (izinWithPhotos.length === 0) return null;
-
-                    return (
-                      <div className="mt-2.5 pt-2 border-t border-slate-100/90">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
-                            <Camera className="w-3 h-3 text-blue-500" />
-                            Dokumentasi Izin ({izinWithPhotos.length}):
-                          </span>
-                          <span className="text-[9px] font-semibold text-blue-600">Klik lihat</span>
-                        </div>
-                        <div className={`grid gap-1.5 ${
-                          izinWithPhotos.length === 1 ? "grid-cols-2 max-w-[140px]" :
-                          izinWithPhotos.length === 2 ? "grid-cols-2 max-w-[180px]" :
-                          izinWithPhotos.length === 3 ? "grid-cols-3" :
-                          izinWithPhotos.length === 4 ? "grid-cols-4" :
-                          "grid-cols-5"
-                        }`}>
-                          {izinWithPhotos.map((iz) => {
-                            const pUrl = iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl;
-                            return (
-                              <div
-                                key={iz.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPreviewWidgetPhoto({
-                                    url: pUrl!,
-                                    title: iz.namaSantri,
-                                    subtitle: `${iz.kelas || "Kelas"} • ${iz.asrama || "Asrama"} • ${iz.keperluan || "Izin Santri"}`
-                                  });
-                                }}
-                                className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 group/photo cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all shadow-2xs"
-                                title={`${iz.namaSantri} (${iz.kelas})`}
-                              >
-                                <LazyImage
-                                  src={pUrl}
-                                  alt={iz.namaSantri}
-                                  className="w-full h-full object-cover group-hover/photo:scale-110 transition-transform duration-300"
-                                  recordId={iz.id}
-                                  photoField="photoUrl"
-                                  tableName="Izin"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-blue-600 group-hover:text-blue-700">
-                  <span>Buka Perizinan Santri</span>
-                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Widget 2: Pantauan Santri Sakit (UKS & PKU) dengan Daftar Santri (HANYA HARI INI) */}
-          {(() => {
-            const todayStrVal = todayStr();
-            const pamongAsramas = authUser ? getPamongAssignedAsramas(authUser) : [];
-            const rawSakit = (santriSakitList || []).filter(s => s.status === "dalam_perawatan");
-            
-            // Scope sakit list based on role
-            const scopedSakit = (() => {
-              if (!authUser || checkFullAccess(authUser) || authUser.role === "admin") {
-                return rawSakit;
-              }
-              if (authUser.role === "pamong") {
-                return rawSakit.filter(s => {
-                  if (!s) return false;
-                  const sAsrama = String(s.asrama || "").toLowerCase();
-                  if (pamongAsramas.length > 0) {
-                    return pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => pa && sAsrama.includes(String(pa).toLowerCase()));
-                  }
-                  return s.asrama === authUser.asrama;
-                });
-              }
-              if (authUser.role === "koordinator_gedung") {
-                return rawSakit.filter(s => s && s.asrama === authUser.asrama);
-              }
-              if (authUser.role === "musyrif") {
-                const myMusyrifId = authUser.musyrifId || authUser.id;
-                const myKelas = String(authUser.kelas || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
-                return rawSakit.filter(s => {
-                  if (!s) return false;
-                  const sKelas = String(s.kelasSantri || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
-                  const matchId = Boolean(s.musyrifId && s.musyrifId === myMusyrifId);
-                  const matchKelas = Boolean(myKelas && (sKelas === myKelas || sKelas.includes(myKelas) || myKelas.includes(sKelas)));
-                  const matchKamar = Boolean(authUser.kamar && s.kamar && String(s.kamar).toLowerCase() === String(authUser.kamar).toLowerCase());
-                  
-                  if (myKelas) {
-                    return matchKelas || matchId;
-                  }
-                  return matchId || matchKamar || (authUser.asrama && s.asrama === authUser.asrama);
-                });
-              }
+          // Scope sakit list based on role
+          const rawSakit = (santriSakitList || []).filter(s => s.status === "dalam_perawatan");
+          const scopedSakit = (() => {
+            if (!authUser || checkFullAccess(authUser) || authUser.role === "admin") {
               return rawSakit;
-            })();
+            }
+            if (authUser.role === "pamong") {
+              return rawSakit.filter(s => {
+                if (!s) return false;
+                const sAsrama = String(s.asrama || "").toLowerCase();
+                if (pamongAsramas.length > 0) {
+                  return pamongAsramas.includes(s.asrama) || pamongAsramas.some(pa => pa && sAsrama.includes(String(pa).toLowerCase()));
+                }
+                return s.asrama === authUser.asrama;
+              });
+            }
+            if (authUser.role === "koordinator_gedung") {
+              return rawSakit.filter(s => s && s.asrama === authUser.asrama);
+            }
+            if (authUser.role === "musyrif") {
+              const myMusyrifId = authUser.musyrifId || authUser.id;
+              const myKelas = String(authUser.kelas || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+              return rawSakit.filter(s => {
+                if (!s) return false;
+                const sKelas = String(s.kelasSantri || "").trim().toLowerCase().replace(/^kelas\s+/i, "");
+                const matchId = Boolean(s.musyrifId && s.musyrifId === myMusyrifId);
+                const matchKelas = Boolean(myKelas && (sKelas === myKelas || sKelas.includes(myKelas) || myKelas.includes(sKelas)));
+                const matchKamar = Boolean(authUser.kamar && s.kamar && String(s.kamar).toLowerCase() === String(authUser.kamar).toLowerCase());
+                
+                if (myKelas) {
+                  return matchKelas || matchId;
+                }
+                return matchId || matchKamar || (authUser.asrama && s.asrama === authUser.asrama);
+              });
+            }
+            return rawSakit;
+          })();
 
-            // Filter ketat: HANYA SANTRI SAKIT HARI INI
-            const isTodaySakit = (s: SantriSakitRecord) => {
-              const createdDate = (s.createdAt || "").slice(0, 10);
-              return s.date === todayStrVal || createdDate === todayStrVal;
-            };
+          // Filter ketat: HANYA SANTRI SAKIT HARI INI
+          const isTodaySakit = (s: SantriSakitRecord) => {
+            const createdDate = (s.createdAt || "").slice(0, 10);
+            return s.date === todayStrVal || createdDate === todayStrVal;
+          };
 
-            const todaySakitList = scopedSakit.filter(isTodaySakit);
+          const todaySakitList = scopedSakit.filter(isTodaySakit);
 
-            // Urutkan paling atas yang terbaru
-            const sortedSakit = [...todaySakitList].sort((a, b) => {
-              const timeA = a.createdAt || a.date || "";
-              const timeB = b.createdAt || b.date || "";
-              if (timeA && timeB && timeA !== timeB) return timeB.localeCompare(timeA);
-              return (b.id || "").localeCompare(a.id || "");
-            });
+          // Urutkan paling atas yang terbaru
+          const sortedSakit = [...todaySakitList].sort((a, b) => {
+            const timeA = a.createdAt || a.date || "";
+            const timeB = b.createdAt || b.date || "";
+            if (timeA && timeB && timeA !== timeB) return timeB.localeCompare(timeA);
+            return (b.id || "").localeCompare(a.id || "");
+          });
 
-            const activeSakit = sortedSakit.slice(0, 5);
+          const activeSakit = sortedSakit.slice(0, 5);
+          const showSakitWidget = todaySakitList.length > 0;
 
-            return (
-              <div
-                onClick={() => onGoTo("santri-sakit")}
-                className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
-                        <HeartPulse className="w-4 h-4"/>
+          // Jika kedua widget nihil hari ini, sembunyikan container baris widget secara penuh
+          if (!showIzinWidget && !showSakitWidget) {
+            return null;
+          }
+
+          return (
+            <div className={`grid gap-3 ${showIzinWidget && showSakitWidget ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+              {/* Widget 1: Perizinan Santri dengan Real-time Approval Queue & Active Permits (HANYA JIKA ADA DATA HARI INI) */}
+              {showIzinWidget && (
+                <div
+                  onClick={() => onGoTo("izin-santri")}
+                  className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-blue-300 transition-all cursor-pointer flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                          <FileCheck2 className="w-4 h-4"/>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-800 leading-tight">Perizinan Santri</h4>
+                          <span className="text-[10px] text-slate-400">Keluar & Pulang Asrama</span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-800 leading-tight">Santri Sakit</h4>
-                        <span className="text-[10px] text-slate-400">Kamar & Poskestren</span>
-                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                        isLoadingIzinSedayu
+                          ? "bg-slate-100 text-slate-500 animate-pulse border border-slate-200"
+                          : pendingCount > 0 
+                          ? "bg-rose-500 text-white animate-pulse" 
+                          : diLuarCount > 0 
+                          ? "bg-sky-50 text-sky-800 border border-sky-200"
+                          : totalActiveIzinCount > 0
+                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          : "bg-slate-50 text-slate-500 border border-slate-200"
+                      }`}>
+                        {isLoadingIzinSedayu
+                          ? "Menyinkron..."
+                          : pendingCount > 0 
+                          ? `${pendingCount} Pending` 
+                          : diLuarCount > 0 
+                          ? `${diLuarCount} di Luar`
+                          : totalActiveIzinCount > 0
+                          ? `${totalActiveIzinCount} Hari Ini`
+                          : "Nihil Hari Ini ✓"}
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                      todaySakitList.length > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    }`}>
-                      {todaySakitList.length > 0 ? `${todaySakitList.length} Hari Ini` : "Nihil Hari Ini ✓"}
-                    </span>
+
+                    {isLoadingIzinSedayu ? (
+                      <div className="space-y-2 py-1">
+                        {/* Shimmer Item 1 */}
+                        <div className="p-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 border border-slate-200/70 flex items-center justify-between gap-2.5 animate-pulse">
+                          <div className="w-8 h-8 rounded-xl bg-slate-200/90 shrink-0 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-slate-300 animate-spin" />
+                          </div>
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="h-3 bg-slate-200 rounded-md w-3/4"></div>
+                            <div className="h-2 bg-slate-200/70 rounded-md w-1/2"></div>
+                          </div>
+                          <div className="h-4 bg-amber-100/80 rounded-md w-12 shrink-0 border border-amber-200/60"></div>
+                        </div>
+                        {/* Shimmer Item 2 */}
+                        <div className="p-2.5 rounded-2xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 border border-slate-200/70 flex items-center justify-between gap-2.5 animate-pulse">
+                          <div className="w-8 h-8 rounded-xl bg-slate-200/90 shrink-0 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-slate-300" />
+                          </div>
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="h-3 bg-slate-200 rounded-md w-2/3"></div>
+                            <div className="h-2 bg-slate-200/70 rounded-md w-1/3"></div>
+                          </div>
+                          <div className="h-4 bg-sky-100/80 rounded-md w-12 shrink-0 border border-sky-200/60"></div>
+                        </div>
+                      </div>
+                    ) : displayIzinList.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {displayIzinList.map(iz => {
+                          const isPending = String(iz?.statusApproval || "").startsWith("pending");
+                          const isDiLuar = iz?.statusPKM === "di_luar";
+
+                          return (
+                            <div key={iz.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-blue-50/50 transition">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-slate-800 truncate">{iz.namaSantri || "Santri"}</p>
+                                <p className="text-[10px] text-slate-400 truncate">
+                                  {iz.kelas || "Santri"} {iz.keperluan ? `• ${iz.keperluan}` : ""}
+                                </p>
+                              </div>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                                isPending 
+                                  ? "bg-amber-100 text-amber-900 border border-amber-200" 
+                                  : isDiLuar 
+                                  ? "bg-sky-100 text-sky-900 border border-sky-200"
+                                  : "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                              }`}>
+                                {isPending ? "Pending" : isDiLuar ? "Di Luar" : "Disetujui"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-4 text-center text-slate-400 text-xs">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
+                        <p className="text-[11px] font-medium text-slate-500">Tidak ada perizinan santri hari ini</p>
+                      </div>
+                    )}
+
+                    {/* ADAPTIVE PHOTO GRID (HANYA FOTO IZIN HARI INI, Max 5x2 = 10 Foto) */}
+                    {(() => {
+                      const izinWithPhotos = todayIzinList
+                        .filter(iz => Boolean(iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl))
+                        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+                        .slice(0, 10);
+
+                      if (izinWithPhotos.length === 0) return null;
+
+                      return (
+                        <div className="mt-2.5 pt-2 border-t border-slate-100/90">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1">
+                              <Camera className="w-3 h-3 text-blue-500" />
+                              Dokumentasi Izin ({izinWithPhotos.length}):
+                            </span>
+                            <span className="text-[9px] font-semibold text-blue-600">Klik lihat</span>
+                          </div>
+                          <div className={`grid gap-1.5 ${
+                            izinWithPhotos.length === 1 ? "grid-cols-2 max-w-[140px]" :
+                            izinWithPhotos.length === 2 ? "grid-cols-2 max-w-[180px]" :
+                            izinWithPhotos.length === 3 ? "grid-cols-3" :
+                            izinWithPhotos.length === 4 ? "grid-cols-4" :
+                            "grid-cols-5"
+                          }`}>
+                            {izinWithPhotos.map((iz) => {
+                              const pUrl = iz.photoUrl || (iz as any).fotoSantriUrl || (iz as any).lampiranUrl;
+                              return (
+                                <div
+                                  key={iz.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewWidgetPhoto({
+                                      url: pUrl!,
+                                      title: iz.namaSantri,
+                                      subtitle: `${iz.kelas || "Kelas"} • ${iz.asrama || "Asrama"} • ${iz.keperluan || "Izin Santri"}`
+                                    });
+                                  }}
+                                  className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200/80 group/photo cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all shadow-2xs"
+                                  title={`${iz.namaSantri} (${iz.kelas})`}
+                                >
+                                  <LazyImage
+                                    src={pUrl}
+                                    alt={iz.namaSantri}
+                                    className="w-full h-full object-cover group-hover/photo:scale-110 transition-transform duration-300"
+                                    recordId={iz.id}
+                                    photoField="photoUrl"
+                                    tableName="Izin"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {activeSakit.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {activeSakit.map(s => {
-                        return (
-                          <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-slate-100/80 transition-colors">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
-                                <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
-                                  Hari Ini
-                                </span>
+                  <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-blue-600 group-hover:text-blue-700">
+                    <span>Buka Perizinan Santri</span>
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              )}
+
+              {/* Widget 2: Pantauan Santri Sakit (UKS & PKU) dengan Daftar Santri (HANYA JIKA ADA DATA HARI INI) */}
+              {showSakitWidget && (
+                <div
+                  onClick={() => onGoTo("santri-sakit")}
+                  className="p-4 rounded-3xl bg-white border border-slate-100 ring-1 ring-slate-200/60 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                          <HeartPulse className="w-4 h-4"/>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-800 leading-tight">Santri Sakit</h4>
+                          <span className="text-[10px] text-slate-400">Kamar & Poskestren</span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                        todaySakitList.length > 0 ? "bg-rose-500 text-white animate-pulse" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      }`}>
+                        {todaySakitList.length > 0 ? `${todaySakitList.length} Hari Ini` : "Nihil Hari Ini ✓"}
+                      </span>
+                    </div>
+
+                    {activeSakit.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {activeSakit.map(s => {
+                          return (
+                            <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between gap-1.5 hover:bg-slate-100/80 transition-colors">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-800 truncate">{s.namaSantri}</p>
+                                  <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                                    Hari Ini
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 truncate">{s.keluhan || "Gejala Sakit"} • {s.asrama}</p>
                               </div>
-                              <p className="text-[10px] text-slate-400 truncate">{s.keluhan || "Gejala Sakit"} • {s.asrama}</p>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                                s.lokasiPerawatan === "rs_pku" ? "bg-rose-100 text-rose-800 font-bold" :
+                                s.lokasiPerawatan === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
+                                s.lokasiPerawatan === "pulang" ? "bg-purple-100 text-purple-800" :
+                                "bg-blue-100 text-blue-800"
+                              }`}>
+                                {s.lokasiPerawatan === "rs_pku" ? "PKU" : s.lokasiPerawatan === "uks" ? "Poskestren" : s.lokasiPerawatan === "pulang" ? "Pulang" : "Kamar"}
+                              </span>
                             </div>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                              s.lokasiPerawatan === "rs_pku" ? "bg-rose-100 text-rose-800 font-bold" :
-                              s.lokasiPerawatan === "uks" ? "bg-amber-100 text-amber-800 font-bold" :
-                              s.lokasiPerawatan === "pulang" ? "bg-purple-100 text-purple-800" :
-                              "bg-blue-100 text-blue-800"
-                            }`}>
-                              {s.lokasiPerawatan === "rs_pku" ? "PKU" : s.lokasiPerawatan === "uks" ? "Poskestren" : s.lokasiPerawatan === "pulang" ? "Pulang" : "Kamar"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="py-4 text-center text-slate-400 text-xs">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
-                      <p className="text-[11px] font-medium text-slate-500">Tidak ada santri sakit baru hari ini</p>
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-4 text-center text-slate-400 text-xs">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1 opacity-80" />
+                        <p className="text-[11px] font-medium text-slate-500">Tidak ada santri sakit baru hari ini</p>
+                      </div>
+                    )}
 
-                </div>
+                  </div>
 
-                <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-rose-600 group-hover:text-rose-700">
-                  <span>Buka Pantauan Sakit</span>
-                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  <div className="pt-2.5 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-rose-600 group-hover:text-rose-700">
+                    <span>Buka Pantauan Sakit</span>
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
-        </div>
+              )}
+            </div>
+          );
+        })()}
 
         {!authUser ? (
           /* Public Mode Services Grid */
@@ -4397,20 +4401,20 @@ function PageRekap({
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-5">
+    <div className="flex flex-col gap-3 sm:gap-5">
       {/* 1. Master Header Card with Primary View Navigation */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-2.5 sm:gap-3.5">
         {/* Top title & Cetak PDF action button */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
-              <TrendingUp className="w-5 h-5"/>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 bg-[#0C81E4] text-white shadow-sky-600/25">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5"/>
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-800 leading-tight truncate">
                 Rekap & Evaluasi Kinerja (KPI)
               </h2>
-              <p className="text-[11px] text-slate-400 font-medium truncate">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">
                 {format(viewMonth, "MMMM yyyy", { locale: id })} · {fMusyrif.length} Musyrif Terdata
               </p>
             </div>
@@ -4419,75 +4423,83 @@ function PageRekap({
           <button
             type="button"
             onClick={() => exportPDF(records, viewMonth, filterAsrama, musyrifListAll)}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
+            className="px-2.5 sm:px-3.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80 whitespace-nowrap"
           >
-            <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
-            <span>Cetak PDF</span>
+            <Printer className="w-3.5 h-3.5 text-[#0C81E4] shrink-0"/>
+            <span className="hidden xs:inline">Cetak PDF</span>
+            <span className="xs:hidden">Cetak</span>
           </button>
         </div>
 
         {/* Primary View Navigation Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl">
+        <div className="flex items-center gap-1 p-1 bg-slate-100/90 rounded-xl sm:rounded-2xl">
           <button
             type="button"
             onClick={() => { setActiveView("kpi"); setSortBy("kpi"); }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+            className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 text-center leading-tight ${
               activeView === "kpi" 
                 ? "bg-white text-[#0C4E8C] shadow-xs" 
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            <Trophy className="w-3.5 h-3.5 text-amber-500"/>
-            <span>Evaluasi KPI 6 Pilar</span>
+            <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0"/>
+            <span className="truncate">Evaluasi KPI 6 Pilar</span>
           </button>
           <button
             type="button"
             onClick={() => { setActiveView("presensi"); setSortBy("pct"); }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+            className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 text-center leading-tight ${
               activeView === "presensi" 
                 ? "bg-white text-[#0C4E8C] shadow-xs" 
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            <Sun className="w-3.5 h-3.5 text-amber-500"/>
-            <span>Khusus Presensi Shalat</span>
+            <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0"/>
+            <span className="truncate">Khusus Presensi Shalat</span>
           </button>
         </div>
 
         {/* Integrated Period Navigation Row (Hanya jika KPI) */}
         {activeView === "kpi" && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/80 rounded-2xl p-2 border border-slate-100/80">
-            {/* Segmented Pill: Pekan / Bulan / Semester / Tahun Ajaran */}
-            <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200/90 shadow-2xs gap-1 shrink-0 overflow-x-auto scrollbar-none">
-              {(["pekan", "bulan", "semester", "tahun_ajaran"] as const).map(pt => (
-                <button
-                  key={pt}
-                  type="button"
-                  onClick={() => setPeriodType(pt)}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all capitalize whitespace-nowrap shrink-0 ${
-                    periodType === pt
-                      ? "bg-sky-600 text-white shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {pt === "tahun_ajaran" ? "Tahun Ajaran" : pt}
-                </button>
-              ))}
+          <div className="flex flex-col gap-2 bg-slate-50/80 rounded-xl sm:rounded-2xl p-2 border border-slate-100/80">
+            {/* Row 1: Segmented Pill & Hari Aktif Badge */}
+            <div className="flex items-center justify-between gap-1.5 overflow-x-auto scrollbar-none">
+              <div className="flex items-center p-0.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs gap-0.5 shrink-0">
+                {(["pekan", "bulan", "semester", "tahun_ajaran"] as const).map(pt => (
+                  <button
+                    key={pt}
+                    type="button"
+                    onClick={() => setPeriodType(pt)}
+                    className={`px-2.5 py-1 text-[11px] sm:text-xs font-bold rounded-lg transition-all capitalize whitespace-nowrap shrink-0 ${
+                      periodType === pt
+                        ? "bg-sky-600 text-white shadow-2xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {pt === "tahun_ajaran" ? "TA" : pt}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1 px-2.5 py-1 bg-sky-50 border border-sky-200/80 text-sky-800 text-[10px] sm:text-xs rounded-xl font-medium shadow-2xs shrink-0 ml-auto">
+                <Info className="w-3 h-3 text-sky-600 shrink-0" />
+                <span><b className="font-bold text-sky-900">{days.length} Hari</b> Aktif</span>
+              </div>
             </div>
 
-            {/* Date Navigator sesuai PeriodType */}
-            <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
+            {/* Row 2: Date Navigator */}
+            <div className="flex items-center justify-center sm:justify-start">
               {periodType === "bulan" && (
-                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
                     type="button"
                     onClick={() => setViewMonth(prev => subMonths(prev, 1))}
                     title="Bulan sebelumnya"
-                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center gap-1 px-2.5 text-center min-w-[130px] justify-center">
+                  <div className="flex items-center gap-1 px-2 text-center min-w-[120px] justify-center">
                     <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                     <span className="text-xs font-bold text-slate-800 capitalize">
                       {format(viewMonth, "MMMM yyyy", { locale: id })}
@@ -4497,7 +4509,7 @@ function PageRekap({
                     type="button"
                     onClick={() => setViewMonth(prev => addMonths(prev, 1))}
                     title="Bulan berikutnya"
-                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -4505,16 +4517,16 @@ function PageRekap({
               )}
 
               {periodType === "pekan" && (
-                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
                     type="button"
                     onClick={() => setViewMonth(prev => subWeeks(prev, 1))}
                     title="Pekan sebelumnya"
-                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center gap-1 px-2.5 text-center min-w-[150px] justify-center">
+                  <div className="flex items-center gap-1 px-2 text-center min-w-[140px] justify-center">
                     <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                     <span className="text-xs font-bold text-slate-800">
                       {periodInterval.label}
@@ -4524,7 +4536,7 @@ function PageRekap({
                     type="button"
                     onClick={() => setViewMonth(prev => addWeeks(prev, 1))}
                     title="Pekan berikutnya"
-                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -4532,12 +4544,12 @@ function PageRekap({
               )}
 
               {periodType === "semester" && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200/90 shadow-2xs gap-1">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-1.5 flex-wrap">
+                  <div className="flex items-center p-0.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs gap-0.5">
                     <button
                       type="button"
                       onClick={() => setSemesterNumber(1)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
                         semesterNumber === 1
                           ? "bg-sky-100 text-sky-800 font-extrabold"
                           : "text-slate-600 hover:text-slate-900"
@@ -4548,7 +4560,7 @@ function PageRekap({
                     <button
                       type="button"
                       onClick={() => setSemesterNumber(2)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                      className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
                         semesterNumber === 2
                           ? "bg-sky-100 text-sky-800 font-extrabold"
                           : "text-slate-600 hover:text-slate-900"
@@ -4582,16 +4594,16 @@ function PageRekap({
               )}
 
               {periodType === "tahun_ajaran" && (
-                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
                   <button
                     type="button"
                     onClick={() => setAcademicYearStart(prev => prev - 1)}
                     title="Tahun Ajaran sebelumnya"
-                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center gap-1 px-3 text-center min-w-[140px] justify-center">
+                  <div className="flex items-center gap-1 px-3 text-center min-w-[130px] justify-center">
                     <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                     <span className="text-xs font-bold text-slate-800">
                       TA {academicYearStart}/{academicYearStart + 1}
@@ -4601,17 +4613,12 @@ function PageRekap({
                     type="button"
                     onClick={() => setAcademicYearStart(prev => prev + 1)}
                     title="Tahun Ajaran berikutnya"
-                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               )}
-
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-sky-50 border border-sky-200/80 text-sky-800 text-xs rounded-xl font-medium shadow-2xs shrink-0">
-                <Info className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                <span>Hari Aktif: <b className="font-bold text-sky-900">{days.length} Hari</b></span>
-              </div>
             </div>
           </div>
         )}
@@ -4635,53 +4642,72 @@ function PageRekap({
       {activeView === "kpi" && (
         <div className="flex flex-col gap-3 sm:gap-4">
           {/* 4 KARTU RINGKASAN DISTRIBUSI MUTU & KPI (SEIMBANG DENGAN TAB PRESENSI) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 shadow-2xs">
-              <p className="text-[11px] font-medium text-slate-500">Rata-rata Skor KPI</p>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-xl font-black text-slate-800 font-mono">
-                  {avgKpiScore}
-                </span>
-                <span className="text-[10px] text-slate-400">pts (Avg Shalat: {avgPct}%)</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2">
+            {/* 1. Rata-rata Skor KPI */}
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-slate-200/80 text-slate-700 flex items-center justify-center shrink-0">
+                  <BarChart2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Rata-rata Skor</p>
+                  <p className="text-[8.5px] text-slate-500 truncate leading-tight">Shalat {avgPct}%</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-slate-800 font-mono block leading-tight">{avgKpiScore}</span>
+                <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
               </div>
             </div>
 
-            <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-emerald-800">Mumtaz (Istimewa)</p>
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            {/* 2. Mumtaz (Istimewa) */}
+            <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Award className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Mumtaz</p>
+                  <p className="text-[8.5px] text-emerald-600/80 truncate leading-tight">Istimewa (≥75%)</p>
+                </div>
               </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-xl font-black text-emerald-700 font-mono">
-                  {totalMumtazCount}
-                </span>
-                <span className="text-[10px] text-emerald-600 font-medium">Musyrif</span>
-              </div>
-            </div>
-
-            <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-blue-800">Jayyid Jiddan / Jayyid</p>
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-              </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-xl font-black text-blue-700 font-mono">
-                  {totalJayyidJiddanCount + totalJayyidCount}
-                </span>
-                <span className="text-[10px] text-blue-600 font-medium">Musyrif</span>
+              <div className="text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono block leading-tight">{totalMumtazCount}</span>
+                <span className="text-[8px] text-slate-400 font-semibold block leading-none">musyrif</span>
               </div>
             </div>
 
-            <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-rose-800">Maqbul (Perlu Evaluasi)</p>
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            {/* 3. J.Jiddan / Jayyid */}
+            <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">J.Jiddan / Jayyid</p>
+                  <p className="text-[8.5px] text-blue-600/80 truncate leading-tight">Baik (50–74%)</p>
+                </div>
               </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-xl font-black text-rose-700 font-mono">
-                  {totalMaqbulCount}
-                </span>
-                <span className="text-[10px] text-rose-600 font-medium">Musyrif</span>
+              <div className="text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-blue-700 font-mono block leading-tight">{totalJayyidJiddanCount + totalJayyidCount}</span>
+                <span className="text-[8px] text-slate-400 font-semibold block leading-none">musyrif</span>
+              </div>
+            </div>
+
+            {/* 4. Maqbul (Binaan) */}
+            <div className="bg-rose-50/60 border border-rose-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Maqbul</p>
+                  <p className="text-[8.5px] text-rose-600/80 truncate leading-tight">Binaan (&lt;50%)</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-rose-700 font-mono block leading-tight">{totalMaqbulCount}</span>
+                <span className="text-[8px] text-slate-400 font-semibold block leading-none">musyrif</span>
               </div>
             </div>
           </div>
@@ -4708,14 +4734,14 @@ function PageRekap({
           </div>
 
           {/* 6 Pilar KPI Interactive Filter Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
             {[
-              { id: "kepengasuhan", label: "1. Asuh", sub: "Medis & Bimbingan", score: ranked.reduce((acc, m) => acc + (m.kepengasuhanScore || 0), 0), icon: HeartHandshake, bg: "bg-rose-50/70", border: "border-rose-200/60", text: "text-rose-800", activeStyle: "ring-2 ring-rose-500 bg-rose-100/90 shadow-md scale-[1.02]" },
-              { id: "quran", label: "2. Qur'an", sub: "Tahfizh & Tahsin", score: ranked.reduce((acc, m) => acc + (m.quranScore || 0), 0), icon: BookOpen, bg: "bg-sky-50/70", border: "border-sky-200/60", text: "text-sky-800", activeStyle: "ring-2 ring-sky-500 bg-sky-100/90 shadow-md scale-[1.02]" },
-              { id: "ibadah", label: "3. Ibadah", sub: "Shalat & Sunnah", score: ranked.reduce((acc, m) => acc + (m.ibadahScore || 0), 0), icon: Sun, bg: "bg-amber-50/70", border: "border-amber-200/60", text: "text-amber-800", activeStyle: "ring-2 ring-amber-500 bg-amber-100/90 shadow-md scale-[1.02]" },
-              { id: "bahasa", label: "4. Bahasa", sub: "Bina & Muhadatsah", score: ranked.reduce((acc, m) => acc + (m.bahasaScore || 0), 0), icon: Languages, bg: "bg-teal-50/70", border: "border-teal-200/60", text: "text-teal-800", activeStyle: "ring-2 ring-teal-500 bg-teal-100/90 shadow-md scale-[1.02]" },
-              { id: "kebersihan", label: "5. Bersih", sub: "Piket & Kerapian", score: ranked.reduce((acc, m) => acc + (m.kebersihanScore || 0), 0), icon: Sparkles, bg: "bg-emerald-50/70", border: "border-emerald-200/60", text: "text-emerald-800", activeStyle: "ring-2 ring-emerald-500 bg-emerald-100/90 shadow-md scale-[1.02]" },
-              { id: "kedisiplinan", label: "6. Disiplin", sub: "Patroli & Agenda", score: ranked.reduce((acc, m) => acc + (m.kedisiplinanScore || 0), 0), icon: ShieldCheck, bg: "bg-indigo-50/70", border: "border-indigo-200/60", text: "text-indigo-800", activeStyle: "ring-2 ring-indigo-500 bg-indigo-100/90 shadow-md scale-[1.02]" },
+              { id: "kepengasuhan", label: "1. Asuh", sub: "Medis & Bina", score: ranked.reduce((acc, m) => acc + (m.kepengasuhanScore || 0), 0), icon: HeartHandshake, bg: "bg-rose-50/60", border: "border-rose-200/80", text: "text-rose-700", iconBg: "bg-rose-100 text-rose-600", activeStyle: "ring-2 ring-rose-500 bg-rose-100/90 shadow-md scale-[1.02]" },
+              { id: "quran", label: "2. Qur'an", sub: "Tahfizh & Tahsin", score: ranked.reduce((acc, m) => acc + (m.quranScore || 0), 0), icon: BookOpen, bg: "bg-sky-50/60", border: "border-sky-200/80", text: "text-sky-700", iconBg: "bg-sky-100 text-sky-600", activeStyle: "ring-2 ring-sky-500 bg-sky-100/90 shadow-md scale-[1.02]" },
+              { id: "ibadah", label: "3. Ibadah", sub: "Shalat & Sunnah", score: ranked.reduce((acc, m) => acc + (m.ibadahScore || 0), 0), icon: Sun, bg: "bg-amber-50/60", border: "border-amber-200/80", text: "text-amber-700", iconBg: "bg-amber-100 text-amber-600", activeStyle: "ring-2 ring-amber-500 bg-amber-100/90 shadow-md scale-[1.02]" },
+              { id: "bahasa", label: "4. Bahasa", sub: "Bina & Bahasa", score: ranked.reduce((acc, m) => acc + (m.bahasaScore || 0), 0), icon: Languages, bg: "bg-teal-50/60", border: "border-teal-200/80", text: "text-teal-700", iconBg: "bg-teal-100 text-teal-600", activeStyle: "ring-2 ring-teal-500 bg-teal-100/90 shadow-md scale-[1.02]" },
+              { id: "kebersihan", label: "5. Bersih", sub: "Piket & Rapian", score: ranked.reduce((acc, m) => acc + (m.kebersihanScore || 0), 0), icon: Sparkles, bg: "bg-emerald-50/60", border: "border-emerald-200/80", text: "text-emerald-700", iconBg: "bg-emerald-100 text-emerald-600", activeStyle: "ring-2 ring-emerald-500 bg-emerald-100/90 shadow-md scale-[1.02]" },
+              { id: "kedisiplinan", label: "6. Disiplin", sub: "Patroli & Agenda", score: ranked.reduce((acc, m) => acc + (m.kedisiplinanScore || 0), 0), icon: ShieldCheck, bg: "bg-indigo-50/60", border: "border-indigo-200/80", text: "text-indigo-700", iconBg: "bg-indigo-100 text-indigo-600", activeStyle: "ring-2 ring-indigo-500 bg-indigo-100/90 shadow-md scale-[1.02]" },
             ].map(card => {
               const IconComp = card.icon;
               const isSelected = selectedPillar === card.id;
@@ -4724,18 +4750,23 @@ function PageRekap({
                   key={card.id}
                   type="button"
                   onClick={() => setSelectedPillar(isSelected ? "all" : (card.id as any))}
-                  className={`${card.bg} rounded-2xl p-2.5 border ${card.border} flex flex-col justify-between text-left transition-all active:scale-95 cursor-pointer shadow-2xs ${
+                  className={`${card.bg} rounded-xl p-2 border ${card.border} flex items-center justify-between gap-1.5 text-left transition-all active:scale-95 cursor-pointer shadow-2xs ${
                     isSelected ? card.activeStyle : "hover:brightness-95 hover:shadow-xs"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-bold ${card.text} uppercase tracking-wider`}>{card.label}</span>
-                    <IconComp className={`w-3.5 h-3.5 ${card.text}`}/>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className={`w-6 h-6 rounded-lg ${card.iconBg} flex items-center justify-center shrink-0`}>
+                      <IconComp className="w-3.5 h-3.5"/>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">{card.label}</p>
+                      <p className={`text-[8.5px] ${card.text} truncate leading-tight`}>{card.sub}</p>
+                    </div>
                   </div>
-                  <p className="text-base font-black text-slate-900 font-mono mt-1">
-                    {card.score} <span className="text-[10px] font-normal text-slate-500">pts</span>
-                  </p>
-                  <p className={`text-[9px] ${card.text} mt-0.5 truncate`}>{card.sub}</p>
+                  <div className="text-right shrink-0">
+                    <span className={`text-xs sm:text-sm font-black ${card.text} font-mono block leading-tight`}>{card.score}</span>
+                    <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+                  </div>
                 </button>
               );
             })}
@@ -4754,21 +4785,21 @@ function PageRekap({
                 <span className="text-[10px] text-slate-400 font-mono">Bulan ini</span>
               </div>
 
-              <div className="flex items-end justify-center gap-2 sm:gap-4 pt-1 pb-1">
+              <div className="flex items-end justify-center gap-1.5 sm:gap-4 pt-1 pb-1">
                 {/* Juara 2 */}
                 {ranked[1] && (
                   <button
                     type="button"
                     onClick={() => setDetail(ranked[1])}
-                    className="flex-1 max-w-[130px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/60"
+                    className="flex-1 min-w-0 max-w-[110px] sm:max-w-[130px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-1.5 sm:p-2 rounded-xl sm:rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/60"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 border-2 border-slate-300 flex items-center justify-center font-bold text-slate-700 shadow-2xs relative mb-1.5 group-hover:scale-105 transition-transform">
-                      <Medal className="w-6 h-6 text-slate-400" />
-                      <span className="absolute -bottom-2 bg-slate-700 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">#2</span>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-100 border-2 border-slate-300 flex items-center justify-center font-bold text-slate-700 shadow-2xs relative mb-1 group-hover:scale-105 transition-transform">
+                      <Medal className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400" />
+                      <span className="absolute -bottom-1.5 bg-slate-700 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">#2</span>
                     </div>
-                    <div className="font-bold text-xs text-slate-900 truncate w-full">{ranked[1].name.split(" ")[0]}</div>
-                    <div className="text-[10px] text-slate-500 truncate w-full">{ranked[1].asrama}</div>
-                    <div className="text-xs font-bold text-emerald-700 font-mono mt-1 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    <div className="font-bold text-[11px] sm:text-xs text-slate-900 truncate w-full">{ranked[1].name.split(" ")[0]}</div>
+                    <div className="text-[9px] sm:text-[10px] text-slate-500 truncate w-full">{ranked[1].asrama.replace("Asrama ", "")}</div>
+                    <div className="text-[10px] sm:text-xs font-bold text-emerald-700 font-mono mt-0.5 sm:mt-1 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-md truncate max-w-full">
                       {getScoreForDisplay(ranked[1])}
                     </div>
                   </button>
@@ -4779,17 +4810,17 @@ function PageRekap({
                   <button
                     type="button"
                     onClick={() => setDetail(ranked[0])}
-                    className="flex-1 max-w-[150px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2.5 rounded-2xl bg-amber-50/70 border-2 border-amber-300 shadow-xs relative -top-2"
+                    className="flex-1 min-w-0 max-w-[130px] sm:max-w-[150px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-amber-50/70 border-2 border-amber-300 shadow-xs relative -top-1 sm:-top-2"
                   >
-                    <div className="absolute -top-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-2xs">
+                    <div className="absolute -top-2.5 sm:-top-3 bg-amber-500 text-white text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-2 py-0.2 sm:py-0.5 rounded-full shadow-2xs">
                       Juara 1
                     </div>
-                    <div className="w-14 h-14 rounded-2xl bg-amber-100 border-2 border-amber-400 flex items-center justify-center font-bold text-amber-800 shadow-xs relative mb-1.5 group-hover:scale-105 transition-transform mt-1">
-                      <Crown className="w-8 h-8 text-amber-500" />
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-amber-100 border-2 border-amber-400 flex items-center justify-center font-bold text-amber-800 shadow-xs relative mb-1 group-hover:scale-105 transition-transform mt-0.5 sm:mt-1">
+                      <Crown className="w-6 h-6 sm:w-8 sm:h-8 text-amber-500" />
                     </div>
-                    <div className="font-bold text-xs sm:text-sm text-slate-900 truncate w-full">{ranked[0].name}</div>
-                    <div className="text-[10px] text-emerald-700 font-semibold truncate w-full">{ranked[0].asrama}</div>
-                    <div className="text-xs sm:text-sm font-extrabold text-amber-900 font-mono mt-1 bg-amber-200/80 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                    <div className="font-bold text-[11px] sm:text-sm text-slate-900 truncate w-full">{ranked[0].name.split(" ").slice(0, 2).join(" ")}</div>
+                    <div className="text-[9px] sm:text-[10px] text-emerald-700 font-semibold truncate w-full">{ranked[0].asrama.replace("Asrama ", "")}</div>
+                    <div className="text-[11px] sm:text-sm font-extrabold text-amber-900 font-mono mt-0.5 sm:mt-1 bg-amber-200/80 px-2 sm:px-2.5 py-0.5 rounded-lg shadow-2xs truncate max-w-full">
                       {getScoreForDisplay(ranked[0])}
                     </div>
                   </button>
@@ -4800,15 +4831,15 @@ function PageRekap({
                   <button
                     type="button"
                     onClick={() => setDetail(ranked[2])}
-                    className="flex-1 max-w-[130px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/60"
+                    className="flex-1 min-w-0 max-w-[110px] sm:max-w-[130px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-1.5 sm:p-2 rounded-xl sm:rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/60"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border-2 border-amber-600/40 flex items-center justify-center font-bold text-amber-800 shadow-2xs relative mb-1.5 group-hover:scale-105 transition-transform">
-                      <Award className="w-6 h-6 text-amber-700" />
-                      <span className="absolute -bottom-2 bg-amber-800 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">#3</span>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-50 border-2 border-amber-600/40 flex items-center justify-center font-bold text-amber-800 shadow-2xs relative mb-1 group-hover:scale-105 transition-transform">
+                      <Award className="w-5 h-5 sm:w-6 sm:h-6 text-amber-700" />
+                      <span className="absolute -bottom-1.5 bg-amber-800 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">#3</span>
                     </div>
-                    <div className="font-bold text-xs text-slate-900 truncate w-full">{ranked[2].name.split(" ")[0]}</div>
-                    <div className="text-[10px] text-slate-500 truncate w-full">{ranked[2].asrama}</div>
-                    <div className="text-xs font-bold text-emerald-700 font-mono mt-1 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    <div className="font-bold text-[11px] sm:text-xs text-slate-900 truncate w-full">{ranked[2].name.split(" ")[0]}</div>
+                    <div className="text-[9px] sm:text-[10px] text-slate-500 truncate w-full">{ranked[2].asrama.replace("Asrama ", "")}</div>
+                    <div className="text-[10px] sm:text-xs font-bold text-emerald-700 font-mono mt-0.5 sm:mt-1 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-md truncate max-w-full">
                       {getScoreForDisplay(ranked[2])}
                     </div>
                   </button>
@@ -6409,29 +6440,69 @@ function PageRiwayat({
             </div>
 
             {/* 4 Clean Metric Pills for Logbook */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-              <div className="bg-indigo-50/60 border border-indigo-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-indigo-700 block mb-0.5">Tugas Selesai</span>
-                <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{logbookMonthStats.totalTasksDone}</p>
-                <span className="text-[10px] text-indigo-600/80 font-medium block mt-0.5">tugas terlaksana</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+              <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <ClipboardList className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Tugas Selesai</p>
+                    <p className="text-[8.5px] text-indigo-600/80 truncate leading-tight">Terlaksana</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono block leading-tight">{logbookMonthStats.totalTasksDone}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">tugas</span>
+                </div>
               </div>
 
-              <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Hari Terisi</span>
-                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">{logbookMonthStats.daysFilled}</p>
-                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">hari aktif</span>
+              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Calendar className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Hari Terisi</p>
+                    <p className="text-[8.5px] text-emerald-600/80 truncate leading-tight">Aktif Mengisi</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono block leading-tight">{logbookMonthStats.daysFilled}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">hari</span>
+                </div>
               </div>
 
-              <div className="bg-sky-50/60 border border-sky-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-sky-700 block mb-0.5">Rata-rata/Hari</span>
-                <p className="text-xl sm:text-2xl font-black text-sky-950 font-mono">{logbookMonthStats.avgPerDay}<span className="text-xs font-normal">/11</span></p>
-                <span className="text-[10px] text-sky-600/80 font-medium block mt-0.5">tugas/hari</span>
+              <div className="bg-sky-50/60 border border-sky-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Rata-rata/Hari</p>
+                    <p className="text-[8.5px] text-sky-600/80 truncate leading-tight">Dari 11 Tugas</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-sky-700 font-mono block leading-tight">{logbookMonthStats.avgPerDay}<span className="text-[9px] font-normal text-slate-400">/11</span></span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">tugas/hari</span>
+                </div>
               </div>
 
-              <div className="bg-purple-50/60 border border-purple-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-purple-700 block mb-0.5">Langkah Patroli</span>
-                <p className="text-xl sm:text-2xl font-black text-purple-950 font-mono">{logbookMonthStats.totalSteps}</p>
-                <span className="text-[10px] text-purple-600/80 font-medium block mt-0.5">total steps</span>
+              <div className="bg-purple-50/60 border border-purple-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                    <Zap className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Langkah Patroli</p>
+                    <p className="text-[8.5px] text-purple-600/80 truncate leading-tight">Total Steps</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-purple-700 font-mono block leading-tight">{logbookMonthStats.totalSteps}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">steps</span>
+                </div>
               </div>
             </div>
           </div>
@@ -6733,29 +6804,69 @@ function PageRiwayat({
             </div>
 
             {/* 4 Clean Metric Pills for Pengasuhan */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-              <div className="bg-rose-50/60 border border-rose-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-rose-700 block mb-0.5">Rujukan PKU/RS</span>
-                <p className="text-xl sm:text-2xl font-black text-rose-950 font-mono">{pengasuhanStats.antarPku}</p>
-                <span className="text-[10px] text-rose-600/80 font-medium block mt-0.5">penugasan (+10 Pts)</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+              <div className="bg-rose-50/60 border border-rose-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                    <HeartPulse className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Rujukan PKU/RS</p>
+                    <p className="text-[8.5px] text-rose-600/80 truncate leading-tight">+10 Pts</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-rose-700 font-mono block leading-tight">{pengasuhanStats.antarPku}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">kasus</span>
+                </div>
               </div>
 
-              <div className="bg-indigo-50/60 border border-indigo-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-indigo-700 block mb-0.5">Bimbingan Santri</span>
-                <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{pengasuhanStats.binaSantri}</p>
-                <span className="text-[10px] text-indigo-600/80 font-medium block mt-0.5">sesi (+5 Pts)</span>
+              <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Users className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Bimbingan Santri</p>
+                    <p className="text-[8.5px] text-indigo-600/80 truncate leading-tight">+5 Pts</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono block leading-tight">{pengasuhanStats.binaSantri}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">sesi</span>
+                </div>
               </div>
 
-              <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">Pengantaran Lain</span>
-                <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{pengasuhanStats.antarLain}</p>
-                <span className="text-[10px] text-amber-600/80 font-medium block mt-0.5">kegiatan (+5 Pts)</span>
+              <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <Navigation className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Pengantaran Lain</p>
+                    <p className="text-[8.5px] text-amber-600/80 truncate leading-tight">+5 Pts</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-amber-700 font-mono block leading-tight">{pengasuhanStats.antarLain}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">tugas</span>
+                </div>
               </div>
 
-              <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Total Poin</span>
-                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">+{pengasuhanStats.totalPoin}</p>
-                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">masuk Pilar 2</span>
+              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Award className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Total Poin</p>
+                    <p className="text-[8.5px] text-emerald-600/80 truncate leading-tight">Pilar 1</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono block leading-tight">+{pengasuhanStats.totalPoin}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+                </div>
               </div>
             </div>
           </div>
@@ -6880,29 +6991,69 @@ function PageRiwayat({
             </div>
 
             {/* 4 Clean Metric Pills for Mutabaah */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-              <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-emerald-700 block mb-0.5">Total Skor Mutaba'ah</span>
-                <p className="text-xl sm:text-2xl font-black text-emerald-950 font-mono">{mutabaahMonthStats.totalPoints}</p>
-                <span className="text-[10px] text-emerald-600/80 font-medium block mt-0.5">poin yaumiyah</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Total Skor</p>
+                    <p className="text-[8.5px] text-emerald-600/80 truncate leading-tight">Yaumiyah</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono block leading-tight">{mutabaahMonthStats.totalPoints}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">poin</span>
+                </div>
               </div>
 
-              <div className="bg-teal-50/60 border border-teal-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-teal-700 block mb-0.5">Tilawah Qur'an</span>
-                <p className="text-xl sm:text-2xl font-black text-teal-950 font-mono">{mutabaahMonthStats.totalTilawah}</p>
-                <span className="text-[10px] text-teal-600/80 font-medium block mt-0.5">halaman / lembar</span>
+              <div className="bg-teal-50/60 border border-teal-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Tilawah Qur'an</p>
+                    <p className="text-[8.5px] text-teal-600/80 truncate leading-tight">Halaman</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-teal-700 font-mono block leading-tight">{mutabaahMonthStats.totalTilawah}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">hlm</span>
+                </div>
               </div>
 
-              <div className="bg-indigo-50/60 border border-indigo-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-indigo-700 block mb-0.5">Qiyamul Lail</span>
-                <p className="text-xl sm:text-2xl font-black text-indigo-950 font-mono">{mutabaahMonthStats.totalTahajjud}</p>
-                <span className="text-[10px] text-indigo-600/80 font-medium block mt-0.5">malam tahajjud</span>
+              <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Moon className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Qiyamul Lail</p>
+                    <p className="text-[8.5px] text-indigo-600/80 truncate leading-tight">Tahajjud</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono block leading-tight">{mutabaahMonthStats.totalTahajjud}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">malam</span>
+                </div>
               </div>
 
-              <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-2.5 text-center">
-                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">Puasa Sunnah</span>
-                <p className="text-xl sm:text-2xl font-black text-amber-950 font-mono">{mutabaahMonthStats.totalPuasa}</p>
-                <span className="text-[10px] text-amber-600/80 font-medium block mt-0.5">hari berpuasa</span>
+              <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <Sun className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Puasa Sunnah</p>
+                    <p className="text-[8.5px] text-amber-600/80 truncate leading-tight">Amalan</p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs sm:text-sm font-black text-amber-700 font-mono block leading-tight">{mutabaahMonthStats.totalPuasa}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block leading-none">hari</span>
+                </div>
               </div>
             </div>
           </div>

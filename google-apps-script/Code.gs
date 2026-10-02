@@ -93,6 +93,13 @@ function uploadBase64ToDrive(dataUrl, fileName, folder) {
     }
     finalFileName = finalFileName.replace(/[^a-zA-Z0-9_.-]/g, "_");
 
+    // DEDUPLIKASI: Cek apakah file dengan nama yang sama sudah ada di folder Drive
+    const existingFiles = folder.getFilesByName(finalFileName);
+    if (existingFiles.hasNext()) {
+      const existingFile = existingFiles.next();
+      return "https://lh3.googleusercontent.com/d/" + existingFile.getId() + "=w1000";
+    }
+
     const blob = Utilities.newBlob(decoded, contentType, finalFileName);
     const file = folder.createFile(blob);
 
@@ -301,11 +308,11 @@ function doPost(e) {
       });
     }
 
-    if (action === "migrate_photos") {
-      const result = migrateExistingPhotosToPhotoTable();
+    if (action === "cleanup_duplicate_photos" || action === "deduplicate_drive_photos") {
+      const result = cleanupDuplicateDriveFiles();
       return createResponse({
         status: "success",
-        action: "migrate_photos",
+        action: action,
         result: result,
         serverTime: new Date().toISOString()
       });
@@ -424,6 +431,16 @@ function doGet(e) {
         status: "success",
         action: action,
         data: photoData,
+        serverTime: new Date().toISOString()
+      });
+    }
+
+    if (action === "cleanup_duplicate_photos" || action === "deduplicate_drive_photos") {
+      const result = cleanupDuplicateDriveFiles();
+      return createResponse({
+        status: "success",
+        action: action,
+        result: result,
         serverTime: new Date().toISOString()
       });
     }
@@ -656,5 +673,67 @@ function migrateExistingPhotosToPhotoTable() {
     success: true,
     totalMigrated: migratedCount,
     extractedPhotosCount: extractedPhotos.length
+  };
+}
+
+/**
+ * ============================================================================
+ * PEMBERSIH FILE DUPLIKAT DI GOOGLE DRIVE (DEDUPLIKASI DRIVE)
+ * ============================================================================
+ * Menelusuri folder uploads di Google Drive, mengelompokkan file berdasarkan nama
+ * atau ukuran/konten. Menyimpan 1 file terbaru dan menghapus (trashing) file duplikatnya.
+ */
+function cleanupDuplicateDriveFiles() {
+  const folder = getOrCreateDriveFolder(DRIVE_CONFIG.FOLDER_NAME);
+  const files = folder.getFiles();
+  const fileGroups = {};
+  let totalFiles = 0;
+
+  // 1. Kelompokkan file berdasarkan nama
+  while (files.hasNext()) {
+    const file = files.next();
+    totalFiles++;
+    const name = file.getName();
+    if (!fileGroups[name]) {
+      fileGroups[name] = [];
+    }
+    fileGroups[name].push({
+      id: file.getId(),
+      created: file.getDateCreated().getTime(),
+      size: file.getSize(),
+      fileRef: file
+    });
+  }
+
+  let duplicateCount = 0;
+  let deletedCount = 0;
+  const deletedFiles = [];
+
+  // 2. Untuk setiap nama file yang muncul > 1 kali, simpan 1 (yang terbaru) dan hapus sisanya
+  for (const name in fileGroups) {
+    const list = fileGroups[name];
+    if (list.length > 1) {
+      // Urutkan dari yang terbaru ke terlama
+      list.sort((a, b) => b.created - a.created);
+
+      // File index 0 adalah yang dipertahankan
+      for (let i = 1; i < list.length; i++) {
+        duplicateCount++;
+        try {
+          list[i].fileRef.setTrashed(true);
+          deletedCount++;
+          deletedFiles.push({ name: name, id: list[i].id });
+        } catch (e) {
+          console.warn("Gagal menghapus file duplikat " + name + ":", e);
+        }
+      }
+    }
+  }
+
+  return {
+    totalFilesScanned: totalFiles,
+    duplicateFound: duplicateCount,
+    filesDeleted: deletedCount,
+    deletedSamples: deletedFiles.slice(0, 20)
   };
 }

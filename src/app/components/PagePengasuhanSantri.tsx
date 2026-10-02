@@ -342,29 +342,73 @@ export function PagePengasuhanSantri({
       {/* ── UNIFIED STATS & FILTER BAR (SYAMSA BRAND UI) ── */}
       <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3">
         {/* Metric Chips / 4 Pilar Highlights */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="bg-rose-50/70 border border-rose-200/70 rounded-xl p-2 text-center">
-            <span className="text-[10px] text-rose-700 font-bold block mb-0.5">Rujukan RS/PKU</span>
-            <p className="text-base sm:text-lg font-black text-rose-950 font-mono leading-tight">{stats.pkuCount}</p>
-            <span className="text-[9px] text-rose-600 font-medium block mt-0.5">+10 Pts / Santri</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+          {/* 1. Rujukan RS/PKU */}
+          <div className="bg-rose-50/60 border border-rose-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Stethoscope className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Rujukan RS/PKU</p>
+                <p className="text-[8.5px] text-rose-600/80 truncate leading-tight">+10 Pts / Santri</p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-xs sm:text-sm font-black text-rose-700 font-mono block leading-tight">{stats.pkuCount}</span>
+              <span className="text-[8px] text-slate-400 font-semibold block leading-none">kasus</span>
+            </div>
           </div>
 
-          <div className="bg-indigo-50/70 border border-indigo-200/70 rounded-xl p-2 text-center">
-            <span className="text-[10px] text-indigo-700 font-bold block mb-0.5">Bimbingan Santri</span>
-            <p className="text-base sm:text-lg font-black text-indigo-950 font-mono leading-tight">{stats.binaCount}</p>
-            <span className="text-[9px] text-indigo-600 font-medium block mt-0.5">+5 Pts / Santri</span>
+          {/* 2. Bimbingan Santri */}
+          <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                <Users className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Bimbingan Santri</p>
+                <p className="text-[8.5px] text-indigo-600/80 truncate leading-tight">+5 Pts / Santri</p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono block leading-tight">{stats.binaCount}</span>
+              <span className="text-[8px] text-slate-400 font-semibold block leading-none">sesi</span>
+            </div>
           </div>
 
-          <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-2 text-center">
-            <span className="text-[10px] text-amber-700 font-bold block mb-0.5">Pengantaran Lain</span>
-            <p className="text-base sm:text-lg font-black text-amber-950 font-mono leading-tight">{stats.lainCount}</p>
-            <span className="text-[9px] text-amber-600 font-medium block mt-0.5">+5 Pts / Santri</span>
+          {/* 3. Pengantaran Lain */}
+          <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <Car className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Pengantaran Lain</p>
+                <p className="text-[8.5px] text-amber-600/80 truncate leading-tight">+5 Pts / Santri</p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-xs sm:text-sm font-black text-amber-700 font-mono block leading-tight">{stats.lainCount}</span>
+              <span className="text-[8px] text-slate-400 font-semibold block leading-none">tugas</span>
+            </div>
           </div>
 
-          <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-2 text-center">
-            <span className="text-[10px] text-emerald-700 font-bold block mb-0.5">Total Poin Pilar 1</span>
-            <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-tight">+{stats.totalPoin}</p>
-            <span className="text-[9px] text-emerald-600 font-medium block mt-0.5">{stats.totalRecords} Penugasan</span>
+          {/* 4. Total Poin */}
+          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                <Award className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">Total Poin Pilar 1</p>
+                <p className="text-[8.5px] text-emerald-600/80 truncate leading-tight">{stats.totalRecords} Penugasan</p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono block leading-tight">+{stats.totalPoin}</span>
+              <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+            </div>
           </div>
         </div>
 

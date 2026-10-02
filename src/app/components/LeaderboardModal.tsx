@@ -217,29 +217,29 @@ export function LeaderboardModal({
   const isCurrentMonthActive = selectedMonth === currentMonthKey;
 
   const content = (
-    <div className={`flex flex-col ${isPage ? "gap-4 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
+    <div className={`flex flex-col ${isPage ? "gap-2.5 w-full" : "w-full max-h-[90vh] overflow-hidden"}`}>
       {/* Header Bar */}
-      <div className={`p-4 sm:p-5 flex items-center justify-between gap-3 ${
+      <div className={`p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 ${
         isPage 
-          ? "bg-white rounded-3xl border border-slate-200/70 shadow-xs" 
-          : "bg-emerald-800 text-white rounded-t-3xl sm:rounded-t-[28px]"
+          ? "bg-white rounded-2xl border border-slate-200/70 shadow-xs" 
+          : "bg-emerald-800 text-white rounded-t-2xl sm:rounded-t-3xl"
       }`}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button 
             type="button"
             onClick={onClose}
             aria-label="Kembali ke Dashboard"
-            className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
               isPage ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-white/10 hover:bg-white/20 text-white"
             }`}
           >
-            {isPage ? <ChevronLeft className="w-5 h-5" /> : <X className="w-4 h-4" />}
+            {isPage ? <ChevronLeft className="w-4 h-4" /> : <X className="w-3.5 h-3.5" />}
           </button>
           <div>
-            <h2 className={`font-bold text-base sm:text-lg leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
+            <h2 className={`font-bold text-sm sm:text-base leading-tight ${isPage ? "text-slate-900" : "text-white"}`}>
               Papan Peringkat Musyrif
             </h2>
-            <p className={`text-xs mt-0.5 ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
+            <p className={`text-[10px] sm:text-[11px] mt-0.5 leading-tight ${isPage ? "text-slate-500" : "text-emerald-100/90"}`}>
               Presensi Shalat, Jurnal Logbook, Agenda Asrama, & Mutaba'ah
             </p>
           </div>
@@ -247,21 +247,21 @@ export function LeaderboardModal({
       </div>
 
       {/* Unified Period & 4 Pillars Filter Bar */}
-      <div className="bg-white rounded-2xl p-2.5 sm:p-3 border border-slate-200/70 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      <div className="bg-white rounded-xl p-2 sm:p-2.5 border border-slate-200/70 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         {/* Month Selector */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-1">
+        <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-0.5 bg-slate-50 border border-slate-200 rounded-lg p-0.5">
             <button
               type="button"
               onClick={handlePrevMonth}
               title="Bulan Sebelumnya"
-              className="w-7 h-7 rounded-lg hover:bg-white hover:shadow-xs flex items-center justify-center text-slate-600 transition-all active:scale-95 shrink-0"
+              className="w-6 h-6 rounded-md hover:bg-white hover:shadow-xs flex items-center justify-center text-slate-600 transition-all active:scale-95 shrink-0 cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
 
             <div className="relative flex items-center">
-              <Calendar className="w-3.5 h-3.5 text-emerald-600 absolute left-2 pointer-events-none" />
+              <Calendar className="w-3 h-3 text-emerald-600 absolute left-1.5 pointer-events-none" />
               <select
                 value={selectedMonth}
                 onChange={e => {
@@ -269,7 +269,7 @@ export function LeaderboardModal({
                   setSelectedMonth(e.target.value);
                 }}
                 aria-label="Pilih Periode Bulan"
-                className="text-xs font-bold bg-transparent pl-7 pr-4 py-1 text-slate-800 focus:outline-hidden cursor-pointer text-center"
+                className="text-[11px] font-bold bg-transparent pl-6 pr-3 py-0.5 text-slate-800 focus:outline-hidden cursor-pointer text-center"
               >
                 <optgroup label="Periode Bulanan">
                   {availableMonths.map(m => (
@@ -288,9 +288,9 @@ export function LeaderboardModal({
               type="button"
               onClick={handleNextMonth}
               title="Bulan Berikutnya"
-              className="w-7 h-7 rounded-lg hover:bg-white hover:shadow-xs flex items-center justify-center text-slate-600 transition-all active:scale-95 shrink-0"
+              className="w-6 h-6 rounded-md hover:bg-white hover:shadow-xs flex items-center justify-center text-slate-600 transition-all active:scale-95 shrink-0 cursor-pointer"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -301,25 +301,25 @@ export function LeaderboardModal({
                 triggerHaptic("light");
                 setSelectedMonth(currentMonthKey);
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1 transition-all active:scale-95 shrink-0"
+              className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shrink-0 cursor-pointer"
               title="Kembali ke Bulan Berjalan"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-2.5 h-2.5" />
               <span className="hidden sm:inline">Bulan Ini</span>
             </button>
           )}
         </div>
 
         {/* 6 Pillars Filter */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 sm:pb-0 scrollbar-none">
           {[
-            { id: "all", label: "Total 6 Pilar", icon: <Trophy className="w-3.5 h-3.5" /> },
-            { id: "kepengasuhan", label: "1. Kepengasuhan", icon: <HeartHandshake className="w-3.5 h-3.5" /> },
-            { id: "quran", label: "2. Al-Qur'an", icon: <BookCheck className="w-3.5 h-3.5" /> },
-            { id: "ibadah", label: "3. Ibadah", icon: <Sun className="w-3.5 h-3.5" /> },
-            { id: "bahasa", label: "4. Bahasa", icon: <Languages className="w-3.5 h-3.5" /> },
-            { id: "kebersihan", label: "5. Kebersihan", icon: <Sparkles className="w-3.5 h-3.5" /> },
-            { id: "kedisiplinan", label: "6. Kedisiplinan", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+            { id: "all", label: "Total 6 Pilar", icon: <Trophy className="w-3 h-3" /> },
+            { id: "kepengasuhan", label: "1. Kepengasuhan", icon: <HeartHandshake className="w-3 h-3" /> },
+            { id: "quran", label: "2. Al-Qur'an", icon: <BookCheck className="w-3 h-3" /> },
+            { id: "ibadah", label: "3. Ibadah", icon: <Sun className="w-3 h-3" /> },
+            { id: "bahasa", label: "4. Bahasa", icon: <Languages className="w-3 h-3" /> },
+            { id: "kebersihan", label: "5. Kebersihan", icon: <Sparkles className="w-3 h-3" /> },
+            { id: "kedisiplinan", label: "6. Kedisiplinan", icon: <ShieldCheck className="w-3 h-3" /> },
           ].map(p => (
             <button
               key={p.id}
@@ -328,9 +328,9 @@ export function LeaderboardModal({
                 triggerHaptic("light");
                 setSelectedPillar(p.id as any);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
                 selectedPillar === p.id 
-                  ? "bg-[#0C81E4] text-white shadow-xs" 
+                  ? "bg-[#0C81E4] text-white shadow-2xs" 
                   : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
               }`}
             >
@@ -342,71 +342,119 @@ export function LeaderboardModal({
       </div>
 
       {/* 6 Pilar KPI Aggregate Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        <div className="bg-rose-50/70 rounded-2xl p-2.5 border border-rose-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">1. Asuh</span>
-            <HeartHandshake className="w-3.5 h-3.5 text-rose-600"/>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2">
+        {/* 1. Asuh */}
+        <div className="bg-rose-50/60 border border-rose-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <HeartHandshake className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">1. Asuh</p>
+              <p className="text-[8.5px] text-rose-600/80 truncate leading-tight">Medis & Bina</p>
+            </div>
           </div>
-          <p className="text-base font-black text-rose-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.kepengasuhanScore, 0)} <span className="text-[10px] font-normal text-rose-700">pts</span>
-          </p>
-          <p className="text-[9px] text-rose-700 mt-0.5 truncate">Medis & Bimbingan</p>
+          <div className="text-right shrink-0">
+            <span className="text-xs sm:text-sm font-black text-rose-700 font-mono block leading-tight">
+              {leaderboardData.reduce((acc, m) => acc + m.kepengasuhanScore, 0)}
+            </span>
+            <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+          </div>
         </div>
 
-        <div className="bg-sky-50/70 rounded-2xl p-2.5 border border-sky-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">2. Qur'an</span>
-            <BookCheck className="w-3.5 h-3.5 text-sky-600"/>
+        {/* 2. Qur'an */}
+        <div className="bg-sky-50/60 border border-sky-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+              <BookCheck className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">2. Qur'an</p>
+              <p className="text-[8.5px] text-sky-600/80 truncate leading-tight">Tahfizh & Tahsin</p>
+            </div>
           </div>
-          <p className="text-base font-black text-sky-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.quranScore, 0)} <span className="text-[10px] font-normal text-sky-700">pts</span>
-          </p>
-          <p className="text-[9px] text-sky-700 mt-0.5 truncate">Tahfizh & Tahsin</p>
+          <div className="text-right shrink-0">
+            <span className="text-xs sm:text-sm font-black text-sky-700 font-mono block leading-tight">
+              {leaderboardData.reduce((acc, m) => acc + m.quranScore, 0)}
+            </span>
+            <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+          </div>
         </div>
 
-        <div className="bg-amber-50/70 rounded-2xl p-2.5 border border-amber-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">3. Ibadah</span>
-            <Sun className="w-3.5 h-3.5 text-amber-600"/>
+        {/* 3. Ibadah */}
+        <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <Sun className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">3. Ibadah</p>
+              <p className="text-[8.5px] text-amber-600/80 truncate leading-tight">Shalat & Sunnah</p>
+            </div>
           </div>
-          <p className="text-base font-black text-amber-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.ibadahScore, 0)} <span className="text-[10px] font-normal text-amber-700">pts</span>
-          </p>
-          <p className="text-[9px] text-amber-700 mt-0.5 truncate">Shalat & Sunnah</p>
+          <div className="text-right shrink-0">
+            <span className="text-xs sm:text-sm font-black text-amber-700 font-mono block leading-tight">
+              {leaderboardData.reduce((acc, m) => acc + m.ibadahScore, 0)}
+            </span>
+            <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+          </div>
         </div>
 
-        <div className="bg-teal-50/70 rounded-2xl p-2.5 border border-teal-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider">4. Bahasa</span>
-            <Languages className="w-3.5 h-3.5 text-teal-600"/>
+        {/* 4. Bahasa */}
+        <div className="bg-teal-50/60 border border-teal-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-teal-100 text-teal-600 flex items-center justify-center shrink-0">
+              <Languages className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">4. Bahasa</p>
+              <p className="text-[8.5px] text-teal-600/80 truncate leading-tight">Bina & Bahasa</p>
+            </div>
           </div>
-          <p className="text-base font-black text-teal-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.bahasaScore, 0)} <span className="text-[10px] font-normal text-teal-700">pts</span>
-          </p>
-          <p className="text-[9px] text-teal-700 mt-0.5 truncate">Bina & Muhadatsah</p>
+          <div className="text-right shrink-0">
+            <span className="text-xs sm:text-sm font-black text-teal-700 font-mono block leading-tight">
+              {leaderboardData.reduce((acc, m) => acc + m.bahasaScore, 0)}
+            </span>
+            <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+          </div>
         </div>
 
-        <div className="bg-emerald-50/70 rounded-2xl p-2.5 border border-emerald-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">5. Bersih</span>
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600"/>
+        {/* 5. Bersih */}
+        <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">5. Bersih</p>
+              <p className="text-[8.5px] text-emerald-600/80 truncate leading-tight">Piket & Kerapian</p>
+            </div>
           </div>
-          <p className="text-base font-black text-emerald-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.kebersihanScore, 0)} <span className="text-[10px] font-normal text-emerald-700">pts</span>
-          </p>
-          <p className="text-[9px] text-emerald-700 mt-0.5 truncate">Piket & Kerapian</p>
+          <div className="text-right shrink-0">
+            <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono block leading-tight">
+              {leaderboardData.reduce((acc, m) => acc + m.kebersihanScore, 0)}
+            </span>
+            <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+          </div>
         </div>
 
-        <div className="bg-indigo-50/70 rounded-2xl p-2.5 border border-indigo-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-indigo-800 uppercase tracking-wider">6. Disiplin</span>
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600"/>
+        {/* 6. Disiplin */}
+        <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-2 flex items-center justify-between gap-1.5 shadow-2xs">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-800 truncate leading-tight">6. Disiplin</p>
+              <p className="text-[8.5px] text-indigo-600/80 truncate leading-tight">Patroli & Agenda</p>
+            </div>
           </div>
-          <p className="text-base font-black text-indigo-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.kedisiplinanScore, 0)} <span className="text-[10px] font-normal text-indigo-700">pts</span>
-          </p>
-          <p className="text-[9px] text-indigo-700 mt-0.5 truncate">Patroli & Agenda</p>
+          <div className="text-right shrink-0">
+            <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono block leading-tight">
+              {leaderboardData.reduce((acc, m) => acc + m.kedisiplinanScore, 0)}
+            </span>
+            <span className="text-[8px] text-slate-400 font-semibold block leading-none">pts</span>
+          </div>
         </div>
       </div>
 

@@ -66,6 +66,25 @@ const MONTHS_TA = [
   { year: 2027, month: 6, label: "Juli 2027", semester: 2, weeksEff: 3, daysEff: 17 },
 ];
 
+const getDefaultMonthIndex = (): number => {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  const foundIndex = MONTHS_TA.findIndex(
+    (m) => m.year === currentYear && m.month === currentMonth
+  );
+
+  if (foundIndex !== -1) return foundIndex;
+
+  // Jika sebelum rentang kalender pendidikan, default ke bulan pertama (Juli 2026)
+  const firstMonthTime = new Date(MONTHS_TA[0].year, MONTHS_TA[0].month, 1).getTime();
+  if (now.getTime() < firstMonthTime) return 0;
+
+  // Jika setelah rentang kalender pendidikan, default ke bulan terakhir (Juli 2027)
+  return MONTHS_TA.length - 1;
+};
+
 const DAY_NAMES_HEADER = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jum'at", "Sabtu"];
 
 export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
@@ -81,8 +100,8 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
   const [agendaList, setAgendaList] = useState<AgendaPendidikan[]>(getSavedAgendaPendidikan);
   const [ketentuan, setKetentuan] = useState<KetentuanPerpulangan>(getSavedKetentuanPerpulangan);
 
-  // Calendar month selection
-  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(1); // Default Agustus 2026
+  // Calendar month selection (Default ke bulan berjalan ketika dibuka)
+  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(getDefaultMonthIndex);
   const [selectedDayEvents, setSelectedDayEvents] = useState<{ dateStr: string; events: (AgendaPendidikan | JadwalPerpulangan)[] } | null>(null);
 
   // Agenda list filters & search
@@ -482,6 +501,17 @@ export const PageKalenderPendidikan: React.FC<PageKalenderPendidikanProps> = ({
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
+
+                {currentMonthIndex !== getDefaultMonthIndex() && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentMonthIndex(getDefaultMonthIndex())}
+                    className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-2xl text-[11px] font-bold shadow-2xs transition active:scale-95 whitespace-nowrap"
+                    title="Kembali ke Bulan Berjalan"
+                  >
+                    Bulan Ini
+                  </button>
+                )}
 
                 <select
                   value={currentMonthIndex}
