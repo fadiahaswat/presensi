@@ -3,7 +3,7 @@ import {
   X, Trophy, Crown, Award, 
   Sparkles, Medal, BookOpen, Calendar,
   ChevronLeft, ChevronRight, Sun, ClipboardList, Building2,
-  RotateCcw
+  RotateCcw, HeartHandshake, BookCheck, Languages, Sparkles as SparklesIcon, ShieldCheck
 } from "lucide-react";
 import { motion } from "motion/react";
 import { format, addMonths, subMonths } from "date-fns";
@@ -16,6 +16,7 @@ import { AgendaRapatRecord } from "../types/agendaRapat";
 import { modalBackdropVariants, modalContentVariants, triggerHaptic } from "../utils/animations";
 import { getEffectiveAttendanceStatus } from "../App";
 import { isFieldMusyrif } from "../utils/roleAccessUtils";
+import { calculate6PilarScores, PILAR_METADATA, PilarId } from "../utils/pilarMusyrifUtils";
 
 interface Musyrif {
   id: string;
@@ -72,7 +73,7 @@ export function LeaderboardModal({
   const currentMonthKey = format(new Date(), "yyyy-MM");
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey);
   const [selectedAsrama, setSelectedAsrama] = useState<string>("all");
-  const [selectedPillar, setSelectedPillar] = useState<"all" | "sholat" | "logbook" | "kegiatan" | "mutabaah">("all");
+  const [selectedPillar, setSelectedPillar] = useState<PilarId>("all");
   const [selectedDetailMusyrif, setSelectedDetailMusyrif] = useState<any | null>(null);
 
   // Discover all months present across all data sources
@@ -179,172 +180,34 @@ export function LeaderboardModal({
   const activeMusyrifList = useMemo(() => {
     return (musyrifList || []).filter(m => Boolean(m && m.id && m.name && m.name.trim() !== "" && isFieldMusyrif(m)));
   }, [musyrifList]);
-  const now = new Date();
 
   const leaderboardData = useMemo(() => {
     return activeMusyrifList.map(m => {
-      // 1. Shalat Fardhu Score (Subuh, Ashar & Maghrib)
-      let hadirCount = 0;
-      let izinCount = 0;
-      let sakitCount = 0;
-      let alfaCount = 0;
-      let subuhCount = 0;
-      let asharCount = 0;
-      let maghribCount = 0;
-
-      Object.entries(records).forEach(([_, rec]) => {
-        if (rec.musyrifId === m.id) {
-          // Date Filter for selected month
-          if (selectedMonth !== "all" && !rec.date.startsWith(selectedMonth)) {
-            return;
-          }
-
-          const subSt = getEffectiveAttendanceStatus(rec, "subuh", rec.date, now, m.asrama);
-          const ashSt = getEffectiveAttendanceStatus(rec, "ashar", rec.date, now, m.asrama);
-          const magSt = getEffectiveAttendanceStatus(rec, "maghrib", rec.date, now, m.asrama);
-
-          if (subSt === "hadir") { hadirCount++; subuhCount++; }
-          else if (subSt === "izin") izinCount++;
-          else if (subSt === "sakit") sakitCount++;
-          else if (subSt === "alfa") alfaCount++;
-
-          if (ashSt === "hadir") { hadirCount++; asharCount++; }
-          else if (ashSt === "izin") izinCount++;
-          else if (ashSt === "sakit") sakitCount++;
-          else if (ashSt === "alfa") alfaCount++;
-
-          if (magSt === "hadir") { hadirCount++; maghribCount++; }
-          else if (magSt === "izin") izinCount++;
-          else if (magSt === "sakit") sakitCount++;
-          else if (magSt === "alfa") alfaCount++;
-        }
-      });
-
-      const sholatScore = Math.max(0, hadirCount * 10 - alfaCount * 15);
-
-      // 2. Logbook Harian Score & Pengasuhan Khusus (Perhitungan Dinamis Seluruh Tugas Valid)
-      let logbookTasksDone = 0;
-      const musyrifLogbooks = logbookData[m.id] || {};
-      Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
-        if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-        if (dt >= "2026-08-18" && dayEntry && typeof dayEntry === "object") {
-          Object.entries(dayEntry).forEach(([taskKey, taskVal]) => {
-            // Abaikan catatan umum dan agenda rapat (agenda rapat dihitung di Pilar 3 Kegiatan)
-            if (taskKey === "generalNotes" || taskKey.startsWith("agenda_")) return;
-            if (isLogbookTaskCompleted(taskVal)) {
-              logbookTasksDone++;
-            }
-          });
-        }
-      });
-
-      let pengasuhanPoints = 0;
-      let pengasuhanCount = 0;
-      pengasuhanList.forEach(p => {
-        if (p.musyrifId === m.id) {
-          if (selectedMonth !== "all" && !p.date.startsWith(selectedMonth)) return;
-          if (p.date >= "2026-08-18") {
-            pengasuhanCount++;
-            pengasuhanPoints += (Number(p.poin) || (p.kategori === "antar_pku_rs" ? 10 : 5));
-          }
-        }
-      });
-
-      const logbookScore = (logbookTasksDone * 5) + pengasuhanPoints;
-
-      // 3. Agenda Asrama & Pertemuan Score (Kegiatan Asrama + Logbook Dinamis Rapat + Agenda Rapat List)
-      let kegiatanDone = 0;
-      const seenKegiatanKeys = new Set<string>();
-
-      kegiatanRecords.forEach(keg => {
-        if (selectedMonth !== "all" && !keg.date?.startsWith(selectedMonth)) return;
-        const kegId = keg.id || `${keg.date}_${keg.title || keg.namaKegiatan}`;
-        const attVal = keg.attendees?.[m.id];
-        if (attVal === "hadir" || attVal === true || String(attVal).toLowerCase() === "hadir") {
-          seenKegiatanKeys.add(kegId);
-          kegiatanDone++;
-        }
-      });
-
-      // Dynamic agenda meeting tasks from logbook
-      Object.entries(musyrifLogbooks).forEach(([dt, dayEntry]) => {
-        if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-        if (dt >= "2026-08-18" && dayEntry && typeof dayEntry === "object") {
-          Object.entries(dayEntry).forEach(([key, task]) => {
-            if (key.startsWith("agenda_") && isLogbookTaskCompleted(task)) {
-              const agendaUniqueKey = `${dt}_${key}`;
-              if (!seenKegiatanKeys.has(agendaUniqueKey)) {
-                seenKegiatanKeys.add(agendaUniqueKey);
-                kegiatanDone++;
-              }
-            }
-          });
-        }
-      });
-
-      // Agenda Rapat from agendaList
-      (agendaList || []).forEach(ag => {
-        if (selectedMonth !== "all" && !ag.date?.startsWith(selectedMonth)) return;
-        if (Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(m.id)) {
-          const agendaUniqueKey = `${ag.date}_agenda_${ag.id.replace(/^agenda_/, "")}`;
-          if (!seenKegiatanKeys.has(agendaUniqueKey)) {
-            const dayEntry = musyrifLogbooks[ag.date];
-            const cleanId = ag.id.replace(/^agenda_/, "");
-            const task = dayEntry?.[`agenda_${ag.id}`] || dayEntry?.[ag.id] || dayEntry?.[`agenda_${cleanId}`] || dayEntry?.[cleanId];
-            if (isLogbookTaskCompleted(task)) {
-              seenKegiatanKeys.add(agendaUniqueKey);
-              kegiatanDone++;
-            }
-          }
-        }
-      });
-
-      const kegiatanScore = kegiatanDone * 15;
-
-      // 4. Mutaba'ah Yaumiyah Score (Menggunakan Helper Boolean Aman)
-      let mutabaahPoints = 0;
-      const musyrifMutabaah = mutabaahData[m.id] || {};
-      Object.entries(musyrifMutabaah).forEach(([dt, dayEntry]) => {
-        if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-        if (dt >= "2026-08-18" && dayEntry && typeof dayEntry === "object") {
-          if (isTruthyFlag(dayEntry.tahajjud)) mutabaahPoints += 3;
-          if (isTruthyFlag(dayEntry.witir || dayEntry.rawatib)) mutabaahPoints += 2;
-          if (isTruthyFlag(dayEntry.dhuha)) mutabaahPoints += 2;
-          if (isTruthyFlag(dayEntry.infaq)) mutabaahPoints += 1;
-          const tilawah = Number(dayEntry.tilawahPages || 0);
-          if (tilawah > 0) mutabaahPoints += Math.min(tilawah, 3);
-          if (isTruthyFlag(dayEntry.dzikirPagi)) mutabaahPoints += 1;
-          if (isTruthyFlag(dayEntry.dzikirPetang)) mutabaahPoints += 1;
-          if (isTruthyFlag(dayEntry.puasaSunnah)) mutabaahPoints += 5;
-          if (isTruthyFlag(dayEntry.muthalaah)) mutabaahPoints += 2;
-        }
-      });
-
-      const totalScore = sholatScore + logbookScore + kegiatanScore + mutabaahPoints;
+      const pilarScores = calculate6PilarScores(
+        m,
+        records,
+        logbookData,
+        kegiatanRecords,
+        mutabaahData,
+        pengasuhanList,
+        agendaList,
+        selectedMonth
+      );
 
       return {
         ...m,
-        score: totalScore,
-        sholatScore,
-        logbookScore,
-        pengasuhanCount,
-        pengasuhanPoints,
-        kegiatanScore,
-        mutabaahScore: mutabaahPoints,
-        hadirCount,
-        subuhCount,
-        maghribCount,
-        alfaCount,
-        logbookTasksDone,
-        kegiatanDone
+        ...pilarScores,
+        score: pilarScores.totalScore
       };
     })
     .filter(m => selectedAsrama === "all" || m.asrama === selectedAsrama)
     .sort((a, b) => {
-      if (selectedPillar === "sholat") return b.sholatScore - a.sholatScore;
-      if (selectedPillar === "logbook") return b.logbookScore - a.logbookScore;
-      if (selectedPillar === "kegiatan") return b.kegiatanScore - a.kegiatanScore;
-      if (selectedPillar === "mutabaah") return b.mutabaahScore - a.mutabaahScore;
+      if (selectedPillar === "kepengasuhan") return b.kepengasuhanScore - a.kepengasuhanScore;
+      if (selectedPillar === "quran") return b.quranScore - a.quranScore;
+      if (selectedPillar === "ibadah") return b.ibadahScore - a.ibadahScore;
+      if (selectedPillar === "bahasa") return b.bahasaScore - a.bahasaScore;
+      if (selectedPillar === "kebersihan") return b.kebersihanScore - a.kebersihanScore;
+      if (selectedPillar === "kedisiplinan") return b.kedisiplinanScore - a.kedisiplinanScore;
       return b.score - a.score || b.hadirCount - a.hadirCount;
     });
   }, [activeMusyrifList, records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, agendaList, selectedMonth, selectedAsrama, selectedPillar]);
@@ -447,14 +310,16 @@ export function LeaderboardModal({
           )}
         </div>
 
-        {/* 4 Pillars Filter */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 sm:pb-0">
+        {/* 6 Pillars Filter */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           {[
-            { id: "all", label: "Total 4 Pilar", icon: <Trophy className="w-3.5 h-3.5" /> },
-            { id: "sholat", label: "Shalat Fardhu", icon: <Sun className="w-3.5 h-3.5" /> },
-            { id: "logbook", label: "Logbook Tugas", icon: <ClipboardList className="w-3.5 h-3.5" /> },
-            { id: "kegiatan", label: "Agenda Asrama", icon: <Building2 className="w-3.5 h-3.5" /> },
-            { id: "mutabaah", label: "Mutaba'ah", icon: <Sparkles className="w-3.5 h-3.5" /> }
+            { id: "all", label: "Total 6 Pilar", icon: <Trophy className="w-3.5 h-3.5" /> },
+            { id: "kepengasuhan", label: "1. Kepengasuhan", icon: <HeartHandshake className="w-3.5 h-3.5" /> },
+            { id: "quran", label: "2. Al-Qur'an", icon: <BookCheck className="w-3.5 h-3.5" /> },
+            { id: "ibadah", label: "3. Ibadah", icon: <Sun className="w-3.5 h-3.5" /> },
+            { id: "bahasa", label: "4. Bahasa", icon: <Languages className="w-3.5 h-3.5" /> },
+            { id: "kebersihan", label: "5. Kebersihan", icon: <Sparkles className="w-3.5 h-3.5" /> },
+            { id: "kedisiplinan", label: "6. Kedisiplinan", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
           ].map(p => (
             <button
               key={p.id}
@@ -463,7 +328,7 @@ export function LeaderboardModal({
                 triggerHaptic("light");
                 setSelectedPillar(p.id as any);
               }}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
                 selectedPillar === p.id 
                   ? "bg-[#0C81E4] text-white shadow-xs" 
                   : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -476,50 +341,72 @@ export function LeaderboardModal({
         </div>
       </div>
 
-      {/* 4 Pilar KPI Aggregate Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-amber-50/70 rounded-2xl p-3 border border-amber-200/60 flex flex-col justify-between">
+      {/* 6 Pilar KPI Aggregate Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="bg-rose-50/70 rounded-2xl p-2.5 border border-rose-200/60 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Pilar 1: Shalat</span>
+            <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">1. Asuh</span>
+            <HeartHandshake className="w-3.5 h-3.5 text-rose-600"/>
+          </div>
+          <p className="text-base font-black text-rose-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.kepengasuhanScore, 0)} <span className="text-[10px] font-normal text-rose-700">pts</span>
+          </p>
+          <p className="text-[9px] text-rose-700 mt-0.5 truncate">Medis & Bimbingan</p>
+        </div>
+
+        <div className="bg-sky-50/70 rounded-2xl p-2.5 border border-sky-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">2. Qur'an</span>
+            <BookCheck className="w-3.5 h-3.5 text-sky-600"/>
+          </div>
+          <p className="text-base font-black text-sky-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.quranScore, 0)} <span className="text-[10px] font-normal text-sky-700">pts</span>
+          </p>
+          <p className="text-[9px] text-sky-700 mt-0.5 truncate">Tahfizh & Tahsin</p>
+        </div>
+
+        <div className="bg-amber-50/70 rounded-2xl p-2.5 border border-amber-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">3. Ibadah</span>
             <Sun className="w-3.5 h-3.5 text-amber-600"/>
           </div>
-          <p className="text-base sm:text-lg font-black text-amber-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.hadirCount, 0)} <span className="text-xs font-normal text-amber-700">hadir</span>
+          <p className="text-base font-black text-amber-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.ibadahScore, 0)} <span className="text-[10px] font-normal text-amber-700">pts</span>
           </p>
-          <p className="text-[9px] text-amber-700 mt-0.5">Total shalat tercatat</p>
+          <p className="text-[9px] text-amber-700 mt-0.5 truncate">Shalat & Sunnah</p>
         </div>
 
-        <div className="bg-sky-50/70 rounded-2xl p-3 border border-sky-200/60 flex flex-col justify-between">
+        <div className="bg-teal-50/70 rounded-2xl p-2.5 border border-teal-200/60 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">Pilar 2: Logbook</span>
-            <ClipboardList className="w-3.5 h-3.5 text-sky-600"/>
+            <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider">4. Bahasa</span>
+            <Languages className="w-3.5 h-3.5 text-teal-600"/>
           </div>
-          <p className="text-base sm:text-lg font-black text-sky-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.logbookTasksDone, 0)} <span className="text-xs font-normal text-sky-700">tugas</span>
+          <p className="text-base font-black text-teal-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.bahasaScore, 0)} <span className="text-[10px] font-normal text-teal-700">pts</span>
           </p>
-          <p className="text-[9px] text-sky-700 mt-0.5">Checklist & pengasuhan</p>
+          <p className="text-[9px] text-teal-700 mt-0.5 truncate">Bina & Muhadatsah</p>
         </div>
 
-        <div className="bg-purple-50/70 rounded-2xl p-3 border border-purple-200/60 flex flex-col justify-between">
+        <div className="bg-emerald-50/70 rounded-2xl p-2.5 border border-emerald-200/60 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider">Pilar 3: Agenda</span>
-            <Building2 className="w-3.5 h-3.5 text-purple-600"/>
-          </div>
-          <p className="text-base sm:text-lg font-black text-purple-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.kegiatanDone, 0)} <span className="text-xs font-normal text-purple-700">sesi</span>
-          </p>
-          <p className="text-[9px] text-purple-700 mt-0.5">Rapat & agenda asrama</p>
-        </div>
-
-        <div className="bg-emerald-50/70 rounded-2xl p-3 border border-emerald-200/60 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Pilar 4: Sunnah</span>
+            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">5. Bersih</span>
             <Sparkles className="w-3.5 h-3.5 text-emerald-600"/>
           </div>
-          <p className="text-base sm:text-lg font-black text-emerald-950 font-mono mt-1">
-            {leaderboardData.reduce((acc, m) => acc + m.mutabaahScore, 0)} <span className="text-xs font-normal text-emerald-700">pts</span>
+          <p className="text-base font-black text-emerald-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.kebersihanScore, 0)} <span className="text-[10px] font-normal text-emerald-700">pts</span>
           </p>
-          <p className="text-[9px] text-emerald-700 mt-0.5">Akumulasi Mutaba'ah</p>
+          <p className="text-[9px] text-emerald-700 mt-0.5 truncate">Piket & Kerapian</p>
+        </div>
+
+        <div className="bg-indigo-50/70 rounded-2xl p-2.5 border border-indigo-200/60 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-indigo-800 uppercase tracking-wider">6. Disiplin</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600"/>
+          </div>
+          <p className="text-base font-black text-indigo-950 font-mono mt-1">
+            {leaderboardData.reduce((acc, m) => acc + m.kedisiplinanScore, 0)} <span className="text-[10px] font-normal text-indigo-700">pts</span>
+          </p>
+          <p className="text-[9px] text-indigo-700 mt-0.5 truncate">Patroli & Agenda</p>
         </div>
       </div>
 
@@ -540,10 +427,12 @@ export function LeaderboardModal({
               <div className="font-bold text-xs text-slate-900 truncate max-w-[100px]">{top3[1].name.split(" ")[0]}</div>
               <div className="text-[11px] text-slate-500">{top3[1].asrama}</div>
               <div className="text-xs font-bold text-emerald-700 font-mono mt-1">
-                {selectedPillar === "all" ? `${top3[1].score} Poin` : 
-                 selectedPillar === "sholat" ? `${top3[1].sholatScore} Poin` :
-                 selectedPillar === "logbook" ? `${top3[1].logbookScore} Poin` :
-                 selectedPillar === "kegiatan" ? `${top3[1].kegiatanScore} Poin` : `${top3[1].mutabaahScore} Poin`}
+                {selectedPillar === "all" ? `${top3[1].score} Pts` : 
+                 selectedPillar === "kepengasuhan" ? `${top3[1].kepengasuhanScore} Pts` :
+                 selectedPillar === "quran" ? `${top3[1].quranScore} Pts` :
+                 selectedPillar === "ibadah" ? `${top3[1].ibadahScore} Pts` :
+                 selectedPillar === "bahasa" ? `${top3[1].bahasaScore} Pts` :
+                 selectedPillar === "kebersihan" ? `${top3[1].kebersihanScore} Pts` : `${top3[1].kedisiplinanScore} Pts`}
               </div>
             </button>
           )}
@@ -566,10 +455,12 @@ export function LeaderboardModal({
               <div className="font-extrabold text-xs sm:text-sm text-slate-900 truncate max-w-[120px]">{top3[0].name}</div>
               <div className="text-xs font-semibold text-emerald-700">{top3[0].asrama}</div>
               <div className="text-xs sm:text-sm font-extrabold text-amber-800 font-mono mt-1 bg-amber-100/70 border border-amber-300 px-3 py-0.5 rounded-full">
-                {selectedPillar === "all" ? `${top3[0].score} Poin` : 
-                 selectedPillar === "sholat" ? `${top3[0].sholatScore} Poin` :
-                 selectedPillar === "logbook" ? `${top3[0].logbookScore} Poin` :
-                 selectedPillar === "kegiatan" ? `${top3[0].kegiatanScore} Poin` : `${top3[0].mutabaahScore} Poin`}
+                {selectedPillar === "all" ? `${top3[0].score} Pts` : 
+                 selectedPillar === "kepengasuhan" ? `${top3[0].kepengasuhanScore} Pts` :
+                 selectedPillar === "quran" ? `${top3[0].quranScore} Pts` :
+                 selectedPillar === "ibadah" ? `${top3[0].ibadahScore} Pts` :
+                 selectedPillar === "bahasa" ? `${top3[0].bahasaScore} Pts` :
+                 selectedPillar === "kebersihan" ? `${top3[0].kebersihanScore} Pts` : `${top3[0].kedisiplinanScore} Pts`}
               </div>
             </button>
           )}
@@ -588,10 +479,12 @@ export function LeaderboardModal({
               <div className="font-bold text-xs text-slate-900 truncate max-w-[100px]">{top3[2].name.split(" ")[0]}</div>
               <div className="text-[11px] text-slate-500">{top3[2].asrama}</div>
               <div className="text-xs font-bold text-emerald-700 font-mono mt-1">
-                {selectedPillar === "all" ? `${top3[2].score} Poin` : 
-                 selectedPillar === "sholat" ? `${top3[2].sholatScore} Poin` :
-                 selectedPillar === "logbook" ? `${top3[2].logbookScore} Poin` :
-                 selectedPillar === "kegiatan" ? `${top3[2].kegiatanScore} Poin` : `${top3[2].mutabaahScore} Poin`}
+                {selectedPillar === "all" ? `${top3[2].score} Pts` : 
+                 selectedPillar === "kepengasuhan" ? `${top3[2].kepengasuhanScore} Pts` :
+                 selectedPillar === "quran" ? `${top3[2].quranScore} Pts` :
+                 selectedPillar === "ibadah" ? `${top3[2].ibadahScore} Pts` :
+                 selectedPillar === "bahasa" ? `${top3[2].bahasaScore} Pts` :
+                 selectedPillar === "kebersihan" ? `${top3[2].kebersihanScore} Pts` : `${top3[2].kedisiplinanScore} Pts`}
               </div>
             </button>
           )}
@@ -604,7 +497,7 @@ export function LeaderboardModal({
           <h4 className="text-xs font-bold text-slate-700">
             Daftar Peringkat Musyrif • {getMonthLabel(selectedMonth)}
           </h4>
-          <span className="text-[11px] text-slate-400">Klik baris untuk rincian skor</span>
+          <span className="text-[11px] text-slate-400">Klik baris untuk rincian 6 pilar</span>
         </div>
         {rest.map((m, idx) => (
           <button
@@ -628,9 +521,11 @@ export function LeaderboardModal({
             <div className="text-right shrink-0 flex items-center gap-2">
               <span className="text-xs font-bold text-emerald-700 font-mono bg-emerald-50 px-2 py-0.5 rounded-lg">
                 {selectedPillar === "all" ? `${m.score} Pts` :
-                 selectedPillar === "sholat" ? `${m.sholatScore} Pts` :
-                 selectedPillar === "logbook" ? `${m.logbookScore} Pts` :
-                 selectedPillar === "kegiatan" ? `${m.kegiatanScore} Pts` : `${m.mutabaahScore} Pts`}
+                 selectedPillar === "kepengasuhan" ? `${m.kepengasuhanScore} Pts` :
+                 selectedPillar === "quran" ? `${m.quranScore} Pts` :
+                 selectedPillar === "ibadah" ? `${m.ibadahScore} Pts` :
+                 selectedPillar === "bahasa" ? `${m.bahasaScore} Pts` :
+                 selectedPillar === "kebersihan" ? `${m.kebersihanScore} Pts` : `${m.kedisiplinanScore} Pts`}
               </span>
               <ChevronRight className="w-4 h-4 text-slate-300" />
             </div>
@@ -668,7 +563,7 @@ export function LeaderboardModal({
                 <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
                   Periode {getMonthLabel(selectedMonth)}
                 </span>
-                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Total Skor 4 Pilar</span>
+                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Total Skor 6 Pilar</span>
                 <p className="text-xl font-extrabold text-emerald-900 font-mono leading-none mt-1">{selectedDetailMusyrif.score} Poin</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
@@ -676,36 +571,60 @@ export function LeaderboardModal({
               </div>
             </div>
 
-            {/* 4 Pillars Breakdown Grid */}
-            <div className="space-y-2 text-xs">
+            {/* 6 Pillars Breakdown Grid */}
+            <div className="space-y-1.5 text-xs max-h-60 overflow-y-auto pr-1">
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <Sun className="w-3.5 h-3.5 text-amber-500" /> Shalat Subuh, Ashar & Maghrib:
-                </span>
-                <span className="font-bold font-mono text-slate-900">{selectedDetailMusyrif.sholatScore} Pts ({selectedDetailMusyrif.hadirCount}x Hadir)</span>
-              </div>
-
-              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <ClipboardList className="w-3.5 h-3.5 text-indigo-500" /> Logbook & Pengasuhan:
+                  <HeartHandshake className="w-3.5 h-3.5 text-rose-500" /> 1. Kepengasuhan:
                 </span>
                 <span className="font-bold font-mono text-slate-900">
-                  {selectedDetailMusyrif.logbookScore} Pts ({selectedDetailMusyrif.logbookTasksDone} Tugas{selectedDetailMusyrif.pengasuhanCount > 0 ? ` + ${selectedDetailMusyrif.pengasuhanCount} Pengasuhan` : ""})
+                  {selectedDetailMusyrif.kepengasuhanScore} Pts
                 </span>
               </div>
 
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <Building2 className="w-3.5 h-3.5 text-teal-500" /> Agenda Khusus Asrama:
+                  <BookCheck className="w-3.5 h-3.5 text-sky-500" /> 2. Al-Qur'an:
                 </span>
-                <span className="font-bold font-mono text-slate-900">{selectedDetailMusyrif.kegiatanScore} Pts ({selectedDetailMusyrif.kegiatanDone} Sesi)</span>
+                <span className="font-bold font-mono text-slate-900">
+                  {selectedDetailMusyrif.quranScore} Pts
+                </span>
               </div>
 
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-500" /> Mutaba'ah Sunnah:
+                  <Sun className="w-3.5 h-3.5 text-amber-500" /> 3. Ibadah:
                 </span>
-                <span className="font-bold font-mono text-slate-900">{selectedDetailMusyrif.mutabaahScore} Pts</span>
+                <span className="font-bold font-mono text-slate-900">
+                  {selectedDetailMusyrif.ibadahScore} Pts ({selectedDetailMusyrif.hadirCount}x Shalat)
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                  <Languages className="w-3.5 h-3.5 text-teal-500" /> 4. Bahasa:
+                </span>
+                <span className="font-bold font-mono text-slate-900">
+                  {selectedDetailMusyrif.bahasaScore} Pts
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-500" /> 5. Kebersihan:
+                </span>
+                <span className="font-bold font-mono text-slate-900">
+                  {selectedDetailMusyrif.kebersihanScore} Pts
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> 6. Kedisiplinan:
+                </span>
+                <span className="font-bold font-mono text-slate-900">
+                  {selectedDetailMusyrif.kedisiplinanScore} Pts
+                </span>
               </div>
             </div>
 

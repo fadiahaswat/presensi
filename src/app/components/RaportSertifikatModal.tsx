@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   X, Printer, Award, FileText, Download, CheckCircle, 
   Crown, Star, ShieldCheck, Calendar, User, Building2, Table,
-  ChevronLeft, GraduationCap, Sun, ClipboardList, Sparkles
+  ChevronLeft, GraduationCap, Sun, ClipboardList, Sparkles,
+  HeartHandshake, BookCheck, Languages
 } from "lucide-react";
 import { motion } from "motion/react";
 import mualliminLogo from "../muallimin-logo.png";
@@ -15,6 +16,7 @@ import { MutabaahStorage } from "./MutabaahYaumiyahModal";
 import { PengasuhanKhususRecord } from "../types/pengasuhanKhusus";
 import { AgendaRapatRecord } from "../types/agendaRapat";
 import { isFieldMusyrif } from "../utils/roleAccessUtils";
+import { calculate6PilarScores } from "../utils/pilarMusyrifUtils";
 
 interface Musyrif {
   id: string;
@@ -167,116 +169,59 @@ export function RaportSertifikatModal({
   const totalHadir = totalSubuhHadir + totalAsharHadir + totalMaghribHadir;
   const attendanceRate = totalSlots > 0 ? Math.round((totalHadir / totalSlots) * 100) : 0;
 
-  // 2. Logbook & Pengasuhan Khusus Statistics (Dihitung Dinamis dari Seluruh Tugas Valid)
-  let totalLogbookDone = 0;
-  const mLogbook = musyrif ? (logbookData[musyrif.id] || {}) : {};
-  Object.entries(mLogbook).forEach(([dt, entry]) => {
-    if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-    if (dt >= "2026-08-18" && entry && typeof entry === "object") {
-      Object.entries(entry).forEach(([taskKey, taskVal]) => {
-        if (taskKey === "generalNotes" || taskKey.startsWith("agenda_")) return;
-        if (isLogbookTaskCompleted(taskVal)) {
-          totalLogbookDone++;
-        }
-      });
+  // 6 Pilar Musyrif Holistic Scoring
+  const pilarScores = useMemo(() => {
+    if (!musyrif) {
+      return {
+        kepengasuhanScore: 0,
+        pengasuhanCount: 0,
+        pengasuhanPoints: 0,
+        quranScore: 0,
+        quranDone: 0,
+        ibadahScore: 0,
+        hadirCount: 0,
+        subuhCount: 0,
+        asharCount: 0,
+        maghribCount: 0,
+        alfaCount: 0,
+        sunnahPoints: 0,
+        bahasaScore: 0,
+        bahasaDone: 0,
+        kebersihanScore: 0,
+        kebersihanDone: 0,
+        kedisiplinanScore: 0,
+        kedisiplinanDone: 0,
+        kegiatanDone: 0,
+        totalScore: 0,
+        totalLogbookDone: 0
+      };
     }
-  });
-
-  let totalPengasuhanDone = 0;
-  let totalPengasuhanPoints = 0;
-  if (musyrif) {
-    pengasuhanList.forEach(p => {
-      if (p.musyrifId === musyrif.id) {
-        if (selectedMonth !== "all" && !p.date.startsWith(selectedMonth)) return;
-        if (p.date >= "2026-08-18") {
-          totalPengasuhanDone++;
-          totalPengasuhanPoints += (Number(p.poin) || (p.kategori === "antar_pku_rs" ? 10 : 5));
-        }
-      }
-    });
-  }
-
-  // 3. Agenda Khusus Asrama & Pertemuan Statistics
-  let totalKegiatanHadir = 0;
-  const seenKegiatanKeys = new Set<string>();
-
-  if (musyrif) {
-    kegiatanRecords.forEach(k => {
-      if (selectedMonth !== "all" && !k.date.startsWith(selectedMonth)) return;
-      const kegId = k.id || `${k.date}_${k.title || k.namaKegiatan}`;
-      const attVal = k.attendees?.[musyrif.id];
-      if (attVal === "hadir" || attVal === true || String(attVal).toLowerCase() === "hadir") {
-        seenKegiatanKeys.add(kegId);
-        totalKegiatanHadir++;
-      }
-    });
-
-    // Dynamic agenda meeting tasks from logbook
-    Object.entries(mLogbook).forEach(([dt, entry]) => {
-      if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-      if (dt >= "2026-08-18" && entry && typeof entry === "object") {
-        Object.entries(entry).forEach(([key, task]) => {
-          if (key.startsWith("agenda_") && isLogbookTaskCompleted(task)) {
-            const agendaUniqueKey = `${dt}_${key}`;
-            if (!seenKegiatanKeys.has(agendaUniqueKey)) {
-              seenKegiatanKeys.add(agendaUniqueKey);
-              totalKegiatanHadir++;
-            }
-          }
-        });
-      }
-    });
-
-    // Agenda Rapat from agendaList
-    (agendaList || []).forEach(ag => {
-      if (selectedMonth !== "all" && !ag.date.startsWith(selectedMonth)) return;
-      if (Array.isArray(ag.invitedMusyrifIds) && ag.invitedMusyrifIds.includes(musyrif.id)) {
-        const agendaUniqueKey = `${ag.date}_agenda_${ag.id.replace(/^agenda_/, "")}`;
-        if (!seenKegiatanKeys.has(agendaUniqueKey)) {
-          const dayEntry = mLogbook[ag.date];
-          const cleanId = ag.id.replace(/^agenda_/, "");
-          const task = dayEntry?.[`agenda_${ag.id}`] || dayEntry?.[ag.id] || dayEntry?.[`agenda_${cleanId}`] || dayEntry?.[cleanId];
-          if (isLogbookTaskCompleted(task)) {
-            seenKegiatanKeys.add(agendaUniqueKey);
-            totalKegiatanHadir++;
-          }
-        }
-      }
-    });
-  }
-
-  // 4. Mutaba'ah Sunnah Statistics (Dengan Helper Boolean Aman)
-  let totalMutabaahDone = 0;
-  const mMutabaah = musyrif ? (mutabaahData[musyrif.id] || {}) : {};
-  Object.entries(mMutabaah).forEach(([dt, entry]) => {
-    if (selectedMonth !== "all" && !dt.startsWith(selectedMonth)) return;
-    if (dt >= "2026-08-18" && entry && typeof entry === "object") {
-      if (isTruthyFlag(entry.tahajjud)) totalMutabaahDone++;
-      if (isTruthyFlag(entry.witir || entry.rawatib)) totalMutabaahDone++;
-      if (isTruthyFlag(entry.dhuha)) totalMutabaahDone++;
-      if (isTruthyFlag(entry.infaq)) totalMutabaahDone++;
-      const tilawah = Number(entry.tilawahPages || 0);
-      if (tilawah > 0) totalMutabaahDone++;
-      if (isTruthyFlag(entry.dzikirPagi)) totalMutabaahDone++;
-      if (isTruthyFlag(entry.dzikirPetang)) totalMutabaahDone++;
-      if (isTruthyFlag(entry.puasaSunnah) || isTruthyFlag(entry.muthalaah)) totalMutabaahDone++;
-    }
-  });
+    return calculate6PilarScores(
+      musyrif,
+      records,
+      logbookData,
+      kegiatanRecords,
+      mutabaahData,
+      pengasuhanList,
+      agendaList,
+      selectedMonth
+    );
+  }, [musyrif, records, logbookData, kegiatanRecords, mutabaahData, pengasuhanList, agendaList, selectedMonth]);
 
   // Holistic Grade Calculation
   let gradeLetter = "A";
   let gradeDesc = "Mumtaz (Istimewa)";
   let gradeColor = "text-emerald-700 bg-emerald-50 border-emerald-300";
 
-  if (attendanceRate < 60) {
+  if (attendanceRate < 60 || pilarScores.totalScore < 100) {
     gradeLetter = "D";
     gradeDesc = "Dha'if (Perlu Evaluasi)";
     gradeColor = "text-rose-700 bg-rose-50 border-rose-300";
-  } else if (attendanceRate < 75) {
+  } else if (attendanceRate < 75 || pilarScores.totalScore < 200) {
     gradeLetter = "C";
     gradeDesc = "Maqbul (Cukup)";
     gradeColor = "text-amber-700 bg-amber-50 border-amber-300";
-  } else if (attendanceRate < 90) {
+  } else if (attendanceRate < 90 || pilarScores.totalScore < 350) {
     gradeLetter = "B";
     gradeDesc = "Jayyid (Baik)";
     gradeColor = "text-blue-700 bg-blue-50 border-blue-300";
@@ -467,68 +412,96 @@ export function RaportSertifikatModal({
               </div>
             </div>
 
-            {/* 4 Pillars Evaluation Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* 1. Presensi Shalat */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2">
+            {/* 6 Pillars Evaluation Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* 1. Kepengasuhan */}
+              <div className="p-3.5 bg-rose-50/40 rounded-2xl border border-rose-200/60 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <HeartHandshake className="w-4 h-4 text-rose-600" />
+                    <h4 className="font-bold text-xs text-rose-950">1. Kepengasuhan</h4>
+                  </div>
+                  <span className="text-xs font-bold text-rose-700 font-mono">{pilarScores.kepengasuhanScore} Pts</span>
+                </div>
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-rose-200/60">
+                  <div className="flex justify-between"><span>Rujukan PKU/RS:</span><span className="font-bold font-mono">{pilarScores.pengasuhanCount}x ({pilarScores.pengasuhanPoints} Pts)</span></div>
+                  <div className="flex justify-between"><span>Patroli Sakit & Tidur:</span><span className="font-bold font-mono">Tercatat</span></div>
+                </div>
+              </div>
+
+              {/* 2. Al-Qur'an */}
+              <div className="p-3.5 bg-sky-50/40 rounded-2xl border border-sky-200/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <BookCheck className="w-4 h-4 text-sky-600" />
+                    <h4 className="font-bold text-xs text-sky-950">2. Al-Qur'an</h4>
+                  </div>
+                  <span className="text-xs font-bold text-sky-700 font-mono">{pilarScores.quranScore} Pts</span>
+                </div>
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-sky-200/60">
+                  <div className="flex justify-between"><span>Halaqah & Tahsin:</span><span className="font-bold font-mono">{pilarScores.quranDone} Sesi Tuntas</span></div>
+                  <div className="flex justify-between"><span>Surat Al-Kahfi:</span><span className="font-bold font-mono">Malam Jum'at</span></div>
+                </div>
+              </div>
+
+              {/* 3. Ibadah */}
+              <div className="p-3.5 bg-amber-50/40 rounded-2xl border border-amber-200/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
                     <Sun className="w-4 h-4 text-amber-600" />
-                    <h4 className="font-bold text-xs text-slate-900">1. Presensi Shalat Berjamaah</h4>
+                    <h4 className="font-bold text-xs text-amber-950">3. Ibadah</h4>
                   </div>
-                  <span className="text-xs font-bold text-emerald-700 font-mono">{attendanceRate}% Kehadiran</span>
+                  <span className="text-xs font-bold text-amber-700 font-mono">{attendanceRate}% Kehadiran</span>
                 </div>
-                <div className="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-200/60">
-                  <div className="flex justify-between"><span>Subuh Hadir:</span><span className="font-bold font-mono">{totalSubuhHadir} kali</span></div>
-                  <div className="flex justify-between"><span>Ashar Hadir:</span><span className="font-bold font-mono">{totalAsharHadir} kali</span></div>
-                  <div className="flex justify-between"><span>Maghrib Hadir:</span><span className="font-bold font-mono">{totalMaghribHadir} kali</span></div>
-                  <div className="flex justify-between"><span>Izin / Sakit Resmi:</span><span className="font-mono">{totalSubuhIzin + totalAsharIzin + totalMaghribIzin + totalSubuhSakit + totalAsharSakit + totalMaghribSakit} kali</span></div>
-                  <div className="flex justify-between text-rose-600 font-semibold"><span>Tanpa Keterangan (Alfa):</span><span className="font-mono">{totalSubuhAlfa + totalAsharAlfa + totalMaghribAlfa} kali</span></div>
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-amber-200/60">
+                  <div className="flex justify-between"><span>Total Shalat Hadir:</span><span className="font-bold font-mono">{totalHadir} kali</span></div>
+                  <div className="flex justify-between"><span>Skor Ibadah & Sunnah:</span><span className="font-bold font-mono">{pilarScores.ibadahScore} Pts</span></div>
                 </div>
               </div>
 
-              {/* 2. Jurnal Logbook & Pengasuhan */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2">
+              {/* 4. Bahasa */}
+              <div className="p-3.5 bg-teal-50/40 rounded-2xl border border-teal-200/60 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-emerald-600" />
-                    <h4 className="font-bold text-xs text-slate-900">2. Logbook & Tugas Pengasuhan</h4>
+                  <div className="flex items-center gap-1.5">
+                    <Languages className="w-4 h-4 text-teal-600" />
+                    <h4 className="font-bold text-xs text-teal-950">4. Bahasa</h4>
                   </div>
-                  <span className="text-xs font-bold text-emerald-700 font-mono">
-                    {totalLogbookDone + totalPengasuhanDone} Tuntas ({totalPengasuhanDone} Pengasuhan)
-                  </span>
+                  <span className="text-xs font-bold text-teal-700 font-mono">{pilarScores.bahasaScore} Pts</span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed pt-1 border-t border-slate-200/60">
-                  Melaksanakan tugas logbook asrama, rujukan medis ke PKU/RS ({totalPengasuhanDone > 0 ? `${totalPengasuhanDone}x` : "0x"}), serta bimbingan santri binaan.
-                </p>
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-teal-200/60">
+                  <div className="flex justify-between"><span>Bina Bahasa & Muhadatsah:</span><span className="font-bold font-mono">{pilarScores.bahasaDone} Sesi</span></div>
+                  <div className="flex justify-between"><span>Fokus:</span><span className="font-bold font-mono">Arab & Inggris</span></div>
+                </div>
               </div>
 
-              {/* 3. Agenda Asrama */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2">
+              {/* 5. Kebersihan */}
+              <div className="p-3.5 bg-emerald-50/40 rounded-2xl border border-emerald-200/60 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-indigo-600" />
-                    <h4 className="font-bold text-xs text-slate-900">3. Agenda Keasramaan Non-Shalat</h4>
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <h4 className="font-bold text-xs text-emerald-950">5. Kebersihan</h4>
                   </div>
-                  <span className="text-xs font-bold text-indigo-700 font-mono">{totalKegiatanHadir} Sesi Hadir</span>
+                  <span className="text-xs font-bold text-emerald-700 font-mono">{pilarScores.kebersihanScore} Pts</span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed pt-1 border-t border-slate-200/60">
-                  Kehadiran dalam halaqah tahfidz, kuliah subuh, apel koordinasi musyrif, dan piket kebersihan lingkungan.
-                </p>
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-emerald-200/60">
+                  <div className="flex justify-between"><span>Piket & Kerja Bakti:</span><span className="font-bold font-mono">{pilarScores.kebersihanDone} Tugas</span></div>
+                  <div className="flex justify-between"><span>Sanitasi Asrama:</span><span className="font-bold font-mono">Terkontrol</span></div>
+                </div>
               </div>
 
-              {/* 4. Mutaba'ah Sunnah */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2">
+              {/* 6. Kedisiplinan */}
+              <div className="p-3.5 bg-indigo-50/40 rounded-2xl border border-indigo-200/60 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-teal-600" />
-                    <h4 className="font-bold text-xs text-slate-900">4. Mutaba'ah Yaumiyah & Tilawah</h4>
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <h4 className="font-bold text-xs text-indigo-950">6. Kedisiplinan</h4>
                   </div>
-                  <span className="text-xs font-bold text-teal-700 font-mono">{totalMutabaahDone} Amalan Tercatat</span>
+                  <span className="text-xs font-bold text-indigo-700 font-mono">{pilarScores.kedisiplinanScore} Pts</span>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed pt-1 border-t border-slate-200/60">
-                  Konsistensi ibadah sunnah, Qiyamul Lail, dzikir matsurat pagi-petang, dan tadarus Al-Qur'an harian.
-                </p>
+                <div className="text-[11px] text-slate-600 space-y-0.5 pt-1 border-t border-indigo-200/60">
+                  <div className="flex justify-between"><span>Patroli Ketertiban:</span><span className="font-bold font-mono">{pilarScores.kedisiplinanDone} Tugas</span></div>
+                  <div className="flex justify-between"><span>Agenda & Rapat Asrama:</span><span className="font-bold font-mono">{pilarScores.kegiatanDone} Sesi</span></div>
+                </div>
               </div>
             </div>
           </div>

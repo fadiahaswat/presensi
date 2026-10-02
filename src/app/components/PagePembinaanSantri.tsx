@@ -845,7 +845,7 @@ _Sistem Informasi Pengasuhan & Asrama (Syamsa Mu'allimin)_`;
                               </span>
                               {rec.id.startsWith("pembinaan_sync_") && (
                                 <span className="text-[9px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.2 rounded-md font-mono whitespace-nowrap shrink-0">
-                                  Pilar 2
+                                  Pilar 1
                                 </span>
                               )}
                             </div>

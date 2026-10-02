@@ -28,7 +28,6 @@ import {
 } from "../data/kalenderPendidikanData";
 import { getTrustedDate } from "../utils/trustedTime";
 import { AgendaRapatRecord } from "../types/agendaRapat";
-import { IntegrityViolation } from "../utils/anomalyDetector";
 
 interface DynamicDashboardBannerProps {
   myPembinaanStats?: MusyrifAttendanceStats;
@@ -38,10 +37,6 @@ interface DynamicDashboardBannerProps {
   onOpenKalenderPendidikan?: () => void;
   onGoTo?: (page: any) => void;
   renderFastIconFn?: (iconName: string, className?: string) => React.ReactNode;
-  
-  // Audit Integritas Data & Anti-Bypass
-  detectedViolations?: IntegrityViolation[];
-  onOpenIntegrityAudit?: () => void;
   
   // Kontekstual pengasuhan & asrama
   userRole?: string;
@@ -79,8 +74,6 @@ export function DynamicDashboardBanner({
   onOpenKalenderPendidikan,
   onGoTo,
   renderFastIconFn,
-  detectedViolations = [],
-  onOpenIntegrityAudit,
   userRole,
   todayLogDoneCount = 0,
   isMutabaahDoneToday = false,
@@ -199,30 +192,6 @@ export function DynamicDashboardBanner({
     chevronColor?: string;
     onClick?: () => void;
   }> = [];
-
-  // 0. Peringatan Audit Integritas Data (Jika terdeteksi bot/injeksi/bypass)
-  if (detectedViolations && detectedViolations.length > 0) {
-    const totalAnomali = detectedViolations.reduce((acc, v) => acc + v.jumlahEntri, 0);
-    const firstViolator = detectedViolations[0]?.musyrifName;
-    const extraCount = detectedViolations.length - 1;
-    
-    slides.push({
-      id: "slide_integrity_audit",
-      type: "integrity",
-      title: "Audit Integritas Data",
-      badge: `${totalAnomali} Anomali`,
-      desc: `Injeksi bot & bypass terdeteksi: ${firstViolator}${extraCount > 0 ? ` & ${extraCount} lainnya` : ""} • Seluruh data dibekukan`,
-      icon: <ShieldAlert className="w-4 h-4 text-rose-300 animate-pulse" />,
-      bgColor: "bg-gradient-to-r from-rose-950 via-red-950 to-rose-950 hover:border-rose-400/80 shadow-xs",
-      borderColor: "border-rose-600/50",
-      badgeColor: "bg-rose-600 text-white font-mono uppercase tracking-tight",
-      textColor: "text-rose-200",
-      titleColor: "text-white",
-      iconBg: "bg-rose-900/60 border-rose-500/40 text-rose-300",
-      chevronColor: "text-rose-400 group-hover:text-white",
-      onClick: onOpenIntegrityAudit,
-    });
-  }
 
   // 1. Peringatan Pembinaan (Jika musyrif masuk 25% terbawah dan kehadiran < 75%)
   if (myPembinaanStats && myPembinaanStats.needsPembinaan) {

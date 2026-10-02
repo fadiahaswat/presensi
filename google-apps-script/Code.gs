@@ -180,29 +180,6 @@ function verifyHmacSignature(message, signature) {
  */
 function validateRecordIntegrity(table, rec) {
   if (!rec || typeof rec !== "object") return true;
-  
-  // Jika sedang menghapus data (soft delete / purge anomali), selalu izinkan
-  if (rec.is_deleted === true || rec.is_deleted === "TRUE" || rec.is_deleted === 1) {
-    return true;
-  }
-
-  const tbl = (table || "").toLowerCase();
-  
-  // 1. Anti-Backdate: cegah logbook/mutabaah masa lalu > 3 hari jika bukan hapus
-  if ((tbl.includes("logbook") || tbl.includes("mutabaah")) && rec.date) {
-    const today = new Date();
-    const minDate = new Date(today);
-    minDate.setDate(today.getDate() - 3); // toleransi H-3
-    const maxDate = new Date(today);
-    maxDate.setDate(today.getDate() + 1); // toleransi H+1 (timezone)
-    
-    const recDate = new Date(rec.date);
-    if (recDate < minDate || recDate > maxDate) {
-      console.warn("Ditolak: Tanggal rekaman di luar batas wajar:", rec.date);
-      return false;
-    }
-  }
-
   return true;
 }
 

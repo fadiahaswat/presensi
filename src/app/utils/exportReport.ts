@@ -1,6 +1,7 @@
 import { LogbookStorage, isLogbookTaskCompleted } from "../components/JurnalLogbookModal";
 import { KegiatanRecord } from "../components/KegiatanAsramaModal";
 import { MutabaahStorage } from "../components/MutabaahYaumiyahModal";
+import { calculate6PilarScores } from "./pilarMusyrifUtils";
 
 function isTruthyFlag(val: any): boolean {
   if (val === true || val === 1) return true;
@@ -75,11 +76,14 @@ export function exportComprehensiveReportCSV({
     "Maghrib Alfa",
     "Total Shalat Hadir",
     "Persentase Shalat (%)",
-    "Logbook Tugas Selesai",
-    "Agenda Asrama Hadir",
-    "Mutabaah Sunnah Selesai",
-    "Total Skor 4 Pilar",
-    "Predikat Disiplin",
+    "Skor 1. Kepengasuhan",
+    "Skor 2. Al-Qur'an",
+    "Skor 3. Ibadah",
+    "Skor 4. Bahasa",
+    "Skor 5. Kebersihan",
+    "Skor 6. Kedisiplinan",
+    "Total Skor 6 Pilar",
+    "Predikat Musyrif",
   ];
 
   const rows = filteredMusyrifs.map((m, idx) => {
@@ -125,84 +129,22 @@ export function exportComprehensiveReportCSV({
                             (maghribHadir + maghribIzin + maghribSakit + maghribAlfa);
     const totalHadirShalat = subuhHadir + asharHadir + maghribHadir;
     const pctShalat = totalSlotShalat > 0 ? Math.round((totalHadirShalat / totalSlotShalat) * 100) : 0;
-    const sholatScore = Math.max(0, (totalHadirShalat * 10) + ((subuhIzin + asharIzin + maghribIzin + subuhSakit + asharSakit + maghribSakit) * 3) - ((subuhAlfa + asharAlfa + maghribAlfa) * 10));
 
-    // Logbook Tasks (Perhitungan Dinamis Seluruh Tugas Valid)
-    let logbookDone = 0;
-    const mLogbook = logbookData[m.id] || {};
-    Object.entries(mLogbook).forEach(([d, entry]) => {
-      if (startDate && d < startDate) return;
-      if (endDate && d > endDate) return;
-      if (entry && typeof entry === "object") {
-        Object.entries(entry).forEach(([taskKey, taskVal]) => {
-          if (taskKey === "generalNotes" || taskKey.startsWith("agenda_")) return;
-          if (isLogbookTaskCompleted(taskVal)) {
-            logbookDone++;
-          }
-        });
-      }
-    });
-    const logbookScore = logbookDone * 2;
-
-    // Agenda Asrama & Pertemuan Rapat
-    let kegiatanHadir = 0;
-    const seenAgendaKeys = new Set<string>();
-
-    kegiatanRecords.forEach(k => {
-      if (startDate && k.date < startDate) return;
-      if (endDate && k.date > endDate) return;
-      const kegId = k.id || `${k.date}_${k.title || k.namaKegiatan}`;
-      const attVal = k.attendees?.[m.id];
-      if (attVal === "hadir" || attVal === true || String(attVal).toLowerCase() === "hadir") {
-        seenAgendaKeys.add(kegId);
-        kegiatanHadir++;
-      }
-    });
-
-    // Dynamic agenda meeting tasks from logbook
-    Object.entries(mLogbook).forEach(([d, entry]: [string, any]) => {
-      if (startDate && d < startDate) return;
-      if (endDate && d > endDate) return;
-      if (entry && typeof entry === "object") {
-        Object.entries(entry).forEach(([key, task]: [string, any]) => {
-          if (key.startsWith("agenda_") && isLogbookTaskCompleted(task)) {
-            const uniqueKey = `${d}_${key}`;
-            if (!seenAgendaKeys.has(uniqueKey)) {
-              seenAgendaKeys.add(uniqueKey);
-              kegiatanHadir++;
-            }
-          }
-        });
-      }
-    });
-    const kegiatanScore = kegiatanHadir * 5;
-
-    // Mutaba'ah Sunnah (Dengan Helper Boolean Aman)
-    let mutabaahDone = 0;
-    const mMutabaah = mutabaahData[m.id] || {};
-    Object.entries(mMutabaah).forEach(([d, entry]) => {
-      if (startDate && d < startDate) return;
-      if (endDate && d > endDate) return;
-      if (entry && typeof entry === "object") {
-        if (isTruthyFlag(entry.tahajjud)) mutabaahDone++;
-        if (isTruthyFlag(entry.witir || entry.rawatib)) mutabaahDone++;
-        if (isTruthyFlag(entry.dhuha)) mutabaahDone++;
-        if (isTruthyFlag(entry.infaq)) mutabaahDone++;
-        const tilawah = Number(entry.tilawahPages || 0);
-        if (tilawah > 0) mutabaahDone++;
-        if (isTruthyFlag(entry.dzikirPagi)) mutabaahDone++;
-        if (isTruthyFlag(entry.dzikirPetang)) mutabaahDone++;
-        if (isTruthyFlag(entry.puasaSunnah) || isTruthyFlag(entry.muthalaah)) mutabaahDone++;
-      }
-    });
-    const mutabaahScore = mutabaahDone * 2;
-
-    const totalSkor = sholatScore + logbookScore + kegiatanScore + mutabaahScore;
+    const pilarScores = calculate6PilarScores(
+      m,
+      records as any,
+      logbookData,
+      kegiatanRecords,
+      mutabaahData,
+      [],
+      [],
+      "all"
+    );
 
     let predikat = "Maqbul (Cukup)";
-    if (totalSkor >= 200 || pctShalat >= 90) predikat = "Mumtaz (Istimewa)";
-    else if (totalSkor >= 120 || pctShalat >= 75) predikat = "Jayyid Jiddan (Sangat Baik)";
-    else if (totalSkor >= 60 || pctShalat >= 60) predikat = "Jayyid (Baik)";
+    if (pilarScores.totalScore >= 350 || pctShalat >= 90) predikat = "Mumtaz (Istimewa)";
+    else if (pilarScores.totalScore >= 200 || pctShalat >= 75) predikat = "Jayyid Jiddan (Sangat Baik)";
+    else if (pilarScores.totalScore >= 100 || pctShalat >= 60) predikat = "Jayyid (Baik)";
 
     return [
       idx + 1,
@@ -210,7 +152,7 @@ export function exportComprehensiveReportCSV({
       `"${m.asrama}"`,
       `"${m.kamar}"`,
       `"${m.kelas}"`,
-      `"${m.pamong.replace(/"/g, '""')}"`,
+      `"${(m.pamong || '').replace(/"/g, '""')}"`,
       subuhHadir,
       subuhIzin,
       subuhSakit,
@@ -225,10 +167,13 @@ export function exportComprehensiveReportCSV({
       maghribAlfa,
       totalHadirShalat,
       `${pctShalat}%`,
-      logbookDone,
-      kegiatanHadir,
-      mutabaahDone,
-      totalSkor,
+      pilarScores.kepengasuhanScore,
+      pilarScores.quranScore,
+      pilarScores.ibadahScore,
+      pilarScores.bahasaScore,
+      pilarScores.kebersihanScore,
+      pilarScores.kedisiplinanScore,
+      pilarScores.totalScore,
       `"${predikat}"`,
     ].join(",");
   });
@@ -237,7 +182,7 @@ export function exportComprehensiveReportCSV({
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  const filename = `Rekap_4Pilar_Musyrif_Muallimin_${format(new Date(), "yyyyMMdd")}.csv`;
+  const filename = `Rekap_6Pilar_Musyrif_Muallimin_${format(new Date(), "yyyyMMdd")}.csv`;
   link.setAttribute("href", url);
   link.setAttribute("download", filename);
   document.body.appendChild(link);

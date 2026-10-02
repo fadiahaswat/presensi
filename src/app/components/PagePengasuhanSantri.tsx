@@ -298,7 +298,7 @@ export function PagePengasuhanSantri({
             <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight flex items-center gap-2">
               <span>Tugas Pengasuhan & RS</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-extrabold border border-rose-200 font-mono">
-                Pilar 2
+                Pilar 1
               </span>
             </h2>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
@@ -362,7 +362,7 @@ export function PagePengasuhanSantri({
           </div>
 
           <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-2 text-center">
-            <span className="text-[10px] text-emerald-700 font-bold block mb-0.5">Total Poin Pilar 2</span>
+            <span className="text-[10px] text-emerald-700 font-bold block mb-0.5">Total Poin Pilar 1</span>
             <p className="text-base sm:text-lg font-black text-emerald-950 font-mono leading-tight">+{stats.totalPoin}</p>
             <span className="text-[9px] text-emerald-600 font-medium block mt-0.5">{stats.totalRecords} Penugasan</span>
           </div>
@@ -425,7 +425,7 @@ export function PagePengasuhanSantri({
                 <HeartHandshake className="w-4 h-4" />
               </div>
               <div className="space-y-0.5 text-xs">
-                <p className="font-bold text-rose-900">Pencatatan Tugas Terintegrasi 4 Pilar</p>
+                <p className="font-bold text-rose-900">Pencatatan Tugas Terintegrasi 6 Pilar (Pilar 1: Kepengasuhan)</p>
                 <p className="text-rose-800 leading-relaxed text-[11px]">
                   Tugas rujukan PKU/RS otomatis disinkronkan ke <b>Logbook (Cek Sakit)</b>, <b>Pantauan Santri Sakit</b>, dan <b>Izin Keluar Berobat</b>. Sesi bimbingan santri otomatis tercatat di <b>Lembar Pembinaan</b>.
                 </p>

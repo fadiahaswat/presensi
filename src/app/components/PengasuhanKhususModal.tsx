@@ -216,7 +216,7 @@ export function PengasuhanKhususModal({
     setIsSubmitting(false);
 
     appAlert(
-      `Tugas pengasuhan berhasil dicatat! Musyrif mendapatkan +${config.defaultPoints} Poin di Pilar Logbook.`,
+      `Tugas pengasuhan berhasil dicatat! Musyrif mendapatkan +${config.defaultPoints} Poin di Pilar 1: Kepengasuhan.`,
       "Berhasil Dicatat",
       "success"
     );
@@ -253,7 +253,7 @@ export function PengasuhanKhususModal({
               <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
                 Tugas Pengasuhan & Bimbingan Santri
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-100 border border-emerald-300/30 font-medium">
-                  Pilar 2
+                  Pilar 1
                 </span>
               </h2>
               <p className="text-xs text-emerald-100/80">

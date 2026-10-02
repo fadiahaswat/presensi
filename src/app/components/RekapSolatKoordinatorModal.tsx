@@ -16,7 +16,9 @@ import {
   Award,
   Sparkles,
   Info,
-  AlertCircle
+  AlertCircle,
+  MapPin,
+  Clock
 } from "lucide-react";
 import { format, subMonths, addMonths, subWeeks, addWeeks, subYears, addYears } from "date-fns";
 import { id } from "date-fns/locale";
@@ -28,6 +30,7 @@ import {
   RekapPeriodType,
   getRekapPeriodInterval
 } from "../utils/exportRekapSolatKoordinator";
+import { detectPresensiAnomalies, AnomalyItem } from "../utils/anomalyService";
 
 interface RekapSolatKoordinatorModalProps {
   isOpen?: boolean;
@@ -57,9 +60,10 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
     return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
   });
 
-  const [activeTab, setActiveTab] = useState<"sparman" | "sedayu" | "overview">("sparman");
+  const [activeTab, setActiveTab] = useState<"sparman" | "sedayu" | "anomali">("sparman");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDiscipline, setFilterDiscipline] = useState<"all" | "green" | "yellow" | "red">("all");
+  const [anomalyFilterKategori, setAnomalyFilterKategori] = useState<string>("all");
 
   // Hitung data rekap sesuai periode
   const rekapData = useMemo(() => {
@@ -69,6 +73,17 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
       academicYearStart
     });
   }, [records, selectedDate, musyrifList, periodType, semesterNumber, academicYearStart]);
+
+  // Hitung data deteksi anomali objektif untuk periode terpilih
+  const anomalyReport = useMemo(() => {
+    const { start, end } = getRekapPeriodInterval(periodType, selectedDate, semesterNumber, academicYearStart);
+    const startStr = format(start, "yyyy-MM-dd");
+    const endStr = format(end, "yyyy-MM-dd");
+    return detectPresensiAnomalies(records, musyrifList, {
+      startDate: startStr,
+      endDate: endStr
+    });
+  }, [records, musyrifList, periodType, selectedDate, semesterNumber, academicYearStart]);
 
   if (!isPage && !isOpen) return null;
 
@@ -354,12 +369,12 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
         </div>
 
         {/* CAMPUS TAB NAVIGASI - CLEAN SEGMENTED PILL */}
-        <div className="px-4 sm:px-5 py-3 border-b border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 gap-1 w-full sm:w-auto">
+        <div className="px-4 sm:px-5 py-2.5 border-b border-slate-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 gap-1 w-full sm:w-auto overflow-x-auto scrollbar-none">
             <button
               type="button"
               onClick={() => setActiveTab("sparman")}
-              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0 ${
                 activeTab === "sparman"
                   ? "bg-white text-sky-700 shadow-xs ring-1 ring-slate-200/60"
                   : "text-slate-600 hover:text-slate-900"
@@ -367,7 +382,7 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
             >
               <Building2 className="w-3.5 h-3.5 text-sky-600 shrink-0" />
               <span>Kampus S. Parman</span>
-              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono whitespace-nowrap ${
                 activeTab === "sparman" ? "bg-sky-50 text-sky-700 font-bold" : "bg-slate-200/70 text-slate-600"
               }`}>
                 {rekapData.sparman.musyrifCount} Musyrif · {rekapData.sparman.avgPct}%
@@ -377,7 +392,7 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
             <button
               type="button"
               onClick={() => setActiveTab("sedayu")}
-              className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0 ${
                 activeTab === "sedayu"
                   ? "bg-white text-sky-700 shadow-xs ring-1 ring-slate-200/60"
                   : "text-slate-600 hover:text-slate-900"
@@ -385,10 +400,30 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
             >
               <Building2 className="w-3.5 h-3.5 text-sky-600 shrink-0" />
               <span>Kampus Terpadu Sedayu</span>
-              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono whitespace-nowrap ${
                 activeTab === "sedayu" ? "bg-sky-50 text-sky-700 font-bold" : "bg-slate-200/70 text-slate-600"
               }`}>
                 {rekapData.sedayu.musyrifCount} Musyrif · {rekapData.sedayu.avgPct}%
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("anomali")}
+              className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap shrink-0 ${
+                activeTab === "anomali"
+                  ? "bg-white text-amber-700 shadow-xs ring-1 ring-amber-200"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <AlertTriangle className={`w-3.5 h-3.5 ${activeTab === "anomali" ? "text-amber-600" : "text-slate-400"} shrink-0`} />
+              <span>Audit Anomali</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold whitespace-nowrap ${
+                anomalyReport.totalAnomali > 0
+                  ? activeTab === "anomali" ? "bg-amber-100 text-amber-800" : "bg-amber-100/80 text-amber-700"
+                  : "bg-emerald-100/70 text-emerald-700"
+              }`}>
+                {anomalyReport.totalAnomali} Temuan
               </span>
             </button>
           </div>
@@ -407,8 +442,191 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
         {/* MODAL BODY */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           
-          {/* KPI STATS ROW */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {activeTab === "anomali" ? (
+            /* TAB AUDIT ANOMALI & VALIDASI PRESENSI OBJEKTIF */
+            <div className="space-y-4">
+              {/* HEADER RINGKASAN ANOMALI */}
+              <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-200/80 rounded-2xl p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="p-1.5 rounded-xl bg-amber-500 text-white shadow-xs">
+                        <AlertTriangle className="w-4 h-4" />
+                      </span>
+                      <h3 className="font-bold text-base text-slate-800">
+                        Audit Integritas & Deteksi Anomali Presensi
+                      </h3>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono">
+                        Periode: {rekapData.periodLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 max-w-2xl">
+                      Sistem memindai rekaman secara otomatis untuk mendeteksi potensi duplikasi input, waktu pengisian di luar batas wajar, dan anomali jarak tanpa prasangka atau penalti otomatis.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="px-3.5 py-2 rounded-xl bg-white border border-amber-200 text-center shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Total Temuan</p>
+                      <p className="text-lg font-black text-amber-700 font-mono">
+                        {anomalyReport.totalAnomali}
+                      </p>
+                    </div>
+                    <div className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-center shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Musyrif Terkait</p>
+                      <p className="text-lg font-black text-slate-800 font-mono">
+                        {anomalyReport.totalMusyrifTerkena}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* KPI KATEGORI ANOMALI PILLS */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4 border-t border-amber-200/60">
+                  {[
+                    { label: "Duplikasi Input", count: anomalyReport.byKategori["Duplikasi Input"] || 0, icon: <Users className="w-3.5 h-3.5" /> },
+                    { label: "Waktu Tidak Wajar", count: anomalyReport.byKategori["Waktu Tidak Wajar"] || 0, icon: <Clock className="w-3.5 h-3.5" /> },
+                    { label: "Radius Jauh", count: anomalyReport.byKategori["Radius Jauh"] || 0, icon: <MapPin className="w-3.5 h-3.5" /> },
+                    { label: "Inkonsistensi Status", count: anomalyReport.byKategori["Inkonsistensi Status"] || 0, icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+                  ].map(cat => (
+                    <button
+                      key={cat.label}
+                      type="button"
+                      onClick={() => setAnomalyFilterKategori(prev => prev === cat.label ? "all" : cat.label)}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        anomalyFilterKategori === cat.label
+                          ? "bg-white border-amber-500 shadow-xs ring-2 ring-amber-500/20"
+                          : "bg-white/80 hover:bg-white border-slate-200/80 shadow-2xs"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-slate-500">{cat.icon}</span>
+                        <span className="text-xs font-black font-mono px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-700">
+                          {cat.count}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-700 truncate">{cat.label}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* DAFTAR TEMUAN ANOMALI */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                      Daftar Anomali Terdeteksi ({
+                        anomalyReport.items.filter(item => {
+                          const matchCat = anomalyFilterKategori === "all" || item.kategori === anomalyFilterKategori;
+                          const matchSearch = !searchQuery.trim() || item.musyrifName.toLowerCase().includes(searchQuery.toLowerCase()) || item.asrama.toLowerCase().includes(searchQuery.toLowerCase());
+                          return matchCat && matchSearch;
+                        }).length
+                      })
+                    </h4>
+                  </div>
+                  {anomalyFilterKategori !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setAnomalyFilterKategori("all")}
+                      className="text-[11px] font-bold text-sky-600 hover:text-sky-700 underline"
+                    >
+                      Tampilkan Semua Kategori
+                    </button>
+                  )}
+                </div>
+
+                {anomalyReport.items.length === 0 ? (
+                  <div className="p-8 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl text-center space-y-2">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <p className="font-bold text-sm text-emerald-900">
+                      Tidak Ditemukan Anomali Presensi
+                    </p>
+                    <p className="text-xs text-emerald-700 max-w-md mx-auto">
+                      Seluruh data kehadiran pada periode <b>{rekapData.periodLabel}</b> tersimpan secara wajar, konsisten, dan sesuai ketentuan waktu serta lokasi kampus.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {anomalyReport.items
+                      .filter(item => {
+                        const matchCat = anomalyFilterKategori === "all" || item.kategori === anomalyFilterKategori;
+                        const matchSearch = !searchQuery.trim() || item.musyrifName.toLowerCase().includes(searchQuery.toLowerCase()) || item.asrama.toLowerCase().includes(searchQuery.toLowerCase());
+                        return matchCat && matchSearch;
+                      })
+                      .map(item => {
+                        const isSevere = item.severity === "waspada";
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-3.5 rounded-2xl border transition-all bg-white ${
+                              isSevere
+                                ? "border-amber-300 hover:border-amber-400 shadow-2xs"
+                                : "border-slate-200/90 hover:border-slate-300 shadow-2xs"
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center flex-wrap gap-2">
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                    item.kategori === "Duplikasi Input"
+                                      ? "bg-rose-100 text-rose-800"
+                                      : item.kategori === "Waktu Tidak Wajar"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : item.kategori === "Radius Jauh"
+                                      ? "bg-sky-100 text-sky-800"
+                                      : "bg-purple-100 text-purple-800"
+                                  }`}>
+                                    {item.kategori}
+                                  </span>
+
+                                  <span className="text-xs font-bold text-slate-800 font-mono">
+                                    {item.date} {item.slot ? `· ${item.slot.toUpperCase()}` : ""}
+                                  </span>
+
+                                  <span className="text-[11px] text-slate-400">
+                                    • {item.asrama}
+                                  </span>
+                                </div>
+
+                                <p className="text-xs font-bold text-slate-900">
+                                  {item.musyrifName}
+                                </p>
+
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                  {item.detail}
+                                </p>
+                              </div>
+
+                              <div className="bg-slate-50 border border-slate-200/70 p-2 rounded-xl text-right shrink-0">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Nilai Terdeteksi</p>
+                                <p className="text-xs font-black text-slate-700 font-mono">
+                                  {item.nilaiTerdeteksi || "-"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* REKOMENDASI PENANGANAN OBJEKTIF */}
+                            <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50/70 -mx-3.5 -mb-3.5 p-2.5 rounded-b-2xl">
+                              <Info className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                              <span className="font-medium text-slate-700">Rekomendasi Tindakan:</span>
+                              <span className="text-slate-600">{item.rekomendasi}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* TAB KAMPUS SPARMAN & SEDAYU REKAP TABLE */
+            <>
+              {/* KPI STATS ROW */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3">
               <p className="text-[11px] font-medium text-slate-500">Rata-rata Presensi</p>
               <div className="flex items-baseline gap-1 mt-1">
@@ -646,6 +864,8 @@ export const RekapSolatKoordinatorModal: React.FC<RekapSolatKoordinatorModalProp
           <p className="text-[11px] text-slate-400 italic">
             * Data diurutkan secara otomatis dari kehadiran/persentase tertinggi ke terendah. Saat mencetak ke PDF, dokumen otomatis diformat 1 lembar A4 portrait untuk Kampus S. Parman dan 1 lembar A4 portrait untuk Kampus Sedayu.
           </p>
+        </>
+      )}
         </div>
 
         {/* MODAL FOOTER */}

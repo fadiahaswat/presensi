@@ -10,11 +10,12 @@ import {
   ShieldCheck, ShieldAlert, Layers, Smile, GraduationCap, Crown, Sparkles, Feather, Coffee,
   Share2, FileCheck2, BellRing, Trophy, FileSpreadsheet, Wifi, WifiOff, Send,
   Smartphone, HeartPulse, HeartHandshake, Building2, Medal, Wrench, Wallet, Eye,
-  List, LayoutGrid, Trash2
+  List, LayoutGrid, Trash2, Languages, BookCheck
 } from "lucide-react";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  isToday, subMonths, addMonths, isBefore, startOfDay, parseISO, addDays, subDays
+  isToday, subMonths, addMonths, isBefore, startOfDay, parseISO, addDays, subDays,
+  subWeeks, addWeeks, subYears, addYears
 } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -72,8 +73,6 @@ const PagePembinaanSantri = lazy(() => import("./components/PagePembinaanSantri"
 const PageAgendaRapat = lazy(() => import("./components/PageAgendaRapat").then(m => ({ default: m.PageAgendaRapat })));
 const PageIbadah = lazy(() => import("./components/PageIbadah").then(m => ({ default: m.PageIbadah })));
 const LoginModal = lazy(() => import("./components/LoginModal").then(m => ({ default: m.LoginModal })));
-const IntegrityAuditModal = lazy(() => import("./components/IntegrityAuditModal").then(m => ({ default: m.IntegrityAuditModal })));
-import { scanAnomalies, IntegrityViolation } from "./utils/anomalyDetector";
 
 import { AgendaRapatRecord, AGENDA_CATEGORIES } from "./types/agendaRapat";
 import { googleSyncService } from "./utils/googleSyncService";
@@ -89,6 +88,8 @@ import { isDbAdmin as checkDbAdmin, getPamongType, hasFullAccess as checkFullAcc
 import { fetchIzinSedayuFromCloud, createIzinSedayuInCloud, updateIzinSedayuStatusInCloud, mapIzinSedayuToRecord } from "./utils/izinSedayuSync";
 import { DynamicDashboardBanner } from "./components/DynamicDashboardBanner";
 import { calculateMonthlyPembinaanStats, MusyrifAttendanceStats } from "./utils/pembinaanMusyrifUtils";
+import { calculate6PilarScores, PilarId, PILAR_METADATA } from "./utils/pilarMusyrifUtils";
+import { getRekapPeriodInterval, type RekapPeriodType } from "./utils/exportRekapSolatKoordinator";
 import { compressAndWatermarkImage } from "./utils/imageCompressor";
 import {
   calcPrayerTimes,
@@ -126,7 +127,7 @@ export {
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 type Role = "pamong" | "koordinator_musyrif" | "koordinator_gedung" | "musyrif" | "kaur_kis" | "wadir4";
-type Page = "dashboard" | "subuh" | "ashar" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "rekap-solat-koordinator" | "integrity-audit" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
+type Page = "dashboard" | "subuh" | "ashar" | "maghrib" | "rekap" | "riwayat" | "ibadah" | "logbook" | "galeri-logbook" | "mutabaah" | "santri-sakit" | "pembinaan" | "izin" | "izin-santri" | "kegiatan" | "leaderboard" | "raport" | "musyrif-manager" | "pamong-manager" | "rekap-solat-koordinator" | "kalender-hijriah" | "kalender-pendidikan" | "data-santri" | "peta-santri" | "notifikasi" | "about-syamsa";
 
 interface AuthUser { id: string; name: string; email: string; role: Role; asrama?: string; musyrifId?: string; picture?: string; phone?: string; }
 interface Musyrif {
@@ -729,7 +730,6 @@ function PageDashboard({
   onOpenPamongManager,
   onOpenKalenderHijriah,
   onOpenKalenderPendidikan,
-  onOpenIntegrityAudit,
   onInstallPWA,
   onLogin,
   onSetTargetAsrama,
@@ -749,8 +749,7 @@ function PageDashboard({
   agendaRapatList = [],
   canDeletePhoto = false,
   onSaveLogbook,
-  showToast,
-  detectedViolations = []
+  showToast
 }: {
   records: AttendanceRecord[];
   authUser: AuthUser|null;
@@ -770,7 +769,6 @@ function PageDashboard({
   onOpenMusyrifManager?: () => void;
   onOpenRekapSolatKoordinator?: () => void;
   onOpenPamongManager?: () => void;
-  onOpenIntegrityAudit?: () => void;
   onOpenKalenderHijriah?: () => void;
   onOpenKalenderPendidikan?: () => void;
   onInstallPWA?: () => void;
@@ -792,7 +790,6 @@ function PageDashboard({
   canDeletePhoto?: boolean;
   onSaveLogbook?: (musyrifId: string, date: string, entry: JurnalLogbookEntry) => void;
   showToast?: (msg: string, type: "success" | "error" | "info") => void;
-  detectedViolations?: IntegrityViolation[];
 }) {
   const allRaw = musyrifList && musyrifList.length > 0 ? musyrifList : MUSYRIF_LIST;
   const mList = allRaw.filter(isFieldMusyrif).sort(sortMusyrifByClass);
@@ -1363,8 +1360,6 @@ function PageDashboard({
 
       {/* DYNAMIC UNIFIED DASHBOARD BANNER (Audit Integritas / Peringatan Pembinaan / Pengumuman Koor / Logbook / Mutabaah / Sakit / Izin / Rapat / Perpulangan / Puasa) */}
       <DynamicDashboardBanner
-        detectedViolations={detectedViolations}
-        onOpenIntegrityAudit={onOpenIntegrityAudit}
         myPembinaanStats={myPembinaanStats}
         isKoorMusyrif={isKoorMusyrif}
         todayFasts={todayFasts}
@@ -1978,7 +1973,7 @@ function PageDashboard({
         {!authUser ? (
           /* Public Mode Services Grid */
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
-            {/* 1. Leaderboard 4 Pilar */}
+            {/* 1. Leaderboard 6 Pilar */}
             <button
               type="button"
               onClick={() => onGoTo("leaderboard")}
@@ -1988,7 +1983,7 @@ function PageDashboard({
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
                   <Trophy className="w-4 h-4"/>
                 </div>
-                <span className="text-[10px] font-bold text-purple-700 font-mono">4 Pilar</span>
+                <span className="text-[10px] font-bold text-purple-700 font-mono">6 Pilar</span>
               </div>
               <div>
                 <p className="font-bold text-xs text-slate-800 leading-tight">Papan Peringkat</p>
@@ -2225,7 +2220,7 @@ function PageDashboard({
                 </div>
               </button>
 
-              {/* 3. Leaderboard 4 Pilar */}
+              {/* 3. Leaderboard 6 Pilar */}
               <button
                 type="button"
                 onClick={() => onGoTo("leaderboard")}
@@ -2237,7 +2232,7 @@ function PageDashboard({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
                     <p className="font-bold text-xs text-slate-800 truncate">Peringkat</p>
-                    <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded font-mono shrink-0">4 Pilar</span>
+                    <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded font-mono shrink-0">6 Pilar</span>
                   </div>
                   <p className="text-[10px] text-slate-400 truncate mt-0.5">Papan Skor</p>
                 </div>
@@ -2507,7 +2502,7 @@ function PageDashboard({
                   </div>
                 </button>
 
-                {/* 11. Peringkat Musyrif / Leaderboard 4 Pilar */}
+                {/* 11. Peringkat Musyrif / Leaderboard 6 Pilar */}
                 <button
                   type="button"
                   onClick={() => onGoTo("leaderboard")}
@@ -2519,7 +2514,7 @@ function PageDashboard({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <p className="font-bold text-xs text-slate-800 truncate">Peringkat</p>
-                      <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded font-mono shrink-0">4 Pilar</span>
+                      <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded font-mono shrink-0">6 Pilar</span>
                     </div>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">Papan Skor</p>
                   </div>
@@ -2565,23 +2560,6 @@ function PageDashboard({
                   </button>
                 )}
 
-                {/* 14. Papan Audit Integritas & Deteksi Anomali */}
-                <button
-                  type="button"
-                  onClick={() => onOpenIntegrityAudit && onOpenIntegrityAudit()}
-                  className="group p-2.5 rounded-2xl bg-white border border-slate-100 ring-1 ring-slate-200/60 hover:border-rose-500 hover:shadow-xs transition-all text-left flex items-center gap-2.5 active:scale-[0.98]"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <p className="font-bold text-xs text-slate-800 truncate">Audit</p>
-                      <span className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded font-mono shrink-0">Shield</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">Anti-Bot & Anomali</p>
-                  </div>
-                </button>
               </div>
             </div>
           </div>
@@ -2856,15 +2834,15 @@ function PageDashboard({
               ))}
             </div>
 
-            {/* Footer — link ke Leaderboard 4 Pilar */}
+            {/* Footer — link ke Leaderboard & Evaluasi 6 Pilar */}
             <button
               type="button"
-              onClick={()=>onGoTo("leaderboard")}
+              onClick={() => onGoTo("rekap")}
               className="w-full flex items-center justify-between px-3.5 py-2.5 border-t border-slate-100 text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-50/60 transition-colors group"
             >
               <div className="flex items-center gap-1.5">
                 <Trophy className="w-3.5 h-3.5"/>
-                <span>Buka Papan Peringkat 4 Pilar Terpisah</span>
+                <span>Buka Papan Peringkat & Evaluasi KPI</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"/>
             </button>
@@ -2880,26 +2858,41 @@ function PageDashboard({
             indicatorColor="bg-rose-500"
             className="mb-2"
           />
-          <Card ch={<div className="divide-y divide-slate-100">
-            {alfaRank.map(m=>(
-              <button 
-                key={m.id} 
-                onClick={()=>setDetailMusyrif(m)}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-slate-50 transition-colors"
-              >
-                <Av name={m.name} src={m.photo} sz="xs"/>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate leading-tight">{m.name}</p>
-                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{m.asrama}</p>
-                </div>
-                <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 px-2 py-1 rounded-lg">
-                  <AlertCircle className="w-3 h-3 text-rose-500"/>
-                  <span className="text-xs font-bold text-rose-700 font-mono">{m.alfa}</span>
-                  <span className="text-[10px] text-rose-600 font-semibold">Alfa</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/>
-              </button>
-            ))}
+          <Card ch={<div>
+            <div className="divide-y divide-slate-100">
+              {alfaRank.map(m=>(
+                <button 
+                  key={m.id} 
+                  onClick={()=>setDetailMusyrif(m)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-slate-50 transition-colors"
+                >
+                  <Av name={m.name} src={m.photo} sz="xs"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate leading-tight">{m.name}</p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{m.asrama}</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 px-2 py-1 rounded-lg">
+                    <AlertCircle className="w-3 h-3 text-rose-500"/>
+                    <span className="text-xs font-bold text-rose-700 font-mono">{m.alfa}</span>
+                    <span className="text-[10px] text-rose-600 font-semibold">Alfa</span>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"/>
+                </button>
+              ))}
+            </div>
+
+            {/* Footer — link ke Audit & Rekap Presensi */}
+            <button
+              type="button"
+              onClick={() => onGoTo(authUser.role === "koordinator_musyrif" ? "rekap-solat-koordinator" : "rekap")}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 border-t border-slate-100 text-[11px] font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50/60 transition-colors group"
+            >
+              <div className="flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-rose-500"/>
+                <span>Buka Audit & Rekap Presensi Salat Lengkap</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"/>
+            </button>
           </div>}/>
         </div>
       )}
@@ -4075,7 +4068,8 @@ function PageRekap({
   mutabaahData = {},
   kegiatanRecords = [],
   pengasuhanList = [],
-  agendaList = []
+  agendaList = [],
+  initialView = "kpi"
 }: { 
   records: AttendanceRecord[]; 
   authUser?: AuthUser | null; 
@@ -4088,20 +4082,46 @@ function PageRekap({
   kegiatanRecords?: any[];
   pengasuhanList?: any[];
   agendaList?: any[];
+  initialView?: "presensi" | "kpi" | "koordinator";
 }) {
   const allM = musyrifListAll && musyrifListAll.length > 0 ? musyrifListAll : MUSYRIF_LIST;
   const [viewMonth, setViewMonth] = useState(new Date());
   const [filterAsrama, setFilterAsrama] = useState("Semua");
   const [search, setSearch] = useState("");
-  const [activeView, setActiveView] = useState<"presensi" | "kpi">("kpi");
+  const [activeView, setActiveView] = useState<"presensi" | "kpi" | "koordinator">(initialView || "kpi");
+  const [selectedPillar, setSelectedPillar] = useState<PilarId>("all");
   const [sortBy, setSortBy] = useState<"kpi" | "pct" | "name">("kpi");
   const [detail, setDetail] = useState<any | null>(null);
   const [chartSlotFilter, setChartSlotFilter] = useState<"all" | "subuh" | "ashar" | "maghrib">("all");
-  const mk = format(viewMonth, "yyyy-MM");
 
-  const days = useMemo(() => eachDayOfInterval({ start: startOfMonth(viewMonth), end: endOfMonth(viewMonth) })
-    .filter(d => !isBefore(new Date(), startOfDay(d)) || isToday(d)), [viewMonth]);
-  const mRecs = records.filter(r => r.date.startsWith(mk));
+  useEffect(() => {
+    if (initialView) setActiveView(initialView);
+  }, [initialView]);
+  const [periodType, setPeriodType] = useState<RekapPeriodType>("bulan");
+  const [semesterNumber, setSemesterNumber] = useState<1 | 2>(() => {
+    const now = new Date();
+    return now.getMonth() >= 6 ? 1 : 2;
+  });
+  const [academicYearStart, setAcademicYearStart] = useState<number>(() => {
+    const now = new Date();
+    return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  });
+
+  const periodInterval = useMemo(() => {
+    return getRekapPeriodInterval(periodType, viewMonth, semesterNumber, academicYearStart);
+  }, [periodType, viewMonth, semesterNumber, academicYearStart]);
+
+  const days = useMemo(() => {
+    return eachDayOfInterval({ start: periodInterval.start, end: periodInterval.end })
+      .filter(d => !isBefore(new Date(), startOfDay(d)) || isToday(d));
+  }, [periodInterval]);
+
+  const mk = format(viewMonth, "yyyy-MM");
+  const mRecs = useMemo(() => {
+    const startStr = format(periodInterval.start, "yyyy-MM-dd");
+    const endStr = format(periodInterval.end, "yyyy-MM-dd");
+    return records.filter(r => r.date >= startStr && r.date <= endStr);
+  }, [records, periodInterval]);
   const fMusyrif = useMemo(() => {
     let l = (filterAsrama === "Semua" ? allM : allM.filter(m => m.asrama === filterAsrama)).filter(isFieldMusyrif).sort(sortMusyrifByClass);
     if (search) l = l.filter(m => (m.name || "").toLowerCase().includes(search.toLowerCase()));
@@ -4269,27 +4289,40 @@ function PageRekap({
       }
     });
 
-    const totalKpiScore = sholatScore + logbookScore + kegiatanScore + mutabaahPoints;
+    const pilarScores = calculate6PilarScores(
+      m,
+      records,
+      logbookData,
+      kegiatanRecords,
+      mutabaahData,
+      pengasuhanList,
+      agendaList,
+      mk
+    );
 
-    // Predikat / Grade - Proposional terhadap hari aktif yang berjalan
+    const totalKpiScore = pilarScores.totalScore;
+
+    // Predikat / Grade - Murni berjenjang proporsional terhadap Total Skor KPI
     const activeDaysCount = Math.max(1, days.length);
-    // Target ekspektasi rata-rata poin KPI per hari adalah ~10-15 poin
-    const expectedScoreJayyid = activeDaysCount * 6;      // misal hari 1 = 6 poin, hari 30 = 180 poin
-    const expectedScoreJayyidJiddan = activeDaysCount * 10; // misal hari 1 = 10 poin, hari 30 = 300 poin
-    const expectedScoreMumtaz = activeDaysCount * 14;      // misal hari 1 = 14 poin, hari 30 = 420 poin
+    const expectedScoreJayyid = activeDaysCount * 6;
+    const expectedScoreJayyidJiddan = activeDaysCount * 10;
+    const expectedScoreMumtaz = activeDaysCount * 14;
 
     let predikat = "Mumtaz";
     let predikatBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
 
-    if (pct < 50 || totalAlfa >= 4) {
+    if (totalKpiScore < expectedScoreJayyid) {
       predikat = "Maqbul";
       predikatBadge = "bg-rose-100 text-rose-800 border-rose-300";
-    } else if (pct < 70 || totalKpiScore < expectedScoreJayyid) {
+    } else if (totalKpiScore < expectedScoreJayyidJiddan) {
       predikat = "Jayyid";
       predikatBadge = "bg-amber-100 text-amber-800 border-amber-300";
-    } else if (pct < 85 || totalKpiScore < expectedScoreJayyidJiddan) {
+    } else if (totalKpiScore < expectedScoreMumtaz) {
       predikat = "Jayyid Jiddan";
       predikatBadge = "bg-blue-100 text-blue-800 border-blue-300";
+    } else {
+      predikat = "Mumtaz";
+      predikatBadge = "bg-emerald-100 text-emerald-800 border-emerald-300";
     }
 
     return {
@@ -4301,28 +4334,32 @@ function PageRekap({
       totalAlfa,
       totalIzinSakit,
       pct,
-      sholatScore,
-      logbookTasksDone,
-      pengasuhanCount,
-      pengasuhanPoints,
-      logbookScore,
-      kegiatanDone,
-      kegiatanScore,
-      mutabaahPoints,
-      mutabaahDaysCount,
+      ...pilarScores,
       totalKpiScore,
       predikat,
       predikatBadge
     };
   }).sort((a, b) => {
+    if (activeView === "kpi" && selectedPillar !== "all") {
+      if (selectedPillar === "kepengasuhan") return (b.kepengasuhanScore || 0) - (a.kepengasuhanScore || 0) || b.pct - a.pct;
+      if (selectedPillar === "quran") return (b.quranScore || 0) - (a.quranScore || 0) || b.pct - a.pct;
+      if (selectedPillar === "ibadah") return (b.ibadahScore || 0) - (a.ibadahScore || 0) || b.pct - a.pct;
+      if (selectedPillar === "bahasa") return (b.bahasaScore || 0) - (a.bahasaScore || 0) || b.pct - a.pct;
+      if (selectedPillar === "kebersihan") return (b.kebersihanScore || 0) - (a.kebersihanScore || 0) || b.pct - a.pct;
+      if (selectedPillar === "kedisiplinan") return (b.kedisiplinanScore || 0) - (a.kedisiplinanScore || 0) || b.pct - a.pct;
+    }
     if (sortBy === "kpi") return b.totalKpiScore - a.totalKpiScore || b.pct - a.pct;
     if (sortBy === "pct") return b.pct - a.pct || b.totalKpiScore - a.totalKpiScore;
     return a.name.localeCompare(b.name);
-  }), [fMusyrif, mRecs, days, sortBy, mk, logbookData, mutabaahData, kegiatanRecords, pengasuhanList, agendaList]);
+  }), [fMusyrif, mRecs, days, sortBy, mk, logbookData, mutabaahData, kegiatanRecords, pengasuhanList, agendaList, activeView, selectedPillar]);
 
   // Overall KPI aggregates for summary
   const avgKpiScore = ranked.length ? Math.round(ranked.reduce((acc, m) => acc + m.totalKpiScore, 0) / ranked.length) : 0;
+  const avgPct = ranked.length ? Math.round(ranked.reduce((acc, m) => acc + m.pct, 0) / ranked.length) : 0;
   const totalMumtazCount = ranked.filter(m => m.predikat === "Mumtaz").length;
+  const totalJayyidJiddanCount = ranked.filter(m => m.predikat === "Jayyid Jiddan").length;
+  const totalJayyidCount = ranked.filter(m => m.predikat === "Jayyid").length;
+  const totalMaqbulCount = ranked.filter(m => m.predikat === "Maqbul").length;
 
   const weeklyData = Array.from({ length: Math.max(1, Math.ceil(days.length / 7)) }, (_, wi) => {
     const wDays = days.slice(wi * 7, wi * 7 + 7);
@@ -4348,10 +4385,21 @@ function PageRekap({
   const detailM = detail ? ranked.find(r => r.id === detail.id) : null;
   const detailRecs = detail ? mRecs.filter(r => r.musyrifId === detail.id) : [];
 
+  const getScoreForDisplay = (m: any) => {
+    if (selectedPillar === "all") return `${m.totalKpiScore} Poin`;
+    if (selectedPillar === "kepengasuhan") return `${m.kepengasuhanScore || 0} Pts`;
+    if (selectedPillar === "quran") return `${m.quranScore || 0} Pts`;
+    if (selectedPillar === "ibadah") return `${m.ibadahScore || 0} Pts`;
+    if (selectedPillar === "bahasa") return `${m.bahasaScore || 0} Pts`;
+    if (selectedPillar === "kebersihan") return `${m.kebersihanScore || 0} Pts`;
+    if (selectedPillar === "kedisiplinan") return `${m.kedisiplinanScore || 0} Pts`;
+    return `${m.totalKpiScore} Poin`;
+  };
+
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
-      {/* 1. Unified Master Header Card with KPI Overview */}
-      <div className="bg-white rounded-3xl p-4 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
+      {/* 1. Master Header Card with Primary View Navigation */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm ring-1 ring-slate-200/70 border border-slate-100/50 flex flex-col gap-3.5">
         {/* Top title & Cetak PDF action button */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -4368,310 +4416,562 @@ function PageRekap({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {authUser?.role === "koordinator_musyrif" && onOpenRekapSolatKoordinator && (
-              <button
-                type="button"
-                onClick={onOpenRekapSolatKoordinator}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-sky-800 ring-sky-300 bg-sky-100 hover:bg-sky-200"
-              >
-                <Award className="w-3.5 h-3.5 text-sky-600"/>
-                <span>Rekap Salat (Sparman & Sedayu)</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => exportPDF(records, viewMonth, filterAsrama, musyrifListAll)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
-            >
-              <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
-              <span>Cetak PDF</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Integrated Month Navigation Row */}
-        <div className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-1.5 border border-slate-100/80">
           <button
             type="button"
-            onClick={() => setViewMonth(subMonths(viewMonth, 1))}
-            title="Bulan sebelumnya"
-            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
+            onClick={() => exportPDF(records, viewMonth, filterAsrama, musyrifListAll)}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 flex-shrink-0 text-[#0C4E8C] ring-sky-200 bg-sky-50 hover:bg-sky-100/80"
           >
-            <ChevronLeft className="w-4 h-4"/>
-          </button>
-          <div className="text-center px-2">
-            <p className="text-xs sm:text-sm font-extrabold text-slate-800 font-mono leading-tight">
-              {format(viewMonth, "MMMM yyyy", { locale: id })}
-            </p>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-              {days.length} Hari Aktif Bulan Ini
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-            title="Bulan berikutnya"
-            className="w-8 h-8 rounded-xl bg-white shadow-2xs hover:bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition-all flex-shrink-0"
-          >
-            <ChevronRight className="w-4 h-4"/>
+            <Printer className="w-3.5 h-3.5 text-[#0C81E4]"/>
+            <span>Cetak PDF</span>
           </button>
         </div>
 
-        {/* 4 Pilar KPI Quick Metric Highlights */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-          <div className="bg-amber-50/70 rounded-2xl p-2.5 border border-amber-200/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Pilar 1: Shalat</span>
-              <Sun className="w-3.5 h-3.5 text-amber-600"/>
-            </div>
-            <p className="text-lg font-black text-amber-950 font-mono mt-1">{Math.round((rate("subuh") + rate("ashar") + rate("maghrib")) / 3)}%</p>
-            <p className="text-[9px] text-amber-700 mt-0.5">Rata-rata Subuh, Ashar & Maghrib</p>
-          </div>
-
-          <div className="bg-sky-50/70 rounded-2xl p-2.5 border border-sky-200/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">Pilar 2: Logbook</span>
-              <ClipboardList className="w-3.5 h-3.5 text-sky-600"/>
-            </div>
-            <p className="text-lg font-black text-sky-950 font-mono mt-1">
-              {ranked.reduce((acc, m) => acc + m.logbookTasksDone, 0)} <span className="text-xs font-normal text-sky-700">tugas</span>
-            </p>
-            <p className="text-[9px] text-sky-700 mt-0.5">Total checklist & khusus</p>
-          </div>
-
-          <div className="bg-purple-50/70 rounded-2xl p-2.5 border border-purple-200/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider">Pilar 3: Agenda</span>
-              <Building2 className="w-3.5 h-3.5 text-purple-600"/>
-            </div>
-            <p className="text-lg font-black text-purple-950 font-mono mt-1">
-              {ranked.reduce((acc, m) => acc + m.kegiatanDone, 0)} <span className="text-xs font-normal text-purple-700">sesi</span>
-            </p>
-            <p className="text-[9px] text-purple-700 mt-0.5">Rapat & agenda asrama</p>
-          </div>
-
-          <div className="bg-emerald-50/70 rounded-2xl p-2.5 border border-emerald-200/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Pilar 4: Sunnah</span>
-              <BookOpen className="w-3.5 h-3.5 text-emerald-600"/>
-            </div>
-            <p className="text-lg font-black text-emerald-950 font-mono mt-1">
-              {ranked.reduce((acc, m) => acc + m.mutabaahPoints, 0)} <span className="text-xs font-normal text-emerald-700">pts</span>
-            </p>
-            <p className="text-[9px] text-emerald-700 mt-0.5">Akumulasi Mutaba'ah</p>
-          </div>
-        </div>
-
-        {/* View Tab Switcher: KPI 4 Pilar vs Presensi Shalat */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl">
+        {/* Primary View Navigation Switcher */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl">
           <button
             type="button"
             onClick={() => { setActiveView("kpi"); setSortBy("kpi"); }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
               activeView === "kpi" 
                 ? "bg-white text-[#0C4E8C] shadow-xs" 
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
             <Trophy className="w-3.5 h-3.5 text-amber-500"/>
-            <span>Evaluasi KPI 4 Pilar</span>
+            <span>Evaluasi KPI 6 Pilar</span>
           </button>
           <button
             type="button"
             onClick={() => { setActiveView("presensi"); setSortBy("pct"); }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
               activeView === "presensi" 
                 ? "bg-white text-[#0C4E8C] shadow-xs" 
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
             <Sun className="w-3.5 h-3.5 text-amber-500"/>
-            <span>Presensi Shalat Saja</span>
+            <span>Khusus Presensi Shalat</span>
           </button>
         </div>
-      </div>
 
-      {/* 4. Weekly Trend Chart with Interactive Slot Filter */}
-      {activeView === "presensi" && (
-        <Card ch={<div className="p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-            <div>
-              <p className="font-bold text-sm text-slate-800">Tren Kehadiran Mingguan</p>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5">Persentase per pekan {filterAsrama !== "Semua" ? `· ${filterAsrama}` : ""}</p>
-            </div>
-            
-            <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl self-start sm:self-auto">
-              {[
-                { id: "all", label: "Semua" },
-                { id: "subuh", label: "Subuh" },
-                { id: "ashar", label: "Ashar" },
-                { id: "maghrib", label: "Maghrib" }
-              ].map(tab => (
+        {/* Integrated Period Navigation Row (Hanya jika KPI) */}
+        {activeView === "kpi" && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/80 rounded-2xl p-2 border border-slate-100/80">
+            {/* Segmented Pill: Pekan / Bulan / Semester / Tahun Ajaran */}
+            <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200/90 shadow-2xs gap-1 shrink-0 overflow-x-auto scrollbar-none">
+              {(["pekan", "bulan", "semester", "tahun_ajaran"] as const).map(pt => (
                 <button
-                  key={tab.id}
+                  key={pt}
                   type="button"
-                  onClick={() => setChartSlotFilter(tab.id as any)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${
-                    chartSlotFilter === tab.id
-                      ? "bg-white text-[#0C4E8C] shadow-2xs font-bold"
-                      : "text-slate-500 hover:text-slate-800"
+                  onClick={() => setPeriodType(pt)}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all capitalize whitespace-nowrap shrink-0 ${
+                    periodType === pt
+                      ? "bg-sky-600 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  {tab.label}
+                  {pt === "tahun_ajaran" ? "Tahun Ajaran" : pt}
                 </button>
               ))}
             </div>
-          </div>
 
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={weeklyData} barGap={3} barCategoryGap="25%">
-              <XAxis dataKey="week" tick={{ fontSize: 10, fill: "#94a3b8", fontFamily: "'JetBrains Mono',monospace" }} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={{ background: "#fff", border: "none", boxShadow: "0 8px 24px rgba(0,0,0,.08)", borderRadius: 14, fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }} formatter={(v: number, n: string) => [`${v}%`, n === "subuh" ? "Subuh" : n === "ashar" ? "Ashar" : "Maghrib"]}/>
-              {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
-                <Bar dataKey="subuh" name="subuh" fill="#f59e0b" radius={[4, 4, 0, 0]}/>
-              )}
-              {(chartSlotFilter === "all" || chartSlotFilter === "ashar") && (
-                <Bar dataKey="ashar" name="ashar" fill="#f97316" radius={[4, 4, 0, 0]}/>
-              )}
-              {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
-                <Bar dataKey="maghrib" name="maghrib" fill="#0C4E8C" radius={[4, 4, 0, 0]}/>
-              )}
-            </BarChart>
-          </ResponsiveContainer>
-
-          <div className="flex gap-4 mt-2 justify-center">
-            {(chartSlotFilter === "all" || chartSlotFilter === "subuh") && (
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500"/><span className="text-[10px] text-slate-500 font-medium">Subuh</span></div>
-            )}
-            {(chartSlotFilter === "all" || chartSlotFilter === "ashar") && (
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-orange-500"/><span className="text-[10px] text-slate-500 font-medium">Ashar</span></div>
-            )}
-            {(chartSlotFilter === "all" || chartSlotFilter === "maghrib") && (
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-[#0C4E8C]"/><span className="text-[10px] text-slate-500 font-medium">Maghrib</span></div>
-            )}
-          </div>
-        </div>}/>
-      )}
-
-      {/* 5. Filters & Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
-          <input 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-            placeholder="Cari nama musyrif..." 
-            className="w-full pl-9 pr-4 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-400 font-medium shadow-2xs"
-          />
-        </div>
-        <div className="flex gap-2">
-          <select 
-            value={filterAsrama} 
-            onChange={e => setFilterAsrama(e.target.value)} 
-            className="px-3 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-700 font-medium shadow-2xs cursor-pointer"
-          >
-            {["Semua", ...ASRAMAS].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <button 
-            type="button"
-            onClick={() => setSortBy(s => s === "kpi" ? "pct" : s === "pct" ? "name" : "kpi")} 
-            className="px-3 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 hover:bg-slate-50 text-slate-700 font-medium shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all"
-            title="Ubah Urutan"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500"/>
-            <span>{sortBy === "kpi" ? "Poin KPI" : sortBy === "pct" ? "% Shalat" : "Nama A-Z"}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 6. Musyrif Ranking Table (Holistic KPI 4 Pilar or Shalat) */}
-      <Card ch={<div>
-        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <p className="font-bold text-sm text-slate-800">
-              {activeView === "kpi" ? "Peringkat Kinerja Musyrif (KPI 4 Pilar)" : "Daftar Kehadiran Shalat Musyrif"}
-            </p>
-            {activeView === "kpi" && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                Avg: {avgKpiScore} Poin
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] text-slate-400 font-mono">{ranked.length} musyrif</span>
-        </div>
-        <div className="divide-y divide-slate-50">
-          {ranked.map((m, i) => (
-            <button key={m.id} type="button" onClick={() => setDetail(m)} className="w-full px-4 sm:px-5 py-3.5 flex items-center gap-3 hover:bg-slate-50/80 transition-colors text-left group">
-              <span className="text-xs font-bold text-slate-400 w-5 text-center font-mono">
-                {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
-              </span>
-              <Av name={m.name} src={m.photo} sz="sm"/>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate group-hover:text-emerald-700 transition-colors">{m.name}</p>
-                  {activeView === "kpi" && (
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${m.predikatBadge}`}>
-                      {m.predikat}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-400 truncate">{m.asrama} · {m.kelas}</p>
-              </div>
-
-              {/* KPI Score or Shalat Attendance Badge */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                {activeView === "kpi" ? (
-                  <div className="flex flex-col items-end">
-                    <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
-                      {m.totalKpiScore} <span className="text-[10px] font-medium text-slate-400">Poin</span>
-                    </span>
-                    <span className="text-[9px] font-mono text-slate-400">
-                      Shalat: {m.pct}% · Logbook: {m.logbookTasksDone}
+            {/* Date Navigator sesuai PeriodType */}
+            <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
+              {periodType === "bulan" && (
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMonth(prev => subMonths(prev, 1))}
+                    title="Bulan sebelumnya"
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-1 px-2.5 text-center min-w-[130px] justify-center">
+                    <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 capitalize">
+                      {format(viewMonth, "MMMM yyyy", { locale: id })}
                     </span>
                   </div>
-                ) : (
-                  <>
-                    <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400">
-                      <span className="text-emerald-600 font-bold">{m.sh + m.ah + m.mh}H</span>
-                      <span>/</span>
-                      <span className="text-amber-600 font-bold">{m.ss + m.as + m.ms + m.si + m.ai + m.mi}I</span>
-                      <span>/</span>
-                      <span className="text-rose-600 font-bold">{m.sa + m.aa + m.ma}A</span>
-                    </div>
-                    <span className={`text-xs sm:text-sm font-bold w-10 text-right font-mono ${m.pct >= 80 ? "text-emerald-600" : m.pct >= 60 ? "text-amber-600" : "text-rose-600"}`}>{m.pct}%</span>
-                  </>
-                )}
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>}/>
-
-      {/* 7. Today status */}
-      <Card ch={<div>
-        <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-          <p className="font-bold text-sm text-slate-800">Status Hari Ini</p>
-          <span className="text-[11px] text-slate-400 font-mono">{format(new Date(),"d MMM yyyy")}</span>
-        </div>
-        <div className="divide-y divide-slate-50">
-          {fMusyrif.map(m=>{
-            const rec=records.find(r=>r.musyrifId===m.id&&r.date===todayStr());
-            return (
-              <button key={m.id} type="button" onClick={()=>setDetail(m)} className="w-full px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-slate-50/80 transition-colors text-left group">
-                <Av name={m.name} src={m.photo} sz="sm"/>
-                <span className="flex-1 text-xs sm:text-sm font-medium text-slate-700 truncate group-hover:text-emerald-700 transition-colors">{m.name}</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.ashar}/><Chip s={rec?.maghrib}/></div>
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
+                  <button
+                    type="button"
+                    onClick={() => setViewMonth(prev => addMonths(prev, 1))}
+                    title="Bulan berikutnya"
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
+              )}
+
+              {periodType === "pekan" && (
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setViewMonth(prev => subWeeks(prev, 1))}
+                    title="Pekan sebelumnya"
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-1 px-2.5 text-center min-w-[150px] justify-center">
+                    <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800">
+                      {periodInterval.label}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewMonth(prev => addWeeks(prev, 1))}
+                    title="Pekan berikutnya"
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {periodType === "semester" && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center p-1 bg-white rounded-xl border border-slate-200/90 shadow-2xs gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSemesterNumber(1)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                        semesterNumber === 1
+                          ? "bg-sky-100 text-sky-800 font-extrabold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Sem 1 (Ganjil)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSemesterNumber(2)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                        semesterNumber === 2
+                          ? "bg-sky-100 text-sky-800 font-extrabold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Sem 2 (Genap)
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setViewMonth(prev => subYears(prev, 1))}
+                      title="Tahun sebelumnya"
+                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-bold text-slate-800 px-2">
+                      {viewMonth.getFullYear()}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setViewMonth(prev => addYears(prev, 1))}
+                      title="Tahun berikutnya"
+                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {periodType === "tahun_ajaran" && (
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setAcademicYearStart(prev => prev - 1)}
+                    title="Tahun Ajaran sebelumnya"
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-1 px-3 text-center min-w-[140px] justify-center">
+                    <Calendar className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800">
+                      TA {academicYearStart}/{academicYearStart + 1}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAcademicYearStart(prev => prev + 1)}
+                    title="Tahun Ajaran berikutnya"
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 active:scale-95 transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-sky-50 border border-sky-200/80 text-sky-800 text-xs rounded-xl font-medium shadow-2xs shrink-0">
+                <Info className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                <span>Hari Aktif: <b className="font-bold text-sky-900">{days.length} Hari</b></span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* VIEW: PRESENSI SHALAT LENGKAP (KOORDINATOR AUDIT, SPARMAN & SEDAYU, ANOMALI, PERHATIAN ALFA) */}
+      {activeView === "presensi" && (
+        <Suspense fallback={<div className="p-12 text-center text-slate-400 font-medium">Memuat rekap presensi koordinator...</div>}>
+          <RekapSolatKoordinatorModal
+            isOpen={true}
+            onClose={() => setActiveView("kpi")}
+            musyrifList={allM}
+            records={records}
+            currentUserName={authUser?.name}
+            isPage={true}
+          />
+        </Suspense>
+      )}
+
+      {/* VIEW: KPI 6 PILAR (Interactive Metric Filter Cards & Podium) */}
+      {activeView === "kpi" && (
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {/* 4 KARTU RINGKASAN DISTRIBUSI MUTU & KPI (SEIMBANG DENGAN TAB PRESENSI) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 shadow-2xs">
+              <p className="text-[11px] font-medium text-slate-500">Rata-rata Skor KPI</p>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-xl font-black text-slate-800 font-mono">
+                  {avgKpiScore}
+                </span>
+                <span className="text-[10px] text-slate-400">pts (Avg Shalat: {avgPct}%)</span>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-emerald-800">Mumtaz (Istimewa)</p>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-xl font-black text-emerald-700 font-mono">
+                  {totalMumtazCount}
+                </span>
+                <span className="text-[10px] text-emerald-600 font-medium">Musyrif</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-blue-800">Jayyid Jiddan / Jayyid</p>
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              </div>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-xl font-black text-blue-700 font-mono">
+                  {totalJayyidJiddanCount + totalJayyidCount}
+                </span>
+                <span className="text-[10px] text-blue-600 font-medium">Musyrif</span>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-rose-800">Maqbul (Perlu Evaluasi)</p>
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+              </div>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-xl font-black text-rose-700 font-mono">
+                  {totalMaqbulCount}
+                </span>
+                <span className="text-[10px] text-rose-600 font-medium">Musyrif</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Info & Reset Filter */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-xs font-bold text-slate-700">
+                Poin Kinerja 6 Pilar {selectedPillar !== "all" ? `· Fokus: ${PILAR_METADATA.find(p => p.id === selectedPillar)?.label || selectedPillar}` : "· Seluruh Pilar"}
+              </p>
+            </div>
+            {selectedPillar !== "all" ? (
+              <button
+                type="button"
+                onClick={() => setSelectedPillar("all")}
+                className="text-[11px] font-bold text-sky-700 hover:text-sky-900 bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-xl border border-sky-200 transition-all active:scale-95 shadow-2xs"
+              >
+                ✕ Reset ke Semua Pilar
               </button>
-            );
-          })}
+            ) : (
+              <span className="text-[10px] text-slate-400 font-mono">Klik kartu pilar untuk filter</span>
+            )}
+          </div>
+
+          {/* 6 Pilar KPI Interactive Filter Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {[
+              { id: "kepengasuhan", label: "1. Asuh", sub: "Medis & Bimbingan", score: ranked.reduce((acc, m) => acc + (m.kepengasuhanScore || 0), 0), icon: HeartHandshake, bg: "bg-rose-50/70", border: "border-rose-200/60", text: "text-rose-800", activeStyle: "ring-2 ring-rose-500 bg-rose-100/90 shadow-md scale-[1.02]" },
+              { id: "quran", label: "2. Qur'an", sub: "Tahfizh & Tahsin", score: ranked.reduce((acc, m) => acc + (m.quranScore || 0), 0), icon: BookOpen, bg: "bg-sky-50/70", border: "border-sky-200/60", text: "text-sky-800", activeStyle: "ring-2 ring-sky-500 bg-sky-100/90 shadow-md scale-[1.02]" },
+              { id: "ibadah", label: "3. Ibadah", sub: "Shalat & Sunnah", score: ranked.reduce((acc, m) => acc + (m.ibadahScore || 0), 0), icon: Sun, bg: "bg-amber-50/70", border: "border-amber-200/60", text: "text-amber-800", activeStyle: "ring-2 ring-amber-500 bg-amber-100/90 shadow-md scale-[1.02]" },
+              { id: "bahasa", label: "4. Bahasa", sub: "Bina & Muhadatsah", score: ranked.reduce((acc, m) => acc + (m.bahasaScore || 0), 0), icon: Languages, bg: "bg-teal-50/70", border: "border-teal-200/60", text: "text-teal-800", activeStyle: "ring-2 ring-teal-500 bg-teal-100/90 shadow-md scale-[1.02]" },
+              { id: "kebersihan", label: "5. Bersih", sub: "Piket & Kerapian", score: ranked.reduce((acc, m) => acc + (m.kebersihanScore || 0), 0), icon: Sparkles, bg: "bg-emerald-50/70", border: "border-emerald-200/60", text: "text-emerald-800", activeStyle: "ring-2 ring-emerald-500 bg-emerald-100/90 shadow-md scale-[1.02]" },
+              { id: "kedisiplinan", label: "6. Disiplin", sub: "Patroli & Agenda", score: ranked.reduce((acc, m) => acc + (m.kedisiplinanScore || 0), 0), icon: ShieldCheck, bg: "bg-indigo-50/70", border: "border-indigo-200/60", text: "text-indigo-800", activeStyle: "ring-2 ring-indigo-500 bg-indigo-100/90 shadow-md scale-[1.02]" },
+            ].map(card => {
+              const IconComp = card.icon;
+              const isSelected = selectedPillar === card.id;
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => setSelectedPillar(isSelected ? "all" : (card.id as any))}
+                  className={`${card.bg} rounded-2xl p-2.5 border ${card.border} flex flex-col justify-between text-left transition-all active:scale-95 cursor-pointer shadow-2xs ${
+                    isSelected ? card.activeStyle : "hover:brightness-95 hover:shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold ${card.text} uppercase tracking-wider`}>{card.label}</span>
+                    <IconComp className={`w-3.5 h-3.5 ${card.text}`}/>
+                  </div>
+                  <p className="text-base font-black text-slate-900 font-mono mt-1">
+                    {card.score} <span className="text-[10px] font-normal text-slate-500">pts</span>
+                  </p>
+                  <p className={`text-[9px] ${card.text} mt-0.5 truncate`}>{card.sub}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Podium Top 3 (Gamifikasi & Apresiasi) */}
+          {ranked.length >= 3 && (
+            <div className="bg-gradient-to-b from-amber-50/50 via-white to-white rounded-3xl p-4 sm:p-5 border border-amber-200/50 shadow-xs">
+              <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-1.5">
+                  <Trophy className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold text-slate-800">
+                    Podium Musyrif Teladan {selectedPillar !== "all" ? `· ${PILAR_METADATA.find(p => p.id === selectedPillar)?.label || selectedPillar}` : ""}
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">Bulan ini</span>
+              </div>
+
+              <div className="flex items-end justify-center gap-2 sm:gap-4 pt-1 pb-1">
+                {/* Juara 2 */}
+                {ranked[1] && (
+                  <button
+                    type="button"
+                    onClick={() => setDetail(ranked[1])}
+                    className="flex-1 max-w-[130px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/60"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 border-2 border-slate-300 flex items-center justify-center font-bold text-slate-700 shadow-2xs relative mb-1.5 group-hover:scale-105 transition-transform">
+                      <Medal className="w-6 h-6 text-slate-400" />
+                      <span className="absolute -bottom-2 bg-slate-700 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">#2</span>
+                    </div>
+                    <div className="font-bold text-xs text-slate-900 truncate w-full">{ranked[1].name.split(" ")[0]}</div>
+                    <div className="text-[10px] text-slate-500 truncate w-full">{ranked[1].asrama}</div>
+                    <div className="text-xs font-bold text-emerald-700 font-mono mt-1 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      {getScoreForDisplay(ranked[1])}
+                    </div>
+                  </button>
+                )}
+
+                {/* Juara 1 */}
+                {ranked[0] && (
+                  <button
+                    type="button"
+                    onClick={() => setDetail(ranked[0])}
+                    className="flex-1 max-w-[150px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2.5 rounded-2xl bg-amber-50/70 border-2 border-amber-300 shadow-xs relative -top-2"
+                  >
+                    <div className="absolute -top-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-2xs">
+                      Juara 1
+                    </div>
+                    <div className="w-14 h-14 rounded-2xl bg-amber-100 border-2 border-amber-400 flex items-center justify-center font-bold text-amber-800 shadow-xs relative mb-1.5 group-hover:scale-105 transition-transform mt-1">
+                      <Crown className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <div className="font-bold text-xs sm:text-sm text-slate-900 truncate w-full">{ranked[0].name}</div>
+                    <div className="text-[10px] text-emerald-700 font-semibold truncate w-full">{ranked[0].asrama}</div>
+                    <div className="text-xs sm:text-sm font-extrabold text-amber-900 font-mono mt-1 bg-amber-200/80 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                      {getScoreForDisplay(ranked[0])}
+                    </div>
+                  </button>
+                )}
+
+                {/* Juara 3 */}
+                {ranked[2] && (
+                  <button
+                    type="button"
+                    onClick={() => setDetail(ranked[2])}
+                    className="flex-1 max-w-[130px] flex flex-col items-center text-center group cursor-pointer active:scale-95 transition-all p-2 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/60"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border-2 border-amber-600/40 flex items-center justify-center font-bold text-amber-800 shadow-2xs relative mb-1.5 group-hover:scale-105 transition-transform">
+                      <Award className="w-6 h-6 text-amber-700" />
+                      <span className="absolute -bottom-2 bg-amber-800 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">#3</span>
+                    </div>
+                    <div className="font-bold text-xs text-slate-900 truncate w-full">{ranked[2].name.split(" ")[0]}</div>
+                    <div className="text-[10px] text-slate-500 truncate w-full">{ranked[2].asrama}</div>
+                    <div className="text-xs font-bold text-emerald-700 font-mono mt-1 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      {getScoreForDisplay(ranked[2])}
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </div>}/>
+      )}
+
+      {/* Bagian KPI View (Chart, Filter, Tabel KPI, dan Status Hari Ini) */}
+      {activeView === "kpi" && (
+        <>
+          {/* 5. Filters & Search Bar */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+              <input 
+                value={search} 
+                onChange={e => setSearch(e.target.value)} 
+                placeholder="Cari nama musyrif..." 
+                className="w-full pl-9 pr-4 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-400 font-medium shadow-2xs"
+              />
+            </div>
+            <div className="flex gap-2">
+              <select 
+                value={filterAsrama} 
+                onChange={e => setFilterAsrama(e.target.value)} 
+                className="px-3 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-700 font-medium shadow-2xs cursor-pointer"
+              >
+                {["Semua", ...ASRAMAS].map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <button 
+                type="button"
+                onClick={() => setSortBy(s => s === "kpi" ? "pct" : s === "pct" ? "name" : "kpi")} 
+                className="px-3 py-2.5 text-xs bg-white rounded-2xl ring-1 ring-slate-200/80 hover:bg-slate-50 text-slate-700 font-medium shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all"
+                title="Ubah Urutan"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500"/>
+                <span>{sortBy === "kpi" ? "Poin KPI" : sortBy === "pct" ? "% Shalat" : "Nama A-Z"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 6. Musyrif Ranking Table (KPI 6 Pilar) */}
+          <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-2xs bg-white">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50/60">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <p className="font-bold text-sm text-slate-800">
+                  Tabel Evaluasi Kinerja (KPI 6 Pilar)
+                </p>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                  Avg: {avgKpiScore} Pts
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-mono">{ranked.length} musyrif</span>
+            </div>
+
+            <div className="overflow-x-auto max-h-[520px]">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100/90 sticky top-0 z-10 text-[11px] text-slate-700 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-3 text-center w-12">#</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Nama Musyrif</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Asrama</th>
+                    <th className={`py-2.5 px-2 text-center text-rose-800 whitespace-nowrap ${selectedPillar === "kepengasuhan" ? "bg-rose-100 ring-1 ring-rose-300 font-black" : "bg-rose-50/50"}`}>1. Asuh</th>
+                    <th className={`py-2.5 px-2 text-center text-sky-800 whitespace-nowrap ${selectedPillar === "quran" ? "bg-sky-100 ring-1 ring-sky-300 font-black" : "bg-sky-50/50"}`}>2. Qur'an</th>
+                    <th className={`py-2.5 px-2 text-center text-amber-800 whitespace-nowrap ${selectedPillar === "ibadah" ? "bg-amber-100 ring-1 ring-amber-300 font-black" : "bg-amber-50/50"}`}>3. Ibadah</th>
+                    <th className={`py-2.5 px-2 text-center text-teal-800 whitespace-nowrap ${selectedPillar === "bahasa" ? "bg-teal-100 ring-1 ring-teal-300 font-black" : "bg-teal-50/50"}`}>4. Bahasa</th>
+                    <th className={`py-2.5 px-2 text-center text-emerald-800 whitespace-nowrap ${selectedPillar === "kebersihan" ? "bg-emerald-100 ring-1 ring-emerald-300 font-black" : "bg-emerald-50/50"}`}>5. Bersih</th>
+                    <th className={`py-2.5 px-2 text-center text-indigo-800 whitespace-nowrap ${selectedPillar === "kedisiplinan" ? "bg-indigo-100 ring-1 ring-indigo-300 font-black" : "bg-indigo-50/50"}`}>6. Disiplin</th>
+                    <th className="py-2.5 px-3 text-center font-black text-slate-900 bg-slate-200/60 whitespace-nowrap">Total Skor</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Predikat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {ranked.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="py-8 text-center text-slate-400">
+                        Tidak ada data musyrif yang cocok.
+                      </td>
+                    </tr>
+                  ) : (
+                    ranked.map((m, i) => (
+                      <tr
+                        key={m.id}
+                        onClick={() => setDetail(m)}
+                        className="hover:bg-slate-50/90 transition-colors cursor-pointer group"
+                      >
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500 whitespace-nowrap">
+                          {i === 0 ? "🥇 1" : i === 1 ? "🥈 2" : i === 2 ? "🥉 3" : `${i + 1}`}
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5">
+                            <Av name={m.name} src={m.photo} sz="xs" />
+                            <div>
+                              <p className="font-semibold text-xs text-slate-800 group-hover:text-emerald-700 transition-colors">{m.name}</p>
+                              <p className="text-[10px] text-slate-400">{m.kelas || "-"}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-slate-500 whitespace-nowrap text-[11px]">
+                          {m.asrama}
+                        </td>
+                        <td className={`py-2.5 px-2 text-center font-mono text-slate-700 ${selectedPillar === "kepengasuhan" ? "bg-rose-50 font-black text-rose-900" : ""}`}>
+                          {m.kepengasuhanScore || 0}
+                        </td>
+                        <td className={`py-2.5 px-2 text-center font-mono text-slate-700 ${selectedPillar === "quran" ? "bg-sky-50 font-black text-sky-900" : ""}`}>
+                          {m.quranScore || 0}
+                        </td>
+                        <td className={`py-2.5 px-2 text-center font-mono text-slate-700 ${selectedPillar === "ibadah" ? "bg-amber-50 font-black text-amber-900" : ""}`}>
+                          {m.ibadahScore || 0}
+                        </td>
+                        <td className={`py-2.5 px-2 text-center font-mono text-slate-700 ${selectedPillar === "bahasa" ? "bg-teal-50 font-black text-teal-900" : ""}`}>
+                          {m.bahasaScore || 0}
+                        </td>
+                        <td className={`py-2.5 px-2 text-center font-mono text-slate-700 ${selectedPillar === "kebersihan" ? "bg-emerald-50 font-black text-emerald-900" : ""}`}>
+                          {m.kebersihanScore || 0}
+                        </td>
+                        <td className={`py-2.5 px-2 text-center font-mono text-slate-700 ${selectedPillar === "kedisiplinan" ? "bg-indigo-50 font-black text-indigo-900" : ""}`}>
+                          {m.kedisiplinanScore || 0}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-black text-slate-900 bg-slate-50/80 font-mono text-xs">
+                          {m.totalKpiScore}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${m.predikatBadge}`}>
+                            {m.predikat}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 7. Today status */}
+          <Card ch={<div>
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+              <p className="font-bold text-sm text-slate-800">Status Hari Ini</p>
+              <span className="text-[11px] text-slate-400 font-mono">{format(new Date(),"d MMM yyyy")}</span>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {fMusyrif.map(m=>{
+                const rec=records.find(r=>r.musyrifId===m.id&&r.date===todayStr());
+                return (
+                  <button key={m.id} type="button" onClick={()=>setDetail(m)} className="w-full px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-slate-50/80 transition-colors text-left group">
+                    <Av name={m.name} src={m.photo} sz="sm"/>
+                    <span className="flex-1 text-xs sm:text-sm font-medium text-slate-700 truncate group-hover:text-emerald-700 transition-colors">{m.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1.5"><Chip s={rec?.subuh}/><Chip s={rec?.ashar}/><Chip s={rec?.maghrib}/></div>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"/>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>}/>
+        </>
+      )}
 
       {/* Detail modal with Cross-Navigation to Riwayat */}
       {detail && detailM && (
@@ -4709,40 +5009,54 @@ function PageRekap({
               </div>
             )}
             <div className="p-5 overflow-y-auto flex-1 space-y-3.5">
-              {/* 4 Pillars KPI Summary in Modal */}
+              {/* 6 Pillars KPI Summary in Modal */}
               <div className="bg-slate-50/90 rounded-2xl p-3.5 border border-slate-200/70 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Rincian KPI 4 Pilar</span>
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Rincian KPI 6 Pilar</span>
                   <span className="text-xs font-black text-[#0C4E8C] font-mono">{detailM.totalKpiScore} Poin Total</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
-                    <div className="flex items-center justify-between text-[10px] text-amber-800 font-bold">
-                      <span>P1: Shalat ({detailM.pct}%)</span>
-                      <Sun className="w-3 h-3 text-amber-500"/>
+                    <div className="flex items-center justify-between text-[10px] text-rose-800 font-bold">
+                      <span>1. Asuh</span>
+                      <HeartHandshake className="w-3 h-3 text-rose-500"/>
                     </div>
-                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.sholatScore} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.kepengasuhanScore || 0} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
                   </div>
                   <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
                     <div className="flex items-center justify-between text-[10px] text-sky-800 font-bold">
-                      <span>P2: Logbook ({detailM.logbookTasksDone})</span>
-                      <ClipboardList className="w-3 h-3 text-sky-500"/>
+                      <span>2. Qur'an</span>
+                      <BookOpen className="w-3 h-3 text-sky-500"/>
                     </div>
-                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.logbookScore} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.quranScore || 0} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
                   </div>
                   <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
-                    <div className="flex items-center justify-between text-[10px] text-purple-800 font-bold">
-                      <span>P3: Agenda ({detailM.kegiatanDone})</span>
-                      <Building2 className="w-3 h-3 text-purple-500"/>
+                    <div className="flex items-center justify-between text-[10px] text-amber-800 font-bold">
+                      <span>3. Ibadah</span>
+                      <Sun className="w-3 h-3 text-amber-500"/>
                     </div>
-                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.kegiatanScore} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.ibadahScore || 0} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-teal-800 font-bold">
+                      <span>4. Bahasa</span>
+                      <Languages className="w-3 h-3 text-teal-500"/>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.bahasaScore || 0} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
                   </div>
                   <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
                     <div className="flex items-center justify-between text-[10px] text-emerald-800 font-bold">
-                      <span>P4: Sunnah ({detailM.mutabaahDaysCount} hr)</span>
-                      <BookOpen className="w-3 h-3 text-emerald-500"/>
+                      <span>5. Bersih</span>
+                      <Sparkles className="w-3 h-3 text-emerald-500"/>
                     </div>
-                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.mutabaahPoints} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.kebersihanScore || 0} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
+                  </div>
+                  <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                    <div className="flex items-center justify-between text-[10px] text-indigo-800 font-bold">
+                      <span>6. Disiplin</span>
+                      <ShieldCheck className="w-3 h-3 text-indigo-500"/>
+                    </div>
+                    <p className="text-sm font-black text-slate-900 font-mono mt-0.5">{detailM.kedisiplinanScore || 0} <span className="text-[9px] font-normal text-slate-400">pts</span></p>
                   </div>
                 </div>
               </div>
@@ -7923,10 +8237,9 @@ export default function App() {
   const [showRaport, setShowRaport] = useState(false);
   const [showMusyrifManager, setShowMusyrifManager] = useState(false);
   const [showRekapSolatKoordinator, setShowRekapSolatKoordinator] = useState(false);
+  const [rekapInitialView, setRekapInitialView] = useState<"kpi" | "presensi" | "koordinator">("kpi");
   const [showPamongManager, setShowPamongManager] = useState(false);
   const [showCloudSync, setShowCloudSync] = useState(false);
-  const [showIntegrityAudit, setShowIntegrityAudit] = useState(false);
-  const [isPurgingAnomalies, setIsPurgingAnomalies] = useState(false);
   const [targetMusyrifId, setTargetMusyrifId] = useState<string | undefined>(undefined);
   const [targetDate, setTargetDate] = useState<string | undefined>(undefined);
   const [targetTaskKey, setTargetTaskKey] = useState<string | undefined>(undefined);
@@ -9137,91 +9450,6 @@ export default function App() {
     googleSyncService.enqueue("Musyrif", createdMusyrif, "upsert", true);
     showToast(`Pamong ${createdAuth.name} berhasil ditambahkan!`, "success");
   };
-
-  // Anomaly & Bot Injection Scanner (Single Source of Truth)
-  const detectedViolations = useMemo<IntegrityViolation[]>(() => {
-    // Extract flattened logbook records from logbookData
-    const flattenedLogs: any[] = [];
-    Object.entries(logbookData).forEach(([mId, dateMap]: [string, any]) => {
-      if (dateMap && typeof dateMap === "object") {
-        Object.entries(dateMap).forEach(([dt, tObj]: [string, any]) => {
-          if (tObj && typeof tObj === "object") {
-            Object.entries(tObj).forEach(([tKey, val]: [string, any]) => {
-              if (val && typeof val === "object" && (val.done || val.stepsCount)) {
-                flattenedLogs.push({
-                  id: `${mId}_${dt}_${tKey}`,
-                  musyrifId: mId,
-                  date: dt,
-                  taskKey: tKey,
-                  ...val
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-
-    const res = scanAnomalies(flattenedLogs, records, musyrifList);
-    return res.violations;
-  }, [logbookData, records, musyrifList]);
-
-  const handlePurgeAnomalies = async () => {
-    setIsPurgingAnomalies(true);
-    try {
-      // 1. Purge m16 anomalous fake logs (steps = 250 without photo)
-      let cleanedLogCount = 0;
-      setLogbookData(prev => {
-        const next: LogbookStorage = { ...prev };
-        if (next["m16"]) {
-          const dateCopy = { ...next["m16"] };
-          Object.keys(dateCopy).forEach(dt => {
-            const dayTasks = { ...dateCopy[dt] };
-            let hasChange = false;
-            Object.keys(dayTasks).forEach(tKey => {
-              const task = dayTasks[tKey];
-              if (task && task.stepsCount === 250 && (!task.photoUrl || task.photoUrl === "")) {
-                delete dayTasks[tKey];
-                hasChange = true;
-                cleanedLogCount++;
-                googleSyncService.enqueue("Logbook", { id: `m16_${dt}_${tKey}` }, "delete");
-              }
-            });
-            if (hasChange) {
-              dateCopy[dt] = dayTasks;
-            }
-          });
-          next["m16"] = dateCopy;
-        }
-        return next;
-      });
-
-      // 2. Revert any bypass records
-      setRecords(prev => {
-        return prev.map(r => {
-          if (r.musyrifId === "m16" && (r.markedBy === "admin_syamsa_bypass_01" || r.markedBy === "super_admin_01")) {
-            const updated = {
-              ...r,
-              subuh: "alpa" as AttendanceStatus,
-              markedBy: "audit_revoked_fraud"
-            };
-            googleSyncService.enqueue("Records", updated, "upsert");
-            return updated;
-          }
-          return r;
-        });
-      });
-
-      // Flush queue immediately
-      await googleSyncService.flush();
-      showToast(`Pembersihan anomali selesai! Data palsu berhasil dibatalkan dan disinkronkan ke cloud.`, "success");
-    } catch (err) {
-      showToast("Gagal memproses pembersihan anomali.", "error");
-    } finally {
-      setIsPurgingAnomalies(false);
-    }
-  };
-
 
   const handleUpdatePamong = (updatedPamong: Pamong) => {
     if (authUser?.role !== "koordinator_musyrif") {
@@ -10509,7 +10737,7 @@ export default function App() {
       <main className={
         page === "galeri-logbook"
           ? "w-full max-w-lg mx-auto px-0 py-0 pb-24 flex-1"
-          : (page === "rekap-solat-koordinator" || page === "integrity-audit" || page === "rekap")
+          : (page === "rekap-solat-koordinator" || page === "rekap")
             ? "max-w-6xl mx-auto px-3 sm:px-6 py-5 pb-24 w-full flex-1"
             : "max-w-2xl mx-auto px-4 py-5 pb-24 w-full flex-1"
       }>
@@ -10566,12 +10794,11 @@ export default function App() {
                 onOpenMutabaah={() => setShowMutabaah(true)}
                 onOpenSantriSakit={() => setShowSantriSakit(true)}
                 onOpenSantriIzin={() => setPage("izin-santri")}
-                onOpenLeaderboard={() => setPage("leaderboard")}
+                onOpenLeaderboard={() => { setRekapInitialView("kpi"); setPage("rekap"); }}
                 onOpenRaport={() => setShowRaport(true)}
                 onOpenMusyrifManager={() => setPage("musyrif-manager")}
-                onOpenRekapSolatKoordinator={() => setPage("rekap-solat-koordinator")}
+                onOpenRekapSolatKoordinator={() => { setRekapInitialView("koordinator"); setPage("rekap"); }}
                 onOpenPamongManager={() => setPage("pamong-manager")}
-                onOpenIntegrityAudit={() => setPage("integrity-audit")}
                 onOpenKalenderHijriah={() => setPage("kalender-hijriah")}
                 onOpenKalenderPendidikan={() => setPage("kalender-pendidikan")}
                 onInstallPWA={handleInstallPWA}
@@ -10590,7 +10817,6 @@ export default function App() {
                 kegiatanRecords={kegiatanRecords}
                 isLoadingIzinSedayu={isLoadingIzinSedayu}
                 canDeletePhoto={canDeletePhoto}
-                detectedViolations={detectedViolations}
                 onSaveLogbook={handleSaveLogbook}
                 showToast={showToast}
               />
@@ -10622,12 +10848,13 @@ export default function App() {
                 onSelectMusyrif={setSelectedMusyrifId} 
                 onGoTo={setPage}
                 musyrifListAll={musyrifList}
-                onOpenRekapSolatKoordinator={() => setPage("rekap-solat-koordinator")}
+                onOpenRekapSolatKoordinator={() => { setRekapInitialView("koordinator"); setPage("rekap"); }}
                 logbookData={logbookData}
                 mutabaahData={mutabaahData}
                 kegiatanRecords={kegiatanRecords}
                 pengasuhanList={pengasuhanKhususList}
                 agendaList={agendaRapatList}
+                initialView={rekapInitialView}
               />
             </motion.div>
           )}
@@ -11004,17 +11231,6 @@ export default function App() {
               />
             </motion.div>
           )}
-          {page==="integrity-audit" && (
-            <motion.div key="integrity-audit" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="w-full">
-              <IntegrityAuditModal
-                isPage={true}
-                onClose={() => setPage("dashboard")}
-                violations={detectedViolations}
-                onPurgeAnomalies={handlePurgeAnomalies}
-                isPurging={isPurgingAnomalies}
-              />
-            </motion.div>
-          )}
         </AnimatePresence>
       </Suspense>
     </main>
@@ -11276,20 +11492,6 @@ export default function App() {
           />
         )}
       </AnimatePresence>
-
-      {/* 11b. Papan Integritas & Deteksi Anomali Modal */}
-      <AnimatePresence>
-        {showIntegrityAudit && (
-          <IntegrityAuditModal
-            isOpen={showIntegrityAudit}
-            onClose={() => setShowIntegrityAudit(false)}
-            violations={detectedViolations}
-            onPurgeAnomalies={handlePurgeAnomalies}
-            isPurging={isPurgingAnomalies}
-          />
-        )}
-      </AnimatePresence>
-
 
       {/* 12. Google Sheets Cloud Sync Modal */}
       <CloudSyncModal
