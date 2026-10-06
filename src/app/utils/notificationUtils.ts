@@ -43,6 +43,7 @@ export const CUSTOM_CALL_NAMES: Record<string, string> = {
   "hafidz nawaf fauzil adhim": "Fauzil",
   "mukti abdul ghofar": "Ghofar",
   "fadhl maula fawwas": "Fawwas",
+  "haziq syazani fauzi": "Haziq",
   "muhammad syaqib ridho asy syafiq": "Ridho",
   "muhammad islam al ghozy": "Ghozy",
   "ananda hasan putra rahman": "Hasan",

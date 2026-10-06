@@ -235,6 +235,7 @@ const CUSTOM_CALL_NAMES: Record<string, string> = {
   "hafidz nawaf fauzil adhim": "Fauzil",
   "mukti abdul ghofar": "Ghofar",
   "fadhl maula fawwas": "Fawwas",
+  "haziq syazani fauzi": "Haziq",
   "muhammad syaqib ridho asy syafiq": "Ridho",
   "muhammad islam al ghozy": "Ghozy",
   "ananda hasan putra rahman": "Hasan",
@@ -368,7 +369,7 @@ const MUSYRIF_LIST: Musyrif[] = [
 
   // ─── ASRAMA SEDAYU GEDUNG B (Pamong: Muh. Ahnaf Lubab, M.Pd.) ───
   { id:"m24", name:"Mukti Abdul Ghofar",           role:"musyrif",            kelas:"3 B",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 B",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muktighofar705@gmail.com",        phone:"6282241379820" },
-  { id:"m25", name:"Fadhl Maula Fawwas",           role:"musyrif",            kelas:"3 C",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 C",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"maulafawas@gmail.com",            phone:"6281228679325" },
+  { id:"m58", name:"Haziq Syazani Fauzi",          role:"musyrif",            kelas:"3 C",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 C",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"alqaqa2602@gmail.com",            phone:"6281568368980" },
   { id:"m26", name:"Fauzan Tasykurun Akmal",       role:"musyrif",            kelas:"3 D",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 D",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"fauzanakmaal15@gmail.com",        phone:"6287833527289" },
   { id:"m27", name:"Muhammad Syaqib Ridho Asy Syafiq",role:"musyrif",         kelas:"3 E",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 E",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"idoosakippp@gmail.com",           phone:"628988158493" },
   { id:"m28", name:"Muhammad Islam Al Ghozy",      role:"musyrif",            kelas:"3 F",         tingkat:"Kelas 3", asrama:"Asrama Sedayu Gedung B", kamar:"3 F",         pamong:"Muh. Ahnaf Lubab, M.Pd.",             email:"muhammadislamalghozy2801@gmail.com",phone:"6281233421108" },
